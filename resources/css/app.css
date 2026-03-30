@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Cursor pointer for interactive elements */
+button, a, [role="button"], label[for], select, summary {
+    cursor: pointer;
+}
+
+/* Alpine.js cloak */
+[x-cloak] {
+    display: none !important;
+}

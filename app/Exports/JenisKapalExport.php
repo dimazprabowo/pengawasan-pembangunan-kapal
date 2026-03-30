@@ -1,0 +1,92 @@
+<?php
+
+namespace App\Exports;
+
+use App\Models\JenisKapal;
+use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithTitle;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+
+class JenisKapalExport implements FromCollection, WithHeadings, WithMapping, WithStyles, WithTitle
+{
+    protected $search;
+    protected $statusFilter;
+    protected $companyFilter;
+
+    public function __construct($search = '', $statusFilter = '', $companyFilter = null)
+    {
+        $this->search = $search;
+        $this->statusFilter = $statusFilter;
+        $this->companyFilter = $companyFilter;
+    }
+
+    public function collection()
+    {
+        return JenisKapal::with('company')
+            ->withCount('laporan')
+            ->when($this->search, function ($q) {
+                $q->where(function ($q) {
+                    $q->where('nama', 'like', "%{$this->search}%")
+                      ->orWhere('deskripsi', 'like', "%{$this->search}%")
+                      ->orWhereHas('company', function ($q) {
+                          $q->where('name', 'like', "%{$this->search}%")
+                            ->orWhere('code', 'like', "%{$this->search}%");
+                      });
+                });
+            })
+            ->when($this->statusFilter !== null && $this->statusFilter !== '', function ($q) {
+                $q->where('status', $this->statusFilter);
+            })
+            ->when($this->companyFilter, function ($q) {
+                $q->where('company_id', $this->companyFilter);
+            })
+            ->orderBy('nama')
+            ->get();
+    }
+
+    public function headings(): array
+    {
+        return [
+            'No',
+            'Jenis Kapal',
+            'Perusahaan',
+            'Kode Perusahaan',
+            'Deskripsi',
+            'Jumlah Laporan',
+            'Status',
+            'Dibuat Pada',
+        ];
+    }
+
+    public function map($jenisKapal): array
+    {
+        static $no = 0;
+        $no++;
+
+        return [
+            $no,
+            $jenisKapal->nama,
+            $jenisKapal->company->name,
+            $jenisKapal->company->code,
+            $jenisKapal->deskripsi ?? '-',
+            $jenisKapal->laporan_count,
+            $jenisKapal->status->label(),
+            $jenisKapal->created_at->format('d/m/Y H:i'),
+        ];
+    }
+
+    public function styles(Worksheet $sheet)
+    {
+        return [
+            1 => ['font' => ['bold' => true]],
+        ];
+    }
+
+    public function title(): string
+    {
+        return 'Jenis Kapal';
+    }
+}
