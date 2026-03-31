@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Laporan;
+use App\Models\LaporanLampiran;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -15,7 +16,7 @@ class LaporanService
         ?int $jenisKapalId = null,
         int $perPage = 15
     ): LengthAwarePaginator {
-        $query = Laporan::with(['user', 'jenisKapal.company', 'jenisKapal.galangan'])
+        $query = Laporan::with(['user', 'jenisKapal.company', 'jenisKapal.galangan', 'lampiran'])
             ->where('tipe', $tipe)
             ->byJenisKapal($jenisKapalId);
 
@@ -60,7 +61,14 @@ class LaporanService
 
     public function delete(Laporan $laporan): void
     {
+        // Delete all lampiran files first
+        foreach ($laporan->lampiran as $lampiran) {
+            $this->deleteLampiranFile($lampiran);
+        }
+
+        // Delete old single file if exists (backward compatibility)
         $this->deleteFile($laporan);
+
         $laporan->delete();
     }
 
@@ -74,10 +82,38 @@ class LaporanService
         ]);
     }
 
+    public function addLampiran(Laporan $laporan, array $lampiranData): LaporanLampiran
+    {
+        return $laporan->lampiran()->create([
+            'file_name' => $lampiranData['file_name'],
+            'file_size' => $lampiranData['file_size'] ?? null,
+            'keterangan' => $lampiranData['keterangan'] ?? null,
+            'file_status' => 'pending',
+        ]);
+    }
+
+    public function updateLampiranKeterangan(LaporanLampiran $lampiran, ?string $keterangan): void
+    {
+        $lampiran->update(['keterangan' => $keterangan]);
+    }
+
+    public function deleteLampiran(LaporanLampiran $lampiran): void
+    {
+        $this->deleteLampiranFile($lampiran);
+        $lampiran->delete();
+    }
+
     private function deleteFile(Laporan $laporan): void
     {
         if ($laporan->file_path && Storage::disk('local')->exists($laporan->file_path)) {
             Storage::disk('local')->delete($laporan->file_path);
+        }
+    }
+
+    private function deleteLampiranFile(LaporanLampiran $lampiran): void
+    {
+        if ($lampiran->file_path && Storage::disk('local')->exists($lampiran->file_path)) {
+            Storage::disk('local')->delete($lampiran->file_path);
         }
     }
 }

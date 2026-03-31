@@ -3,7 +3,7 @@
 namespace App\Livewire\Laporan;
 
 use App\Enums\LaporanTipe;
-use App\Jobs\ProcessLaporanFile;
+use App\Jobs\ProcessLaporanLampiran;
 use App\Livewire\Traits\HasNotification;
 use App\Models\Cuaca;
 use App\Models\JenisKapal;
@@ -37,10 +37,25 @@ class LaporanEdit extends Component
     public ?int $cuaca_sore_id = null;
     public ?int $kelembaban_sore_id = null;
 
-    public $file;
+    // Lampiran baru yang akan ditambahkan
+    public array $newLampiran = [];
 
-    // Delete file confirmation
-    public bool $showDeleteFileModal = false;
+    // Keterangan untuk existing lampiran yang diedit
+    public array $lampiranKeterangan = [];
+
+    // Delete lampiran confirmation
+    public bool $showDeleteLampiranModal = false;
+    public ?int $deletingLampiranId = null;
+
+    // Image cropper modal
+    public bool $showCropperModal = false;
+    public ?int $croppingLampiranIndex = null;
+    public ?string $croppingImageUrl = null;
+    public array $cropData = [];
+
+    // Lampiran preview modal
+    public bool $showPreviewModal = false;
+    public ?int $previewLampiranId = null;
 
     public function mount(Laporan $laporan): void
     {
@@ -52,7 +67,22 @@ class LaporanEdit extends Component
         $this->tanggal_laporan = $laporan->tanggal_laporan->format('Y-m-d');
         $this->isi = $laporan->isi ?? '';
         $this->catatan = $laporan->catatan ?? '';
-        
+
+        // Load existing lampiran keterangan
+        foreach ($laporan->lampiran as $lampiran) {
+            $this->lampiranKeterangan[$lampiran->id] = $lampiran->keterangan ?? '';
+        }
+
+        // Initialize with 1 empty new lampiran field
+        $this->newLampiran = [
+            [
+                'file' => null,
+                'keterangan' => '',
+                'cropData' => null,
+                'is_cropped' => false,
+            ]
+        ];
+
         if ($laporan->tipe->value === 'harian') {
             $this->suhu = $laporan->suhu;
             $this->cuaca_pagi_id = $laporan->cuaca_pagi_id;
@@ -72,7 +102,9 @@ class LaporanEdit extends Component
             'tanggal_laporan' => 'required|date',
             'isi' => 'nullable|string',
             'catatan' => 'nullable|string|max:1000',
-            'file' => file_upload_validation_rule(),
+            'newLampiran.*.file' => file_upload_validation_rule(),
+            'newLampiran.*.keterangan' => 'nullable|string|max:1000',
+            'lampiranKeterangan.*' => 'nullable|string|max:1000',
         ];
 
         if ($this->laporan->tipe->value === 'harian') {
@@ -96,7 +128,9 @@ class LaporanEdit extends Component
             'tanggal_laporan' => 'tanggal laporan',
             'isi' => 'isi laporan',
             'catatan' => 'catatan',
-            'file' => 'file lampiran',
+            'newLampiran.*.file' => 'file lampiran baru',
+            'newLampiran.*.keterangan' => 'keterangan lampiran baru',
+            'lampiranKeterangan.*' => 'keterangan lampiran',
         ];
 
         if ($this->laporan->tipe->value === 'harian') {
@@ -112,28 +146,99 @@ class LaporanEdit extends Component
         return $attributes;
     }
 
-    public function confirmDeleteFile(): void
+    public function confirmDeleteLampiran(int $lampiranId): void
     {
-        $this->showDeleteFileModal = true;
+        $this->deletingLampiranId = $lampiranId;
+        $this->showDeleteLampiranModal = true;
     }
 
-    public function deleteFile(LaporanService $service): void
+    public function deleteLampiran(LaporanService $service): void
     {
         $this->authorize('update', $this->laporan);
 
         try {
-            $service->removeFile($this->laporan);
+            $lampiran = $this->laporan->lampiran()->findOrFail($this->deletingLampiranId);
+            $service->deleteLampiran($lampiran);
             $this->laporan->refresh();
-            $this->showDeleteFileModal = false;
-            $this->notifySuccess('File berhasil dihapus.');
+            $this->showDeleteLampiranModal = false;
+            $this->deletingLampiranId = null;
+            $this->notifySuccess('Lampiran berhasil dihapus.');
         } catch (\Exception $e) {
-            $this->notifyError('Gagal menghapus file: ' . $e->getMessage());
+            $this->notifyError('Gagal menghapus lampiran: ' . $e->getMessage());
         }
     }
 
-    public function removeNewFile(): void
+    public function addLampiran(): void
     {
-        $this->file = null;
+        $this->newLampiran[] = [
+            'file' => null,
+            'keterangan' => '',
+            'cropData' => null,
+            'is_cropped' => false,
+        ];
+    }
+
+    public function removeNewLampiran(int $index): void
+    {
+        if (isset($this->newLampiran[$index])) {
+            unset($this->newLampiran[$index]);
+            $this->newLampiran = array_values($this->newLampiran);
+        }
+    }
+
+    public function openCropper(int $index): void
+    {
+        if (!isset($this->newLampiran[$index]['file'])) {
+            return;
+        }
+
+        $file = $this->newLampiran[$index]['file'];
+        if (!$file) {
+            return;
+        }
+
+        // Only allow crop for images
+        $extension = strtolower($file->getClientOriginalExtension());
+        if (!in_array($extension, ['jpg', 'jpeg', 'png', 'webp'])) {
+            $this->notifyWarning('Crop hanya tersedia untuk file gambar (JPG, PNG, WEBP).');
+            return;
+        }
+
+        $this->croppingLampiranIndex = $index;
+        $this->croppingImageUrl = $file->temporaryUrl();
+        // Load existing crop data if available to persist last crop settings
+        $this->cropData = $this->newLampiran[$index]['cropData'] ?? [];
+        $this->showCropperModal = true;
+    }
+
+    public function closeCropper(): void
+    {
+        $this->showCropperModal = false;
+        $this->croppingLampiranIndex = null;
+        $this->croppingImageUrl = null;
+        // Don't reset cropData here to preserve it for re-opening
+    }
+
+    public function saveCrop(): void
+    {
+        if ($this->croppingLampiranIndex !== null && !empty($this->cropData)) {
+            // Save crop data to the lampiran item to persist settings
+            $this->newLampiran[$this->croppingLampiranIndex]['cropData'] = $this->cropData;
+            $this->newLampiran[$this->croppingLampiranIndex]['is_cropped'] = true;
+            $this->notifySuccess('Crop berhasil disimpan.');
+        }
+        $this->closeCropper();
+    }
+
+    public function updateLampiranKeterangan(int $lampiranId, string $keterangan, LaporanService $service): void
+    {
+        try {
+            $lampiran = $this->laporan->lampiran()->findOrFail($lampiranId);
+            $service->updateLampiranKeterangan($lampiran, $keterangan);
+            $this->notifySuccess('Keterangan lampiran diperbarui.');
+        } catch (\Exception $e) {
+            $this->notifyError('Gagal memperbarui keterangan: ' . $e->getMessage());
+        }
     }
 
     public function save(LaporanService $service): void
@@ -162,31 +267,34 @@ class LaporanEdit extends Component
 
             $service->update($this->laporan, $data);
 
-            // Handle new file upload via queue
-            if ($this->file) {
-                // Remove old file first
-                if ($this->laporan->file_path) {
-                    $service->removeFile($this->laporan);
+            // Process new lampiran uploads
+            foreach ($this->newLampiran as $lampiranData) {
+                if (isset($lampiranData['file']) && $lampiranData['file']) {
+                    $file = $lampiranData['file'];
+                    $tempPath = 'laporan-temp/' . uniqid() . '_' . $file->getClientOriginalName();
+                    Storage::disk('local')->put($tempPath, file_get_contents($file->getRealPath()));
+
+                    // Create lampiran record
+                    $lampiran = $service->addLampiran($this->laporan, [
+                        'file_name' => $file->getClientOriginalName(),
+                        'file_size' => $file->getSize(),
+                        'keterangan' => $lampiranData['keterangan'] ?? null,
+                    ]);
+
+                    // Dispatch job with crop data
+                    ProcessLaporanLampiran::dispatch(
+                        $lampiran,
+                        $tempPath,
+                        $lampiranData['cropData'] ?? null,
+                    );
                 }
-
-                $tempPath = 'laporan-temp/' . uniqid() . '_' . $this->file->getClientOriginalName();
-                Storage::disk('local')->put($tempPath, file_get_contents($this->file->getRealPath()));
-
-                // Set initial status as pending
-                $this->laporan->update(['file_status' => 'pending']);
-
-                ProcessLaporanFile::dispatch(
-                    $this->laporan,
-                    $tempPath,
-                    $this->file->getClientOriginalName(),
-                    $this->file->getSize(),
-                );
             }
 
             $tipeLabel = $this->laporan->tipe->label();
+            $hasNewLampiran = collect($this->newLampiran)->filter(fn($l) => isset($l['file']) && $l['file'])->isNotEmpty();
             $message = "Laporan {$tipeLabel} berhasil diupdate!";
-            if ($this->file) {
-                $message .= ' File sedang diproses di background.';
+            if ($hasNewLampiran) {
+                $message .= ' Lampiran baru sedang diproses di background.';
             }
 
             session()->flash('notify', [
@@ -200,6 +308,54 @@ class LaporanEdit extends Component
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
         }
+    }
+
+    public function openLampiranPreview(int $lampiranId): void
+    {
+        $lampiran = $this->laporan->lampiran->find($lampiranId);
+        
+        if (!$lampiran || !$lampiran->hasFile() || !$lampiran->isFileCompleted()) {
+            $this->notifyWarning('File lampiran tidak tersedia.');
+            return;
+        }
+
+        $this->previewLampiranId = $lampiranId;
+        $this->showPreviewModal = true;
+    }
+
+    public function closePreviewModal(): void
+    {
+        $this->showPreviewModal = false;
+        $this->previewLampiranId = null;
+    }
+
+    public function getPreviewLampiranProperty()
+    {
+        if (!$this->previewLampiranId) {
+            return null;
+        }
+
+        return $this->laporan->lampiran->find($this->previewLampiranId);
+    }
+
+    public function previewCroppedImage(int $index): void
+    {
+        if (!isset($this->newLampiran[$index]['file'])) {
+            $this->notifyWarning('File tidak ditemukan.');
+            return;
+        }
+
+        $file = $this->newLampiran[$index]['file'];
+        if (!$file) {
+            $this->notifyWarning('File tidak ditemukan.');
+            return;
+        }
+
+        // Open cropper modal to show the cropped preview
+        $this->croppingLampiranIndex = $index;
+        $this->croppingImageUrl = $file->temporaryUrl();
+        $this->cropData = $this->newLampiran[$index]['cropData'] ?? [];
+        $this->showCropperModal = true;
     }
 
     public function render(QueueStatusService $queueStatusService)

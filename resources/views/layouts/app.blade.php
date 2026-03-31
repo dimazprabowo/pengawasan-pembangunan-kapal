@@ -24,6 +24,10 @@
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
 
+        {{-- Cropper.js untuk image cropping --}}
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" />
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+
         {{-- Alpine stores, dark mode sync, teleport cleanup loaded via Vite (alpine-stores.js) --}}
         <script>
             // Logout form handler — intercepts logout form submit for CSRF-safe fetch

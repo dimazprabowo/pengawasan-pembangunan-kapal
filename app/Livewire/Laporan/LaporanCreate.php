@@ -3,7 +3,7 @@
 namespace App\Livewire\Laporan;
 
 use App\Enums\LaporanTipe;
-use App\Jobs\ProcessLaporanFile;
+use App\Jobs\ProcessLaporanLampiran;
 use App\Livewire\Traits\HasNotification;
 use App\Models\Cuaca;
 use App\Models\JenisKapal;
@@ -27,11 +27,24 @@ class LaporanCreate extends Component
 
     public array $items = [];
 
-    public array $files = [];
+    // Lampiran per item - struktur: [itemIndex => [lampiranIndex => ['file' => null, 'keterangan' => '', 'cropData' => null]]]
+    public array $lampiran = [];
 
     // Delete card confirmation modal
     public bool $showDeleteCardModal = false;
     public ?int $deletingCardIndex = null;
+
+    // Delete lampiran confirmation modal
+    public bool $showDeleteLampiranModal = false;
+    public ?int $deletingLampiranItemIndex = null;
+    public ?int $deletingLampiranIndex = null;
+
+    // Image cropper modal
+    public bool $showCropperModal = false;
+    public ?int $croppingItemIndex = null;
+    public ?int $croppingLampiranIndex = null;
+    public ?string $croppingImageUrl = null;
+    public array $cropData = [];
 
     public function mount(string $tipe): void
     {
@@ -61,6 +74,14 @@ class LaporanCreate extends Component
             'cuaca_sore_id' => null,
             'kelembaban_sore_id' => null,
         ];
+        $this->lampiran[] = [
+            [
+                'file' => null,
+                'keterangan' => '',
+                'cropData' => null,
+                'is_cropped' => false,
+            ]
+        ];
     }
 
     public function confirmRemoveItem(int $index): void
@@ -83,17 +104,112 @@ class LaporanCreate extends Component
         $index = $this->deletingCardIndex;
 
         unset($this->items[$index]);
-        unset($this->files[$index]);
+        unset($this->lampiran[$index]);
         $this->items = array_values($this->items);
-        $this->files = array_values($this->files);
+        $this->lampiran = array_values($this->lampiran);
 
         $this->showDeleteCardModal = false;
         $this->deletingCardIndex = null;
     }
 
-    public function removeFile(int $index): void
+    public function addLampiran(int $itemIndex): void
     {
-        unset($this->files[$index]);
+        $this->lampiran[$itemIndex][] = [
+            'file' => null,
+            'keterangan' => '',
+            'cropData' => null,
+            'is_cropped' => false,
+        ];
+    }
+
+    public function removeLampiran(int $itemIndex, int $lampiranIndex): void
+    {
+        if (isset($this->lampiran[$itemIndex][$lampiranIndex])) {
+            unset($this->lampiran[$itemIndex][$lampiranIndex]);
+            $this->lampiran[$itemIndex] = array_values($this->lampiran[$itemIndex]);
+        }
+    }
+
+    public function confirmRemoveLampiran(int $itemIndex, int $lampiranIndex): void
+    {
+        $this->deletingLampiranItemIndex = $itemIndex;
+        $this->deletingLampiranIndex = $lampiranIndex;
+        $this->showDeleteLampiranModal = true;
+    }
+
+    public function removeLampiranConfirmed(): void
+    {
+        if ($this->deletingLampiranItemIndex !== null && $this->deletingLampiranIndex !== null) {
+            $this->removeLampiran($this->deletingLampiranItemIndex, $this->deletingLampiranIndex);
+        }
+        $this->showDeleteLampiranModal = false;
+        $this->deletingLampiranItemIndex = null;
+        $this->deletingLampiranIndex = null;
+    }
+
+    public function openCropper(int $itemIndex, int $lampiranIndex): void
+    {
+        if (!isset($this->lampiran[$itemIndex][$lampiranIndex]['file'])) {
+            return;
+        }
+
+        $file = $this->lampiran[$itemIndex][$lampiranIndex]['file'];
+        if (!$file) {
+            return;
+        }
+
+        // Only allow crop for images
+        $extension = strtolower($file->getClientOriginalExtension());
+        if (!in_array($extension, ['jpg', 'jpeg', 'png', 'webp'])) {
+            $this->notifyWarning('Crop hanya tersedia untuk file gambar (JPG, PNG, WEBP).');
+            return;
+        }
+
+        $this->croppingItemIndex = $itemIndex;
+        $this->croppingLampiranIndex = $lampiranIndex;
+        $this->croppingImageUrl = $file->temporaryUrl();
+        $this->cropData = $this->lampiran[$itemIndex][$lampiranIndex]['cropData'] ?? [];
+        $this->showCropperModal = true;
+    }
+
+    public function closeCropper(): void
+    {
+        $this->showCropperModal = false;
+        $this->croppingItemIndex = null;
+        $this->croppingLampiranIndex = null;
+        $this->croppingImageUrl = null;
+        $this->cropData = [];
+    }
+
+    public function saveCrop(): void
+    {
+        if ($this->croppingItemIndex !== null && $this->croppingLampiranIndex !== null && !empty($this->cropData)) {
+            $this->lampiran[$this->croppingItemIndex][$this->croppingLampiranIndex]['cropData'] = $this->cropData;
+            $this->lampiran[$this->croppingItemIndex][$this->croppingLampiranIndex]['is_cropped'] = true;
+            $this->notifySuccess('Crop berhasil disimpan.');
+        }
+        $this->closeCropper();
+    }
+
+    public function previewCroppedImage(int $itemIndex, int $lampiranIndex): void
+    {
+        if (!isset($this->lampiran[$itemIndex][$lampiranIndex]['file'])) {
+            $this->notifyWarning('File tidak ditemukan.');
+            return;
+        }
+
+        $file = $this->lampiran[$itemIndex][$lampiranIndex]['file'];
+        if (!$file) {
+            $this->notifyWarning('File tidak ditemukan.');
+            return;
+        }
+
+        // Open cropper modal to show the cropped preview
+        $this->croppingItemIndex = $itemIndex;
+        $this->croppingLampiranIndex = $lampiranIndex;
+        $this->croppingImageUrl = $file->temporaryUrl();
+        $this->cropData = $this->lampiran[$itemIndex][$lampiranIndex]['cropData'] ?? [];
+        $this->showCropperModal = true;
     }
 
     public function rules(): array
@@ -105,7 +221,8 @@ class LaporanCreate extends Component
             'items.*.tanggal_laporan' => 'required|date',
             'items.*.isi' => 'nullable|string',
             'items.*.catatan' => 'nullable|string|max:1000',
-            'files.*' => file_upload_validation_rule(),
+            'lampiran.*.*.file' => file_upload_validation_rule(),
+            'lampiran.*.*.keterangan' => 'nullable|string|max:1000',
         ];
 
         if ($this->tipe === 'harian') {
@@ -133,7 +250,12 @@ class LaporanCreate extends Component
             $attributes["items.{$index}.tanggal_laporan"] = "tanggal laporan #{$num}";
             $attributes["items.{$index}.isi"] = "isi laporan #{$num}";
             $attributes["items.{$index}.catatan"] = "catatan laporan #{$num}";
-            $attributes["files.{$index}"] = "file laporan #{$num}";
+
+            foreach ($this->lampiran[$index] as $lampIndex => $lamp) {
+                $lampNum = $lampIndex + 1;
+                $attributes["lampiran.{$index}.{$lampIndex}.file"] = "file lampiran #{$lampNum} pada laporan #{$num}";
+                $attributes["lampiran.{$index}.{$lampIndex}.keterangan"] = "keterangan lampiran #{$lampNum} pada laporan #{$num}";
+            }
             
             if ($this->tipe === 'harian') {
                 $attributes["items.{$index}.suhu"] = "suhu laporan #{$num}";
@@ -183,32 +305,40 @@ class LaporanCreate extends Component
 
             $createdLaporans = $service->createMany($dataItems);
 
-            // Dispatch file processing jobs for items that have files
+            // Process lampiran for each created laporan
             foreach ($createdLaporans as $index => $laporan) {
-                if (isset($this->files[$index]) && $this->files[$index]) {
-                    $file = $this->files[$index];
-                    $tempPath = 'laporan-temp/' . uniqid() . '_' . $file->getClientOriginalName();
-                    Storage::disk('local')->put($tempPath, file_get_contents($file->getRealPath()));
+                if (isset($this->lampiran[$index]) && is_array($this->lampiran[$index])) {
+                    foreach ($this->lampiran[$index] as $lampiranData) {
+                        if (isset($lampiranData['file']) && $lampiranData['file']) {
+                            $file = $lampiranData['file'];
+                            $tempPath = 'laporan-temp/' . uniqid() . '_' . $file->getClientOriginalName();
+                            Storage::disk('local')->put($tempPath, file_get_contents($file->getRealPath()));
 
-                    // Set initial status as pending
-                    $laporan->update(['file_status' => 'pending']);
+                            // Create lampiran record
+                            $lampiran = $service->addLampiran($laporan, [
+                                'file_name' => $file->getClientOriginalName(),
+                                'file_size' => $file->getSize(),
+                                'keterangan' => $lampiranData['keterangan'] ?? null,
+                            ]);
 
-                    ProcessLaporanFile::dispatch(
-                        $laporan,
-                        $tempPath,
-                        $file->getClientOriginalName(),
-                        $file->getSize(),
-                    );
+                            // Dispatch job with crop data
+                            ProcessLaporanLampiran::dispatch(
+                                $lampiran,
+                                $tempPath,
+                                $lampiranData['cropData'] ?? null,
+                            );
+                        }
+                    }
                 }
             }
 
             $count = count($dataItems);
-            $hasFiles = collect($this->files)->filter()->isNotEmpty();
+            $hasLampiran = collect($this->lampiran)->flatten(1)->filter(fn($l) => isset($l['file']) && $l['file'])->isNotEmpty();
             $tipeLabel = LaporanTipe::from($this->tipe)->label();
 
             $message = "{$count} laporan {$tipeLabel} berhasil ditambahkan!";
-            if ($hasFiles) {
-                $message .= ' File sedang diproses di background.';
+            if ($hasLampiran) {
+                $message .= ' Lampiran sedang diproses di background.';
             }
 
             session()->flash('notify', [

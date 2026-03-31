@@ -77,6 +77,12 @@ Route::middleware(['auth', 'verified', 'active'])->group(function () {
         Route::get('/{laporan}/preview', [App\Http\Controllers\LaporanFileController::class, 'preview'])
             ->middleware('can:laporan_show')
             ->name('preview');
+        Route::get('/{laporan}/lampiran/{lampiran}/download', [App\Http\Controllers\LaporanFileController::class, 'downloadLampiran'])
+            ->middleware('can:laporan_lampiran_download')
+            ->name('lampiran.download');
+        Route::get('/{laporan}/lampiran/{lampiran}/preview', [App\Http\Controllers\LaporanFileController::class, 'previewLampiran'])
+            ->middleware('can:laporan_lampiran_preview')
+            ->name('lampiran.preview');
     });
 
     // Settings Routes - each route checks its own permission

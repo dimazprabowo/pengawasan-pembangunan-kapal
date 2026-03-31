@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Laporan extends Model
 {
@@ -88,6 +89,11 @@ class Laporan extends Model
     public function kelembabanSore(): BelongsTo
     {
         return $this->belongsTo(Kelembaban::class, 'kelembaban_sore_id');
+    }
+
+    public function lampiran(): HasMany
+    {
+        return $this->hasMany(LaporanLampiran::class)->orderBy('created_at', 'asc');
     }
 
     // Scopes

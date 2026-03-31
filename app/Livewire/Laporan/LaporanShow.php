@@ -17,6 +17,7 @@ class LaporanShow extends Component
     public Laporan $laporan;
 
     public bool $showPreviewModal = false;
+    public ?int $previewLampiranId = null;
 
     public function mount(Laporan $laporan): void
     {
@@ -31,6 +32,7 @@ class LaporanShow extends Component
             'kelembabanSiang',
             'cuacaSore',
             'kelembabanSore',
+            'lampiran',
         ]);
     }
 
@@ -47,6 +49,34 @@ class LaporanShow extends Component
     public function closePreview(): void
     {
         $this->showPreviewModal = false;
+    }
+
+    public function openLampiranPreview(int $lampiranId): void
+    {
+        $lampiran = $this->laporan->lampiran->find($lampiranId);
+        
+        if (!$lampiran || !$lampiran->hasFile() || !$lampiran->isFileCompleted()) {
+            $this->notifyWarning('File lampiran tidak tersedia.');
+            return;
+        }
+
+        $this->previewLampiranId = $lampiranId;
+        $this->showPreviewModal = true;
+    }
+
+    public function closePreviewModal(): void
+    {
+        $this->showPreviewModal = false;
+        $this->previewLampiranId = null;
+    }
+
+    public function getPreviewLampiranProperty()
+    {
+        if (!$this->previewLampiranId) {
+            return null;
+        }
+
+        return $this->laporan->lampiran->find($this->previewLampiranId);
     }
 
     public function getFileExtensionProperty(): ?string

@@ -109,6 +109,8 @@ class PermissionSeeder extends Seeder
             'laporan_update',
             'laporan_delete',
             'laporan_download',
+            'laporan_lampiran_preview',
+            'laporan_lampiran_download',
             'laporan_export_excel',
             'laporan_export_pdf',
             'laporan_view_all_jenis_kapal',

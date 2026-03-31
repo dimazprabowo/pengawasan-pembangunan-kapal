@@ -117,48 +117,74 @@
                 </div>
             </div>
 
-            {{-- File Lampiran --}}
-            @if($laporan->file_name || $laporan->isFileProcessing())
+            {{-- Lampiran Section --}}
+            @if($laporan->lampiran->count() > 0)
                 <div>
-                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Lampiran</label>
-                    <x-file-status-indicator :laporan="$laporan" :queueStatus="$queueStatus" />
-                    
-                    {{-- Action Buttons for Completed Files --}}
-                    @if($laporan->hasFile() && $laporan->isFileCompleted())
-                        <div class="flex items-center gap-2 mt-2">
-                            <button wire:click="openPreview" type="button"
-                                wire:loading.attr="disabled"
-                                wire:target="openPreview"
-                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
-                                title="Preview file">
-                                <svg wire:loading.class="hidden" wire:target="openPreview" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                                </svg>
-                                <svg wire:loading wire:target="openPreview" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Preview
-                            </button>
-                            @can('laporan_download')
-                                <a href="{{ route('laporan.download', $laporan) }}"
-                                    x-data="{ loading: false }" x-on:click="loading = true; setTimeout(() => loading = false, 2000)"
-                                    x-bind:class="loading ? 'opacity-75 pointer-events-none' : ''"
-                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-                                    title="Download file">
-                                    <svg x-show="!loading" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                                    </svg>
-                                    <svg x-show="loading" x-cloak class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                        Lampiran ({{ $laporan->lampiran->count() }} file)
+                    </label>
+                    <div class="space-y-2">
+                        @foreach($laporan->lampiran as $lampiranItem)
+                            <div class="flex items-center gap-3 px-3 py-2.5 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg">
+                                @if($lampiranItem->isFileProcessing())
+                                    <svg class="animate-spin w-5 h-5 text-blue-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg>
-                                    Download
-                                </a>
-                            @endcan
-                        </div>
-                    @endif
+                                @elseif($lampiranItem->isFileFailed())
+                                    <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                @else
+                                    <svg class="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                    </svg>
+                                @endif
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm text-gray-700 dark:text-gray-300 truncate">{{ $lampiranItem->file_name }}</p>
+                                    @if($lampiranItem->keterangan)
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ $lampiranItem->keterangan }}</p>
+                                    @endif
+                                </div>
+                                <span class="text-xs text-gray-400 flex-shrink-0">{{ number_format($lampiranItem->file_size / 1024, 0) }} KB</span>
+                                @if($lampiranItem->hasFile() && $lampiranItem->isFileCompleted())
+                                    <div class="flex items-center gap-1.5 flex-shrink-0">
+                                        {{-- Preview Button --}}
+                                        @if($lampiranItem->isPreviewable())
+                                            @can('laporan_lampiran_preview')
+                                                <button wire:click="openLampiranPreview({{ $lampiranItem->id }})" 
+                                                    type="button"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="openLampiranPreview({{ $lampiranItem->id }})"
+                                                    class="text-emerald-500 hover:text-emerald-700 p-1.5 rounded hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors disabled:opacity-50" 
+                                                    title="Preview">
+                                                    <svg wire:loading.class="hidden" wire:target="openLampiranPreview({{ $lampiranItem->id }})" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                                    </svg>
+                                                    <svg wire:loading wire:target="openLampiranPreview({{ $lampiranItem->id }})" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                </button>
+                                            @endcan
+                                        @endif
+                                        
+                                        {{-- Download Button --}}
+                                        @can('laporan_lampiran_download')
+                                            <a href="{{ route('laporan.lampiran.download', [$laporan, $lampiranItem]) }}" 
+                                                class="text-blue-500 hover:text-blue-700 p-1.5 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors inline-block" 
+                                                title="Download">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                                </svg>
+                                            </a>
+                                        @endcan
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
                 </div>
             @endif
 
@@ -301,74 +327,10 @@
         </a>
     </div>
 
-    {{-- File Preview Modal --}}
-    @if($showPreviewModal && $laporan->file_name)
-        <div class="fixed inset-0 z-50 overflow-y-auto" x-data x-trap.noscroll="true">
-            <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20">
-                {{-- Overlay --}}
-                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75 transition-opacity"
-                     wire:click="closePreview"></div>
-
-                {{-- Modal Content --}}
-                <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col z-10">
-                    {{-- Modal Header --}}
-                    <div class="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-gray-700">
-                        <div class="flex items-center gap-2 min-w-0">
-                            <svg class="w-5 h-5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                            </svg>
-                            <h3 class="text-sm font-semibold text-gray-900 dark:text-white truncate">{{ $laporan->file_name }}</h3>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            @can('laporan_download')
-                                <a href="{{ route('laporan.download', $laporan) }}"
-                                    class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                                    </svg>
-                                    Download
-                                </a>
-                            @endcan
-                            <button wire:click="closePreview" type="button"
-                                class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 rounded transition-colors">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-
-                    {{-- Modal Body --}}
-                    <div class="flex-1 overflow-auto p-1" style="min-height: 500px;">
-                        @if($this->isPdf)
-                            <iframe src="{{ route('laporan.preview', $laporan) }}" class="w-full h-full rounded" style="min-height: 500px;"></iframe>
-                        @else
-                            {{-- For Word/Excel: use Google Docs Viewer --}}
-                            <div class="flex flex-col items-center justify-center h-full py-12 text-center">
-                                <svg class="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                </svg>
-                                <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-2">{{ $laporan->file_name }}</h4>
-                                <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                                    Ukuran: {{ number_format($laporan->file_size / 1024, 0) }} KB
-                                </p>
-                                <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                                    Preview langsung tidak tersedia untuk file {{ strtoupper($this->fileExtension) }}.
-                                </p>
-                                @can('laporan_download')
-                                    <a href="{{ route('laporan.download', $laporan) }}"
-                                        class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                                        </svg>
-                                        Download untuk Membuka
-                                    </a>
-                                @endcan
-                            </div>
-                        @endif
-                    </div>
-                </div>
-            </div>
-        </div>
-    @endif
+    {{-- Lampiran Preview Modal --}}
+    <x-lampiran-preview-modal 
+        :show="$showPreviewModal" 
+        :lampiran="$this->previewLampiran" 
+        :laporan="$laporan" 
+    />
 </div>

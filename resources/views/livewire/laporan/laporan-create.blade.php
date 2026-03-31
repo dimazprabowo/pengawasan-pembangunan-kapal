@@ -112,65 +112,6 @@
                                 @error("items.{$index}.tanggal_laporan") <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                             </div>
 
-                            {{-- File Upload --}}
-                            <div class="md:col-span-2">
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Lampiran <span class="text-gray-400 text-xs font-normal">(opsional — {{ get_upload_config_display() }})</span>
-                                </label>
-                                @if(isset($files[$index]) && $files[$index])
-                                    <div class="flex items-center gap-3 px-3 py-2.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                                        <svg class="w-5 h-5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                        </svg>
-                                        <span class="text-sm text-blue-700 dark:text-blue-300 truncate flex-1">{{ $files[$index]->getClientOriginalName() }}</span>
-                                        <span class="text-xs text-blue-500 dark:text-blue-400">{{ number_format($files[$index]->getSize() / 1024, 0) }} KB</span>
-                                        <button type="button" wire:click="removeFile({{ $index }})"
-                                            wire:loading.attr="disabled"
-                                            wire:target="removeFile({{ $index }})"
-                                            class="text-red-500 hover:text-red-700 p-0.5 rounded transition-colors disabled:opacity-50" title="Hapus file">
-                                            <svg wire:loading.class="hidden" wire:target="removeFile({{ $index }})" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                            </svg>
-                                            <svg wire:loading wire:target="removeFile({{ $index }})" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                        </button>
-                                    </div>
-                                @else
-                                    <div x-data="{ uploading: false, progress: 0 }"
-                                         x-on:livewire-upload-start="uploading = true"
-                                         x-on:livewire-upload-finish="uploading = false; progress = 0"
-                                         x-on:livewire-upload-cancel="uploading = false"
-                                         x-on:livewire-upload-error="uploading = false"
-                                         x-on:livewire-upload-progress="progress = $event.detail.progress">
-                                        <label class="flex flex-col items-center justify-center w-full px-4 py-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 transition-colors bg-gray-50 dark:bg-gray-700/50">
-                                            <div x-show="!uploading" class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                                                </svg>
-                                                <span>Klik untuk upload atau drag & drop</span>
-                                            </div>
-                                            <div x-show="uploading" x-cloak class="w-full">
-                                                <div class="flex items-center gap-2 mb-1">
-                                                    <svg class="animate-spin w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24">
-                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                    </svg>
-                                                    <span class="text-sm text-blue-600 dark:text-blue-400" x-text="'Mengupload... ' + progress + '%'"></span>
-                                                </div>
-                                                <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5">
-                                                    <div class="bg-blue-500 h-1.5 rounded-full transition-all duration-300" :style="'width: ' + progress + '%'"></div>
-                                                </div>
-                                            </div>
-                                            <input type="file" wire:model="files.{{ $index }}" class="hidden"
-                                                accept=".{{ implode(',.',  get_allowed_mimes_array()) }}">
-                                        </label>
-                                    </div>
-                                @endif
-                                @error("files.{$index}") <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
-                            </div>
-
                             {{-- Isi --}}
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -314,6 +255,135 @@
                                     </div>
                                 </div>
                             @endif
+
+                            {{-- Lampiran Section - Paling Bawah --}}
+                            <div class="md:col-span-2 mt-4">
+                                <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
+                                    <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2 mb-3">
+                                        <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                                        </svg>
+                                        Lampiran
+                                        <span class="text-xs font-normal text-gray-400">(opsional — {{ get_upload_config_display() }})</span>
+                                    </h4>
+
+                                    {{-- Lampiran Cards --}}
+                                    <div class="space-y-3">
+                                        @foreach($lampiran[$index] ?? [] as $lampiranIndex => $lampiranItem)
+                                            <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700" wire:key="lampiran-{{ $index }}-{{ $lampiranIndex }}">
+                                                <div class="flex items-start gap-3">
+                                                    {{-- File Upload Area --}}
+                                                    <div class="flex-1">
+                                                        @if(isset($lampiranItem['file']) && $lampiranItem['file'])
+                                                            {{-- File Selected --}}
+                                                            <div class="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                                                                <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                                                </svg>
+                                                                <span class="text-xs text-blue-700 dark:text-blue-300 truncate flex-1">{{ $lampiranItem['file']->getClientOriginalName() }}</span>
+                                                                <span class="text-xs text-blue-500 dark:text-blue-400">{{ number_format($lampiranItem['file']->getSize() / 1024, 0) }} KB</span>
+                                                                @if($lampiranItem['is_cropped'] ?? false)
+                                                                    <span class="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded">Cropped</span>
+                                                                @endif
+                                                                @php
+                                                                    $ext = strtolower($lampiranItem['file']->getClientOriginalExtension());
+                                                                    $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'webp']);
+                                                                @endphp
+                                                                @if($isImage)
+                                                                    {{-- Crop Button --}}
+                                                                    <button type="button" wire:click="openCropper({{ $index }}, {{ $lampiranIndex }})"
+                                                                        wire:loading.attr="disabled"
+                                                                        wire:target="openCropper({{ $index }}, {{ $lampiranIndex }})"
+                                                                        class="text-blue-500 hover:text-blue-700 p-0.5 disabled:opacity-50" title="Crop gambar">
+                                                                        <svg wire:loading.class="hidden" wire:target="openCropper({{ $index }}, {{ $lampiranIndex }})" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                                                        </svg>
+                                                                        <svg wire:loading wire:target="openCropper({{ $index }}, {{ $lampiranIndex }})" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                        </svg>
+                                                                    </button>
+                                                                @endif
+                                                                <button type="button" wire:click="removeLampiran({{ $index }}, {{ $lampiranIndex }})"
+                                                                    wire:loading.attr="disabled"
+                                                                    wire:target="removeLampiran({{ $index }}, {{ $lampiranIndex }})"
+                                                                    class="text-red-500 hover:text-red-700 p-0.5 disabled:opacity-50" title="Hapus">
+                                                                    <svg wire:loading.class="hidden" wire:target="removeLampiran({{ $index }}, {{ $lampiranIndex }})" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                                                    </svg>
+                                                                    <svg wire:loading wire:target="removeLampiran({{ $index }}, {{ $lampiranIndex }})" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                    </svg>
+                                                                </button>
+                                                            </div>
+                                                        @else
+                                                            {{-- Upload Area --}}
+                                                            <div x-data="{ uploading: false, progress: 0 }"
+                                                                 x-on:livewire-upload-start="uploading = true"
+                                                                 x-on:livewire-upload-finish="uploading = false; progress = 0"
+                                                                 x-on:livewire-upload-cancel="uploading = false"
+                                                                 x-on:livewire-upload-error="uploading = false"
+                                                                 x-on:livewire-upload-progress="progress = $event.detail.progress">
+                                                                <label class="flex flex-col items-center justify-center w-full px-3 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 transition-colors bg-white dark:bg-gray-800">
+                                                                    <div x-show="!uploading" class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                                                        </svg>
+                                                                        <span>Klik untuk upload</span>
+                                                                    </div>
+                                                                    <div x-show="uploading" x-cloak class="flex items-center justify-center gap-2">
+                                                                        <svg class="animate-spin w-3 h-3 text-blue-500" fill="none" viewBox="0 0 24 24">
+                                                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                        </svg>
+                                                                        <span class="text-xs text-blue-600" x-text="progress + '%'"></span>
+                                                                    </div>
+                                                                    <input type="file" wire:model="lampiran.{{ $index }}.{{ $lampiranIndex }}.file" class="hidden"
+                                                                        accept=".{{ implode(',.', get_allowed_mimes_array()) }}">
+                                                                </label>
+                                                            </div>
+                                                        @endif
+                                                        @error("lampiran.{$index}.{$lampiranIndex}.file") <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                                    </div>
+
+                                                    {{-- Remove Button (if no file) --}}
+                                                    @if(!isset($lampiranItem['file']) || !$lampiranItem['file'])
+                                                        <button type="button" wire:click="confirmRemoveLampiran({{ $index }}, {{ $lampiranIndex }})"
+                                                            class="text-red-400 hover:text-red-600 p-1" title="Hapus lampiran">
+                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                            </svg>
+                                                        </button>
+                                                    @endif
+                                                </div>
+
+                                                {{-- Keterangan --}}
+                                                <div class="mt-2">
+                                                    <input type="text" wire:model="lampiran.{{ $index }}.{{ $lampiranIndex }}.keterangan"
+                                                        placeholder="Keterangan lampiran..."
+                                                        class="w-full text-xs px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-800 dark:text-white">
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+
+                                    {{-- Button Tambah di Bawah --}}
+                                    <div class="mt-3">
+                                        <button type="button" wire:click="addLampiran({{ $index }})"
+                                            wire:loading.attr="disabled"
+                                            wire:target="addLampiran({{ $index }})"
+                                            class="w-full flex items-center justify-center gap-2 px-3 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-xs font-medium text-gray-500 dark:text-gray-400 hover:border-blue-400 hover:text-blue-500 dark:hover:border-blue-500 dark:hover:text-blue-400 transition-colors bg-white dark:bg-gray-800">
+                                            <svg wire:loading.class="hidden" wire:target="addLampiran({{ $index }})" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                            <svg wire:loading wire:target="addLampiran({{ $index }})" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Tambah Lampiran
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -368,5 +438,21 @@
         message="Apakah Anda yakin ingin menghapus card laporan"
         :itemName="$deletingCardIndex !== null ? '#' . ($deletingCardIndex + 1) : ''"
         confirmMethod="removeItem"
+    />
+
+    {{-- Delete Lampiran Confirmation Modal --}}
+    <x-delete-modal
+        :show="$showDeleteLampiranModal"
+        wire:model="showDeleteLampiranModal"
+        title="Hapus Lampiran"
+        message="Apakah Anda yakin ingin menghapus lampiran ini?"
+        confirmMethod="removeLampiranConfirmed"
+    />
+
+    {{-- Image Cropper Modal --}}
+    <x-image-crop-modal 
+        :show="$showCropperModal" 
+        :imageUrl="$croppingImageUrl" 
+        :cropData="$cropData" 
     />
 </div>
