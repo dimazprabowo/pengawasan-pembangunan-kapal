@@ -130,7 +130,12 @@ class GalanganManagement extends Component
 
     public function save(GalanganService $service)
     {
-        $this->validate();
+        try {
+            $this->validate();
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->notifyValidationError($e);
+            throw $e;
+        }
 
         try {
             $data = [

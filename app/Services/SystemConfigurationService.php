@@ -9,7 +9,6 @@ class SystemConfigurationService
 {
     public function getFiltered(
         ?string $search = null,
-        ?string $categoryFilter = null,
         int $perPage = 15
     ): LengthAwarePaginator {
         $query = SystemConfiguration::query();
@@ -22,16 +21,7 @@ class SystemConfigurationService
             });
         }
 
-        if ($categoryFilter) {
-            $query->where('category', $categoryFilter);
-        }
-
         return $query->orderBy('category')->orderBy('key')->paginate($perPage);
-    }
-
-    public function create(array $data): SystemConfiguration
-    {
-        return SystemConfiguration::create($data);
     }
 
     public function update(SystemConfiguration $config, array $data): SystemConfiguration
@@ -41,11 +31,6 @@ class SystemConfigurationService
         $this->applyRuntimeConfig($config->key, $config->value, $config->is_active);
 
         return $config;
-    }
-
-    public function delete(SystemConfiguration $config): void
-    {
-        $config->delete();
     }
 
     public function toggleActive(SystemConfiguration $config): SystemConfiguration

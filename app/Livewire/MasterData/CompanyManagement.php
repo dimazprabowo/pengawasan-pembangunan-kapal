@@ -122,7 +122,12 @@ class CompanyManagement extends Component
 
     public function save(CompanyService $service)
     {
-        $this->validate();
+        try {
+            $this->validate();
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->notifyValidationError($e);
+            throw $e;
+        }
 
         try {
             $data = [

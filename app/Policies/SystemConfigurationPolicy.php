@@ -16,31 +16,11 @@ class SystemConfigurationPolicy
     }
 
     /**
-     * Determine whether the user can create models.
-     */
-    public function create(User $user): bool
-    {
-        return $user->can('configuration_create');
-    }
-
-    /**
      * Determine whether the user can update the model.
      */
     public function update(User $user, SystemConfiguration $config): bool
     {
         return $user->can('configuration_update');
-    }
-
-    /**
-     * Determine whether the user can delete the model.
-     */
-    public function delete(User $user, SystemConfiguration $config): bool
-    {
-        if (!$config->is_editable) {
-            return false;
-        }
-
-        return $user->can('configuration_delete');
     }
 
     /**

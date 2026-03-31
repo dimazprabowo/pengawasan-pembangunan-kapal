@@ -221,7 +221,7 @@ class LaporanCreate extends Component
             'items.*.tanggal_laporan' => 'required|date',
             'items.*.isi' => 'nullable|string',
             'items.*.catatan' => 'nullable|string|max:1000',
-            'lampiran.*.*.file' => file_upload_validation_rule(),
+            'lampiran.*.*.file' => file_upload_validation_rule('foto_kapal'),
             'lampiran.*.*.keterangan' => 'nullable|string|max:1000',
         ];
 
@@ -273,7 +273,13 @@ class LaporanCreate extends Component
     public function save(LaporanService $service): void
     {
         $this->authorize('create', Laporan::class);
-        $this->validate();
+        
+        try {
+            $this->validate();
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->notifyValidationError($e);
+            throw $e;
+        }
 
         try {
             $userId = auth()->id();

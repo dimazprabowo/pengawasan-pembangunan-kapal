@@ -10,7 +10,7 @@
         const notification = Array.isArray(data) ? data[0] : data;
         
         this.type = notification.type || 'success';
-        this.title = notification.title || (notification.type === 'success' ? 'Berhasil' : notification.type === 'error' ? 'Error' : notification.type === 'warning' ? 'Peringatan' : 'Informasi');
+        this.title = notification.title || (notification.type === 'success' ? 'Berhasil' : notification.type === 'failed' ? 'Gagal' : notification.type === 'error' ? 'Error' : notification.type === 'warning' ? 'Peringatan' : 'Informasi');
         this.message = notification.message || '';
         this.show = true;
         
@@ -33,7 +33,7 @@ style="display: none;">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden border-l-4"
          :class="{
              'border-green-500': type === 'success',
-             'border-red-500': type === 'error',
+             'border-red-500': type === 'error' || type === 'failed',
              'border-yellow-500': type === 'warning',
              'border-blue-500': type === 'info'
          }">
@@ -44,8 +44,8 @@ style="display: none;">
                     <svg x-show="type === 'success'" class="h-6 w-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
-                    <!-- Error Icon -->
-                    <svg x-show="type === 'error'" class="h-6 w-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <!-- Error/Failed Icon -->
+                    <svg x-show="type === 'error' || type === 'failed'" class="h-6 w-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                     <!-- Warning Icon -->

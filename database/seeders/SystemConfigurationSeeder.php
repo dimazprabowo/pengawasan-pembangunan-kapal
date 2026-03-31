@@ -29,24 +29,6 @@ class SystemConfigurationSeeder extends Seeder
                 'is_editable' => true,
                 'is_active' => true,
             ],
-            [
-                'key' => 'file.max_upload_size',
-                'category' => 'general',
-                'value' => '20',
-                'data_type' => 'integer',
-                'description' => 'Maksimal ukuran upload file (MB)',
-                'is_editable' => true,
-                'is_active' => true,
-            ],
-            [
-                'key' => 'file.allowed_mimes',
-                'category' => 'general',
-                'value' => 'pdf,doc,docx,xls,xlsx,png,jpg,jpeg,webp,gif,bmp,svg',
-                'data_type' => 'string',
-                'description' => 'Tipe file yang diizinkan untuk upload (pisahkan dengan koma)',
-                'is_editable' => true,
-                'is_active' => true,
-            ],
         ];
 
         foreach ($configurations as $config) {

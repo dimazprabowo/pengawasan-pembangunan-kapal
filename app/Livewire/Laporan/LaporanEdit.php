@@ -102,7 +102,7 @@ class LaporanEdit extends Component
             'tanggal_laporan' => 'required|date',
             'isi' => 'nullable|string',
             'catatan' => 'nullable|string|max:1000',
-            'newLampiran.*.file' => file_upload_validation_rule(),
+            'newLampiran.*.file' => file_upload_validation_rule('foto_kapal'),
             'newLampiran.*.keterangan' => 'nullable|string|max:1000',
             'lampiranKeterangan.*' => 'nullable|string|max:1000',
         ];
@@ -244,7 +244,13 @@ class LaporanEdit extends Component
     public function save(LaporanService $service): void
     {
         $this->authorize('update', $this->laporan);
-        $this->validate();
+        
+        try {
+            $this->validate();
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->notifyValidationError($e);
+            throw $e;
+        }
 
         try {
             $data = [

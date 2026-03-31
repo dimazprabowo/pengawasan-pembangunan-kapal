@@ -106,10 +106,15 @@ class RolePermission extends Component
 
     public function save(RolePermissionService $service)
     {
-        $this->validate([
-            'roleName' => ['required', 'string', 'max:255', $this->editMode ? 'unique:roles,name,' . $this->roleId : 'unique:roles,name'],
-            'selectedPermissions' => 'array',
-        ]);
+        try {
+            $this->validate([
+                'roleName' => ['required', 'string', 'max:255', $this->editMode ? 'unique:roles,name,' . $this->roleId : 'unique:roles,name'],
+                'selectedPermissions' => 'required|array|min:1',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->notifyValidationError($e);
+            throw $e;
+        }
 
         try {
             if ($this->editMode) {

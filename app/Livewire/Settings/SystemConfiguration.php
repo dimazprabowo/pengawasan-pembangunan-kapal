@@ -21,7 +21,6 @@ class SystemConfiguration extends Component
     protected $paginationTheme = 'tailwind';
 
     public $search = '';
-    public $categoryFilter = '';
     public $showModal = false;
     public $editMode = false;
     
@@ -34,11 +33,6 @@ class SystemConfiguration extends Component
     public $description;
     public $is_editable = true;
     public $is_active = true;
-    
-    // Delete Modal
-    public $showDeleteModal = false;
-    public $deletingConfigId;
-    public $deletingConfigKey;
 
     public function mount()
     {
@@ -63,20 +57,6 @@ class SystemConfiguration extends Component
         $this->resetPage();
     }
 
-    public function updatingCategoryFilter()
-    {
-        $this->resetPage();
-    }
-
-    public function create()
-    {
-        $this->authorize('create', SystemConfigModel::class);
-
-        $this->resetForm();
-        $this->editMode = false;
-        $this->showModal = true;
-    }
-
     public function edit($id)
     {
         $config = SystemConfigModel::findOrFail($id);
@@ -97,7 +77,12 @@ class SystemConfiguration extends Component
 
     public function save(SystemConfigurationService $service)
     {
-        $this->validate();
+        try {
+            $this->validate();
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->notifyValidationError($e);
+            throw $e;
+        }
 
         try {
             $data = [
@@ -110,48 +95,17 @@ class SystemConfiguration extends Component
                 'is_active' => $this->is_active,
             ];
 
-            if ($this->editMode) {
-                $config = SystemConfigModel::findOrFail($this->configId);
-                $this->authorize('update', $config);
+            $config = SystemConfigModel::findOrFail($this->configId);
+            $this->authorize('update', $config);
 
-                $service->update($config, $data);
-                $message = 'Konfigurasi berhasil diupdate!';
-            } else {
-                $this->authorize('create', SystemConfigModel::class);
-
-                $service->create($data);
-                $message = 'Konfigurasi berhasil ditambahkan!';
-            }
+            $service->update($config, $data);
+            $message = 'Konfigurasi berhasil diupdate!';
 
             $this->notifySuccess($message);
             $this->closeModal();
             $this->resetForm();
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk melakukan aksi ini.');
-        } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
-        }
-    }
-
-    public function confirmDelete($id)
-    {
-        $config = SystemConfigModel::findOrFail($id);
-        $this->deletingConfigId = $config->id;
-        $this->deletingConfigKey = $config->key;
-        $this->showDeleteModal = true;
-    }
-
-    public function delete(SystemConfigurationService $service)
-    {
-        try {
-            $config = SystemConfigModel::findOrFail($this->deletingConfigId);
-            $this->authorize('delete', $config);
-
-            $service->delete($config);
-            $this->notifySuccess('Konfigurasi berhasil dihapus!');
-            $this->showDeleteModal = false;
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
-            $this->notifyError('Konfigurasi ini tidak dapat dihapus!');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
         }
@@ -203,7 +157,7 @@ class SystemConfiguration extends Component
     {
         $this->authorize('exportExcel', SystemConfigModel::class);
 
-        return (new SystemConfigurationsExport($this->search, $this->categoryFilter))
+        return (new SystemConfigurationsExport($this->search))
             ->download('konfigurasi-' . now()->format('Y-m-d-His') . '.xlsx');
     }
 
@@ -221,10 +175,6 @@ class SystemConfiguration extends Component
             });
         }
 
-        if ($this->categoryFilter) {
-            $query->where('category', $this->categoryFilter);
-        }
-
         $configurations = $query->orderBy('category')->orderBy('key')->get();
 
         $pdf = Pdf::loadView('exports.configurations-pdf', ['configurations' => $configurations]);
@@ -239,10 +189,7 @@ class SystemConfiguration extends Component
     public function render(SystemConfigurationService $service)
     {
         return view('livewire.settings.system-configuration', [
-            'configurations' => $service->getFiltered(
-                $this->search,
-                $this->categoryFilter
-            ),
+            'configurations' => $service->getFiltered($this->search),
             'categories' => ConfigCategory::options(),
             'dataTypes' => ConfigDataType::options(),
         ]);

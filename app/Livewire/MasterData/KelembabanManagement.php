@@ -100,7 +100,12 @@ class KelembabanManagement extends Component
 
     public function save(KelembabanService $service)
     {
-        $this->validate();
+        try {
+            $this->validate();
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->notifyValidationError($e);
+            throw $e;
+        }
 
         try {
             $data = [

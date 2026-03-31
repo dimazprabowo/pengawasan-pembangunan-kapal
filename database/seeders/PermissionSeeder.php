@@ -71,9 +71,7 @@ class PermissionSeeder extends Seeder
 
             // Konfigurasi System
             'configuration_view',
-            'configuration_create',
             'configuration_update',
-            'configuration_delete',
             'configuration_export_excel',
             'configuration_export_pdf',
 

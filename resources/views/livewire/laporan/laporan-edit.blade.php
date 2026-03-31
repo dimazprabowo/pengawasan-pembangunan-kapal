@@ -379,7 +379,7 @@
                                                             <div x-show="uploading" x-cloak>
                                                                 <span class="text-xs text-blue-600" x-text="progress + '%'"></span>
                                                             </div>
-                                                            <input type="file" wire:model="newLampiran.{{ $index }}.file" class="hidden" accept=".{{ implode(',.', get_allowed_mimes_array()) }}">
+                                                            <input type="file" wire:model="newLampiran.{{ $index }}.file" class="hidden" accept=".{{ implode(',.', get_allowed_mimes_array('foto_kapal')) }}">
                                                         </label>
                                                     </div>
                                                 @endif

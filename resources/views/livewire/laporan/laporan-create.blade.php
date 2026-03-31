@@ -264,7 +264,7 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
                                         </svg>
                                         Lampiran
-                                        <span class="text-xs font-normal text-gray-400">(opsional — {{ get_upload_config_display() }})</span>
+                                        <span class="text-xs font-normal text-gray-400">(opsional — {{ get_upload_config_display('foto_kapal') }})</span>
                                     </h4>
 
                                     {{-- Lampiran Cards --}}
@@ -340,7 +340,7 @@
                                                                         <span class="text-xs text-blue-600" x-text="progress + '%'"></span>
                                                                     </div>
                                                                     <input type="file" wire:model="lampiran.{{ $index }}.{{ $lampiranIndex }}.file" class="hidden"
-                                                                        accept=".{{ implode(',.', get_allowed_mimes_array()) }}">
+                                                                        accept=".{{ implode(',.', get_allowed_mimes_array('foto_kapal')) }}">
                                                                 </label>
                                                             </div>
                                                         @endif
