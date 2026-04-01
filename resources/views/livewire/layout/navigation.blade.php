@@ -24,49 +24,138 @@
                     <span class="text-sm font-bold text-gray-900 dark:text-white hidden sm:inline">{{ config('app.name', 'Boilerplate') }}</span>
                 </a>
 
-                {{-- Navbar mode: Horizontal Menu Items --}}
-                <div class="hidden lg:flex items-center space-x-1 ml-4" x-show="Alpine.store('layout').isNavbar()" x-cloak>
-                        @foreach($menuItems as $item)
-                            @if(isset($item['children']))
-                                <div x-data="{ open: false }" @click.outside="open = false" class="relative">
-                                    <button @click="open = !open"
-                                            class="flex items-center space-x-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors
-                                                   {{ ($item['active'] ?? false) ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
-                                        <x-icon name="{{ $item['icon'] }}" class="w-4 h-4" />
-                                        <span>{{ $item['name'] }}</span>
-                                        <svg class="w-3.5 h-3.5 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                        </svg>
-                                    </button>
-                                    <div x-show="open"
-                                         x-transition:enter="transition ease-out duration-200"
-                                         x-transition:enter-start="opacity-0 scale-95"
-                                         x-transition:enter-end="opacity-100 scale-100"
-                                         x-transition:leave="transition ease-in duration-150"
-                                         x-transition:leave-start="opacity-100 scale-100"
-                                         x-transition:leave-end="opacity-0 scale-95"
-                                         class="absolute left-0 mt-1 w-52 py-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
-                                         style="display: none;">
-                                        @foreach(array_filter($item['children']) as $child)
-                                            <a href="{{ route($child['route']) }}"
-                                               wire:navigate
-                                               class="block px-4 py-2 text-sm transition-colors
-                                                      {{ ($child['active'] ?? false) ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
-                                                {{ $child['name'] }}
-                                            </a>
-                                        @endforeach
-                                    </div>
-                                </div>
-                            @else
-                                <a href="{{ route($item['route']) }}"
-                                   wire:navigate
-                                   class="flex items-center space-x-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors
-                                          {{ ($item['active'] ?? false) ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
-                                    <x-icon name="{{ $item['icon'] }}" class="w-4 h-4" />
-                                    <span>{{ $item['name'] }}</span>
-                                </a>
-                            @endif
-                        @endforeach
+                {{-- Navbar mode: Horizontal Menu Items with Scroll Arrows --}}
+                <div class="hidden lg:flex items-center flex-1 ml-4" x-show="Alpine.store('layout').isNavbar()" x-cloak>
+                    <div class="relative w-full max-w-4xl"
+                         x-data="{
+                             showLeftArrow: false,
+                             showRightArrow: false,
+                             checkScroll() {
+                                 const container = this.$refs.menuContainer;
+                                 if (container) {
+                                     const hasOverflow = container.scrollWidth > (container.clientWidth + 1);
+                                     this.showLeftArrow = hasOverflow && container.scrollLeft > 5;
+                                     this.showRightArrow = hasOverflow && container.scrollLeft < (container.scrollWidth - container.clientWidth - 5);
+                                 }
+                             },
+                             scrollLeft() {
+                                 this.$refs.menuContainer.scrollBy({ left: -200, behavior: 'smooth' });
+                             },
+                             scrollRight() {
+                                 this.$refs.menuContainer.scrollBy({ left: 200, behavior: 'smooth' });
+                             }
+                         }"
+                         x-init="
+                             $nextTick(() => {
+                                 checkScroll();
+                                 window.addEventListener('resize', () => checkScroll());
+                             });
+                         ">
+                        {{-- Left Arrow --}}
+                        <button x-show="showLeftArrow"
+                                x-cloak
+                                @click="scrollLeft()"
+                                type="button"
+                                x-transition:enter="transition ease-out duration-200"
+                                x-transition:enter-start="opacity-0 -translate-x-2"
+                                x-transition:enter-end="opacity-100 translate-x-0"
+                                x-transition:leave="transition ease-in duration-150"
+                                x-transition:leave-start="opacity-100 translate-x-0"
+                                x-transition:leave-end="opacity-0 -translate-x-2"
+                                class="absolute left-0 top-1/2 -translate-y-1/2 z-20 p-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                            </svg>
+                        </button>
+
+                        {{-- Menu Container with Scroll --}}
+                        <div x-ref="menuContainer"
+                             @scroll="checkScroll()"
+                             class="flex items-center overflow-x-auto navbar-scroll"
+                             :class="{ 'px-10': showLeftArrow || showRightArrow, 'px-0': !showLeftArrow && !showRightArrow }">
+                            <div class="flex items-center space-x-1 min-w-max">
+                                @foreach($menuItems as $item)
+                                    @if(isset($item['children']))
+                                        <div x-data="{ 
+                                                open: false,
+                                                positionDropdown() {
+                                                    if (!this.open) return;
+                                                    const btn = this.$refs.button;
+                                                    const dropdown = this.$refs.dropdown;
+                                                    const rect = btn.getBoundingClientRect();
+                                                    dropdown.style.left = rect.left + 'px';
+                                                    dropdown.style.top = (rect.bottom + 4) + 'px';
+                                                }
+                                            }" 
+                                            @click.outside="open = false" 
+                                            class="flex-shrink-0">
+                                            <button @click="open = !open; $nextTick(() => positionDropdown())"
+                                                    x-ref="button"
+                                                    type="button"
+                                                    class="flex items-center space-x-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap
+                                                           {{ ($item['active'] ?? false) ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+                                                <x-icon name="{{ $item['icon'] }}" class="w-4 h-4 flex-shrink-0" />
+                                                <span>{{ $item['name'] }}</span>
+                                                <svg class="w-3.5 h-3.5 transition-transform flex-shrink-0" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                                </svg>
+                                            </button>
+                                            
+                                            {{-- Use fixed positioning and teleport to escape overflow clipping --}}
+                                            <template x-teleport="body">
+                                                <div x-show="open"
+                                                     x-ref="dropdown"
+                                                     @scroll.window="open = false"
+                                                     @resize.window="open = false"
+                                                     x-transition:enter="transition ease-out duration-200"
+                                                     x-transition:enter-start="opacity-0 scale-95"
+                                                     x-transition:enter-end="opacity-100 scale-100"
+                                                     x-transition:leave="transition ease-in duration-150"
+                                                     x-transition:leave-start="opacity-100 scale-100"
+                                                     x-transition:leave-end="opacity-0 scale-95"
+                                                     class="fixed w-52 py-1 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-[9999]"
+                                                     x-cloak>
+                                                    @foreach(array_filter($item['children']) as $child)
+                                                        <a href="{{ route($child['route']) }}"
+                                                           wire:navigate
+                                                           class="block px-4 py-2 text-sm transition-colors
+                                                                  {{ ($child['active'] ?? false) ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+                                                            {{ $child['name'] }}
+                                                        </a>
+                                                    @endforeach
+                                                </div>
+                                            </template>
+                                        </div>
+                                    @else
+                                        <a href="{{ route($item['route']) }}"
+                                           wire:navigate
+                                           class="flex items-center space-x-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors flex-shrink-0 whitespace-nowrap
+                                                  {{ ($item['active'] ?? false) ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+                                            <x-icon name="{{ $item['icon'] }}" class="w-4 h-4 flex-shrink-0" />
+                                            <span>{{ $item['name'] }}</span>
+                                        </a>
+                                    @endif
+                                @endforeach
+                            </div>
+                        </div>
+
+                        {{-- Right Arrow --}}
+                        <button x-show="showRightArrow"
+                                x-cloak
+                                @click="scrollRight()"
+                                type="button"
+                                x-transition:enter="transition ease-out duration-200"
+                                x-transition:enter-start="opacity-0 translate-x-2"
+                                x-transition:enter-end="opacity-100 translate-x-0"
+                                x-transition:leave="transition ease-in duration-150"
+                                x-transition:leave-start="opacity-100 translate-x-0"
+                                x-transition:leave-end="opacity-0 translate-x-2"
+                                class="absolute right-0 top-1/2 -translate-y-1/2 z-20 p-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </div>
 
