@@ -2,8 +2,8 @@
     <div class="px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
             {{-- Left Side: Burger + Logo (navbar mode) --}}
-            <div class="flex items-center space-x-3">
-                {{-- Burger Button: mobile = sidebar toggle (both modes), desktop sidebar mode = collapse toggle --}}
+            <div class="flex items-center space-x-3 flex-shrink-0">
+                {{-- Burger Button --}}
                 <button x-show="Alpine.store('layout').isSidebar() || window.innerWidth < 1024"
                         x-on:resize.window="$el.style.display = (Alpine.store('layout').isSidebar() || window.innerWidth < 1024) ? '' : 'none'"
                         @click="window.innerWidth >= 1024 ? Alpine.store('sidebar').toggleCollapse() : Alpine.store('sidebar').toggle()"
@@ -14,7 +14,7 @@
                     </svg>
                 </button>
 
-                {{-- Navbar mode: Logo + App Name (desktop only, mobile uses sidebar logo) --}}
+                {{-- Navbar mode: Logo + App Name --}}
                 <a href="{{ route('dashboard') }}" class="hidden lg:flex items-center space-x-2" x-show="Alpine.store('layout').isNavbar()" x-cloak>
                     <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
                         <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -23,119 +23,145 @@
                     </div>
                     <span class="text-sm font-bold text-gray-900 dark:text-white hidden sm:inline">{{ config('app.name', 'Boilerplate') }}</span>
                 </a>
+            </div>
 
-                {{-- Navbar mode: Horizontal Menu Items with Scroll Arrows --}}
-                <div class="hidden lg:flex items-center flex-1 ml-4" x-show="Alpine.store('layout').isNavbar()" x-cloak>
-                    <div class="relative w-full max-w-4xl"
-                         x-data="{
-                             showLeftArrow: false,
-                             showRightArrow: false,
-                             checkScroll() {
-                                 const container = this.$refs.menuContainer;
-                                 if (container) {
-                                     const hasOverflow = container.scrollWidth > (container.clientWidth + 1);
-                                     this.showLeftArrow = hasOverflow && container.scrollLeft > 5;
-                                     this.showRightArrow = hasOverflow && container.scrollLeft < (container.scrollWidth - container.clientWidth - 5);
-                                 }
-                             },
-                             scrollLeft() {
-                                 this.$refs.menuContainer.scrollBy({ left: -200, behavior: 'smooth' });
-                             },
-                             scrollRight() {
-                                 this.$refs.menuContainer.scrollBy({ left: 200, behavior: 'smooth' });
+            {{-- Navbar mode: Horizontal Menu Items with Scroll Arrows --}}
+            <div class="hidden lg:flex items-center flex-1 min-w-0 ml-4" x-show="Alpine.store('layout').isNavbar()" x-cloak>
+                <div class="relative w-full h-full flex items-center"
+                     x-data="{
+                         showLeftArrow: false,
+                         showRightArrow: false,
+                         checkScroll() {
+                             const container = this.$refs.menuContainer;
+                             if (container) {
+                                 const hasOverflow = container.scrollWidth > (container.clientWidth + 1);
+                                 this.showLeftArrow = hasOverflow && container.scrollLeft > 5;
+                                 this.showRightArrow = hasOverflow && (Math.ceil(container.scrollLeft + container.clientWidth) < container.scrollWidth - 5);
                              }
-                         }"
-                         x-init="
-                             $nextTick(() => {
-                                 checkScroll();
-                                 window.addEventListener('resize', () => checkScroll());
-                             });
-                         ">
-                        {{-- Left Arrow --}}
-                        <button x-show="showLeftArrow"
-                                x-cloak
-                                @click="scrollLeft()"
-                                type="button"
-                                x-transition:enter="transition ease-out duration-200"
-                                x-transition:enter-start="opacity-0 -translate-x-2"
-                                x-transition:enter-end="opacity-100 translate-x-0"
-                                x-transition:leave="transition ease-in duration-150"
-                                x-transition:leave-start="opacity-100 translate-x-0"
-                                x-transition:leave-end="opacity-0 -translate-x-2"
-                                class="absolute left-0 top-1/2 -translate-y-1/2 z-20 p-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-                            </svg>
-                        </button>
+                         },
+                         scrollLeft() {
+                             this.$refs.menuContainer.scrollBy({ left: -300, behavior: 'smooth' });
+                         },
+                         scrollRight() {
+                             this.$refs.menuContainer.scrollBy({ left: 300, behavior: 'smooth' });
+                         }
+                     }"
+                     x-init="
+                         $nextTick(() => {
+                             checkScroll();
+                             const mutationObserver = new MutationObserver(() => checkScroll());
+                             mutationObserver.observe($refs.menuContainer, { childList: true, subtree: true });
+                             const resizeObserver = new ResizeObserver(() => checkScroll());
+                             resizeObserver.observe($refs.menuContainer);
+                             window.addEventListener('resize', () => checkScroll());
+                         });
+                     ">
+                    {{-- Left Arrow --}}
+                    <button x-show="showLeftArrow"
+                            x-cloak
+                            @click="scrollLeft()"
+                            type="button"
+                            x-transition:enter="transition ease-out duration-300"
+                            x-transition:enter-start="opacity-0 -translate-x-4"
+                            x-transition:enter-end="opacity-100 translate-x-0"
+                            x-transition:leave="transition ease-in duration-200"
+                            x-transition:leave-start="opacity-100 translate-x-0"
+                            x-transition:leave-end="opacity-0 -translate-x-4"
+                            class="absolute left-0 top-1/2 -translate-y-1/2 z-30 p-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-full shadow-xl text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:scale-110 active:scale-95 transition-all focus:outline-none ring-2 ring-transparent focus:ring-blue-500/50">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/>
+                        </svg>
+                    </button>
 
-                        {{-- Menu Container with Scroll --}}
+                    {{-- Menu Container with Scroll --}}
+                    <div class="relative flex items-center flex-1 overflow-hidden" 
+                         @menu-updated.window="$nextTick(() => checkScroll())">
+                        {{-- Gradient Shadows --}}
+                        <div x-show="showLeftArrow" 
+                             x-transition:enter="transition opacity duration-300"
+                             x-transition:enter-start="opacity-0"
+                             x-transition:enter-end="opacity-100"
+                             x-transition:leave="transition opacity duration-300"
+                             x-transition:leave-start="opacity-100"
+                             x-transition:leave-end="opacity-0"
+                             class="absolute left-0 top-0 bottom-0 w-12 z-10 pointer-events-none bg-gradient-to-r from-white dark:from-gray-800 to-transparent"
+                             x-cloak></div>
+                        <div x-show="showRightArrow" 
+                             x-transition:enter="transition opacity duration-300"
+                             x-transition:enter-start="opacity-0"
+                             x-transition:enter-end="opacity-100"
+                             x-transition:leave="transition opacity duration-300"
+                             x-transition:leave-start="opacity-100"
+                             x-transition:leave-end="opacity-0"
+                             class="absolute right-0 top-0 bottom-0 w-12 z-10 pointer-events-none bg-gradient-to-l from-white dark:from-gray-800 to-transparent"
+                             x-cloak></div>
+
                         <div x-ref="menuContainer"
                              @scroll="checkScroll()"
-                             class="flex items-center overflow-x-auto navbar-scroll"
-                             :class="{ 'px-10': showLeftArrow || showRightArrow, 'px-0': !showLeftArrow && !showRightArrow }">
-                            <div class="flex items-center space-x-1 min-w-max">
-                                @foreach($menuItems as $item)
-                                    @if(isset($item['children']))
-                                        <div x-data="{ 
-                                                open: false,
-                                                positionDropdown() {
-                                                    if (!this.open) return;
-                                                    const btn = this.$refs.button;
-                                                    const dropdown = this.$refs.dropdown;
-                                                    const rect = btn.getBoundingClientRect();
-                                                    dropdown.style.left = rect.left + 'px';
-                                                    dropdown.style.top = (rect.bottom + 4) + 'px';
-                                                }
-                                            }" 
-                                            @click.outside="open = false" 
-                                            class="flex-shrink-0">
-                                            <button @click="open = !open; $nextTick(() => positionDropdown())"
-                                                    x-ref="button"
-                                                    type="button"
-                                                    class="flex items-center space-x-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap
-                                                           {{ ($item['active'] ?? false) ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
-                                                <x-icon name="{{ $item['icon'] }}" class="w-4 h-4 flex-shrink-0" />
-                                                <span>{{ $item['name'] }}</span>
-                                                <svg class="w-3.5 h-3.5 transition-transform flex-shrink-0" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                                </svg>
-                                            </button>
-                                            
-                                            {{-- Use fixed positioning and teleport to escape overflow clipping --}}
-                                            <template x-teleport="body">
-                                                <div x-show="open"
-                                                     x-ref="dropdown"
-                                                     @scroll.window="open = false"
-                                                     @resize.window="open = false"
-                                                     x-transition:enter="transition ease-out duration-200"
-                                                     x-transition:enter-start="opacity-0 scale-95"
-                                                     x-transition:enter-end="opacity-100 scale-100"
-                                                     x-transition:leave="transition ease-in duration-150"
-                                                     x-transition:leave-start="opacity-100 scale-100"
-                                                     x-transition:leave-end="opacity-0 scale-95"
-                                                     class="fixed w-52 py-1 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-[9999]"
-                                                     x-cloak>
-                                                    @foreach(array_filter($item['children']) as $child)
-                                                        <a href="{{ route($child['route']) }}"
-                                                           wire:navigate
-                                                           class="block px-4 py-2 text-sm transition-colors
-                                                                  {{ ($child['active'] ?? false) ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
-                                                            {{ $child['name'] }}
-                                                        </a>
-                                                    @endforeach
-                                                </div>
-                                            </template>
-                                        </div>
-                                    @else
-                                        <a href="{{ route($item['route']) }}"
-                                           wire:navigate
-                                           class="flex items-center space-x-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors flex-shrink-0 whitespace-nowrap
-                                                  {{ ($item['active'] ?? false) ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+                             class="flex items-center overflow-x-auto navbar-scroll px-4"
+                             :class="{ 'px-2': !showLeftArrow && !showRightArrow }">
+                            <div class="flex items-center space-x-1 min-w-max py-1">
+                            @foreach($menuItems as $item)
+                                @if(isset($item['children']))
+                                    <div x-data="{ 
+                                            open: false,
+                                            positionDropdown() {
+                                                if (!this.open) return;
+                                                const btn = this.$refs.button;
+                                                const dropdown = this.$refs.dropdown;
+                                                const rect = btn.getBoundingClientRect();
+                                                dropdown.style.left = rect.left + 'px';
+                                                dropdown.style.top = (rect.bottom + 4) + 'px';
+                                            }
+                                        }" 
+                                        @click.outside="open = false" 
+                                        class="flex-shrink-0">
+                                        <button @click="open = !open; $nextTick(() => positionDropdown())"
+                                                x-ref="button"
+                                                type="button"
+                                                class="flex items-center space-x-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap
+                                                       {{ ($item['active'] ?? false) ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
                                             <x-icon name="{{ $item['icon'] }}" class="w-4 h-4 flex-shrink-0" />
                                             <span>{{ $item['name'] }}</span>
-                                        </a>
-                                    @endif
-                                @endforeach
+                                            <svg class="w-3.5 h-3.5 transition-transform flex-shrink-0" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                            </svg>
+                                        </button>
+                                        
+                                        <template x-teleport="body">
+                                            <div x-show="open"
+                                                 x-ref="dropdown"
+                                                 @scroll.window="open = false"
+                                                 @resize.window="open = false"
+                                                 x-transition:enter="transition ease-out duration-200"
+                                                 x-transition:enter-start="opacity-0 scale-95"
+                                                 x-transition:enter-end="opacity-100 scale-100"
+                                                 x-transition:leave="transition ease-in duration-150"
+                                                 x-transition:leave-start="opacity-100 scale-100"
+                                                 x-transition:leave-end="opacity-0 scale-95"
+                                                 class="fixed w-52 py-1 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-[9999]"
+                                                 x-cloak>
+                                                @foreach(array_filter($item['children']) as $child)
+                                                    <a href="{{ route($child['route']) }}"
+                                                       wire:navigate
+                                                       class="block px-4 py-2 text-sm transition-colors
+                                                              {{ ($child['active'] ?? false) ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+                                                        {{ $child['name'] }}
+                                                    </a>
+                                                @endforeach
+                                            </div>
+                                        </template>
+                                    </div>
+                                @else
+                                    <a href="{{ route($item['route']) }}"
+                                       wire:navigate
+                                       class="flex items-center space-x-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors flex-shrink-0 whitespace-nowrap
+                                              {{ ($item['active'] ?? false) ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+                                        <x-icon name="{{ $item['icon'] }}" class="w-4 h-4 flex-shrink-0" />
+                                        <span>{{ $item['name'] }}</span>
+                                    </a>
+                                @endif
+                            @endforeach
                             </div>
                         </div>
 
@@ -144,15 +170,15 @@
                                 x-cloak
                                 @click="scrollRight()"
                                 type="button"
-                                x-transition:enter="transition ease-out duration-200"
-                                x-transition:enter-start="opacity-0 translate-x-2"
+                                x-transition:enter="transition ease-out duration-300"
+                                x-transition:enter-start="opacity-0 translate-x-4"
                                 x-transition:enter-end="opacity-100 translate-x-0"
-                                x-transition:leave="transition ease-in duration-150"
+                                x-transition:leave="transition ease-in duration-200"
                                 x-transition:leave-start="opacity-100 translate-x-0"
-                                x-transition:leave-end="opacity-0 translate-x-2"
-                                class="absolute right-0 top-1/2 -translate-y-1/2 z-20 p-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                x-transition:leave-end="opacity-0 translate-x-4"
+                                class="absolute right-0 top-1/2 -translate-y-1/2 z-30 p-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-full shadow-xl text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:scale-110 active:scale-95 transition-all focus:outline-none ring-2 ring-transparent focus:ring-blue-500/50">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
                             </svg>
                         </button>
                     </div>
@@ -167,7 +193,7 @@
             </div>
 
             {{-- Right Side: Layout Toggle, Dark Mode & Profile --}}
-            <div class="flex items-center space-x-1 sm:space-x-2">
+            <div class="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
                 {{-- Layout Mode Toggle --}}
                 <button @click="Alpine.store('layout').toggleMode()"
                         class="hidden lg:inline-flex p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
