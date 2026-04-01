@@ -40,10 +40,10 @@
                              }
                          },
                          scrollLeft() {
-                             this.$refs.menuContainer.scrollBy({ left: -300, behavior: 'smooth' });
+                             this.$refs.menuContainer.scrollBy({ left: -150, behavior: 'smooth' });
                          },
                          scrollRight() {
-                             this.$refs.menuContainer.scrollBy({ left: 300, behavior: 'smooth' });
+                             this.$refs.menuContainer.scrollBy({ left: 150, behavior: 'smooth' });
                          }
                      }"
                      x-init="
