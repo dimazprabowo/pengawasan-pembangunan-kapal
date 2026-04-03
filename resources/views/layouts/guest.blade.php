@@ -15,8 +15,10 @@
 
         {{-- Alpine stores, dark mode sync, teleport cleanup loaded via Vite (alpine-stores.js) --}}
 
+        @if(config('services.recaptcha.enabled'))
         <!-- Google reCAPTCHA v2 -->
         <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+        @endif
     </head>
     <body class="font-sans text-gray-900 antialiased">
         {{ $slot }}

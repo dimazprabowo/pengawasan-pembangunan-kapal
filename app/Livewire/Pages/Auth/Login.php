@@ -77,11 +77,19 @@ class Login extends Component
     }
 
     /**
+     * Check if reCAPTCHA is enabled
+     */
+    public function isRecaptchaEnabled(): bool
+    {
+        return config('services.recaptcha.enabled', false);
+    }
+
+    /**
      * Get reCAPTCHA site key
      */
     public function getRecaptchaSiteKey(): string
     {
-        return config('services.recaptcha.site_key');
+        return config('services.recaptcha.site_key', '');
     }
 
     public function render()

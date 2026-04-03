@@ -160,6 +160,7 @@
                         @endif
                     </div>
 
+                    @if($this->isRecaptchaEnabled())
                     <!-- reCAPTCHA v2 Checkbox -->
                     <div class="space-y-3">
                         <!-- Hidden input to store token -->
@@ -183,6 +184,7 @@
                             <p class="text-sm text-red-600 dark:text-red-400 text-center">{{ $message }}</p>
                         @enderror
                     </div>
+                    @endif
 
                     <button type="submit" 
                         class="w-full inline-flex items-center justify-center px-4 py-3 bg-blue-600 border border-transparent rounded-lg font-semibold text-base text-white uppercase tracking-widest hover:bg-blue-700 focus:bg-blue-700 active:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -213,12 +215,14 @@
                     </button>
 
 
+                    @if($this->isRecaptchaEnabled())
                     <!-- reCAPTCHA Badge Info -->
                     <div class="text-xs text-gray-500 dark:text-gray-400 text-center mt-4">
                         This site is protected by reCAPTCHA and the Google
                         <a href="https://policies.google.com/privacy" target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline">Privacy Policy</a> and
                         <a href="https://policies.google.com/terms" target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline">Terms of Service</a> apply.
                     </div>
+                    @endif
                 </form>
 
                 @if(config('services.sso.enabled'))
@@ -263,6 +267,7 @@
     </div>
 </div>
 
+@if($this->isRecaptchaEnabled())
 @script
 <script>
 // Use window object to avoid redeclaration
@@ -293,7 +298,7 @@ window.renderRecaptcha = function() {
         grecaptcha.ready(function() {
             try {
                 window.recaptchaWidgetId = grecaptcha.render('recaptcha-container', {
-                    'sitekey': '{{ config('services.recaptcha.site_key') }}',
+                    'sitekey': '{{ $this->getRecaptchaSiteKey() }}',
                     'theme': document.documentElement.classList.contains('dark') ? 'dark' : 'light',
                     'callback': function(token) {
                         // Set token to hidden input (primary method)
@@ -362,3 +367,4 @@ window.reloadRecaptcha = function() {
 window.renderRecaptcha();
 </script>
 @endscript
+@endif

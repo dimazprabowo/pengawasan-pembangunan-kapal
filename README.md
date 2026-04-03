@@ -53,7 +53,7 @@ Aplikasi ini mendukung **dual mode operation**:
 - ✅ Register new account
 - ✅ Forgot password & reset via email
 - ✅ Email verification
-- ✅ Google reCAPTCHA v2 protection
+- ✅ Google reCAPTCHA v2 protection (configurable via RECAPTCHA_ENABLED)
 - ✅ Session management
 
 ### SSO Integration (Optional)
@@ -217,6 +217,8 @@ DB_PASSWORD=root
 # DB_PASSWORD=
 
 # Google reCAPTCHA v2 (Opsional)
+# Set to true untuk enable reCAPTCHA, false untuk disable
+RECAPTCHA_ENABLED=false
 RECAPTCHA_SITE_KEY=your-site-key
 RECAPTCHA_SECRET_KEY=your-secret-key
 
@@ -522,6 +524,7 @@ DB_DATABASE=client_app
 DB_USERNAME=your-user
 DB_PASSWORD=your-secure-password
 
+RECAPTCHA_ENABLED=true
 RECAPTCHA_SITE_KEY=production-site-key
 RECAPTCHA_SECRET_KEY=production-secret-key
 

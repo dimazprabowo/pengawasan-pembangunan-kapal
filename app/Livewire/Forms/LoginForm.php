@@ -28,7 +28,7 @@ class LoginForm extends Form
      * Attempt to authenticate the request's credentials.
      * 
      * Flow:
-     * 1. Verify reCAPTCHA (FIRST - most important security check)
+     * 1. Verify reCAPTCHA (if enabled - most important security check)
      * 2. Check rate limiting
      * 3. Attempt authentication with credentials
      *
@@ -36,15 +36,16 @@ class LoginForm extends Form
      */
     public function authenticate(): void
     {
-        // STEP 1: Verify reCAPTCHA FIRST before anything else
+        // STEP 1: Verify reCAPTCHA FIRST before anything else (if enabled)
         // This prevents bot attacks and ensures human verification
-        $this->verifyRecaptcha();
+        if (config('services.recaptcha.enabled')) {
+            $this->verifyRecaptcha();
+        }
         
-        // STEP 2: Check rate limiting (after reCAPTCHA to prevent abuse)
+        // STEP 2: Check rate limiting
         $this->ensureIsNotRateLimited();
 
         // STEP 3: Attempt authentication with credentials
-        // Only reach here if reCAPTCHA passed
         if (! Auth::attempt($this->only(['email', 'password']), $this->remember)) {
             RateLimiter::hit($this->throttleKey());
 
