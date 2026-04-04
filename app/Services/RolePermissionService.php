@@ -119,9 +119,7 @@ class RolePermissionService
             ],
             'Konfigurasi System' => [
                 ['name' => 'configuration_view',         'label' => 'Lihat Konfigurasi'],
-                ['name' => 'configuration_create',       'label' => 'Tambah Konfigurasi'],
                 ['name' => 'configuration_update',       'label' => 'Edit Konfigurasi'],
-                ['name' => 'configuration_delete',       'label' => 'Hapus Konfigurasi'],
                 ['name' => 'configuration_export_excel', 'label' => 'Export Excel Konfigurasi'],
                 ['name' => 'configuration_export_pdf',   'label' => 'Export PDF Konfigurasi'],
             ],
