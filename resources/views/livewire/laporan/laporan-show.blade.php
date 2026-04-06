@@ -117,76 +117,6 @@
                 </div>
             </div>
 
-            {{-- Lampiran Section --}}
-            @if($laporan->lampiran->count() > 0)
-                <div>
-                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-                        Lampiran ({{ $laporan->lampiran->count() }} file)
-                    </label>
-                    <div class="space-y-2">
-                        @foreach($laporan->lampiran as $lampiranItem)
-                            <div class="flex items-center gap-3 px-3 py-2.5 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg">
-                                @if($lampiranItem->isFileProcessing())
-                                    <svg class="animate-spin w-5 h-5 text-blue-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                @elseif($lampiranItem->isFileFailed())
-                                    <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                    </svg>
-                                @else
-                                    <svg class="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                    </svg>
-                                @endif
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-sm text-gray-700 dark:text-gray-300 truncate">{{ $lampiranItem->file_name }}</p>
-                                    @if($lampiranItem->keterangan)
-                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ $lampiranItem->keterangan }}</p>
-                                    @endif
-                                </div>
-                                <span class="text-xs text-gray-400 flex-shrink-0">{{ number_format($lampiranItem->file_size / 1024, 0) }} KB</span>
-                                @if($lampiranItem->hasFile() && $lampiranItem->isFileCompleted())
-                                    <div class="flex items-center gap-1.5 flex-shrink-0">
-                                        {{-- Preview Button --}}
-                                        @if($lampiranItem->isPreviewable())
-                                            @can('laporan_lampiran_preview')
-                                                <button wire:click="openLampiranPreview({{ $lampiranItem->id }})" 
-                                                    type="button"
-                                                    wire:loading.attr="disabled"
-                                                    wire:target="openLampiranPreview({{ $lampiranItem->id }})"
-                                                    class="text-emerald-500 hover:text-emerald-700 p-1.5 rounded hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors disabled:opacity-50" 
-                                                    title="Preview">
-                                                    <svg wire:loading.class="hidden" wire:target="openLampiranPreview({{ $lampiranItem->id }})" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                                                    </svg>
-                                                    <svg wire:loading wire:target="openLampiranPreview({{ $lampiranItem->id }})" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                    </svg>
-                                                </button>
-                                            @endcan
-                                        @endif
-                                        
-                                        {{-- Download Button --}}
-                                        @can('laporan_lampiran_download')
-                                            <a href="{{ route('laporan.lampiran.download', [$laporan, $lampiranItem]) }}" 
-                                                class="text-blue-500 hover:text-blue-700 p-1.5 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors inline-block" 
-                                                title="Download">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                                                </svg>
-                                            </a>
-                                        @endcan
-                                    </div>
-                                @endif
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-            @endif
 
 
             {{-- Weather Information for Harian --}}
@@ -280,6 +210,74 @@
                     wireKeyPrefix="show-aktivitas"
                     readonly
                 />
+            @endif
+
+            {{-- Lampiran Section --}}
+            @if($laporan->lampiran->count() > 0)
+                <div class="border-t border-gray-200 dark:border-gray-700 pt-5">
+                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                        Lampiran ({{ $laporan->lampiran->count() }} file)
+                    </label>
+                    <div class="space-y-2">
+                        @foreach($laporan->lampiran as $lampiranItem)
+                            <div class="flex items-center gap-3 px-3 py-2.5 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg">
+                                @if($lampiranItem->isFileProcessing())
+                                    <svg class="animate-spin w-5 h-5 text-blue-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                @elseif($lampiranItem->isFileFailed())
+                                    <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                @else
+                                    <svg class="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                    </svg>
+                                @endif
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm text-gray-700 dark:text-gray-300 truncate">{{ $lampiranItem->file_name }}</p>
+                                    @if($lampiranItem->keterangan)
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ $lampiranItem->keterangan }}</p>
+                                    @endif
+                                </div>
+                                <span class="text-xs text-gray-400 flex-shrink-0">{{ number_format($lampiranItem->file_size / 1024, 0) }} KB</span>
+                                @if($lampiranItem->hasFile() && $lampiranItem->isFileCompleted())
+                                    <div class="flex items-center gap-1.5 flex-shrink-0">
+                                        @if($lampiranItem->isPreviewable())
+                                            @can('laporan_lampiran_preview')
+                                                <button wire:click="openLampiranPreview({{ $lampiranItem->id }})" 
+                                                    type="button"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="openLampiranPreview({{ $lampiranItem->id }})"
+                                                    class="text-emerald-500 hover:text-emerald-700 p-1.5 rounded hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors disabled:opacity-50" 
+                                                    title="Preview">
+                                                    <svg wire:loading.class="hidden" wire:target="openLampiranPreview({{ $lampiranItem->id }})" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                                    </svg>
+                                                    <svg wire:loading wire:target="openLampiranPreview({{ $lampiranItem->id }})" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                </button>
+                                            @endcan
+                                        @endif
+                                        @can('laporan_lampiran_download')
+                                            <a href="{{ route('laporan.lampiran.download', [$laporan, $lampiranItem]) }}" 
+                                                class="text-blue-500 hover:text-blue-700 p-1.5 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors inline-block" 
+                                                title="Download">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                                </svg>
+                                            </a>
+                                        @endcan
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
             @endif
         </div>
     </div>

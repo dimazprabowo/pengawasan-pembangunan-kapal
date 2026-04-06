@@ -50,6 +50,10 @@ class LaporanEdit extends Component
     public bool $showDeleteLampiranModal = false;
     public ?int $deletingLampiranId = null;
 
+    // Delete new (unsaved) lampiran confirmation
+    public bool $showDeleteNewLampiranModal = false;
+    public ?int $deletingNewLampiranIndex = null;
+
     // Delete personel confirmation
     public bool $showDeletePersonelModal = false;
     public ?int $deletingPersonelIndex = null;
@@ -256,6 +260,21 @@ class LaporanEdit extends Component
             unset($this->newLampiran[$index]);
             $this->newLampiran = array_values($this->newLampiran);
         }
+    }
+
+    public function confirmRemoveNewLampiran(int $index): void
+    {
+        $this->deletingNewLampiranIndex = $index;
+        $this->showDeleteNewLampiranModal = true;
+    }
+
+    public function removeNewLampiranConfirmed(): void
+    {
+        if ($this->deletingNewLampiranIndex !== null) {
+            $this->removeNewLampiran($this->deletingNewLampiranIndex);
+        }
+        $this->showDeleteNewLampiranModal = false;
+        $this->deletingNewLampiranIndex = null;
     }
 
     public function openCropper(int $index): void

@@ -37,8 +37,7 @@
     $currentConfig = $config[$period] ?? $config['pagi'];
 @endphp
 
-<div class="md:col-span-2 mb-4">
-    <div class="{{ $currentConfig['bgColor'] }} rounded-lg p-4 border {{ $currentConfig['borderColor'] }}">
+<div class="{{ $currentConfig['bgColor'] }} rounded-lg p-4 border {{ $currentConfig['borderColor'] }}">
         <h5 class="text-sm font-medium {{ $currentConfig['textColor'] }} mb-3 flex items-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $currentConfig['icon'] }}"/>
@@ -101,5 +100,4 @@
                 </div>
             </div>
         @endif
-    </div>
 </div>
