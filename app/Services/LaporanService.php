@@ -68,6 +68,9 @@ class LaporanService
         // Delete old single file if exists (backward compatibility)
         $this->deleteFile($laporan);
 
+        // Delete generated Word document if exists
+        $this->deleteDocFile($laporan);
+
         $laporan->delete();
     }
 
@@ -102,10 +105,32 @@ class LaporanService
         $lampiran->delete();
     }
 
+    public function removeDoc(Laporan $laporan): void
+    {
+        $this->deleteDocFile($laporan);
+        $laporan->update([
+            'doc_path'         => null,
+            'doc_name'         => null,
+            'doc_status'       => null,
+            'doc_generated_at' => null,
+            'doc_error'        => null,
+        ]);
+    }
+
     private function deleteFile(Laporan $laporan): void
     {
         if ($laporan->file_path && Storage::disk('local')->exists($laporan->file_path)) {
             Storage::disk('local')->delete($laporan->file_path);
+        }
+    }
+
+    private function deleteDocFile(Laporan $laporan): void
+    {
+        if ($laporan->doc_path) {
+            $path = storage_path('app/' . $laporan->doc_path);
+            if (file_exists($path)) {
+                @unlink($path);
+            }
         }
     }
 

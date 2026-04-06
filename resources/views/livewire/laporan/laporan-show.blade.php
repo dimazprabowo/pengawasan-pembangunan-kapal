@@ -1,4 +1,8 @@
-<div>
+<div
+    @if($laporan->isDocProcessing())
+        wire:poll.4s="refreshDocStatus"
+    @endif
+>
     {{-- Header --}}
     <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
@@ -65,6 +69,142 @@
                 @endif
             </div>
         </div>
+    @endif
+
+    {{-- Word Document Card (Harian only) --}}
+    @if($laporan->tipe->value === 'harian')
+        @can('laporan_download')
+        <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div class="px-5 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    {{-- Word icon --}}
+                    <svg class="w-5 h-5 text-blue-700 dark:text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM8.5 17l1.5-5 1.5 5 1.5-4.5 1 3.5h1l-2-6-1.5 4.5L10 10l-2 7h1z"/>
+                    </svg>
+                    <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Dokumen Word Laporan Harian</h3>
+                </div>
+
+                {{-- Status Badge --}}
+                @if($laporan->isDocProcessing())
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                        <svg class="animate-spin w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        {{ $laporan->doc_status === 'pending' ? 'Menunggu antrian...' : 'Sedang diproses...' }}
+                    </span>
+                @elseif($laporan->isDocCompleted())
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        Siap diunduh
+                    </span>
+                @elseif($laporan->isDocFailed())
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                        Gagal
+                    </span>
+                @else
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                        Belum digenerate
+                    </span>
+                @endif
+            </div>
+
+            <div class="p-5">
+                @if($laporan->isDocFailed())
+                    <div class="mb-4 flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                        <svg class="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p class="text-sm text-red-700 dark:text-red-400">{{ $laporan->doc_error ?? 'Terjadi kesalahan saat generate dokumen.' }}</p>
+                    </div>
+                @endif
+
+                @if($laporan->isDocCompleted())
+                    <div class="mb-4 flex flex-col sm:flex-row sm:items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+                        <svg class="w-8 h-8 text-blue-700 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-emerald-800 dark:text-emerald-300 truncate">{{ $laporan->doc_name }}</p>
+                            @if($laporan->doc_generated_at)
+                                <p class="text-xs text-emerald-600 dark:text-emerald-400">
+                                    Digenerate: {{ $laporan->doc_generated_at->translatedFormat('d F Y, H:i') }}
+                                </p>
+                            @endif
+                        </div>
+                    </div>
+                @elseif(!$laporan->isDocProcessing())
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                        Generate dokumen Word (.docx) berdasarkan data laporan ini. Proses dilakukan di background — Anda dapat meninggalkan halaman ini dan kembali nanti.
+                    </p>
+                @endif
+
+                <div class="flex items-center gap-2 flex-wrap">
+                    {{-- Generate / Regenerate button --}}
+                    @if(!$laporan->isDocProcessing())
+                        <button wire:click="generateWord"
+                            wire:loading.attr="disabled"
+                            wire:target="generateWord"
+                            class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-60
+                                {{ $laporan->isDocCompleted()
+                                    ? 'bg-amber-500 hover:bg-amber-600 text-white focus:ring-amber-500'
+                                    : 'bg-indigo-600 hover:bg-indigo-700 text-white focus:ring-indigo-500' }}">
+                            <svg wire:loading.class="hidden" wire:target="generateWord" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                @if($laporan->isDocCompleted())
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                @else
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                @endif
+                            </svg>
+                            <svg wire:loading wire:target="generateWord" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span wire:loading.remove wire:target="generateWord">
+                                {{ $laporan->isDocCompleted() ? 'Generate Ulang' : ($laporan->isDocFailed() ? 'Coba Generate Ulang' : 'Generate Dokumen Word') }}
+                            </span>
+                            <span wire:loading wire:target="generateWord">Memproses...</span>
+                        </button>
+                    @else
+                        <button disabled
+                            class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 cursor-not-allowed opacity-75">
+                            <svg class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Sedang Diproses...
+                        </button>
+                    @endif
+
+                    {{-- Download button --}}
+                    @if($laporan->isDocCompleted() && $laporan->hasDoc())
+                        <a href="{{ route('laporan.download-word', $laporan) }}"
+                            class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                            </svg>
+                            Download .docx
+                        </a>
+                    @endif
+                </div>
+
+                {{-- Queue status hint --}}
+                @if($laporan->isDocProcessing() && !$queueStatus['active'])
+                    <div class="mt-3 flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
+                        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                        Queue worker tidak aktif. Jalankan: <code class="font-mono bg-amber-100 dark:bg-amber-900/30 px-1 rounded">php artisan queue:listen</code>
+                    </div>
+                @endif
+            </div>
+        </div>
+        @endcan
     @endif
 
     {{-- Detail Card --}}

@@ -70,4 +70,21 @@ class LaporanPolicy
     {
         return $user->can('laporan_export_pdf');
     }
+
+    /**
+     * Determine whether the user can generate/download the Word document.
+     * Reuses laporan_download permission.
+     */
+    public function generateWord(User $user, Laporan $laporan): bool
+    {
+        return $user->can('laporan_download');
+    }
+
+    /**
+     * Determine whether the user can download the generated Word document.
+     */
+    public function downloadWord(User $user, Laporan $laporan): bool
+    {
+        return $user->can('laporan_download');
+    }
 }

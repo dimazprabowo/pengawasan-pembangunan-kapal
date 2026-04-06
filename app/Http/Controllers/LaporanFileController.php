@@ -6,6 +6,7 @@ use App\Models\Laporan;
 use App\Models\LaporanLampiran;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class LaporanFileController extends Controller
@@ -67,6 +68,27 @@ class LaporanFileController extends Controller
         }
 
         return Storage::disk('local')->download($lampiran->file_path, $lampiran->file_name);
+    }
+
+    public function downloadWord(Laporan $laporan): BinaryFileResponse
+    {
+        Gate::authorize('downloadWord', $laporan);
+
+        if (!$laporan->isDocCompleted() || !$laporan->doc_path) {
+            abort(404, 'Dokumen belum tersedia.');
+        }
+
+        $fullPath = storage_path('app/' . $laporan->doc_path);
+
+        if (!file_exists($fullPath)) {
+            abort(404, 'File dokumen tidak ditemukan di server.');
+        }
+
+        $downloadName = $laporan->doc_name ?? 'laporan-harian.docx';
+
+        return response()->download($fullPath, $downloadName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ]);
     }
 
     public function previewLampiran(Laporan $laporan, LaporanLampiran $lampiran)

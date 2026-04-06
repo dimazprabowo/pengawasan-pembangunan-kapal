@@ -29,6 +29,11 @@ class Laporan extends Model
         'job_id',
         'file_processed_at',
         'file_error',
+        'doc_path',
+        'doc_name',
+        'doc_status',
+        'doc_generated_at',
+        'doc_error',
         'suhu',
         'cuaca_pagi_id',
         'kelembaban_pagi_id',
@@ -43,6 +48,7 @@ class Laporan extends Model
         'tanggal_laporan' => 'date',
         'suhu' => 'decimal:2',
         'file_processed_at' => 'datetime',
+        'doc_generated_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
@@ -152,5 +158,26 @@ class Laporan extends Model
     public function hasFile(): bool
     {
         return !empty($this->file_path) && !empty($this->file_name);
+    }
+
+    // Doc (Generated Word) Status Helpers
+    public function isDocProcessing(): bool
+    {
+        return in_array($this->doc_status, ['pending', 'processing']);
+    }
+
+    public function isDocCompleted(): bool
+    {
+        return $this->doc_status === 'completed';
+    }
+
+    public function isDocFailed(): bool
+    {
+        return $this->doc_status === 'failed';
+    }
+
+    public function hasDoc(): bool
+    {
+        return !empty($this->doc_path) && !empty($this->doc_name);
     }
 }
