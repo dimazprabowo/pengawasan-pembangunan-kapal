@@ -30,11 +30,20 @@
     
     confirm() {
         if (this.action) {
-            // Dispatch Livewire event with action name and params
-            if (this.actionParams !== null) {
-                $wire.call(this.action, this.actionParams);
+            // Check if action is a function (callback from confirm-delete event)
+            if (typeof this.action === 'function') {
+                this.action();
+            } else if (typeof window[this.action] === 'function') {
+                // Execute callback stored in window
+                window[this.action]();
+                delete window[this.action];
             } else {
-                $wire.call(this.action);
+                // Dispatch Livewire event with action name and params
+                if (this.actionParams !== null) {
+                    $wire.call(this.action, this.actionParams);
+                } else {
+                    $wire.call(this.action);
+                }
             }
         }
         this.show = false;

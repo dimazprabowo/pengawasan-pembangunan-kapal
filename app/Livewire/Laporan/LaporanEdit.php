@@ -27,8 +27,6 @@ class LaporanEdit extends Component
     public ?int $jenis_kapal_id = null;
     public string $judul = '';
     public string $tanggal_laporan = '';
-    public ?string $isi = '';
-    public ?string $catatan = '';
     public ?float $suhu = null;
     public ?int $cuaca_pagi_id = null;
     public ?int $kelembaban_pagi_id = null;
@@ -36,6 +34,11 @@ class LaporanEdit extends Component
     public ?int $kelembaban_siang_id = null;
     public ?int $cuaca_sore_id = null;
     public ?int $kelembaban_sore_id = null;
+
+    public array $personel = [];
+    public array $peralatan = [];
+    public array $consumable = [];
+    public array $aktivitas = [];
 
     // Lampiran baru yang akan ditambahkan
     public array $newLampiran = [];
@@ -46,6 +49,22 @@ class LaporanEdit extends Component
     // Delete lampiran confirmation
     public bool $showDeleteLampiranModal = false;
     public ?int $deletingLampiranId = null;
+
+    // Delete personel confirmation
+    public bool $showDeletePersonelModal = false;
+    public ?int $deletingPersonelIndex = null;
+
+    // Delete peralatan confirmation
+    public bool $showDeletePeralatanModal = false;
+    public ?int $deletingPeralatanIndex = null;
+
+    // Delete consumable confirmation
+    public bool $showDeleteConsumableModal = false;
+    public ?int $deletingConsumableIndex = null;
+
+    // Delete aktivitas confirmation
+    public bool $showDeleteAktivitasModal = false;
+    public ?int $deletingAktivitasIndex = null;
 
     // Image cropper modal
     public bool $showCropperModal = false;
@@ -65,8 +84,6 @@ class LaporanEdit extends Component
         $this->jenis_kapal_id = $laporan->jenis_kapal_id;
         $this->judul = $laporan->judul;
         $this->tanggal_laporan = $laporan->tanggal_laporan->format('Y-m-d');
-        $this->isi = $laporan->isi ?? '';
-        $this->catatan = $laporan->catatan ?? '';
 
         // Load existing lampiran keterangan
         foreach ($laporan->lampiran as $lampiran) {
@@ -91,6 +108,49 @@ class LaporanEdit extends Component
             $this->kelembaban_siang_id = $laporan->kelembaban_siang_id;
             $this->cuaca_sore_id = $laporan->cuaca_sore_id;
             $this->kelembaban_sore_id = $laporan->kelembaban_sore_id;
+
+            // Load existing dynamic data
+            $this->personel = $laporan->personel->map(fn($p) => [
+                'id' => $p->id,
+                'jabatan' => $p->jabatan,
+                'status' => $p->status,
+                'keterangan' => $p->keterangan ?? '',
+            ])->toArray();
+
+            $this->peralatan = $laporan->peralatan->map(fn($p) => [
+                'id' => $p->id,
+                'jenis' => $p->jenis,
+                'jumlah' => $p->jumlah,
+                'keterangan' => $p->keterangan ?? '',
+            ])->toArray();
+
+            $this->consumable = $laporan->consumable->map(fn($c) => [
+                'id' => $c->id,
+                'jenis' => $c->jenis,
+                'jumlah' => $c->jumlah,
+                'keterangan' => $c->keterangan ?? '',
+            ])->toArray();
+
+            $this->aktivitas = $laporan->aktivitas->map(fn($a) => [
+                'id' => $a->id,
+                'kategori' => $a->kategori,
+                'aktivitas' => $a->aktivitas,
+                'pic' => $a->pic,
+            ])->toArray();
+
+            // Add empty rows if none exist
+            if (empty($this->personel)) {
+                $this->personel[] = ['jabatan' => '', 'status' => '', 'keterangan' => ''];
+            }
+            if (empty($this->peralatan)) {
+                $this->peralatan[] = ['jenis' => '', 'jumlah' => '', 'keterangan' => ''];
+            }
+            if (empty($this->consumable)) {
+                $this->consumable[] = ['jenis' => '', 'jumlah' => '', 'keterangan' => ''];
+            }
+            if (empty($this->aktivitas)) {
+                $this->aktivitas[] = ['kategori' => 'New Building', 'aktivitas' => '', 'pic' => ''];
+            }
         }
     }
 
@@ -100,8 +160,6 @@ class LaporanEdit extends Component
             'jenis_kapal_id' => 'required|exists:jenis_kapal,id',
             'judul' => 'required|string|max:255',
             'tanggal_laporan' => 'required|date',
-            'isi' => 'nullable|string',
-            'catatan' => 'nullable|string|max:1000',
             'newLampiran.*.file' => file_upload_validation_rule('foto_kapal'),
             'newLampiran.*.keterangan' => 'nullable|string|max:1000',
             'lampiranKeterangan.*' => 'nullable|string|max:1000',
@@ -115,6 +173,22 @@ class LaporanEdit extends Component
             $rules['kelembaban_siang_id'] = 'nullable|exists:kelembaban,id';
             $rules['cuaca_sore_id'] = 'nullable|exists:cuaca,id';
             $rules['kelembaban_sore_id'] = 'nullable|exists:kelembaban,id';
+            $rules['personel'] = 'nullable|array';
+            $rules['personel.*.jabatan'] = 'required|string|max:255';
+            $rules['personel.*.status'] = 'required|string|max:255';
+            $rules['personel.*.keterangan'] = 'nullable|string|max:1000';
+            $rules['peralatan'] = 'nullable|array';
+            $rules['peralatan.*.jenis'] = 'required|string|max:255';
+            $rules['peralatan.*.jumlah'] = 'required|integer|min:1';
+            $rules['peralatan.*.keterangan'] = 'nullable|string|max:1000';
+            $rules['consumable'] = 'nullable|array';
+            $rules['consumable.*.jenis'] = 'required|string|max:255';
+            $rules['consumable.*.jumlah'] = 'required|integer|min:1';
+            $rules['consumable.*.keterangan'] = 'nullable|string|max:1000';
+            $rules['aktivitas'] = 'nullable|array';
+            $rules['aktivitas.*.kategori'] = 'required|string|max:255';
+            $rules['aktivitas.*.aktivitas'] = 'required|string';
+            $rules['aktivitas.*.pic'] = 'required|string|max:255';
         }
 
         return $rules;
@@ -126,8 +200,6 @@ class LaporanEdit extends Component
             'jenis_kapal_id' => 'jenis kapal',
             'judul' => 'judul laporan',
             'tanggal_laporan' => 'tanggal laporan',
-            'isi' => 'isi laporan',
-            'catatan' => 'catatan',
             'newLampiran.*.file' => 'file lampiran baru',
             'newLampiran.*.keterangan' => 'keterangan lampiran baru',
             'lampiranKeterangan.*' => 'keterangan lampiran',
@@ -257,8 +329,6 @@ class LaporanEdit extends Component
                 'jenis_kapal_id' => $this->jenis_kapal_id,
                 'judul' => $this->judul,
                 'tanggal_laporan' => $this->tanggal_laporan,
-                'isi' => $this->isi ?: null,
-                'catatan' => $this->catatan ?: null,
             ];
 
             if ($this->laporan->tipe->value === 'harian') {
@@ -272,6 +342,57 @@ class LaporanEdit extends Component
             }
 
             $service->update($this->laporan, $data);
+
+            // Update dynamic inputs for harian only
+            if ($this->laporan->tipe->value === 'harian') {
+                // Sync personel
+                $this->laporan->personel()->delete();
+                foreach ($this->personel as $personelData) {
+                    if (!empty($personelData['jabatan']) && !empty($personelData['status'])) {
+                        $this->laporan->personel()->create([
+                            'jabatan' => $personelData['jabatan'],
+                            'status' => $personelData['status'],
+                            'keterangan' => $personelData['keterangan'] ?? null,
+                        ]);
+                    }
+                }
+
+                // Sync peralatan
+                $this->laporan->peralatan()->delete();
+                foreach ($this->peralatan as $peralatanData) {
+                    if (!empty($peralatanData['jenis']) && !empty($peralatanData['jumlah'])) {
+                        $this->laporan->peralatan()->create([
+                            'jenis' => $peralatanData['jenis'],
+                            'jumlah' => $peralatanData['jumlah'],
+                            'keterangan' => $peralatanData['keterangan'] ?? null,
+                        ]);
+                    }
+                }
+
+                // Sync consumable
+                $this->laporan->consumable()->delete();
+                foreach ($this->consumable as $consumableData) {
+                    if (!empty($consumableData['jenis']) && !empty($consumableData['jumlah'])) {
+                        $this->laporan->consumable()->create([
+                            'jenis' => $consumableData['jenis'],
+                            'jumlah' => $consumableData['jumlah'],
+                            'keterangan' => $consumableData['keterangan'] ?? null,
+                        ]);
+                    }
+                }
+
+                // Sync aktivitas
+                $this->laporan->aktivitas()->delete();
+                foreach ($this->aktivitas as $aktivitasData) {
+                    if (!empty($aktivitasData['aktivitas']) && !empty($aktivitasData['pic'])) {
+                        $this->laporan->aktivitas()->create([
+                            'kategori' => $aktivitasData['kategori'] ?? 'New Building',
+                            'aktivitas' => $aktivitasData['aktivitas'],
+                            'pic' => $aktivitasData['pic'],
+                        ]);
+                    }
+                }
+            }
 
             // Process new lampiran uploads
             foreach ($this->newLampiran as $lampiranData) {
@@ -362,6 +483,135 @@ class LaporanEdit extends Component
         $this->croppingImageUrl = $file->temporaryUrl();
         $this->cropData = $this->newLampiran[$index]['cropData'] ?? [];
         $this->showCropperModal = true;
+    }
+
+    // Dynamic input management methods
+    public function addPersonel(): void
+    {
+        $this->personel[] = [
+            'jabatan' => '',
+            'status' => '',
+            'keterangan' => ''
+        ];
+    }
+
+    public function confirmRemovePersonel(int $index): void
+    {
+        $this->deletingPersonelIndex = $index;
+        $this->showDeletePersonelModal = true;
+    }
+
+    public function removePersonelConfirmed(): void
+    {
+        if ($this->deletingPersonelIndex !== null) {
+            $this->removePersonel($this->deletingPersonelIndex);
+        }
+        $this->showDeletePersonelModal = false;
+        $this->deletingPersonelIndex = null;
+    }
+
+    public function removePersonel(int $index): void
+    {
+        if (isset($this->personel[$index])) {
+            unset($this->personel[$index]);
+            $this->personel = array_values($this->personel);
+        }
+    }
+
+    public function addPeralatan(): void
+    {
+        $this->peralatan[] = [
+            'jenis' => '',
+            'jumlah' => '',
+            'keterangan' => ''
+        ];
+    }
+
+    public function confirmRemovePeralatan(int $index): void
+    {
+        $this->deletingPeralatanIndex = $index;
+        $this->showDeletePeralatanModal = true;
+    }
+
+    public function removePeralatanConfirmed(): void
+    {
+        if ($this->deletingPeralatanIndex !== null) {
+            $this->removePeralatan($this->deletingPeralatanIndex);
+        }
+        $this->showDeletePeralatanModal = false;
+        $this->deletingPeralatanIndex = null;
+    }
+
+    public function removePeralatan(int $index): void
+    {
+        if (isset($this->peralatan[$index])) {
+            unset($this->peralatan[$index]);
+            $this->peralatan = array_values($this->peralatan);
+        }
+    }
+
+    public function addConsumable(): void
+    {
+        $this->consumable[] = [
+            'jenis' => '',
+            'jumlah' => '',
+            'keterangan' => ''
+        ];
+    }
+
+    public function confirmRemoveConsumable(int $index): void
+    {
+        $this->deletingConsumableIndex = $index;
+        $this->showDeleteConsumableModal = true;
+    }
+
+    public function removeConsumableConfirmed(): void
+    {
+        if ($this->deletingConsumableIndex !== null) {
+            $this->removeConsumable($this->deletingConsumableIndex);
+        }
+        $this->showDeleteConsumableModal = false;
+        $this->deletingConsumableIndex = null;
+    }
+
+    public function removeConsumable(int $index): void
+    {
+        if (isset($this->consumable[$index])) {
+            unset($this->consumable[$index]);
+            $this->consumable = array_values($this->consumable);
+        }
+    }
+
+    public function addAktivitas(): void
+    {
+        $this->aktivitas[] = [
+            'kategori' => 'New Building',
+            'aktivitas' => '',
+            'pic' => ''
+        ];
+    }
+
+    public function confirmRemoveAktivitas(int $index): void
+    {
+        $this->deletingAktivitasIndex = $index;
+        $this->showDeleteAktivitasModal = true;
+    }
+
+    public function removeAktivitasConfirmed(): void
+    {
+        if ($this->deletingAktivitasIndex !== null) {
+            $this->removeAktivitas($this->deletingAktivitasIndex);
+        }
+        $this->showDeleteAktivitasModal = false;
+        $this->deletingAktivitasIndex = null;
+    }
+
+    public function removeAktivitas(int $index): void
+    {
+        if (isset($this->aktivitas[$index])) {
+            unset($this->aktivitas[$index]);
+            $this->aktivitas = array_values($this->aktivitas);
+        }
     }
 
     public function render(QueueStatusService $queueStatusService)

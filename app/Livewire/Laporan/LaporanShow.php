@@ -33,6 +33,10 @@ class LaporanShow extends Component
             'cuacaSore',
             'kelembabanSore',
             'lampiran',
+            'personel',
+            'peralatan',
+            'consumable',
+            'aktivitas',
         ]);
     }
 

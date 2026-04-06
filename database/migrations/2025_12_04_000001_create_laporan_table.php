@@ -14,11 +14,9 @@ return new class extends Migration
             $table->enum('tipe', ['harian', 'mingguan', 'bulanan']);
             $table->string('judul');
             $table->date('tanggal_laporan');
-            $table->text('isi')->nullable();
             $table->string('file_path')->nullable();
             $table->string('file_name')->nullable();
             $table->unsignedBigInteger('file_size')->nullable();
-            $table->text('catatan')->nullable();
             $table->timestamps();
             $table->softDeletes();
 

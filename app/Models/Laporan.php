@@ -22,7 +22,6 @@ class Laporan extends Model
         'tipe',
         'judul',
         'tanggal_laporan',
-        'isi',
         'file_path',
         'file_name',
         'file_size',
@@ -30,7 +29,6 @@ class Laporan extends Model
         'job_id',
         'file_processed_at',
         'file_error',
-        'catatan',
         'suhu',
         'cuaca_pagi_id',
         'kelembaban_pagi_id',
@@ -94,6 +92,26 @@ class Laporan extends Model
     public function lampiran(): HasMany
     {
         return $this->hasMany(LaporanLampiran::class)->orderBy('created_at', 'asc');
+    }
+
+    public function personel(): HasMany
+    {
+        return $this->hasMany(LaporanPersonel::class)->orderBy('created_at', 'asc');
+    }
+
+    public function peralatan(): HasMany
+    {
+        return $this->hasMany(LaporanPeralatan::class)->orderBy('created_at', 'asc');
+    }
+
+    public function consumable(): HasMany
+    {
+        return $this->hasMany(LaporanConsumable::class)->orderBy('created_at', 'asc');
+    }
+
+    public function aktivitas(): HasMany
+    {
+        return $this->hasMany(LaporanAktivitas::class)->orderBy('created_at', 'asc');
     }
 
     // Scopes

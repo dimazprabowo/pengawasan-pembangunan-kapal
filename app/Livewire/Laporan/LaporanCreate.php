@@ -39,6 +39,26 @@ class LaporanCreate extends Component
     public ?int $deletingLampiranItemIndex = null;
     public ?int $deletingLampiranIndex = null;
 
+    // Delete personel confirmation modal
+    public bool $showDeletePersonelModal = false;
+    public ?int $deletingPersonelItemIndex = null;
+    public ?int $deletingPersonelIndex = null;
+
+    // Delete peralatan confirmation modal
+    public bool $showDeletePeralatanModal = false;
+    public ?int $deletingPeralatanItemIndex = null;
+    public ?int $deletingPeralatanIndex = null;
+
+    // Delete consumable confirmation modal
+    public bool $showDeleteConsumableModal = false;
+    public ?int $deletingConsumableItemIndex = null;
+    public ?int $deletingConsumableIndex = null;
+
+    // Delete aktivitas confirmation modal
+    public bool $showDeleteAktivitasModal = false;
+    public ?int $deletingAktivitasItemIndex = null;
+    public ?int $deletingAktivitasIndex = null;
+
     // Image cropper modal
     public bool $showCropperModal = false;
     public ?int $croppingItemIndex = null;
@@ -64,8 +84,6 @@ class LaporanCreate extends Component
         $this->items[] = [
             'judul' => '',
             'tanggal_laporan' => now()->format('Y-m-d'),
-            'isi' => '',
-            'catatan' => '',
             'suhu' => '',
             'cuaca_pagi_id' => null,
             'kelembaban_pagi_id' => null,
@@ -73,6 +91,10 @@ class LaporanCreate extends Component
             'kelembaban_siang_id' => null,
             'cuaca_sore_id' => null,
             'kelembaban_sore_id' => null,
+            'personel' => [['jabatan' => '', 'status' => '', 'keterangan' => '']],
+            'peralatan' => [['jenis' => '', 'jumlah' => '', 'keterangan' => '']],
+            'consumable' => [['jenis' => '', 'jumlah' => '', 'keterangan' => '']],
+            'aktivitas' => [['kategori' => 'New Building', 'aktivitas' => '', 'pic' => '']],
         ];
         $this->lampiran[] = [
             [
@@ -212,15 +234,150 @@ class LaporanCreate extends Component
         $this->showCropperModal = true;
     }
 
-    public function rules(): array
+    // Dynamic input management methods
+    public function addPersonel(int $itemIndex): void
+    {
+        $this->items[$itemIndex]['personel'][] = [
+            'jabatan' => '',
+            'status' => '',
+            'keterangan' => ''
+        ];
+    }
+
+    public function confirmRemovePersonel(int $itemIndex, int $personelIndex): void
+    {
+        $this->deletingPersonelItemIndex = $itemIndex;
+        $this->deletingPersonelIndex = $personelIndex;
+        $this->showDeletePersonelModal = true;
+    }
+
+    public function removePersonelConfirmed(): void
+    {
+        if ($this->deletingPersonelItemIndex !== null && $this->deletingPersonelIndex !== null) {
+            $this->removePersonel($this->deletingPersonelItemIndex, $this->deletingPersonelIndex);
+        }
+        $this->showDeletePersonelModal = false;
+        $this->deletingPersonelItemIndex = null;
+        $this->deletingPersonelIndex = null;
+    }
+
+    public function removePersonel(int $itemIndex, int $personelIndex): void
+    {
+        if (isset($this->items[$itemIndex]['personel'][$personelIndex])) {
+            unset($this->items[$itemIndex]['personel'][$personelIndex]);
+            $this->items[$itemIndex]['personel'] = array_values($this->items[$itemIndex]['personel']);
+        }
+    }
+
+    public function addPeralatan(int $itemIndex): void
+    {
+        $this->items[$itemIndex]['peralatan'][] = [
+            'jenis' => '',
+            'jumlah' => '',
+            'keterangan' => ''
+        ];
+    }
+
+    public function confirmRemovePeralatan(int $itemIndex, int $peralatanIndex): void
+    {
+        $this->deletingPeralatanItemIndex = $itemIndex;
+        $this->deletingPeralatanIndex = $peralatanIndex;
+        $this->showDeletePeralatanModal = true;
+    }
+
+    public function removePeralatanConfirmed(): void
+    {
+        if ($this->deletingPeralatanItemIndex !== null && $this->deletingPeralatanIndex !== null) {
+            $this->removePeralatan($this->deletingPeralatanItemIndex, $this->deletingPeralatanIndex);
+        }
+        $this->showDeletePeralatanModal = false;
+        $this->deletingPeralatanItemIndex = null;
+        $this->deletingPeralatanIndex = null;
+    }
+
+    public function removePeralatan(int $itemIndex, int $peralatanIndex): void
+    {
+        if (isset($this->items[$itemIndex]['peralatan'][$peralatanIndex])) {
+            unset($this->items[$itemIndex]['peralatan'][$peralatanIndex]);
+            $this->items[$itemIndex]['peralatan'] = array_values($this->items[$itemIndex]['peralatan']);
+        }
+    }
+
+    public function addConsumable(int $itemIndex): void
+    {
+        $this->items[$itemIndex]['consumable'][] = [
+            'jenis' => '',
+            'jumlah' => '',
+            'keterangan' => ''
+        ];
+    }
+
+    public function confirmRemoveConsumable(int $itemIndex, int $consumableIndex): void
+    {
+        $this->deletingConsumableItemIndex = $itemIndex;
+        $this->deletingConsumableIndex = $consumableIndex;
+        $this->showDeleteConsumableModal = true;
+    }
+
+    public function removeConsumableConfirmed(): void
+    {
+        if ($this->deletingConsumableItemIndex !== null && $this->deletingConsumableIndex !== null) {
+            $this->removeConsumable($this->deletingConsumableItemIndex, $this->deletingConsumableIndex);
+        }
+        $this->showDeleteConsumableModal = false;
+        $this->deletingConsumableItemIndex = null;
+        $this->deletingConsumableIndex = null;
+    }
+
+    public function removeConsumable(int $itemIndex, int $consumableIndex): void
+    {
+        if (isset($this->items[$itemIndex]['consumable'][$consumableIndex])) {
+            unset($this->items[$itemIndex]['consumable'][$consumableIndex]);
+            $this->items[$itemIndex]['consumable'] = array_values($this->items[$itemIndex]['consumable']);
+        }
+    }
+
+    public function addAktivitas(int $itemIndex): void
+    {
+        $this->items[$itemIndex]['aktivitas'][] = [
+            'kategori' => 'New Building',
+            'aktivitas' => '',
+            'pic' => ''
+        ];
+    }
+
+    public function confirmRemoveAktivitas(int $itemIndex, int $aktivitasIndex): void
+    {
+        $this->deletingAktivitasItemIndex = $itemIndex;
+        $this->deletingAktivitasIndex = $aktivitasIndex;
+        $this->showDeleteAktivitasModal = true;
+    }
+
+    public function removeAktivitasConfirmed(): void
+    {
+        if ($this->deletingAktivitasItemIndex !== null && $this->deletingAktivitasIndex !== null) {
+            $this->removeAktivitas($this->deletingAktivitasItemIndex, $this->deletingAktivitasIndex);
+        }
+        $this->showDeleteAktivitasModal = false;
+        $this->deletingAktivitasItemIndex = null;
+        $this->deletingAktivitasIndex = null;
+    }
+
+    public function removeAktivitas(int $itemIndex, int $aktivitasIndex): void
+    {
+        if (isset($this->items[$itemIndex]['aktivitas'][$aktivitasIndex])) {
+            unset($this->items[$itemIndex]['aktivitas'][$aktivitasIndex]);
+            $this->items[$itemIndex]['aktivitas'] = array_values($this->items[$itemIndex]['aktivitas']);
+        }
+    }
+
+    protected function rules(): array
     {
         $rules = [
             'jenis_kapal_id' => 'required|exists:jenis_kapal,id',
             'items' => 'required|array|min:1',
             'items.*.judul' => 'required|string|max:255',
             'items.*.tanggal_laporan' => 'required|date',
-            'items.*.isi' => 'nullable|string',
-            'items.*.catatan' => 'nullable|string|max:1000',
             'lampiran.*.*.file' => file_upload_validation_rule('foto_kapal'),
             'lampiran.*.*.keterangan' => 'nullable|string|max:1000',
         ];
@@ -233,6 +390,22 @@ class LaporanCreate extends Component
             $rules['items.*.kelembaban_siang_id'] = 'nullable|exists:kelembaban,id';
             $rules['items.*.cuaca_sore_id'] = 'nullable|exists:cuaca,id';
             $rules['items.*.kelembaban_sore_id'] = 'nullable|exists:kelembaban,id';
+            $rules['items.*.personel'] = 'nullable|array';
+            $rules['items.*.personel.*.jabatan'] = 'required|string|max:255';
+            $rules['items.*.personel.*.status'] = 'required|string|max:255';
+            $rules['items.*.personel.*.keterangan'] = 'nullable|string|max:1000';
+            $rules['items.*.peralatan'] = 'nullable|array';
+            $rules['items.*.peralatan.*.jenis'] = 'required|string|max:255';
+            $rules['items.*.peralatan.*.jumlah'] = 'required|integer|min:1';
+            $rules['items.*.peralatan.*.keterangan'] = 'nullable|string|max:1000';
+            $rules['items.*.consumable'] = 'nullable|array';
+            $rules['items.*.consumable.*.jenis'] = 'required|string|max:255';
+            $rules['items.*.consumable.*.jumlah'] = 'required|integer|min:1';
+            $rules['items.*.consumable.*.keterangan'] = 'nullable|string|max:1000';
+            $rules['items.*.aktivitas'] = 'nullable|array';
+            $rules['items.*.aktivitas.*.kategori'] = 'required|string|max:255';
+            $rules['items.*.aktivitas.*.aktivitas'] = 'required|string';
+            $rules['items.*.aktivitas.*.pic'] = 'required|string|max:255';
         }
 
         return $rules;
@@ -248,8 +421,6 @@ class LaporanCreate extends Component
             $num = $index + 1;
             $attributes["items.{$index}.judul"] = "judul laporan #{$num}";
             $attributes["items.{$index}.tanggal_laporan"] = "tanggal laporan #{$num}";
-            $attributes["items.{$index}.isi"] = "isi laporan #{$num}";
-            $attributes["items.{$index}.catatan"] = "catatan laporan #{$num}";
 
             foreach ($this->lampiran[$index] as $lampIndex => $lamp) {
                 $lampNum = $lampIndex + 1;
@@ -292,8 +463,6 @@ class LaporanCreate extends Component
                     'tipe' => $this->tipe,
                     'judul' => $item['judul'],
                     'tanggal_laporan' => $item['tanggal_laporan'],
-                    'isi' => $item['isi'] ?: null,
-                    'catatan' => $item['catatan'] ?: null,
                 ];
 
                 if ($this->tipe === 'harian') {
@@ -311,8 +480,50 @@ class LaporanCreate extends Component
 
             $createdLaporans = $service->createMany($dataItems);
 
-            // Process lampiran for each created laporan
+            // Process dynamic inputs and lampiran for each created laporan
             foreach ($createdLaporans as $index => $laporan) {
+                $item = $this->items[$index];
+
+                // Save dynamic inputs for harian only
+                if ($this->tipe === 'harian') {
+                    // Save personel
+                    if (isset($item['personel']) && is_array($item['personel'])) {
+                        foreach ($item['personel'] as $personelData) {
+                            if (!empty($personelData['jabatan']) && !empty($personelData['status'])) {
+                                $laporan->personel()->create($personelData);
+                            }
+                        }
+                    }
+
+                    // Save peralatan
+                    if (isset($item['peralatan']) && is_array($item['peralatan'])) {
+                        foreach ($item['peralatan'] as $peralatanData) {
+                            if (!empty($peralatanData['jenis']) && !empty($peralatanData['jumlah'])) {
+                                $laporan->peralatan()->create($peralatanData);
+                            }
+                        }
+                    }
+
+                    // Save consumable
+                    if (isset($item['consumable']) && is_array($item['consumable'])) {
+                        foreach ($item['consumable'] as $consumableData) {
+                            if (!empty($consumableData['jenis']) && !empty($consumableData['jumlah'])) {
+                                $laporan->consumable()->create($consumableData);
+                            }
+                        }
+                    }
+
+                    // Save aktivitas
+                    if (isset($item['aktivitas']) && is_array($item['aktivitas'])) {
+                        foreach ($item['aktivitas'] as $aktivitasData) {
+                            if (!empty($aktivitasData['aktivitas']) && !empty($aktivitasData['pic'])) {
+                                $laporan->aktivitas()->create($aktivitasData);
+                            }
+                        }
+                    }
+                }
+
+                // Process lampiran
                 if (isset($this->lampiran[$index]) && is_array($this->lampiran[$index])) {
                     foreach ($this->lampiran[$index] as $lampiranData) {
                         if (isset($lampiranData['file']) && $lampiranData['file']) {
