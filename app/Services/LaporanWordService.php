@@ -3,19 +3,21 @@
 namespace App\Services;
 
 use App\Models\Laporan;
-use PhpOffice\PhpWord\TemplateProcessor;
+use ZipArchive;
 
 class LaporanWordService
 {
     private const TEMPLATE_PATH = 'templates/laporan-harian/Template Laporan Harian.docx';
-    private const MAX_IMAGES    = 10;
+    private const MAX_ROWS      = 30;
+    private const MAX_LAMPIRAN  = 10;
 
-    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ────────────────────────────────────────────────────────────────────────────
     // PUBLIC ENTRY POINT
-    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ────────────────────────────────────────────────────────────────────────────
 
     /**
-     * Generate Word document from template for a Laporan Harian.
+     * Copy template asli dan replace placeholder di XML.
+     * Preserve semua format, gambar, header, footer, dll.
      * Returns storage-relative path (e.g. "laporan/word/laporan-harian-1-20260406.docx").
      */
     public function generate(Laporan $laporan): string
@@ -45,180 +47,228 @@ class LaporanWordService
             'lampiran',
         ]);
 
-        $processor = new TemplateProcessor($templateFullPath);
+        // Prepare output path
+        $outputPath = $this->prepareOutputPath($laporan);
 
-        $this->fillBasicInfo($processor, $laporan);
-        $this->fillWeather($processor, $laporan);
-        $this->fillPersonel($processor, $laporan);
-        $this->fillPeralatan($processor, $laporan);
-        $this->fillConsumable($processor, $laporan);
-        $this->fillAktivitas($processor, $laporan);
-        $this->fillLampiran($processor, $laporan);
-        $this->fillSignature($processor, $laporan);
+        // Copy template to output
+        if (!copy($templateFullPath, $outputPath)) {
+            throw new \RuntimeException('Gagal copy template Word');
+        }
 
-        return $this->saveDocument($processor, $laporan);
+        // Build replacements array
+        $replacements = $this->buildReplacements($laporan);
+
+        // Replace placeholders in document XML
+        $this->replaceInDocument($outputPath, $replacements);
+
+        return $this->getRelativePath($outputPath);
     }
 
-    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    // FILL METHODS
-    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ────────────────────────────────────────────────────────────────────────────
+    // BUILD REPLACEMENTS
+    // ────────────────────────────────────────────────────────────────────────────
 
-    private function fillBasicInfo(TemplateProcessor $p, Laporan $laporan): void
+    private function buildReplacements(Laporan $laporan): array
     {
-        $p->setValue('pekerjaan',   $this->safe($laporan->judul));
-        $p->setValue('lokasi',      $this->safe($laporan->jenisKapal?->galangan?->nama));
-        $p->setValue('no_kapal',    $this->safe($laporan->jenisKapal?->nama));
-        $p->setValue('perusahaan',  $this->safe($laporan->jenisKapal?->company?->name));
-        $p->setValue('tanggal',     $laporan->tanggal_laporan->translatedFormat('d F Y'));
-        $p->setValue('dibuat_oleh', $this->safe($laporan->user?->name));
-        $p->setValue('no_laporan',  (string) $laporan->id);
-    }
+        $replacements = [];
 
-    private function fillWeather(TemplateProcessor $p, Laporan $laporan): void
-    {
-        $suhu = $laporan->suhu ? number_format((float) $laporan->suhu, 1) . 'Â°C' : '-';
-        $p->setValue('suhu',             $suhu);
-        $p->setValue('cuaca_pagi',       $this->safe($laporan->cuacaPagi?->nama));
-        $p->setValue('kelembaban_pagi',  $this->safe($laporan->kelembabanPagi?->nama));
-        $p->setValue('cuaca_siang',      $this->safe($laporan->cuacaSiang?->nama));
-        $p->setValue('kelembaban_siang', $this->safe($laporan->kelembabanSiang?->nama));
-        $p->setValue('cuaca_sore',       $this->safe($laporan->cuacaSore?->nama));
-        $p->setValue('kelembaban_sore',  $this->safe($laporan->kelembabanSore?->nama));
-    }
+        // Basic Info
+        if ($laporan->judul) {
+            $replacements['judul'] = $laporan->judul;
+        }
+        if ($laporan->jenisKapal?->galangan?->nama) {
+            $replacements['lokasi'] = $laporan->jenisKapal->galangan->nama;
+        }
+        if ($laporan->jenisKapal?->nama) {
+            $replacements['no_kapal'] = $laporan->jenisKapal->nama;
+        }
+        if ($laporan->jenisKapal?->company?->name) {
+            $replacements['perusahaan'] = $laporan->jenisKapal->company->name;
+        }
+        if ($laporan->tanggal_laporan) {
+            $replacements['tanggal'] = $laporan->tanggal_laporan->translatedFormat('d F Y');
+        }
+        if ($laporan->user?->name) {
+            $replacements['dibuat_oleh'] = $laporan->user->name;
+        }
+        $replacements['no_laporan'] = (string) $laporan->id;
 
-    private function fillPersonel(TemplateProcessor $p, Laporan $laporan): void
-    {
-        $rows = $laporan->personel;
-        $count = max(1, $rows->count());
-        $p->cloneRow('personel_no', $count);
-
-        if ($rows->isEmpty()) {
-            $p->setValue('personel_no#1',         '-');
-            $p->setValue('personel_jabatan#1',    '-');
-            $p->setValue('personel_status#1',     '-');
-            $p->setValue('personel_keterangan#1', '-');
-            return;
+        // Weather
+        if ($laporan->suhu) {
+            $replacements['suhu'] = number_format((float) $laporan->suhu, 1) . '°C';
+        }
+        if ($laporan->cuacaPagi?->nama) {
+            $replacements['cuaca_pagi'] = $laporan->cuacaPagi->nama;
+        }
+        if ($laporan->kelembabanPagi?->nama) {
+            $replacements['kelembaban_pagi'] = $laporan->kelembabanPagi->nama;
+        }
+        if ($laporan->cuacaSiang?->nama) {
+            $replacements['cuaca_siang'] = $laporan->cuacaSiang->nama;
+        }
+        if ($laporan->kelembabanSiang?->nama) {
+            $replacements['kelembaban_siang'] = $laporan->kelembabanSiang->nama;
+        }
+        if ($laporan->cuacaSore?->nama) {
+            $replacements['cuaca_sore'] = $laporan->cuacaSore->nama;
+        }
+        if ($laporan->kelembabanSore?->nama) {
+            $replacements['kelembaban_sore'] = $laporan->kelembabanSore->nama;
         }
 
-        foreach ($rows as $i => $row) {
-            $n = $i + 1;
-            $p->setValue("personel_no#{$n}",         (string) $n);
-            $p->setValue("personel_jabatan#{$n}",    $this->safe($row->jabatan));
-            $p->setValue("personel_status#{$n}",     $this->safe($row->status));
-            $p->setValue("personel_keterangan#{$n}", $this->safe($row->keterangan));
-        }
-    }
+        // Personel
+        $personel = $laporan->personel->values();
+        foreach ($personel as $index => $row) {
+            $i = $index + 1;
+            if ($i > self::MAX_ROWS) break;
 
-    private function fillPeralatan(TemplateProcessor $p, Laporan $laporan): void
-    {
-        $rows = $laporan->peralatan;
-        $count = max(1, $rows->count());
-        $p->cloneRow('peralatan_no', $count);
-
-        if ($rows->isEmpty()) {
-            $p->setValue('peralatan_no#1',         '-');
-            $p->setValue('peralatan_jenis#1',      '-');
-            $p->setValue('peralatan_jumlah#1',     '-');
-            $p->setValue('peralatan_keterangan#1', '-');
-            return;
-        }
-
-        foreach ($rows as $i => $row) {
-            $n = $i + 1;
-            $p->setValue("peralatan_no#{$n}",         (string) $n);
-            $p->setValue("peralatan_jenis#{$n}",      $this->safe($row->jenis));
-            $p->setValue("peralatan_jumlah#{$n}",     (string) ($row->jumlah ?? '-'));
-            $p->setValue("peralatan_keterangan#{$n}", $this->safe($row->keterangan));
-        }
-    }
-
-    private function fillConsumable(TemplateProcessor $p, Laporan $laporan): void
-    {
-        $rows = $laporan->consumable;
-        $count = max(1, $rows->count());
-        $p->cloneRow('consumable_no', $count);
-
-        if ($rows->isEmpty()) {
-            $p->setValue('consumable_no#1',         '-');
-            $p->setValue('consumable_jenis#1',      '-');
-            $p->setValue('consumable_jumlah#1',     '-');
-            $p->setValue('consumable_keterangan#1', '-');
-            return;
-        }
-
-        foreach ($rows as $i => $row) {
-            $n = $i + 1;
-            $p->setValue("consumable_no#{$n}",         (string) $n);
-            $p->setValue("consumable_jenis#{$n}",      $this->safe($row->jenis));
-            $p->setValue("consumable_jumlah#{$n}",     (string) ($row->jumlah ?? '-'));
-            $p->setValue("consumable_keterangan#{$n}", $this->safe($row->keterangan));
-        }
-    }
-
-    private function fillAktivitas(TemplateProcessor $p, Laporan $laporan): void
-    {
-        $rows = $laporan->aktivitas;
-        $count = max(1, $rows->count());
-        $p->cloneRow('aktivitas_no', $count);
-
-        if ($rows->isEmpty()) {
-            $p->setValue('aktivitas_no#1',        '-');
-            $p->setValue('aktivitas_kategori#1',  '-');
-            $p->setValue('aktivitas_aktivitas#1', '-');
-            $p->setValue('aktivitas_pic#1',       '-');
-            return;
-        }
-
-        foreach ($rows as $i => $row) {
-            $n = $i + 1;
-            $p->setValue("aktivitas_no#{$n}",        (string) $n);
-            $p->setValue("aktivitas_kategori#{$n}",  $this->safe($row->kategori));
-            $p->setValue("aktivitas_aktivitas#{$n}", $this->safe($row->aktivitas));
-            $p->setValue("aktivitas_pic#{$n}",       $this->safe($row->pic));
-        }
-    }
-
-    private function fillLampiran(TemplateProcessor $p, Laporan $laporan): void
-    {
-        $images = $laporan->lampiran
-            ->filter(fn($l) => $l->isFileCompleted() && $l->isImage())
-            ->values();
-
-        for ($i = 1; $i <= self::MAX_IMAGES; $i++) {
-            $lamp = $images->get($i - 1);
-
-            $fullPath = $lamp ? storage_path('app/' . $lamp->file_path) : null;
-            if ($lamp && $fullPath && file_exists($fullPath)) {
-                try {
-                    $p->setImageValue("lampiran_{$i}", [
-                        'path'   => $fullPath,
-                        'width'  => 400,
-                        'height' => 300,
-                        'ratio'  => true,
-                    ]);
-                } catch (\Exception $e) {
-                    $p->setValue("lampiran_{$i}", '[Gambar tidak dapat dimuat]');
-                }
-                $p->setValue("lampiran_ket_{$i}", $this->safe($lamp->keterangan));
-            } else {
-                $p->setValue("lampiran_{$i}",     '');
-                $p->setValue("lampiran_ket_{$i}", '');
+            $replacements["personel_no_{$i}"] = (string) $i;
+            if ($row->jabatan) {
+                $replacements["personel_jabatan_{$i}"] = $row->jabatan;
+            }
+            if ($row->status) {
+                $replacements["personel_status_{$i}"] = $row->status;
+            }
+            if ($row->keterangan) {
+                $replacements["personel_keterangan_{$i}"] = $row->keterangan;
             }
         }
+        if ($personel->count() > 0) {
+            $replacements['personel_total'] = (string) $personel->count();
+        }
+
+        // Peralatan
+        $peralatan = $laporan->peralatan->values();
+        foreach ($peralatan as $index => $row) {
+            $i = $index + 1;
+            if ($i > self::MAX_ROWS) break;
+
+            $replacements["peralatan_no_{$i}"] = (string) $i;
+            if ($row->jenis) {
+                $replacements["peralatan_jenis_{$i}"] = $row->jenis;
+            }
+            if ($row->jumlah !== null) {
+                $replacements["peralatan_jumlah_{$i}"] = (string) $row->jumlah;
+            }
+            if ($row->keterangan) {
+                $replacements["peralatan_keterangan_{$i}"] = $row->keterangan;
+            }
+        }
+        if ($peralatan->count() > 0) {
+            $replacements['peralatan_total'] = (string) $peralatan->count();
+        }
+
+        // Consumable
+        $consumable = $laporan->consumable->values();
+        foreach ($consumable as $index => $row) {
+            $i = $index + 1;
+            if ($i > self::MAX_ROWS) break;
+
+            $replacements["consumable_no_{$i}"] = (string) $i;
+            if ($row->jenis) {
+                $replacements["consumable_jenis_{$i}"] = $row->jenis;
+            }
+            if ($row->jumlah !== null) {
+                $replacements["consumable_jumlah_{$i}"] = (string) $row->jumlah;
+            }
+            if ($row->keterangan) {
+                $replacements["consumable_keterangan_{$i}"] = $row->keterangan;
+            }
+        }
+        if ($consumable->count() > 0) {
+            $replacements['consumable_total'] = (string) $consumable->count();
+        }
+
+        // Aktivitas
+        $aktivitas = $laporan->aktivitas->values();
+        foreach ($aktivitas as $index => $row) {
+            $i = $index + 1;
+            if ($i > self::MAX_ROWS) break;
+
+            $replacements["aktivitas_no_{$i}"] = (string) $i;
+            if ($row->kategori) {
+                $replacements["aktivitas_kategori_{$i}"] = $row->kategori;
+            }
+            if ($row->aktivitas) {
+                $replacements["aktivitas_aktivitas_{$i}"] = $row->aktivitas;
+            }
+            if ($row->pic) {
+                $replacements["aktivitas_pic_{$i}"] = $row->pic;
+            }
+        }
+        if ($aktivitas->count() > 0) {
+            $replacements['aktivitas_total'] = (string) $aktivitas->count();
+        }
+
+        // Lampiran
+        $lampiran = $laporan->lampiran->filter(fn($l) => $l->isFileCompleted())->values();
+        foreach ($lampiran as $index => $item) {
+            $i = $index + 1;
+            if ($i > self::MAX_LAMPIRAN) break;
+
+            if ($item->file_name) {
+                $replacements["lampiran_nama_{$i}"] = $item->file_name;
+            }
+            if ($item->keterangan) {
+                $replacements["lampiran_ket_{$i}"] = $item->keterangan;
+            }
+        }
+        if ($lampiran->count() > 0) {
+            $replacements['lampiran_total'] = (string) $lampiran->count();
+        }
+
+        // Signature
+        if ($laporan->jenisKapal?->galangan?->kota) {
+            $replacements['ttd_kota'] = $laporan->jenisKapal->galangan->kota;
+        }
+        if ($laporan->tanggal_laporan) {
+            $replacements['ttd_tanggal'] = $laporan->tanggal_laporan->translatedFormat('d F Y');
+        }
+        if ($laporan->user?->name) {
+            $replacements['ttd_nama'] = $laporan->user->name;
+        }
+
+        return $replacements;
     }
 
-    private function fillSignature(TemplateProcessor $p, Laporan $laporan): void
+    // ────────────────────────────────────────────────────────────────────────────
+    // ZIP MANIPULATION
+    // ────────────────────────────────────────────────────────────────────────────
+
+    private function replaceInDocument(string $docxPath, array $replacements): void
     {
-        $p->setValue('ttd_kota',    $this->safe($laporan->jenisKapal?->galangan?->kota));
-        $p->setValue('ttd_tanggal', $laporan->tanggal_laporan->translatedFormat('d F Y'));
-        $p->setValue('ttd_nama',    $this->safe($laporan->user?->name));
+        $zip = new ZipArchive();
+        
+        if ($zip->open($docxPath) !== true) {
+            throw new \RuntimeException('Gagal membuka file DOCX sebagai ZIP');
+        }
+
+        // Read document.xml
+        $documentXml = $zip->getFromName('word/document.xml');
+        if ($documentXml === false) {
+            $zip->close();
+            throw new \RuntimeException('Gagal membaca word/document.xml dari DOCX');
+        }
+
+        // Replace placeholders
+        foreach ($replacements as $placeholder => $value) {
+            // Escape XML special characters
+            $value = htmlspecialchars($value, ENT_XML1, 'UTF-8');
+            // Replace ${placeholder} with value
+            $documentXml = str_replace('${' . $placeholder . '}', $value, $documentXml);
+        }
+
+        // Write back to ZIP
+        $zip->deleteName('word/document.xml');
+        $zip->addFromString('word/document.xml', $documentXml);
+        $zip->close();
     }
 
-    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ────────────────────────────────────────────────────────────────────────────
     // HELPERS
-    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ────────────────────────────────────────────────────────────────────────────
 
-    private function saveDocument(TemplateProcessor $processor, Laporan $laporan): string
+    private function prepareOutputPath(Laporan $laporan): string
     {
         $dir = storage_path('app/laporan/word');
         if (!is_dir($dir)) {
@@ -231,13 +281,12 @@ class LaporanWordService
             now()->format('YmdHis')
         );
 
-        $processor->saveAs($dir . '/' . $filename);
-
-        return 'laporan/word/' . $filename;
+        return $dir . '/' . $filename;
     }
 
-    private function safe(?string $value): string
+    private function getRelativePath(string $fullPath): string
     {
-        return $value ?? '-';
+        $appPath = storage_path('app/');
+        return str_replace($appPath, '', $fullPath);
     }
 }

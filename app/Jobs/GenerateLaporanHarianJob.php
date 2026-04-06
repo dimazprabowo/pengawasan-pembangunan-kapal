@@ -43,8 +43,6 @@ class GenerateLaporanHarianJob implements ShouldQueue
         try {
             $storagePath = $wordService->generate($this->laporan);
 
-            $fileName = basename($storagePath);
-
             $this->laporan->update([
                 'doc_path'         => $storagePath,
                 'doc_name'         => 'Laporan-Harian-' . $this->laporan->tanggal_laporan->format('Y-m-d') . '.docx',
