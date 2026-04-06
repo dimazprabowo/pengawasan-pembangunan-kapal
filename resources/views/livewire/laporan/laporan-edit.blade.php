@@ -160,7 +160,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
                                 </svg>
                                 Lampiran
-                                <span class="text-xs font-normal text-gray-400">({{ $laporan->lampiran->count() }} file existing)</span>
+                                <span class="text-xs font-normal text-gray-400">(opsional — {{ get_upload_config_display('foto_kapal') }})</span>
                             </h4>
 
                             {{-- Existing Lampiran --}}
@@ -228,7 +228,7 @@
                             {{-- New Lampiran Cards --}}
                             <div class="space-y-3">
                                 @foreach($newLampiran as $index => $newLampiranItem)
-                                    <div class="bg-blue-50 dark:bg-blue-900/10 rounded-lg p-3 border border-blue-200 dark:border-blue-800" wire:key="new-lampiran-{{ $index }}">
+                                    <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700" wire:key="new-lampiran-{{ $index }}">
                                         <div class="flex items-start gap-3">
                                             {{-- File Upload --}}
                                             <div class="flex-1">
@@ -281,14 +281,18 @@
                                                          x-on:livewire-upload-cancel="uploading = false"
                                                          x-on:livewire-upload-error="uploading = false"
                                                          x-on:livewire-upload-progress="progress = $event.detail.progress">
-                                                        <label class="flex flex-col items-center justify-center w-full px-3 py-2 border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-lg cursor-pointer hover:border-blue-500 transition-colors bg-white dark:bg-gray-800">
-                                                            <div x-show="!uploading" class="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400">
+                                                        <label class="flex flex-col items-center justify-center w-full px-3 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 transition-colors bg-white dark:bg-gray-800">
+                                                            <div x-show="!uploading" class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                                                                 </svg>
                                                                 <span>Klik untuk upload</span>
                                                             </div>
-                                                            <div x-show="uploading" x-cloak>
+                                                            <div x-show="uploading" x-cloak class="flex items-center justify-center gap-2">
+                                                                <svg class="animate-spin w-3 h-3 text-blue-500" fill="none" viewBox="0 0 24 24">
+                                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                </svg>
                                                                 <span class="text-xs text-blue-600" x-text="progress + '%'"></span>
                                                             </div>
                                                             <input type="file" wire:model="newLampiran.{{ $index }}.file" class="hidden" accept=".{{ implode(',.', get_allowed_mimes_array('foto_kapal')) }}">
@@ -316,7 +320,7 @@
                                         </div>
                                         {{-- Keterangan --}}
                                         <div class="mt-2">
-                                            <input type="text" wire:model="newLampiran.{{ $index }}.keterangan" placeholder="Keterangan lampiran..." class="w-full text-xs px-2 py-1.5 border border-blue-200 dark:border-blue-800 rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-800 dark:text-white">
+                                            <input type="text" wire:model="newLampiran.{{ $index }}.keterangan" placeholder="Keterangan lampiran..." class="w-full text-xs px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-800 dark:text-white">
                                         </div>
                                     </div>
                                 @endforeach
