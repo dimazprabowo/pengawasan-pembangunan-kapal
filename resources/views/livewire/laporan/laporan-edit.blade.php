@@ -100,356 +100,55 @@
                     @if($tipeEnum->value === 'harian')
                         {{-- A. Kondisi Cuaca --}}
                         <div class="md:col-span-2 mt-6">
-                            <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">A. Kondisi Cuaca</h4>
-
-                        {{-- Pagi --}}
-                        <div class="md:col-span-2 mb-4">
-                            <div class="bg-orange-50 dark:bg-orange-900/10 rounded-lg p-4 border border-orange-200 dark:border-orange-800">
-                                <h5 class="text-sm font-medium text-orange-800 dark:text-orange-400 mb-3 flex items-center gap-2">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
-                                    </svg>
-                                    Pagi
-                                </h5>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    <div>
-                                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Cuaca</label>
-                                        <x-searchable-select
-                                            wire:model="cuaca_pagi_id"
-                                            :options="$cuacaList->map(fn($c) => ['value' => $c->id, 'label' => $c->nama])->toArray()"
-                                            placeholder="Pilih cuaca"
-                                            searchPlaceholder="Cari cuaca..."
-                                        />
-                                        @error('cuaca_pagi_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Kelembaban</label>
-                                        <x-searchable-select
-                                            wire:model="kelembaban_pagi_id"
-                                            :options="$kelembabanList->map(fn($k) => ['value' => $k->id, 'label' => $k->nama . ($k->nilai ? ' (' . $k->nilai . ')' : '')])->toArray()"
-                                            placeholder="Pilih kelembaban"
-                                            searchPlaceholder="Cari kelembaban..."
-                                        />
-                                        @error('kelembaban_pagi_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Siang --}}
-                        <div class="md:col-span-2 mb-4">
-                            <div class="bg-yellow-50 dark:bg-yellow-900/10 rounded-lg p-4 border border-yellow-200 dark:border-yellow-800">
-                                <h5 class="text-sm font-medium text-yellow-800 dark:text-yellow-400 mb-3 flex items-center gap-2">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
-                                    </svg>
-                                    Siang
-                                </h5>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    <div>
-                                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Cuaca</label>
-                                        <x-searchable-select
-                                            wire:model="cuaca_siang_id"
-                                            :options="$cuacaList->map(fn($c) => ['value' => $c->id, 'label' => $c->nama])->toArray()"
-                                            placeholder="Pilih cuaca"
-                                            searchPlaceholder="Cari cuaca..."
-                                        />
-                                        @error('cuaca_siang_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Kelembaban</label>
-                                        <x-searchable-select
-                                            wire:model="kelembaban_siang_id"
-                                            :options="$kelembabanList->map(fn($k) => ['value' => $k->id, 'label' => $k->nama . ($k->nilai ? ' (' . $k->nilai . ')' : '')])->toArray()"
-                                            placeholder="Pilih kelembaban"
-                                            searchPlaceholder="Cari kelembaban..."
-                                        />
-                                        @error('kelembaban_siang_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Sore --}}
-                        <div class="md:col-span-2 mb-4">
-                            <div class="bg-indigo-50 dark:bg-indigo-900/10 rounded-lg p-4 border border-indigo-200 dark:border-indigo-800">
-                                <h5 class="text-sm font-medium text-indigo-800 dark:text-indigo-400 mb-3 flex items-center gap-2">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
-                                    </svg>
-                                    Sore
-                                </h5>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    <div>
-                                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Cuaca</label>
-                                        <x-searchable-select
-                                            wire:model="cuaca_sore_id"
-                                            :options="$cuacaList->map(fn($c) => ['value' => $c->id, 'label' => $c->nama])->toArray()"
-                                            placeholder="Pilih cuaca"
-                                            searchPlaceholder="Cari cuaca..."
-                                        />
-                                        @error('cuaca_sore_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Kelembaban</label>
-                                        <x-searchable-select
-                                            wire:model="kelembaban_sore_id"
-                                            :options="$kelembabanList->map(fn($k) => ['value' => $k->id, 'label' => $k->nama . ($k->nilai ? ' (' . $k->nilai . ')' : '')])->toArray()"
-                                            placeholder="Pilih kelembaban"
-                                            searchPlaceholder="Cari kelembaban..."
-                                        />
-                                        @error('kelembaban_sore_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                                {{-- Estimasi Suhu Lingkungan --}}
-                                <div class="mt-4">
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Estimasi Suhu Lingkungan (°C)
-                                    </label>
-                                    <input wire:model="suhu" type="number" step="0.01"
-                                        placeholder="Contoh: 30"
-                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
-                                    @error('suhu') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                                </div>
-                            </div>
+                            <x-laporan.cuaca-section
+                                wirePrefix=""
+                                :cuacaList="$cuacaList->map(fn($c) => ['value' => $c->id, 'label' => $c->nama])->toArray()"
+                                :kelembabanList="$kelembabanList->map(fn($k) => ['value' => $k->id, 'label' => $k->nama . ($k->nilai ? ' (' . $k->nilai . ')' : '')])->toArray()"
+                            />
                         </div>
 
                         {{-- B. Personel --}}
                         <div class="md:col-span-2 mt-6">
-                            <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">B. Personel</h4>
-                                <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                    <thead class="bg-gray-50 dark:bg-gray-900">
-                                        <tr>
-                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-12">No</th>
-                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Jabatan</th>
-                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Keterangan</th>
-                                            <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-16">Aksi</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                        @foreach($personel as $pIndex => $p)
-                                        <tr wire:key="personel-{{ $pIndex }}">
-                                            <td class="px-3 py-2 text-sm text-center text-gray-900 dark:text-gray-100">{{ $pIndex + 1 }}</td>
-                                            <td class="px-3 py-2">
-                                                <input type="text" wire:model="personel.{{ $pIndex }}.jabatan"
-                                                    class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white" 
-                                                    placeholder="Jabatan">
-                                            </td>
-                                            <td class="px-3 py-2">
-                                                <input type="text" wire:model="personel.{{ $pIndex }}.status"
-                                                    class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white" 
-                                                    placeholder="Status">
-                                            </td>
-                                            <td class="px-3 py-2">
-                                                <input type="text" wire:model="personel.{{ $pIndex }}.keterangan"
-                                                    class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white" 
-                                                    placeholder="Keterangan">
-                                            </td>
-                                            <td class="px-3 py-2 text-center">
-                                                <button type="button" 
-                                                    wire:click="confirmRemovePersonel({{ $pIndex }})"
-                                                    class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                                    </svg>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                                </div>
-                                <div class="flex justify-end mt-3">
-                                    <button type="button" wire:click="addPersonel" 
-                                        class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                                        </svg>
-                                        Tambah
-                                    </button>
-                                </div>
-                            </div>
+                            <x-laporan.personel-table
+                                :rows="$personel"
+                                rowsModel="personel"
+                                addMethod="addPersonel"
+                                deletePrefix="confirmRemovePersonel("
+                                wireKeyPrefix="personel"
+                            />
                         </div>
 
                         {{-- C. Peralatan --}}
                         <div class="md:col-span-2 mt-6">
-                            <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">C. Peralatan</h4>
-                                <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                    <thead class="bg-gray-50 dark:bg-gray-900">
-                                        <tr>
-                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-12">No</th>
-                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Jenis</th>
-                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-32">Jumlah</th>
-                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Keterangan</th>
-                                            <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-16">Aksi</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                        @foreach($peralatan as $pIndex => $p)
-                                        <tr wire:key="peralatan-{{ $pIndex }}">
-                                            <td class="px-3 py-2 text-sm text-center text-gray-900 dark:text-gray-100">{{ $pIndex + 1 }}</td>
-                                            <td class="px-3 py-2">
-                                                <input type="text" wire:model="peralatan.{{ $pIndex }}.jenis"
-                                                    class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white" 
-                                                    placeholder="Jenis">
-                                            </td>
-                                            <td class="px-3 py-2">
-                                                <input type="number" wire:model="peralatan.{{ $pIndex }}.jumlah" min="1"
-                                                    class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white" 
-                                                    placeholder="Jumlah">
-                                            </td>
-                                            <td class="px-3 py-2">
-                                                <input type="text" wire:model="peralatan.{{ $pIndex }}.keterangan"
-                                                    class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white" 
-                                                    placeholder="Keterangan">
-                                            </td>
-                                            <td class="px-3 py-2 text-center">
-                                                <button type="button" 
-                                                    wire:click="confirmRemovePeralatan({{ $pIndex }})"
-                                                    class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                                    </svg>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                                </div>
-                                <div class="flex justify-end mt-3">
-                                    <button type="button" wire:click="addPeralatan" 
-                                        class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                                        </svg>
-                                        Tambah
-                                    </button>
-                                </div>
-                            </div>
+                            <x-laporan.peralatan-table
+                                :rows="$peralatan"
+                                rowsModel="peralatan"
+                                addMethod="addPeralatan"
+                                deletePrefix="confirmRemovePeralatan("
+                                wireKeyPrefix="peralatan"
+                            />
                         </div>
 
                         {{-- D. Consumable dan Material --}}
                         <div class="md:col-span-2 mt-6">
-                            <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">D. Consumable dan Material</h4>
-                                <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                    <thead class="bg-gray-50 dark:bg-gray-900">
-                                        <tr>
-                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-12">No</th>
-                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Jenis</th>
-                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-32">Jumlah</th>
-                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Keterangan</th>
-                                            <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-16">Aksi</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                        @foreach($consumable as $cIndex => $c)
-                                        <tr wire:key="consumable-{{ $cIndex }}">
-                                            <td class="px-3 py-2 text-sm text-center text-gray-900 dark:text-gray-100">{{ $cIndex + 1 }}</td>
-                                            <td class="px-3 py-2">
-                                                <input type="text" wire:model="consumable.{{ $cIndex }}.jenis"
-                                                    class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white" 
-                                                    placeholder="Jenis">
-                                            </td>
-                                            <td class="px-3 py-2">
-                                                <input type="number" wire:model="consumable.{{ $cIndex }}.jumlah" min="1"
-                                                    class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white" 
-                                                    placeholder="Jumlah">
-                                            </td>
-                                            <td class="px-3 py-2">
-                                                <input type="text" wire:model="consumable.{{ $cIndex }}.keterangan"
-                                                    class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white" 
-                                                    placeholder="Keterangan">
-                                            </td>
-                                            <td class="px-3 py-2 text-center">
-                                                <button type="button" 
-                                                    wire:click="confirmRemoveConsumable({{ $cIndex }})"
-                                                    class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                                    </svg>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                                </div>
-                                <div class="flex justify-end mt-3">
-                                    <button type="button" wire:click="addConsumable" 
-                                        class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                                        </svg>
-                                        Tambah
-                                    </button>
-                                </div>
-                            </div>
+                            <x-laporan.consumable-table
+                                :rows="$consumable"
+                                rowsModel="consumable"
+                                addMethod="addConsumable"
+                                deletePrefix="confirmRemoveConsumable("
+                                wireKeyPrefix="consumable"
+                            />
                         </div>
 
                         {{-- E. Uraian Aktivitas --}}
                         <div class="md:col-span-2 mt-6">
-                            <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">E. Uraian Aktivitas</h4>
-                                <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                        <thead class="bg-gray-50 dark:bg-gray-900">
-                                            <tr>
-                                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-12">No</th>
-                                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aktivitas</th>
-                                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-48">PIC</th>
-                                                <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-16">Aksi</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                            @foreach($aktivitas as $aIndex => $a)
-                                            <tr wire:key="aktivitas-{{ $aIndex }}">
-                                                <td class="px-3 py-2 text-sm text-center text-gray-900 dark:text-gray-100">{{ $aIndex + 1 }}</td>
-                                                <td class="px-3 py-2">
-                                                    <textarea wire:model="aktivitas.{{ $aIndex }}.aktivitas" rows="2"
-                                                        class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white" 
-                                                        placeholder="Deskripsi aktivitas"></textarea>
-                                                </td>
-                                                <td class="px-3 py-2">
-                                                    <input type="text" wire:model="aktivitas.{{ $aIndex }}.pic"
-                                                        class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white" 
-                                                        placeholder="PIC">
-                                                </td>
-                                                <td class="px-3 py-2 text-center">
-                                                    <button type="button" 
-                                                        wire:click="confirmRemoveAktivitas({{ $aIndex }})"
-                                                        class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300">
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                                        </svg>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div class="flex justify-end mt-3">
-                                    <button type="button" wire:click="addAktivitas" 
-                                        class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                                        </svg>
-                                        Tambah
-                                    </button>
-                                </div>
-                            </div>
+                            <x-laporan.aktivitas-table
+                                :rows="$aktivitas"
+                                rowsModel="aktivitas"
+                                addMethod="addAktivitas"
+                                deletePrefix="confirmRemoveAktivitas("
+                                wireKeyPrefix="aktivitas"
+                            />
                         </div>
                     @endif
 

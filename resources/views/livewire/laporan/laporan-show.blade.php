@@ -188,30 +188,11 @@
                 </div>
             @endif
 
-            {{-- Isi Laporan --}}
-            @if($laporan->isi)
-                <div>
-                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Isi Laporan</label>
-                    <div class="prose prose-sm dark:prose-invert max-w-none text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
-                        {!! nl2br(e($laporan->isi)) !!}
-                    </div>
-                </div>
-            @endif
-
-            {{-- Catatan --}}
-            @if($laporan->catatan)
-                <div>
-                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Catatan</label>
-                    <div class="text-sm text-gray-700 dark:text-gray-300 bg-amber-50 dark:bg-amber-900/10 rounded-lg p-4 border border-amber-200 dark:border-amber-800">
-                        {!! nl2br(e($laporan->catatan)) !!}
-                    </div>
-                </div>
-            @endif
 
             {{-- Weather Information for Harian --}}
             @if($laporan->tipe->value === 'harian' && ($laporan->suhu || $laporan->cuacaPagi || $laporan->kelembabanPagi || $laporan->cuacaSiang || $laporan->kelembabanSiang || $laporan->cuacaSore || $laporan->kelembabanSore))
                 <div>
-                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Informasi Cuaca</label>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">A. Informasi Cuaca</label>
                     
                     {{-- Suhu --}}
                     @if($laporan->suhu)
@@ -228,83 +209,77 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         {{-- Pagi --}}
                         @if($laporan->cuacaPagi || $laporan->kelembabanPagi)
-                            <div class="bg-orange-50 dark:bg-orange-900/10 rounded-lg p-4 border border-orange-200 dark:border-orange-800">
-                                <h5 class="text-sm font-medium text-orange-800 dark:text-orange-400 mb-2 flex items-center gap-2">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
-                                    </svg>
-                                    Pagi
-                                </h5>
-                                <div class="space-y-2 text-xs">
-                                    @if($laporan->cuacaPagi)
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-gray-600 dark:text-gray-400">Cuaca:</span>
-                                            <span class="font-medium text-gray-900 dark:text-white">{{ $laporan->cuacaPagi->nama }}</span>
-                                        </div>
-                                    @endif
-                                    @if($laporan->kelembabanPagi)
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-gray-600 dark:text-gray-400">Kelembaban:</span>
-                                            <span class="font-medium text-gray-900 dark:text-white">{{ $laporan->kelembabanPagi->nama }}</span>
-                                        </div>
-                                    @endif
-                                </div>
-                            </div>
+                            <x-laporan.weather-section
+                                period="pagi"
+                                :cuacaId="$laporan->cuaca_pagi_id"
+                                :kelembabanId="$laporan->kelembaban_pagi_id"
+                                :cuacaList="[['id' => $laporan->cuacaPagi?->id, 'nama' => $laporan->cuacaPagi?->nama]]"
+                                :kelembabanList="[['id' => $laporan->kelembabanPagi?->id, 'nama' => $laporan->kelembabanPagi?->nama]]"
+                                readonly
+                            />
                         @endif
 
                         {{-- Siang --}}
                         @if($laporan->cuacaSiang || $laporan->kelembabanSiang)
-                            <div class="bg-yellow-50 dark:bg-yellow-900/10 rounded-lg p-4 border border-yellow-200 dark:border-yellow-800">
-                                <h5 class="text-sm font-medium text-yellow-800 dark:text-yellow-400 mb-2 flex items-center gap-2">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
-                                    </svg>
-                                    Siang
-                                </h5>
-                                <div class="space-y-2 text-xs">
-                                    @if($laporan->cuacaSiang)
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-gray-600 dark:text-gray-400">Cuaca:</span>
-                                            <span class="font-medium text-gray-900 dark:text-white">{{ $laporan->cuacaSiang->nama }}</span>
-                                        </div>
-                                    @endif
-                                    @if($laporan->kelembabanSiang)
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-gray-600 dark:text-gray-400">Kelembaban:</span>
-                                            <span class="font-medium text-gray-900 dark:text-white">{{ $laporan->kelembabanSiang->nama }}</span>
-                                        </div>
-                                    @endif
-                                </div>
-                            </div>
+                            <x-laporan.weather-section
+                                period="siang"
+                                :cuacaId="$laporan->cuaca_siang_id"
+                                :kelembabanId="$laporan->kelembaban_siang_id"
+                                :cuacaList="[['id' => $laporan->cuacaSiang?->id, 'nama' => $laporan->cuacaSiang?->nama]]"
+                                :kelembabanList="[['id' => $laporan->kelembabanSiang?->id, 'nama' => $laporan->kelembabanSiang?->nama]]"
+                                readonly
+                            />
                         @endif
 
                         {{-- Sore --}}
                         @if($laporan->cuacaSore || $laporan->kelembabanSore)
-                            <div class="bg-indigo-50 dark:bg-indigo-900/10 rounded-lg p-4 border border-indigo-200 dark:border-indigo-800">
-                                <h5 class="text-sm font-medium text-indigo-800 dark:text-indigo-400 mb-2 flex items-center gap-2">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
-                                    </svg>
-                                    Sore
-                                </h5>
-                                <div class="space-y-2 text-xs">
-                                    @if($laporan->cuacaSore)
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-gray-600 dark:text-gray-400">Cuaca:</span>
-                                            <span class="font-medium text-gray-900 dark:text-white">{{ $laporan->cuacaSore->nama }}</span>
-                                        </div>
-                                    @endif
-                                    @if($laporan->kelembabanSore)
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-gray-600 dark:text-gray-400">Kelembaban:</span>
-                                            <span class="font-medium text-gray-900 dark:text-white">{{ $laporan->kelembabanSore->nama }}</span>
-                                        </div>
-                                    @endif
-                                </div>
-                            </div>
+                            <x-laporan.weather-section
+                                period="sore"
+                                :cuacaId="$laporan->cuaca_sore_id"
+                                :kelembabanId="$laporan->kelembaban_sore_id"
+                                :cuacaList="[['id' => $laporan->cuacaSore?->id, 'nama' => $laporan->cuacaSore?->nama]]"
+                                :kelembabanList="[['id' => $laporan->kelembabanSore?->id, 'nama' => $laporan->kelembabanSore?->nama]]"
+                                readonly
+                            />
                         @endif
                     </div>
                 </div>
+            @endif
+
+            {{-- Personel Section --}}
+            @if($laporan->tipe->value === 'harian' && $laporan->personel->count() > 0)
+                <x-laporan.personel-table
+                    :rows="$laporan->personel->toArray()"
+                    wireKeyPrefix="show-personel"
+                    readonly
+                />
+            @endif
+
+            {{-- Peralatan Section --}}
+            @if($laporan->tipe->value === 'harian' && $laporan->peralatan->count() > 0)
+                <x-laporan.peralatan-table
+                    :rows="$laporan->peralatan->toArray()"
+                    wireKeyPrefix="show-peralatan"
+                    readonly
+                />
+            @endif
+
+            {{-- Consumable Section --}}
+            @if($laporan->tipe->value === 'harian' && $laporan->consumable->count() > 0)
+                <x-laporan.consumable-table
+                    :rows="$laporan->consumable->toArray()"
+                    wireKeyPrefix="show-consumable"
+                    readonly
+                />
+            @endif
+
+            {{-- Aktivitas Section --}}
+            @if($laporan->tipe->value === 'harian' && $laporan->aktivitas->count() > 0)
+                <x-laporan.aktivitas-table
+                    :rows="$laporan->aktivitas->toArray()"
+                    wireKeyPrefix="show-aktivitas"
+                    readonly
+                />
             @endif
         </div>
     </div>
