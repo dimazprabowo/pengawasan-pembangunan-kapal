@@ -25,18 +25,18 @@ class RolePermissionService
         return $role ? $role->permissions->pluck('name')->toArray() : [];
     }
 
-    public function createRole(string $name, array $permissions = []): Role
+    public function createRole(string $name, ?array $permissions = []): Role
     {
         $role = Role::create(['name' => $name]);
-        $role->syncPermissions($permissions);
+        $role->syncPermissions($permissions ?? []);
 
         return $role;
     }
 
-    public function updateRole(Role $role, string $name, array $permissions = []): Role
+    public function updateRole(Role $role, string $name, ?array $permissions = []): Role
     {
         $role->update(['name' => $name]);
-        $role->syncPermissions($permissions);
+        $role->syncPermissions($permissions ?? []);
 
         return $role;
     }

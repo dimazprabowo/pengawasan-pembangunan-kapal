@@ -109,7 +109,7 @@ class RolePermission extends Component
         try {
             $this->validate([
                 'roleName' => ['required', 'string', 'max:255', $this->editMode ? 'unique:roles,name,' . $this->roleId : 'unique:roles,name'],
-                'selectedPermissions' => 'required|array|min:1',
+                'selectedPermissions' => 'nullable|array',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             $this->notifyValidationError($e);

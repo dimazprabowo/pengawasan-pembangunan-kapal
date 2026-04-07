@@ -137,9 +137,9 @@ class UserManagement extends Component
                 'name' => $this->name,
                 'email' => $this->email,
                 'password' => $this->password,
-                'company_id' => $this->company_id,
-                'phone' => $this->phone,
-                'position' => $this->position,
+                'company_id' => $this->company_id ?: null,
+                'phone' => $this->phone ?: null,
+                'position' => $this->position ?: null,
                 'is_active' => $this->is_active,
             ];
 
