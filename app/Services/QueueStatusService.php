@@ -9,6 +9,18 @@ class QueueStatusService
 {
     /**
      * Check if queue worker is active
+     * 
+     * Detection strategy:
+     * 1. Check cache (set by jobs when they execute)
+     * 2. Check for jobs being processed (reserved_at within last 60s)
+     * 3. Check for very recent pending jobs (created within last 10s) - gives grace period
+     * 4. Check for recent failed jobs (indicates worker is running but jobs failing)
+     * 
+     * The 10-second grace period for pending jobs prevents false negatives when:
+     * - A job is just dispatched but worker hasn't picked it up yet
+     * - User clicks generate and immediately sees the status
+     * 
+     * @return bool True if worker appears to be active, false otherwise
      */
     public function isQueueWorkerActive(): bool
     {
@@ -30,6 +42,20 @@ class QueueStatusService
                 return true;
             }
 
+            // Check for pending jobs (not yet reserved) created in the last 10 seconds
+            // This handles the case when a job is just dispatched but not yet picked up by worker
+            // If there are recent pending jobs, assume worker is running and will pick them up soon
+            $veryRecentPendingJobs = DB::table('jobs')
+                ->whereNull('reserved_at')
+                ->where('created_at', '>=', now()->subSeconds(10)->timestamp)
+                ->exists();
+
+            if ($veryRecentPendingJobs) {
+                // Job just created, give worker a chance to pick it up
+                // Don't show warning immediately
+                return true;
+            }
+
             // Check failed_jobs table for recent activity (last 2 minutes)
             $recentFailedJobs = DB::table('failed_jobs')
                 ->where('failed_at', '>=', now()->subMinutes(2))
@@ -40,6 +66,8 @@ class QueueStatusService
                 return true;
             }
 
+            // Final check: if there are pending jobs older than 10 seconds,
+            // worker might not be running
             return false;
         } catch (\Exception $e) {
             // If tables don't exist or error, assume inactive
@@ -89,5 +117,6 @@ class QueueStatusService
     public function markWorkerActive(): void
     {
         Cache::put('queue_worker_active', true, now()->addMinutes(5));
+        Cache::put('queue_worker_last_seen', now()->timestamp, now()->addMinutes(10));
     }
 }
