@@ -284,13 +284,6 @@ class LaporanWordService
             // Set nomor
             $processor->setValue('lampiran_no#' . $i, (string) $i);
             
-            \Log::info('LaporanWordService: Processing lampiran', [
-                'index' => $i,
-                'file_path' => $item->file_path,
-                'file_name' => $item->file_name,
-                'is_image' => $this->isImageFile($item->file_path)
-            ]);
-            
             // Set gambar jika file adalah image
             if ($this->isImageFile($item->file_path)) {
                 // Try with 'private/' prefix first (Laravel's default for file uploads)
@@ -301,19 +294,8 @@ class LaporanWordService
                     $imagePath = storage_path('app/' . $item->file_path);
                 }
                 
-                \Log::info('LaporanWordService: Checking image path', [
-                    'file_path_db' => $item->file_path,
-                    'full_path' => $imagePath,
-                    'exists' => file_exists($imagePath)
-                ]);
-                
                 if (file_exists($imagePath)) {
                     try {
-                        \Log::info('LaporanWordService: Attempting to insert image', [
-                            'placeholder' => 'lampiran_gambar#' . $i,
-                            'path' => $imagePath
-                        ]);
-                        
                         $processor->setImageValue('lampiran_gambar#' . $i, [
                             'path' => $imagePath,
                             'width' => 200,
@@ -321,7 +303,6 @@ class LaporanWordService
                             'ratio' => true
                         ]);
                         
-                        \Log::info('LaporanWordService: Image inserted successfully');
                     } catch (\Exception $e) {
                         // Jika gagal insert image, set nama file saja
                         \Log::error('LaporanWordService: Failed to insert image', [
@@ -344,7 +325,6 @@ class LaporanWordService
                 }
             } else {
                 // Jika bukan image, tampilkan nama file
-                \Log::info('LaporanWordService: Not an image file, using filename');
                 $processor->setValue('lampiran_gambar#' . $i, $item->file_name ?? '');
             }
             
