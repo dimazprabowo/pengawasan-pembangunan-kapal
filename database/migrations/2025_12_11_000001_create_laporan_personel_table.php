@@ -11,8 +11,8 @@ return new class extends Migration
         Schema::create('laporan_personel', function (Blueprint $table) {
             $table->id();
             $table->foreignId('laporan_id')->constrained('laporan')->cascadeOnDelete();
-            $table->string('jabatan');
-            $table->string('status');
+            $table->string('jabatan')->nullable();
+            $table->string('status')->nullable();
             $table->text('keterangan')->nullable();
             $table->timestamps();
 

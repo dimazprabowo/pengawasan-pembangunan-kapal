@@ -11,8 +11,8 @@ return new class extends Migration
         Schema::create('laporan_consumable', function (Blueprint $table) {
             $table->id();
             $table->foreignId('laporan_id')->constrained('laporan')->cascadeOnDelete();
-            $table->string('jenis');
-            $table->integer('jumlah');
+            $table->string('jenis')->nullable();
+            $table->integer('jumlah')->nullable();
             $table->text('keterangan')->nullable();
             $table->timestamps();
 
