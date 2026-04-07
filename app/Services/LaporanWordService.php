@@ -67,48 +67,22 @@ class LaporanWordService
         $values = [];
 
         // Basic Info
-        if ($laporan->judul) {
-            $values['judul'] = $laporan->judul;
-        }
-        if ($laporan->jenisKapal?->galangan?->nama) {
-            $values['lokasi'] = $laporan->jenisKapal->galangan->nama;
-        }
-        if ($laporan->jenisKapal?->nama) {
-            $values['no_kapal'] = $laporan->jenisKapal->nama;
-        }
-        if ($laporan->jenisKapal?->company?->name) {
-            $values['perusahaan'] = $laporan->jenisKapal->company->name;
-        }
-        if ($laporan->tanggal_laporan) {
-            $values['tanggal'] = $laporan->tanggal_laporan->translatedFormat('d F Y');
-        }
-        if ($laporan->user?->name) {
-            $values['dibuat_oleh'] = $laporan->user->name;
-        }
+        $values['judul'] = $laporan->judul ?? '-';
+        $values['lokasi'] = $laporan->jenisKapal?->galangan?->nama ?? '-';
+        $values['no_kapal'] = $laporan->jenisKapal?->nama ?? '-';
+        $values['perusahaan'] = $laporan->jenisKapal?->company?->name ?? '-';
+        $values['tanggal'] = $laporan->tanggal_laporan ? $laporan->tanggal_laporan->translatedFormat('d F Y') : '-';
+        $values['dibuat_oleh'] = $laporan->user?->name ?? '-';
         $values['no_laporan'] = (string) $laporan->id;
 
-        // Weather
-        if ($laporan->suhu) {
-            $values['suhu'] = number_format((float) $laporan->suhu, 1) . '°C';
-        }
-        if ($laporan->cuacaPagi?->nama) {
-            $values['cuaca_pagi'] = $laporan->cuacaPagi->nama;
-        }
-        if ($laporan->kelembabanPagi?->nama) {
-            $values['kelembaban_pagi'] = $laporan->kelembabanPagi->nama;
-        }
-        if ($laporan->cuacaSiang?->nama) {
-            $values['cuaca_siang'] = $laporan->cuacaSiang->nama;
-        }
-        if ($laporan->kelembabanSiang?->nama) {
-            $values['kelembaban_siang'] = $laporan->kelembabanSiang->nama;
-        }
-        if ($laporan->cuacaSore?->nama) {
-            $values['cuaca_sore'] = $laporan->cuacaSore->nama;
-        }
-        if ($laporan->kelembabanSore?->nama) {
-            $values['kelembaban_sore'] = $laporan->kelembabanSore->nama;
-        }
+        // Weather - use '-' for empty values
+        $values['suhu'] = $laporan->suhu ? number_format((float) $laporan->suhu, 1) . '°C' : '-';
+        $values['cuaca_pagi'] = $laporan->cuacaPagi?->nama ?? '-';
+        $values['kelembaban_pagi'] = $laporan->kelembabanPagi?->nama ?? '-';
+        $values['cuaca_siang'] = $laporan->cuacaSiang?->nama ?? '-';
+        $values['kelembaban_siang'] = $laporan->kelembabanSiang?->nama ?? '-';
+        $values['cuaca_sore'] = $laporan->cuacaSore?->nama ?? '-';
+        $values['kelembaban_sore'] = $laporan->kelembabanSore?->nama ?? '-';
 
         // Totals
         $values['personel_total'] = (string) $laporan->personel->count();
@@ -118,15 +92,9 @@ class LaporanWordService
         $values['lampiran_total'] = (string) $laporan->lampiran->filter(fn($l) => $l->isFileCompleted())->count();
 
         // Signature
-        if ($laporan->jenisKapal?->galangan?->kota) {
-            $values['ttd_kota'] = $laporan->jenisKapal->galangan->kota;
-        }
-        if ($laporan->tanggal_laporan) {
-            $values['ttd_tanggal'] = $laporan->tanggal_laporan->translatedFormat('d F Y');
-        }
-        if ($laporan->user?->name) {
-            $values['ttd_nama'] = $laporan->user->name;
-        }
+        $values['ttd_kota'] = $laporan->jenisKapal?->galangan?->kota ?? '-';
+        $values['ttd_tanggal'] = $laporan->tanggal_laporan ? $laporan->tanggal_laporan->translatedFormat('d F Y') : '-';
+        $values['ttd_nama'] = $laporan->user?->name ?? '-';
 
         $processor->setValues($values);
     }
@@ -149,11 +117,11 @@ class LaporanWordService
         $rows = $laporan->personel->values();
         
         if ($rows->isEmpty()) {
-            // Jika tidak ada data, hapus row template
-            $processor->setValue('personel_no', '');
-            $processor->setValue('personel_jabatan', '');
-            $processor->setValue('personel_status', '');
-            $processor->setValue('personel_keterangan', '');
+            // Jika tidak ada data, isi dengan satu row berisi '-'
+            $processor->setValue('personel_no', '1');
+            $processor->setValue('personel_jabatan', '-');
+            $processor->setValue('personel_status', '-');
+            $processor->setValue('personel_keterangan', '-');
             
             return;
         }
@@ -167,9 +135,9 @@ class LaporanWordService
             
             // Format: placeholder#index (misal: personel_no#1, personel_no#2)
             $processor->setValue('personel_no#' . $i, (string) $i);
-            $processor->setValue('personel_jabatan#' . $i, $row->jabatan ?? '');
-            $processor->setValue('personel_status#' . $i, $row->status ?? '');
-            $processor->setValue('personel_keterangan#' . $i, $row->keterangan ?? '');
+            $processor->setValue('personel_jabatan#' . $i, $row->jabatan ?? '-');
+            $processor->setValue('personel_status#' . $i, $row->status ?? '-');
+            $processor->setValue('personel_keterangan#' . $i, $row->keterangan ?? '-');
         }
     }
 
@@ -178,10 +146,11 @@ class LaporanWordService
         $rows = $laporan->peralatan->values();
         
         if ($rows->isEmpty()) {
-            $processor->setValue('peralatan_no', '');
-            $processor->setValue('peralatan_jenis', '');
-            $processor->setValue('peralatan_jumlah', '');
-            $processor->setValue('peralatan_keterangan', '');
+            // Jika tidak ada data, isi dengan satu row berisi '-'
+            $processor->setValue('peralatan_no', '1');
+            $processor->setValue('peralatan_jenis', '-');
+            $processor->setValue('peralatan_jumlah', '-');
+            $processor->setValue('peralatan_keterangan', '-');
             return;
         }
 
@@ -192,9 +161,9 @@ class LaporanWordService
                 $i = $index + 1;
                 
                 $processor->setValue('peralatan_no#' . $i, (string) $i);
-                $processor->setValue('peralatan_jenis#' . $i, $row->jenis ?? '');
-                $processor->setValue('peralatan_jumlah#' . $i, $row->jumlah !== null ? (string) $row->jumlah : '');
-                $processor->setValue('peralatan_keterangan#' . $i, $row->keterangan ?? '');
+                $processor->setValue('peralatan_jenis#' . $i, $row->jenis ?? '-');
+                $processor->setValue('peralatan_jumlah#' . $i, $row->jumlah !== null ? (string) $row->jumlah : '-');
+                $processor->setValue('peralatan_keterangan#' . $i, $row->keterangan ?? '-');
             }
         } catch (\Exception $e) {
             \Log::warning('LaporanWordService: Skipping peralatan table (placeholder not found or contains markup)', [
@@ -208,10 +177,11 @@ class LaporanWordService
         $rows = $laporan->consumable->values();
         
         if ($rows->isEmpty()) {
-            $processor->setValue('consumable_no', '');
-            $processor->setValue('consumable_jenis', '');
-            $processor->setValue('consumable_jumlah', '');
-            $processor->setValue('consumable_keterangan', '');
+            // Jika tidak ada data, isi dengan satu row berisi '-'
+            $processor->setValue('consumable_no', '1');
+            $processor->setValue('consumable_jenis', '-');
+            $processor->setValue('consumable_jumlah', '-');
+            $processor->setValue('consumable_keterangan', '-');
             return;
         }
 
@@ -222,9 +192,9 @@ class LaporanWordService
                 $i = $index + 1;
                 
                 $processor->setValue('consumable_no#' . $i, (string) $i);
-                $processor->setValue('consumable_jenis#' . $i, $row->jenis ?? '');
-                $processor->setValue('consumable_jumlah#' . $i, $row->jumlah !== null ? (string) $row->jumlah : '');
-                $processor->setValue('consumable_keterangan#' . $i, $row->keterangan ?? '');
+                $processor->setValue('consumable_jenis#' . $i, $row->jenis ?? '-');
+                $processor->setValue('consumable_jumlah#' . $i, $row->jumlah !== null ? (string) $row->jumlah : '-');
+                $processor->setValue('consumable_keterangan#' . $i, $row->keterangan ?? '-');
             }
         } catch (\Exception $e) {
             \Log::warning('LaporanWordService: Skipping consumable table (placeholder not found or contains markup)', [
@@ -238,10 +208,11 @@ class LaporanWordService
         $rows = $laporan->aktivitas->values();
         
         if ($rows->isEmpty()) {
-            $processor->setValue('aktivitas_no', '');
-            $processor->setValue('aktivitas_kategori', '');
-            $processor->setValue('aktivitas_aktivitas', '');
-            $processor->setValue('aktivitas_pic', '');
+            // Jika tidak ada data, isi dengan satu row berisi '-'
+            $processor->setValue('aktivitas_no', '1');
+            $processor->setValue('aktivitas_kategori', '-');
+            $processor->setValue('aktivitas_aktivitas', '-');
+            $processor->setValue('aktivitas_pic', '-');
             return;
         }
 
@@ -252,9 +223,9 @@ class LaporanWordService
                 $i = $index + 1;
                 
                 $processor->setValue('aktivitas_no#' . $i, (string) $i);
-                $processor->setValue('aktivitas_kategori#' . $i, $row->kategori ?? '');
-                $processor->setValue('aktivitas_aktivitas#' . $i, $row->aktivitas ?? '');
-                $processor->setValue('aktivitas_pic#' . $i, $row->pic ?? '');
+                $processor->setValue('aktivitas_kategori#' . $i, $row->kategori ?? '-');
+                $processor->setValue('aktivitas_aktivitas#' . $i, $row->aktivitas ?? '-');
+                $processor->setValue('aktivitas_pic#' . $i, $row->pic ?? '-');
             }
         } catch (\Exception $e) {
             \Log::warning('LaporanWordService: Skipping aktivitas table (placeholder not found or contains markup)', [
@@ -268,9 +239,10 @@ class LaporanWordService
         $rows = $laporan->lampiran->filter(fn($l) => $l->isFileCompleted())->values();
         
         if ($rows->isEmpty()) {
-            $processor->setValue('lampiran_no', '');
-            $processor->setValue('lampiran_gambar', '');
-            $processor->setValue('lampiran_ket', '');
+            // Jika tidak ada data, isi dengan satu row berisi '-'
+            $processor->setValue('lampiran_no', '1');
+            $processor->setValue('lampiran_gambar', '-');
+            $processor->setValue('lampiran_ket', '-');
             return;
         }
 
@@ -312,7 +284,7 @@ class LaporanWordService
                             'error' => $e->getMessage(),
                             'trace' => $e->getTraceAsString()
                         ]);
-                        $processor->setValue('lampiran_gambar#' . $i, $item->file_name ?? '');
+                        $processor->setValue('lampiran_gambar#' . $i, $item->file_name ?? '-');
                     }
                 } else {
                     \Log::warning('LaporanWordService: Image file not found', [
@@ -321,15 +293,15 @@ class LaporanWordService
                         'full_path' => $imagePath,
                         'storage_app_exists' => is_dir(storage_path('app'))
                     ]);
-                    $processor->setValue('lampiran_gambar#' . $i, $item->file_name ?? '');
+                    $processor->setValue('lampiran_gambar#' . $i, $item->file_name ?? '-');
                 }
             } else {
                 // Jika bukan image, tampilkan nama file
-                $processor->setValue('lampiran_gambar#' . $i, $item->file_name ?? '');
+                $processor->setValue('lampiran_gambar#' . $i, $item->file_name ?? '-');
             }
             
             // Set keterangan
-            $processor->setValue('lampiran_ket#' . $i, $item->keterangan ?? '');
+            $processor->setValue('lampiran_ket#' . $i, $item->keterangan ?? '-');
         }
     }
 

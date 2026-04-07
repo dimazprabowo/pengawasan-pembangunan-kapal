@@ -91,10 +91,10 @@ class LaporanCreate extends Component
             'kelembaban_siang_id' => null,
             'cuaca_sore_id' => null,
             'kelembaban_sore_id' => null,
-            'personel' => [['jabatan' => '', 'status' => '', 'keterangan' => '']],
-            'peralatan' => [['jenis' => '', 'jumlah' => '', 'keterangan' => '']],
-            'consumable' => [['jenis' => '', 'jumlah' => '', 'keterangan' => '']],
-            'aktivitas' => [['kategori' => 'New Building', 'aktivitas' => '', 'pic' => '']],
+            'personel' => [],
+            'peralatan' => [],
+            'consumable' => [],
+            'aktivitas' => [],
         ];
         $this->lampiran[] = [
             [
@@ -391,21 +391,21 @@ class LaporanCreate extends Component
             $rules['items.*.cuaca_sore_id'] = 'nullable|exists:cuaca,id';
             $rules['items.*.kelembaban_sore_id'] = 'nullable|exists:kelembaban,id';
             $rules['items.*.personel'] = 'nullable|array';
-            $rules['items.*.personel.*.jabatan'] = 'required|string|max:255';
-            $rules['items.*.personel.*.status'] = 'required|string|max:255';
+            $rules['items.*.personel.*.jabatan'] = 'nullable|string|max:255';
+            $rules['items.*.personel.*.status'] = 'nullable|string|max:255';
             $rules['items.*.personel.*.keterangan'] = 'nullable|string|max:1000';
             $rules['items.*.peralatan'] = 'nullable|array';
-            $rules['items.*.peralatan.*.jenis'] = 'required|string|max:255';
-            $rules['items.*.peralatan.*.jumlah'] = 'required|integer|min:1';
+            $rules['items.*.peralatan.*.jenis'] = 'nullable|string|max:255';
+            $rules['items.*.peralatan.*.jumlah'] = 'nullable|integer|min:1';
             $rules['items.*.peralatan.*.keterangan'] = 'nullable|string|max:1000';
             $rules['items.*.consumable'] = 'nullable|array';
-            $rules['items.*.consumable.*.jenis'] = 'required|string|max:255';
-            $rules['items.*.consumable.*.jumlah'] = 'required|integer|min:1';
+            $rules['items.*.consumable.*.jenis'] = 'nullable|string|max:255';
+            $rules['items.*.consumable.*.jumlah'] = 'nullable|integer|min:1';
             $rules['items.*.consumable.*.keterangan'] = 'nullable|string|max:1000';
             $rules['items.*.aktivitas'] = 'nullable|array';
-            $rules['items.*.aktivitas.*.kategori'] = 'required|string|max:255';
-            $rules['items.*.aktivitas.*.aktivitas'] = 'required|string';
-            $rules['items.*.aktivitas.*.pic'] = 'required|string|max:255';
+            $rules['items.*.aktivitas.*.kategori'] = 'nullable|string|max:255';
+            $rules['items.*.aktivitas.*.aktivitas'] = 'nullable|string';
+            $rules['items.*.aktivitas.*.pic'] = 'nullable|string|max:255';
         }
 
         return $rules;
