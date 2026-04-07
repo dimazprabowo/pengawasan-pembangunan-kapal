@@ -486,38 +486,70 @@ class LaporanCreate extends Component
 
                 // Save dynamic inputs for harian only
                 if ($this->tipe === 'harian') {
-                    // Save personel
+                    // Save personel - allow partial data (any field filled)
                     if (isset($item['personel']) && is_array($item['personel'])) {
                         foreach ($item['personel'] as $personelData) {
-                            if (!empty($personelData['jabatan']) && !empty($personelData['status'])) {
-                                $laporan->personel()->create($personelData);
+                            $hasData = !empty($personelData['jabatan']) || 
+                                      !empty($personelData['status']) || 
+                                      !empty($personelData['keterangan']);
+                            
+                            if ($hasData) {
+                                $laporan->personel()->create([
+                                    'jabatan' => $personelData['jabatan'] ?: null,
+                                    'status' => $personelData['status'] ?: null,
+                                    'keterangan' => $personelData['keterangan'] ?: null,
+                                ]);
                             }
                         }
                     }
 
-                    // Save peralatan
+                    // Save peralatan - allow partial data (any field filled)
                     if (isset($item['peralatan']) && is_array($item['peralatan'])) {
                         foreach ($item['peralatan'] as $peralatanData) {
-                            if (!empty($peralatanData['jenis']) && !empty($peralatanData['jumlah'])) {
-                                $laporan->peralatan()->create($peralatanData);
+                            $hasData = !empty($peralatanData['jenis']) || 
+                                      !empty($peralatanData['jumlah']) || 
+                                      !empty($peralatanData['keterangan']);
+                            
+                            if ($hasData) {
+                                $laporan->peralatan()->create([
+                                    'jenis' => $peralatanData['jenis'] ?: null,
+                                    'jumlah' => $peralatanData['jumlah'] ?: null,
+                                    'keterangan' => $peralatanData['keterangan'] ?: null,
+                                ]);
                             }
                         }
                     }
 
-                    // Save consumable
+                    // Save consumable - allow partial data (any field filled)
                     if (isset($item['consumable']) && is_array($item['consumable'])) {
                         foreach ($item['consumable'] as $consumableData) {
-                            if (!empty($consumableData['jenis']) && !empty($consumableData['jumlah'])) {
-                                $laporan->consumable()->create($consumableData);
+                            $hasData = !empty($consumableData['jenis']) || 
+                                      !empty($consumableData['jumlah']) || 
+                                      !empty($consumableData['keterangan']);
+                            
+                            if ($hasData) {
+                                $laporan->consumable()->create([
+                                    'jenis' => $consumableData['jenis'] ?: null,
+                                    'jumlah' => $consumableData['jumlah'] ?: null,
+                                    'keterangan' => $consumableData['keterangan'] ?: null,
+                                ]);
                             }
                         }
                     }
 
-                    // Save aktivitas
+                    // Save aktivitas - allow partial data (any field filled)
                     if (isset($item['aktivitas']) && is_array($item['aktivitas'])) {
                         foreach ($item['aktivitas'] as $aktivitasData) {
-                            if (!empty($aktivitasData['aktivitas']) && !empty($aktivitasData['pic'])) {
-                                $laporan->aktivitas()->create($aktivitasData);
+                            $hasData = !empty($aktivitasData['kategori']) || 
+                                      !empty($aktivitasData['aktivitas']) || 
+                                      !empty($aktivitasData['pic']);
+                            
+                            if ($hasData) {
+                                $laporan->aktivitas()->create([
+                                    'kategori' => $aktivitasData['kategori'] ?: null,
+                                    'aktivitas' => $aktivitasData['aktivitas'] ?: null,
+                                    'pic' => $aktivitasData['pic'] ?: null,
+                                ]);
                             }
                         }
                     }

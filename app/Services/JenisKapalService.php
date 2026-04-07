@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Enums\JenisKapalStatus;
 use App\Models\JenisKapal;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Storage;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class JenisKapalService
 {
@@ -62,5 +64,26 @@ class JenisKapalService
             : JenisKapalStatus::Active;
 
         return $jenisKapal->update(['status' => $newStatus]);
+    }
+
+    public function uploadTemplate(JenisKapal $jenisKapal, TemporaryUploadedFile $file): bool
+    {
+        if ($jenisKapal->template_path && Storage::disk('local')->exists($jenisKapal->template_path)) {
+            Storage::disk('local')->delete($jenisKapal->template_path);
+        }
+
+        $filename = 'template-' . $jenisKapal->id . '-' . time() . '.' . $file->getClientOriginalExtension();
+        $path = $file->storeAs('templates/laporan-jenis-kapal', $filename, 'local');
+
+        return $jenisKapal->update(['template_path' => $path]);
+    }
+
+    public function deleteTemplate(JenisKapal $jenisKapal): bool
+    {
+        if ($jenisKapal->template_path && Storage::disk('local')->exists($jenisKapal->template_path)) {
+            Storage::disk('local')->delete($jenisKapal->template_path);
+        }
+
+        return $jenisKapal->update(['template_path' => null]);
     }
 }

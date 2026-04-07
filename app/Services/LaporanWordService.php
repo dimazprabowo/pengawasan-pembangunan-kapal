@@ -21,14 +21,6 @@ class LaporanWordService
      */
     public function generate(Laporan $laporan): string
     {
-        $templateFullPath = storage_path('app/' . self::TEMPLATE_PATH);
-
-        if (!file_exists($templateFullPath)) {
-            throw new \RuntimeException(
-                'Template Word tidak ditemukan di: storage/app/' . self::TEMPLATE_PATH
-            );
-        }
-
         $laporan->loadMissing([
             'user',
             'jenisKapal.company',
@@ -45,6 +37,24 @@ class LaporanWordService
             'aktivitas',
             'lampiran',
         ]);
+
+        // Try to use template from Jenis Kapal first
+        $templateFullPath = null;
+        
+        if ($laporan->jenisKapal && $laporan->jenisKapal->hasTemplate()) {
+            $templateFullPath = $laporan->jenisKapal->getTemplateFullPath();
+        }
+        
+        // Fall back to default template if Jenis Kapal template not available
+        if (!$templateFullPath || !file_exists($templateFullPath)) {
+            $templateFullPath = storage_path('app/' . self::TEMPLATE_PATH);
+            
+            if (!file_exists($templateFullPath)) {
+                throw new \RuntimeException(
+                    'Template Word tidak ditemukan. Harap upload template pada master Jenis Kapal atau pastikan template default tersedia di: storage/app/' . self::TEMPLATE_PATH
+                );
+            }
+        }
 
         $processor = new TemplateProcessor($templateFullPath);
 

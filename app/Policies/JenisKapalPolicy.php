@@ -46,4 +46,14 @@ class JenisKapalPolicy
     {
         return $user->can('jenis_kapal_export_pdf');
     }
+
+    public function uploadTemplate(User $user, JenisKapal $jenisKapal): bool
+    {
+        return $user->can('jenis_kapal_upload_template');
+    }
+
+    public function downloadTemplate(User $user): bool
+    {
+        return $user->can('jenis_kapal_download_template');
+    }
 }

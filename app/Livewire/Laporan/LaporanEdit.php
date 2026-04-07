@@ -352,50 +352,66 @@ class LaporanEdit extends Component
 
             // Update dynamic inputs for harian only
             if ($this->laporan->tipe->value === 'harian') {
-                // Sync personel
+                // Sync personel - allow partial data (any field filled)
                 $this->laporan->personel()->delete();
                 foreach ($this->personel as $personelData) {
-                    if (!empty($personelData['jabatan']) && !empty($personelData['status'])) {
+                    $hasData = !empty($personelData['jabatan']) || 
+                              !empty($personelData['status']) || 
+                              !empty($personelData['keterangan']);
+                    
+                    if ($hasData) {
                         $this->laporan->personel()->create([
-                            'jabatan' => $personelData['jabatan'],
-                            'status' => $personelData['status'],
-                            'keterangan' => $personelData['keterangan'] ?? null,
+                            'jabatan' => $personelData['jabatan'] ?: null,
+                            'status' => $personelData['status'] ?: null,
+                            'keterangan' => $personelData['keterangan'] ?: null,
                         ]);
                     }
                 }
 
-                // Sync peralatan
+                // Sync peralatan - allow partial data (any field filled)
                 $this->laporan->peralatan()->delete();
                 foreach ($this->peralatan as $peralatanData) {
-                    if (!empty($peralatanData['jenis']) && !empty($peralatanData['jumlah'])) {
+                    $hasData = !empty($peralatanData['jenis']) || 
+                              !empty($peralatanData['jumlah']) || 
+                              !empty($peralatanData['keterangan']);
+                    
+                    if ($hasData) {
                         $this->laporan->peralatan()->create([
-                            'jenis' => $peralatanData['jenis'],
-                            'jumlah' => $peralatanData['jumlah'],
-                            'keterangan' => $peralatanData['keterangan'] ?? null,
+                            'jenis' => $peralatanData['jenis'] ?: null,
+                            'jumlah' => $peralatanData['jumlah'] ?: null,
+                            'keterangan' => $peralatanData['keterangan'] ?: null,
                         ]);
                     }
                 }
 
-                // Sync consumable
+                // Sync consumable - allow partial data (any field filled)
                 $this->laporan->consumable()->delete();
                 foreach ($this->consumable as $consumableData) {
-                    if (!empty($consumableData['jenis']) && !empty($consumableData['jumlah'])) {
+                    $hasData = !empty($consumableData['jenis']) || 
+                              !empty($consumableData['jumlah']) || 
+                              !empty($consumableData['keterangan']);
+                    
+                    if ($hasData) {
                         $this->laporan->consumable()->create([
-                            'jenis' => $consumableData['jenis'],
-                            'jumlah' => $consumableData['jumlah'],
-                            'keterangan' => $consumableData['keterangan'] ?? null,
+                            'jenis' => $consumableData['jenis'] ?: null,
+                            'jumlah' => $consumableData['jumlah'] ?: null,
+                            'keterangan' => $consumableData['keterangan'] ?: null,
                         ]);
                     }
                 }
 
-                // Sync aktivitas
+                // Sync aktivitas - allow partial data (any field filled)
                 $this->laporan->aktivitas()->delete();
                 foreach ($this->aktivitas as $aktivitasData) {
-                    if (!empty($aktivitasData['aktivitas']) && !empty($aktivitasData['pic'])) {
+                    $hasData = !empty($aktivitasData['kategori']) || 
+                              !empty($aktivitasData['aktivitas']) || 
+                              !empty($aktivitasData['pic']);
+                    
+                    if ($hasData) {
                         $this->laporan->aktivitas()->create([
-                            'kategori' => $aktivitasData['kategori'] ?? 'New Building',
-                            'aktivitas' => $aktivitasData['aktivitas'],
-                            'pic' => $aktivitasData['pic'],
+                            'kategori' => $aktivitasData['kategori'] ?: null,
+                            'aktivitas' => $aktivitasData['aktivitas'] ?: null,
+                            'pic' => $aktivitasData['pic'] ?: null,
                         ]);
                     }
                 }

@@ -20,6 +20,7 @@ class JenisKapal extends Model
         'galangan_id',
         'nama',
         'deskripsi',
+        'template_path',
         'status',
     ];
 
@@ -58,5 +59,19 @@ class JenisKapal extends Model
     public function getIsActiveAttribute(): bool
     {
         return $this->status === JenisKapalStatus::Active;
+    }
+
+    public function hasTemplate(): bool
+    {
+        return !empty($this->template_path) && \Storage::disk('local')->exists($this->template_path);
+    }
+
+    public function getTemplateFullPath(): ?string
+    {
+        if (!$this->hasTemplate()) {
+            return null;
+        }
+
+        return storage_path('app/' . $this->template_path);
     }
 }
