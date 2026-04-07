@@ -54,6 +54,9 @@ class GenerateLaporanHarianJob implements ShouldQueue
                 'doc_generated_at' => now(),
                 'doc_error'        => null,
             ]);
+
+            // Mark worker active again after successful completion
+            $queueStatusService->markWorkerActive();
         } catch (\Exception $e) {
             $this->laporan->update([
                 'doc_status' => 'failed',

@@ -13,30 +13,36 @@ class QueueStatusService
     public function isQueueWorkerActive(): bool
     {
         try {
-            // Check if there are any jobs being processed in the last 30 seconds
-            $recentJobs = DB::table('jobs')
-                ->where('reserved_at', '>=', now()->subSeconds(30)->timestamp)
-                ->exists();
-
-            if ($recentJobs) {
-                Cache::put('queue_worker_active', true, now()->addMinutes(1));
+            // Check cache first (set by jobs when they run)
+            $cachedStatus = Cache::get('queue_worker_active', false);
+            
+            if ($cachedStatus) {
                 return true;
             }
 
-            // Check cache for recent activity
-            $cachedStatus = Cache::get('queue_worker_active', false);
-            
-            // If no recent activity, check if there are pending jobs
-            $pendingJobs = DB::table('jobs')->exists();
-            
-            // If there are pending jobs but no recent processing, worker is likely inactive
-            if ($pendingJobs && !$cachedStatus) {
-                return false;
+            // Check if there are any jobs being processed in the last 60 seconds
+            $recentJobs = DB::table('jobs')
+                ->where('reserved_at', '>=', now()->subSeconds(60)->timestamp)
+                ->exists();
+
+            if ($recentJobs) {
+                Cache::put('queue_worker_active', true, now()->addMinutes(5));
+                return true;
             }
 
-            return $cachedStatus;
+            // Check failed_jobs table for recent activity (last 2 minutes)
+            $recentFailedJobs = DB::table('failed_jobs')
+                ->where('failed_at', '>=', now()->subMinutes(2))
+                ->exists();
+            
+            if ($recentFailedJobs) {
+                // Worker is active but jobs are failing
+                return true;
+            }
+
+            return false;
         } catch (\Exception $e) {
-            // If jobs table doesn't exist or error, assume inactive
+            // If tables don't exist or error, assume inactive
             return false;
         }
     }
@@ -82,6 +88,6 @@ class QueueStatusService
      */
     public function markWorkerActive(): void
     {
-        Cache::put('queue_worker_active', true, now()->addMinutes(1));
+        Cache::put('queue_worker_active', true, now()->addMinutes(5));
     }
 }
