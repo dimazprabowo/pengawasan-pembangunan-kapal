@@ -325,6 +325,29 @@ class JenisKapalManagement extends Component
         }
     }
 
+    public function downloadTemplate($id, JenisKapalService $service)
+    {
+        try {
+            $jenisKapal = JenisKapal::findOrFail($id);
+            $this->authorize('uploadTemplate', $jenisKapal);
+
+            $templatePath = $service->downloadTemplate($jenisKapal);
+
+            if (!$templatePath || !file_exists($templatePath)) {
+                $this->notifyError('Template tidak ditemukan.');
+                return;
+            }
+
+            $filename = 'template-' . \Str::slug($jenisKapal->nama) . '.docx';
+
+            return response()->download($templatePath, $filename);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            $this->notifyError('Anda tidak memiliki izin untuk mengunduh template.');
+        } catch (\Exception $e) {
+            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+        }
+    }
+
     public function render(JenisKapalService $service)
     {
         return view('livewire.master-data.jenis-kapal-management', [

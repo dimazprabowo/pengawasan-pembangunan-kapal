@@ -27,6 +27,10 @@ class GenerateLaporanHarianJob implements ShouldQueue
     {
         $queueStatusService->markWorkerActive();
 
+        // Load jenisKapal relationship to ensure template detection works
+        // This is critical because SerializesModels trait doesn't preserve relationships
+        $this->laporan->load('jenisKapal');
+
         // Delete old generated doc if re-generating
         if ($this->laporan->doc_path) {
             $oldPath = storage_path('app/' . $this->laporan->doc_path);

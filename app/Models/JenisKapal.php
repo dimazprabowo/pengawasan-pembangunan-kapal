@@ -63,7 +63,10 @@ class JenisKapal extends Model
 
     public function hasTemplate(): bool
     {
-        return !empty($this->template_path) && \Storage::disk('local')->exists($this->template_path);
+        $hasPath = !empty($this->template_path);
+        $fileExists = $hasPath ? \Storage::disk('local')->exists($this->template_path) : false;
+        
+        return $hasPath && $fileExists;
     }
 
     public function getTemplateFullPath(): ?string
@@ -72,6 +75,8 @@ class JenisKapal extends Model
             return null;
         }
 
-        return storage_path('app/' . $this->template_path);
+        $fullPath = \Storage::disk('local')->path($this->template_path);
+        
+        return $fullPath;
     }
 }

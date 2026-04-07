@@ -40,14 +40,17 @@ class LaporanWordService
 
         // Try to use template from Jenis Kapal first
         $templateFullPath = null;
+        $templateSource = 'default';
         
         if ($laporan->jenisKapal && $laporan->jenisKapal->hasTemplate()) {
             $templateFullPath = $laporan->jenisKapal->getTemplateFullPath();
+            $templateSource = 'jenis_kapal';
         }
         
         // Fall back to default template if Jenis Kapal template not available
         if (!$templateFullPath || !file_exists($templateFullPath)) {
             $templateFullPath = storage_path('app/' . self::TEMPLATE_PATH);
+            $templateSource = 'default';
             
             if (!file_exists($templateFullPath)) {
                 throw new \RuntimeException(

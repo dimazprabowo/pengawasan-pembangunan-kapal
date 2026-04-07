@@ -86,4 +86,13 @@ class JenisKapalService
 
         return $jenisKapal->update(['template_path' => null]);
     }
+
+    public function downloadTemplate(JenisKapal $jenisKapal): ?string
+    {
+        if (!$jenisKapal->hasTemplate()) {
+            return null;
+        }
+
+        return $jenisKapal->getTemplateFullPath();
+    }
 }
