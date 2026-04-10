@@ -1,4 +1,4 @@
-<div wire:poll.5s>
+<div>
     {{-- Header --}}
     <div class="mb-6">
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Manajemen Laporan</h2>
