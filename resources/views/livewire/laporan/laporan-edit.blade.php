@@ -36,43 +36,14 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {{-- Jenis Kapal --}}
                     <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Jenis Kapal <span class="text-red-500">*</span>
-                        </label>
-                        <x-searchable-select
-                            wire:model.live="jenis_kapal_id"
-                            :options="$jenisKapalList->map(fn($jk) => [
-                                'value' => $jk->id,
-                                'label' => $jk->nama . ($jk->company ? ' (' . $jk->company->name . ')' : '') . ($jk->galangan ? ' - (' . $jk->galangan->nama . ')' : '')
-                            ])->toArray()"
+                        <x-laporan.jenis-kapal-selector
+                            wireModel="jenis_kapal_id"
+                            :jenisKapalList="$jenisKapalList"
+                            variant="form"
                             placeholder="Pilih jenis kapal"
-                            searchPlaceholder="Cari jenis kapal..."
-                            :error="$errors->has('jenis_kapal_id')"
+                            :error="$errors->has('jenis_kapal_id') ? $errors->first('jenis_kapal_id') : null"
+                            :selectedValue="$jenis_kapal_id"
                         />
-                        @error('jenis_kapal_id') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
-                        @if($jenis_kapal_id)
-                            @php
-                                $selectedJenisKapal = $jenisKapalList->firstWhere('id', $jenis_kapal_id);
-                            @endphp
-                            @if($selectedJenisKapal)
-                                <div class="mt-2 flex flex-wrap items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
-                                    <div class="flex items-center gap-1.5">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                        </svg>
-                                        <span class="font-medium">{{ $selectedJenisKapal->nama }}</span>
-                                    </div>
-                                    @if($selectedJenisKapal->company)
-                                        <span class="text-blue-600 dark:text-blue-400">•</span>
-                                        <span>{{ $selectedJenisKapal->company->name }}</span>
-                                    @endif
-                                    @if($selectedJenisKapal->galangan)
-                                        <span class="text-blue-600 dark:text-blue-400">•</span>
-                                        <span>{{ $selectedJenisKapal->galangan->nama }}</span>
-                                    @endif
-                                </div>
-                            @endif
-                        @endif
                     </div>
 
                     {{-- Tanggal --}}
