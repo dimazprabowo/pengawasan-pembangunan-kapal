@@ -51,11 +51,11 @@
 
         <div class="flex items-center gap-2 flex-wrap">
             @can('jenis_kapal_download_template')
-                <x-loading-button wire:click="downloadTemplateHarian" target="downloadTemplateHarian" variant="secondary" size="md" loadingText="Downloading..." title="Download Template Harian">
+                <x-loading-button wire:click="openDownloadTemplateModal" target="openDownloadTemplateModal" variant="secondary" size="md" loadingText="Memuat..." title="Download Template">
                     <x-slot:icon>
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                     </x-slot:icon>
-                    Template Harian
+                    Download Template
                 </x-loading-button>
             @endcan
             @can('jenis_kapal_export_excel')
@@ -131,51 +131,179 @@
                                 @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                @if($jenisKapal->hasTemplate())
+                                <div class="space-y-1">
+                                    {{-- Harian --}}
                                     <div class="flex items-center gap-2">
-                                        <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
-                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                                            </svg>
-                                            Tersedia
-                                        </span>
-                                        @can('jenis_kapal_upload_template')
-                                            <button wire:click="downloadTemplate({{ $jenisKapal->id }})"
-                                                wire:loading.attr="disabled"
-                                                wire:target="downloadTemplate({{ $jenisKapal->id }})"
-                                                class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50"
-                                                title="Download Template">
-                                                <svg wire:loading.class="hidden" wire:target="downloadTemplate({{ $jenisKapal->id }})" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400 w-16">Harian:</span>
+                                        @if($jenisKapal->hasTemplate('harian'))
+                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+                                                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                                                 </svg>
-                                                <svg wire:loading wire:target="downloadTemplate({{ $jenisKapal->id }})" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                </svg>
-                                            </button>
-                                            <button wire:click="confirmDeleteTemplate({{ $jenisKapal->id }})"
-                                                wire:loading.attr="disabled"
-                                                wire:target="confirmDeleteTemplate({{ $jenisKapal->id }})"
-                                                class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
-                                                title="Hapus Template">
-                                                <svg wire:loading.class="hidden" wire:target="confirmDeleteTemplate({{ $jenisKapal->id }})" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                                </svg>
-                                                <svg wire:loading wire:target="confirmDeleteTemplate({{ $jenisKapal->id }})" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                </svg>
-                                            </button>
-                                        @endcan
+                                                Ada
+                                            </span>
+                                            @can('jenis_kapal_upload_template')
+                                                <button wire:click="downloadTemplate({{ $jenisKapal->id }}, 'harian')"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="downloadTemplate({{ $jenisKapal->id }}, 'harian')"
+                                                    class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50"
+                                                    title="Download Template Harian">
+                                                    <svg wire:loading.class="hidden" wire:target="downloadTemplate({{ $jenisKapal->id }}, 'harian')" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                                    </svg>
+                                                    <svg wire:loading wire:target="downloadTemplate({{ $jenisKapal->id }}, 'harian')" class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                </button>
+                                                <button wire:click="confirmDeleteTemplate({{ $jenisKapal->id }}, 'harian')"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="confirmDeleteTemplate({{ $jenisKapal->id }}, 'harian')"
+                                                    class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
+                                                    title="Hapus Template Harian">
+                                                    <svg wire:loading.class="hidden" wire:target="confirmDeleteTemplate({{ $jenisKapal->id }}, 'harian')" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                    </svg>
+                                                    <svg wire:loading wire:target="confirmDeleteTemplate({{ $jenisKapal->id }}, 'harian')" class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                </button>
+                                            @endcan
+                                        @else
+                                            @can('jenis_kapal_upload_template')
+                                                <button wire:click="openTemplateUploadModal({{ $jenisKapal->id }}, 'harian')"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="openTemplateUploadModal({{ $jenisKapal->id }}, 'harian')"
+                                                    class="text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 disabled:opacity-50"
+                                                    title="Upload Template Harian">
+                                                    <svg wire:loading.class="hidden" wire:target="openTemplateUploadModal({{ $jenisKapal->id }}, 'harian')" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                                                    </svg>
+                                                    <svg wire:loading wire:target="openTemplateUploadModal({{ $jenisKapal->id }}, 'harian')" class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                </button>
+                                            @endcan
+                                            <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
+                                        @endif
                                     </div>
-                                @else
-                                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                        </svg>
-                                        Belum ada
-                                    </span>
-                                @endif
+                                    {{-- Mingguan --}}
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs text-gray-500 dark:text-gray-400 w-16">Mingguan:</span>
+                                        @if($jenisKapal->hasTemplate('mingguan'))
+                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+                                                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                                </svg>
+                                                Ada
+                                            </span>
+                                            @can('jenis_kapal_upload_template')
+                                                <button wire:click="downloadTemplate({{ $jenisKapal->id }}, 'mingguan')"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="downloadTemplate({{ $jenisKapal->id }}, 'mingguan')"
+                                                    class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50"
+                                                    title="Download Template Mingguan">
+                                                    <svg wire:loading.class="hidden" wire:target="downloadTemplate({{ $jenisKapal->id }}, 'mingguan')" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                                    </svg>
+                                                    <svg wire:loading wire:target="downloadTemplate({{ $jenisKapal->id }}, 'mingguan')" class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                </button>
+                                                <button wire:click="confirmDeleteTemplate({{ $jenisKapal->id }}, 'mingguan')"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="confirmDeleteTemplate({{ $jenisKapal->id }}, 'mingguan')"
+                                                    class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
+                                                    title="Hapus Template Mingguan">
+                                                    <svg wire:loading.class="hidden" wire:target="confirmDeleteTemplate({{ $jenisKapal->id }}, 'mingguan')" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                    </svg>
+                                                    <svg wire:loading wire:target="confirmDeleteTemplate({{ $jenisKapal->id }}, 'mingguan')" class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                </button>
+                                            @endcan
+                                        @else
+                                            @can('jenis_kapal_upload_template')
+                                                <button wire:click="openTemplateUploadModal({{ $jenisKapal->id }}, 'mingguan')"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="openTemplateUploadModal({{ $jenisKapal->id }}, 'mingguan')"
+                                                    class="text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 disabled:opacity-50"
+                                                    title="Upload Template Mingguan">
+                                                    <svg wire:loading.class="hidden" wire:target="openTemplateUploadModal({{ $jenisKapal->id }}, 'mingguan')" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                                                    </svg>
+                                                    <svg wire:loading wire:target="openTemplateUploadModal({{ $jenisKapal->id }}, 'mingguan')" class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                </button>
+                                            @endcan
+                                            <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
+                                        @endif
+                                    </div>
+                                    {{-- Bulanan --}}
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs text-gray-500 dark:text-gray-400 w-16">Bulanan:</span>
+                                        @if($jenisKapal->hasTemplate('bulanan'))
+                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+                                                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                                </svg>
+                                                Ada
+                                            </span>
+                                            @can('jenis_kapal_upload_template')
+                                                <button wire:click="downloadTemplate({{ $jenisKapal->id }}, 'bulanan')"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="downloadTemplate({{ $jenisKapal->id }}, 'bulanan')"
+                                                    class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50"
+                                                    title="Download Template Bulanan">
+                                                    <svg wire:loading.class="hidden" wire:target="downloadTemplate({{ $jenisKapal->id }}, 'bulanan')" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                                    </svg>
+                                                    <svg wire:loading wire:target="downloadTemplate({{ $jenisKapal->id }}, 'bulanan')" class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                </button>
+                                                <button wire:click="confirmDeleteTemplate({{ $jenisKapal->id }}, 'bulanan')"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="confirmDeleteTemplate({{ $jenisKapal->id }}, 'bulanan')"
+                                                    class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
+                                                    title="Hapus Template Bulanan">
+                                                    <svg wire:loading.class="hidden" wire:target="confirmDeleteTemplate({{ $jenisKapal->id }}, 'bulanan')" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                    </svg>
+                                                    <svg wire:loading wire:target="confirmDeleteTemplate({{ $jenisKapal->id }}, 'bulanan')" class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                </button>
+                                            @endcan
+                                        @else
+                                            @can('jenis_kapal_upload_template')
+                                                <button wire:click="openTemplateUploadModal({{ $jenisKapal->id }}, 'bulanan')"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="openTemplateUploadModal({{ $jenisKapal->id }}, 'bulanan')"
+                                                    class="text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 disabled:opacity-50"
+                                                    title="Upload Template Bulanan">
+                                                    <svg wire:loading.class="hidden" wire:target="openTemplateUploadModal({{ $jenisKapal->id }}, 'bulanan')" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                                                    </svg>
+                                                    <svg wire:loading wire:target="openTemplateUploadModal({{ $jenisKapal->id }}, 'bulanan')" class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                </button>
+                                            @endcan
+                                            <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
+                                        @endif
+                                    </div>
+                                </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
@@ -316,42 +444,6 @@
                                     />
                                     @error('status') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                                 </div>
-
-                                @can('jenis_kapal_upload_template')
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                            Template Laporan
-                                            @if($editMode && $jenisKapalId)
-                                                @php
-                                                    $currentJenisKapal = \App\Models\JenisKapal::find($jenisKapalId);
-                                                @endphp
-                                                @if($currentJenisKapal && $currentJenisKapal->hasTemplate())
-                                                    <span class="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
-                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                                                        </svg>
-                                                        Template tersedia
-                                                    </span>
-                                                @endif
-                                            @endif
-                                        </label>
-                                        <input wire:model="template_file" type="file" accept=".doc,.docx"
-                                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900/20 dark:file:text-blue-400">
-                                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                            {{ get_upload_config_display('template_laporan_jenis_kapal') }}
-                                        </p>
-                                        @error('template_file') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                                        @if($template_file)
-                                            <div class="mt-2 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                                                <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                                </svg>
-                                                <span>{{ $template_file->getClientOriginalName() }}</span>
-                                                <span class="text-xs text-gray-500">({{ number_format($template_file->getSize() / 1024, 2) }} KB)</span>
-                                            </div>
-                                        @endif
-                                    </div>
-                                @endcan
                             </div>
                         </div>
 
@@ -380,11 +472,22 @@
         confirmMethod="delete"
     />
 
+    <x-download-template-modal 
+        :show="$showDownloadTemplateModal"
+        wire:model="showDownloadTemplateModal"
+    />
+
+    <x-upload-template-modal 
+        :show="$showTemplateUploadModal"
+        wire:model="showTemplateUploadModal"
+        :tipe="$uploadingTemplateTipe"
+    />
+
     <x-delete-modal 
         :show="$showDeleteTemplateModal"
         wire:model="showDeleteTemplateModal"
         title="Hapus Template"
-        message="Apakah Anda yakin ingin menghapus template laporan untuk jenis kapal ini?"
+        message="Apakah Anda yakin ingin menghapus template laporan {{ $deletingTemplateTipe }} untuk jenis kapal ini?"
         confirmMethod="deleteTemplate"
     />
 </div>

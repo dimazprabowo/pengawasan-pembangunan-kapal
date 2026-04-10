@@ -14,7 +14,9 @@ return new class extends Migration
             $table->foreignId('galangan_id')->nullable()->constrained('galangan')->nullOnDelete();
             $table->string('nama', 255);
             $table->text('deskripsi')->nullable();
-            $table->string('template_path')->nullable();
+            $table->string('template_path_harian')->nullable();
+            $table->string('template_path_mingguan')->nullable();
+            $table->string('template_path_bulanan')->nullable();
             $table->enum('status', ['active', 'inactive'])->default('active');
             $table->timestamps();
             $table->softDeletes();

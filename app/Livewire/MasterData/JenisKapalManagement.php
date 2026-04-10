@@ -40,9 +40,19 @@ class JenisKapalManagement extends Component
     public $deletingJenisKapalId;
     public $deletingJenisKapalNama;
 
+    // Template upload modal states
+    public $showTemplateUploadModal = false;
+    public $uploadingJenisKapalId;
+    public $uploadingTemplateTipe;
     public $template_file;
+    
+    // Template download modal state
+    public $showDownloadTemplateModal = false;
+    
+    // Template delete modal states
     public $showDeleteTemplateModal = false;
     public $deletingTemplateJenisKapalId;
+    public $deletingTemplateTipe;
 
     public function mount()
     {
@@ -57,7 +67,6 @@ class JenisKapalManagement extends Component
             'nama' => 'required|string|max:255',
             'deskripsi' => 'nullable|string',
             'status' => ['required', 'string', 'in:' . implode(',', JenisKapalStatus::values())],
-            'template_file' => file_upload_validation_rule('template_laporan_jenis_kapal'),
         ];
     }
 
@@ -69,7 +78,6 @@ class JenisKapalManagement extends Component
             'nama' => 'jenis kapal',
             'deskripsi' => 'deskripsi',
             'status' => 'status',
-            'template_file' => 'template laporan',
         ];
     }
 
@@ -148,21 +156,11 @@ class JenisKapalManagement extends Component
 
                 $service->update($jenisKapal, $data);
 
-                if ($this->template_file) {
-                    $this->authorize('uploadTemplate', $jenisKapal);
-                    $service->uploadTemplate($jenisKapal, $this->template_file);
-                }
-
                 $message = 'Jenis kapal berhasil diupdate!';
             } else {
                 $this->authorize('create', JenisKapal::class);
 
                 $jenisKapal = $service->create($data);
-
-                if ($this->template_file) {
-                    $this->authorize('uploadTemplate', $jenisKapal);
-                    $service->uploadTemplate($jenisKapal, $this->template_file);
-                }
 
                 $message = 'Jenis kapal berhasil ditambahkan!';
             }
@@ -233,7 +231,6 @@ class JenisKapalManagement extends Component
             'nama',
             'deskripsi',
             'status',
-            'template_file',
         ]);
 
         $this->status = JenisKapalStatus::Active->value;
@@ -281,31 +278,90 @@ class JenisKapalManagement extends Component
         );
     }
 
-    public function downloadTemplateHarian()
+    public function openDownloadTemplateModal()
+    {
+        $this->authorize('downloadTemplate', JenisKapal::class);
+        $this->showDownloadTemplateModal = true;
+    }
+
+    public function closeDownloadTemplateModal()
+    {
+        $this->showDownloadTemplateModal = false;
+    }
+
+    public function downloadDefaultTemplate(string $tipe, JenisKapalService $service)
     {
         $this->authorize('downloadTemplate', JenisKapal::class);
 
-        $templatePath = storage_path('app/templates/laporan-harian/template-laporan-harian.docx');
+        $templatePath = $service->downloadDefaultTemplate($tipe);
 
-        if (!file_exists($templatePath)) {
-            $this->notifyError('Template laporan harian tidak ditemukan.');
+        if (!$templatePath) {
+            $this->notifyError('Template laporan ' . $tipe . ' tidak ditemukan.');
             return;
         }
 
-        return response()->download($templatePath, 'template-laporan-harian.docx');
+        return response()->download($templatePath, 'template-laporan-' . $tipe . '.docx');
     }
 
-    public function confirmDeleteTemplate($id)
+    public function openTemplateUploadModal($id, string $tipe)
     {
         $jenisKapal = JenisKapal::findOrFail($id);
         $this->authorize('uploadTemplate', $jenisKapal);
 
-        if (!$jenisKapal->hasTemplate()) {
-            $this->notifyWarning('Tidak ada template untuk dihapus.');
+        $this->uploadingJenisKapalId = $jenisKapal->id;
+        $this->uploadingTemplateTipe = $tipe;
+        $this->showTemplateUploadModal = true;
+    }
+
+    public function closeTemplateUploadModal()
+    {
+        $this->showTemplateUploadModal = false;
+        $this->reset(['uploadingJenisKapalId', 'uploadingTemplateTipe', 'template_file']);
+        $this->resetValidation();
+    }
+
+    public function uploadTemplate(JenisKapalService $service)
+    {
+        try {
+            $this->validate([
+                'template_file' => file_upload_validation_rule('template_laporan_jenis_kapal'),
+            ], [
+                'template_file' => 'template laporan ' . $this->uploadingTemplateTipe,
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->notifyValidationError($e);
+            throw $e;
+        }
+
+        try {
+            $jenisKapal = JenisKapal::findOrFail($this->uploadingJenisKapalId);
+            $this->authorize('uploadTemplate', $jenisKapal);
+
+            if ($this->template_file) {
+                $service->uploadTemplate($jenisKapal, $this->template_file, $this->uploadingTemplateTipe);
+                $this->notifySuccess('Template laporan ' . $this->uploadingTemplateTipe . ' berhasil diupload!');
+            }
+
+            $this->closeTemplateUploadModal();
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            $this->notifyError('Anda tidak memiliki izin untuk upload template.');
+        } catch (\Exception $e) {
+            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+        }
+    }
+
+    public function confirmDeleteTemplate($id, string $tipe)
+    {
+        $jenisKapal = JenisKapal::findOrFail($id);
+        $this->authorize('uploadTemplate', $jenisKapal);
+
+        if (!$jenisKapal->hasTemplate($tipe)) {
+            $this->notifyWarning('Tidak ada template ' . $tipe . ' untuk dihapus.');
             return;
         }
 
         $this->deletingTemplateJenisKapalId = $jenisKapal->id;
+        $this->deletingTemplateTipe = $tipe;
         $this->showDeleteTemplateModal = true;
     }
 
@@ -315,8 +371,8 @@ class JenisKapalManagement extends Component
             $jenisKapal = JenisKapal::findOrFail($this->deletingTemplateJenisKapalId);
             $this->authorize('uploadTemplate', $jenisKapal);
 
-            $service->deleteTemplate($jenisKapal);
-            $this->notifySuccess('Template berhasil dihapus!');
+            $service->deleteTemplate($jenisKapal, $this->deletingTemplateTipe);
+            $this->notifySuccess('Template laporan ' . $this->deletingTemplateTipe . ' berhasil dihapus!');
             $this->showDeleteTemplateModal = false;
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk menghapus template.');
@@ -325,20 +381,20 @@ class JenisKapalManagement extends Component
         }
     }
 
-    public function downloadTemplate($id, JenisKapalService $service)
+    public function downloadTemplate($id, string $tipe, JenisKapalService $service)
     {
         try {
             $jenisKapal = JenisKapal::findOrFail($id);
             $this->authorize('uploadTemplate', $jenisKapal);
 
-            $templatePath = $service->downloadTemplate($jenisKapal);
+            $templatePath = $service->downloadTemplate($jenisKapal, $tipe);
 
             if (!$templatePath || !file_exists($templatePath)) {
                 $this->notifyError('Template tidak ditemukan.');
                 return;
             }
 
-            $filename = 'template-' . \Str::slug($jenisKapal->nama) . '.docx';
+            $filename = 'template-' . $tipe . '-' . \Str::slug($jenisKapal->nama) . '.docx';
 
             return response()->download($templatePath, $filename);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {

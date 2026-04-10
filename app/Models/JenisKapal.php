@@ -20,7 +20,9 @@ class JenisKapal extends Model
         'galangan_id',
         'nama',
         'deskripsi',
-        'template_path',
+        'template_path_harian',
+        'template_path_mingguan',
+        'template_path_bulanan',
         'status',
     ];
 
@@ -61,22 +63,27 @@ class JenisKapal extends Model
         return $this->status === JenisKapalStatus::Active;
     }
 
-    public function hasTemplate(): bool
+    public function hasTemplate(string $tipe): bool
     {
-        $hasPath = !empty($this->template_path);
-        $fileExists = $hasPath ? \Storage::disk('local')->exists($this->template_path) : false;
+        $column = 'template_path_' . $tipe;
+        $hasPath = !empty($this->$column);
+        $fileExists = $hasPath ? \Storage::disk('local')->exists($this->$column) : false;
         
         return $hasPath && $fileExists;
     }
 
-    public function getTemplateFullPath(): ?string
+    public function getTemplateFullPath(string $tipe): ?string
     {
-        if (!$this->hasTemplate()) {
+        if (!$this->hasTemplate($tipe)) {
             return null;
         }
 
-        $fullPath = \Storage::disk('local')->path($this->template_path);
-        
-        return $fullPath;
+        $column = 'template_path_' . $tipe;
+        return \Storage::disk('local')->path($this->$column);
+    }
+
+    public function hasAnyTemplate(): bool
+    {
+        return $this->hasTemplate('harian') || $this->hasTemplate('mingguan') || $this->hasTemplate('bulanan');
     }
 }

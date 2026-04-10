@@ -66,33 +66,50 @@ class JenisKapalService
         return $jenisKapal->update(['status' => $newStatus]);
     }
 
-    public function uploadTemplate(JenisKapal $jenisKapal, TemporaryUploadedFile $file): bool
+    public function uploadTemplate(JenisKapal $jenisKapal, TemporaryUploadedFile $file, string $tipe = 'harian'): bool
     {
-        if ($jenisKapal->template_path && Storage::disk('local')->exists($jenisKapal->template_path)) {
-            Storage::disk('local')->delete($jenisKapal->template_path);
+        $column = 'template_path_' . $tipe;
+        
+        // Delete old template if exists
+        if ($jenisKapal->$column && Storage::disk('local')->exists($jenisKapal->$column)) {
+            Storage::disk('local')->delete($jenisKapal->$column);
         }
 
+        // Store new template in specific folder based on tipe
+        $folder = 'templates/laporan-' . $tipe;
         $filename = 'template-' . $jenisKapal->id . '-' . time() . '.' . $file->getClientOriginalExtension();
-        $path = $file->storeAs('templates/laporan-jenis-kapal', $filename, 'local');
+        $path = $file->storeAs($folder, $filename, 'local');
 
-        return $jenisKapal->update(['template_path' => $path]);
+        return $jenisKapal->update([$column => $path]);
     }
 
-    public function deleteTemplate(JenisKapal $jenisKapal): bool
+    public function deleteTemplate(JenisKapal $jenisKapal, string $tipe): bool
     {
-        if ($jenisKapal->template_path && Storage::disk('local')->exists($jenisKapal->template_path)) {
-            Storage::disk('local')->delete($jenisKapal->template_path);
+        $column = 'template_path_' . $tipe;
+        if ($jenisKapal->$column && Storage::disk('local')->exists($jenisKapal->$column)) {
+            Storage::disk('local')->delete($jenisKapal->$column);
         }
 
-        return $jenisKapal->update(['template_path' => null]);
+        return $jenisKapal->update([$column => null]);
     }
 
-    public function downloadTemplate(JenisKapal $jenisKapal): ?string
+    public function downloadTemplate(JenisKapal $jenisKapal, string $tipe): ?string
     {
-        if (!$jenisKapal->hasTemplate()) {
+        if (!$jenisKapal->hasTemplate($tipe)) {
             return null;
         }
 
-        return $jenisKapal->getTemplateFullPath();
+        return $jenisKapal->getTemplateFullPath($tipe);
+    }
+
+    public function downloadDefaultTemplate(string $tipe = 'harian'): ?string
+    {
+        $templatePath = storage_path('app/templates/laporan-' . $tipe . '/template-laporan-' . $tipe . '.docx');
+
+        if (!file_exists($templatePath)) {
+            return null;
+        }
+
+        return $templatePath;
     }
 }
