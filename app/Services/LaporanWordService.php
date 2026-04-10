@@ -41,9 +41,9 @@ class LaporanWordService
         // Try to use template from Jenis Kapal first
         $templateFullPath = null;
         $templateSource = 'default';
-        
-        if ($laporan->jenisKapal && $laporan->jenisKapal->hasTemplate()) {
-            $templateFullPath = $laporan->jenisKapal->getTemplateFullPath();
+
+        if ($laporan->jenisKapal && $laporan->jenisKapal->hasTemplate($laporan->tipe->value)) {
+            $templateFullPath = $laporan->jenisKapal->getTemplateFullPath($laporan->tipe->value);
             $templateSource = 'jenis_kapal';
         }
         
