@@ -91,6 +91,16 @@
                     {{-- Card Body --}}
                     <div class="p-5">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {{-- Tanggal --}}
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Tanggal Laporan <span class="text-red-500">*</span>
+                                </label>
+                                <input wire:model.live="items.{{ $index }}.tanggal_laporan" type="date" required
+                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                                @error("items.{$index}.tanggal_laporan") <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+
                             {{-- Judul --}}
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -100,16 +110,6 @@
                                     placeholder="Masukkan judul laporan"
                                     class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
                                 @error("items.{$index}.judul") <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                            </div>
-
-                            {{-- Tanggal --}}
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Tanggal Laporan <span class="text-red-500">*</span>
-                                </label>
-                                <input wire:model.live="items.{{ $index }}.tanggal_laporan" type="date" required
-                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
-                                @error("items.{$index}.tanggal_laporan") <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                             </div>
 
 
