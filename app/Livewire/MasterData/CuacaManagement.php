@@ -11,6 +11,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Maatwebsite\Excel\Facades\Excel;
 
 class CuacaManagement extends Component
 {
@@ -196,8 +197,10 @@ class CuacaManagement extends Component
     {
         $this->authorize('exportExcel', Cuaca::class);
 
-        return (new CuacaExport($this->search, $this->statusFilter))
-            ->download('cuaca-' . now()->format('Y-m-d-His') . '.xlsx');
+        return Excel::download(
+            new CuacaExport($this->search, $this->statusFilter),
+            'cuaca-' . now()->format('Y-m-d-His') . '.xlsx'
+        );
     }
 
     public function exportPdf(CuacaService $service)

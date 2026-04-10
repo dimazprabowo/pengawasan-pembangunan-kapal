@@ -11,6 +11,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Maatwebsite\Excel\Facades\Excel;
 
 class GalanganManagement extends Component
 {
@@ -246,8 +247,10 @@ class GalanganManagement extends Component
     {
         $this->authorize('exportExcel', Galangan::class);
 
-        return (new GalanganExport($this->search, $this->statusFilter))
-            ->download('galangan-' . now()->format('Y-m-d-His') . '.xlsx');
+        return Excel::download(
+            new GalanganExport($this->search, $this->statusFilter),
+            'galangan-' . now()->format('Y-m-d-His') . '.xlsx'
+        );
     }
 
     public function exportPdf(GalanganService $service)

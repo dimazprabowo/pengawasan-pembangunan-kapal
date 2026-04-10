@@ -11,6 +11,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Maatwebsite\Excel\Facades\Excel;
 
 class KelembabanManagement extends Component
 {
@@ -202,8 +203,10 @@ class KelembabanManagement extends Component
     {
         $this->authorize('exportExcel', Kelembaban::class);
 
-        return (new KelembabanExport($this->search, $this->statusFilter))
-            ->download('kelembaban-' . now()->format('Y-m-d-His') . '.xlsx');
+        return Excel::download(
+            new KelembabanExport($this->search, $this->statusFilter),
+            'kelembaban-' . now()->format('Y-m-d-His') . '.xlsx'
+        );
     }
 
     public function exportPdf(KelembabanService $service)
