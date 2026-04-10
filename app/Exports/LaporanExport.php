@@ -26,14 +26,16 @@ class LaporanExport implements FromQuery, WithHeadings, WithMapping, WithStyles,
 
     public function query()
     {
-        $query = Laporan::with('user')->where('tipe', $this->tipe);
+        $query = Laporan::with(['user', 'jenisKapal.company', 'jenisKapal.galangan'])->where('tipe', $this->tipe);
 
         if ($this->search) {
             $query->where(function ($q) {
                 $q->where('judul', 'like', "%{$this->search}%")
-                  ->orWhere('isi', 'like', "%{$this->search}%")
                   ->orWhereHas('user', function ($q) {
                       $q->where('name', 'like', "%{$this->search}%");
+                  })
+                  ->orWhereHas('jenisKapal', function ($q) {
+                      $q->where('nama', 'like', "%{$this->search}%");
                   });
             });
         }
@@ -48,10 +50,10 @@ class LaporanExport implements FromQuery, WithHeadings, WithMapping, WithStyles,
             'Judul',
             'Tanggal Laporan',
             'Tipe',
+            'Jenis Kapal',
+            'Perusahaan',
+            'Galangan',
             'Pembuat',
-            'Isi Laporan',
-            'Catatan',
-            'File Lampiran',
             'Tanggal Dibuat',
         ];
     }
@@ -66,10 +68,10 @@ class LaporanExport implements FromQuery, WithHeadings, WithMapping, WithStyles,
             $laporan->judul,
             $laporan->tanggal_laporan->format('d/m/Y'),
             $laporan->tipe->label(),
+            $laporan->jenisKapal->nama ?? '-',
+            $laporan->jenisKapal->company->name ?? '-',
+            $laporan->jenisKapal->galangan->nama ?? '-',
             $laporan->user->name ?? '-',
-            $laporan->isi ?? '-',
-            $laporan->catatan ?? '-',
-            $laporan->file_name ?? '-',
             $laporan->created_at->format('d/m/Y H:i'),
         ];
     }
