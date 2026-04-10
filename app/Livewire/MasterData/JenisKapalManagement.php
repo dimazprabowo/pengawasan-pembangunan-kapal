@@ -14,6 +14,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\WithFileUploads;
+use Maatwebsite\Excel\Facades\Excel;
 
 class JenisKapalManagement extends Component
 {
@@ -240,8 +241,10 @@ class JenisKapalManagement extends Component
     {
         $this->authorize('exportExcel', JenisKapal::class);
 
-        return (new JenisKapalExport($this->search, $this->statusFilter, $this->companyFilter))
-            ->download('jenis-kapal-' . now()->format('Y-m-d-His') . '.xlsx');
+        return Excel::download(
+            new JenisKapalExport($this->search, $this->statusFilter, $this->companyFilter),
+            'jenis-kapal-' . now()->format('Y-m-d-His') . '.xlsx'
+        );
     }
 
     public function exportPdf(JenisKapalService $service)
