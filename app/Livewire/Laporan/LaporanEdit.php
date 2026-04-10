@@ -637,6 +637,76 @@ class LaporanEdit extends Component
         }
     }
 
+    /**
+     * Daftar nama hari dalam bahasa Indonesia (key = English, value = Indonesian)
+     */
+    protected array $indonesianDayNames = [
+        'Sunday' => 'Minggu',
+        'Monday' => 'Senin',
+        'Tuesday' => 'Selasa',
+        'Wednesday' => 'Rabu',
+        'Thursday' => 'Kamis',
+        'Friday' => 'Jumat',
+        'Saturday' => 'Sabtu',
+    ];
+
+    /**
+     * Get list of Indonesian day names for regex matching
+     */
+    protected function getIndonesianDayNameList(): array
+    {
+        return array_values($this->indonesianDayNames);
+    }
+
+    /**
+     * Generate default judul based on tanggal_laporan
+     * Format: "Laporan Hari [NamaHari]"
+     */
+    protected function generateDefaultJudul(string $tanggal): string
+    {
+        $englishDayName = date('l', strtotime($tanggal));
+        $indonesianDayName = $this->indonesianDayNames[$englishDayName] ?? $englishDayName;
+
+        return 'Laporan Hari ' . $indonesianDayName;
+    }
+
+    /**
+     * Find and replace day name in existing judul
+     * If current judul contains any Indonesian day name, replace it with new day name
+     * If not, generate default format
+     */
+    protected function updateJudulWithNewDay(string $currentJudul, string $newTanggal): string
+    {
+        $dayNames = $this->getIndonesianDayNameList();
+        $englishDayName = date('l', strtotime($newTanggal));
+        $newIndonesianDayName = $this->indonesianDayNames[$englishDayName] ?? $englishDayName;
+
+        // Build regex pattern to find any Indonesian day name in the string
+        $pattern = '/(' . implode('|', $dayNames) . ')/i';
+
+        // Check if current judul contains any day name
+        if (preg_match($pattern, $currentJudul, $matches)) {
+            // Replace the found day name with the new one
+            return preg_replace($pattern, $newIndonesianDayName, $currentJudul, 1);
+        }
+
+        // If no day name found in current judul, return default format
+        // return $this->generateDefaultJudul($newTanggal);
+        return $currentJudul;
+    }
+
+    /**
+     * Listen for changes in tanggal_laporan
+     * Triggered when tanggal_laporan changes (with .live modifier)
+     */
+    public function updatedTanggalLaporan($value): void
+    {
+        $currentJudul = $this->judul ?? '';
+
+        // Update judul: find and replace day name, or generate default if empty/no day name found
+        $this->judul = $this->updateJudulWithNewDay($currentJudul, $value);
+    }
+
     public function render(QueueStatusService $queueStatusService)
     {
         $canViewAllJenisKapal = auth()->user()->can('laporan_view_all_jenis_kapal');
