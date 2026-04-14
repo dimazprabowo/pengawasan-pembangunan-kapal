@@ -1,8 +1,8 @@
 <div>
     {{-- Header --}}
     <div class="mb-6">
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Manajemen Laporan Harian</h2>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Kelola laporan harian pengawasan pembangunan kapal</p>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Manajemen Laporan Mingguan</h2>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Kelola laporan mingguan pengawasan pembangunan kapal</p>
     </div>
 
     {{-- Jenis Kapal Filter --}}
@@ -23,11 +23,11 @@
     <div class="mb-6 border-b border-gray-200 dark:border-gray-700">
         <nav class="-mb-px flex space-x-6" aria-label="Tabs">
             <a href="{{ route('laporan-harian.index') }}" wire:navigate
-                class="whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium border-blue-500 text-blue-600 dark:text-blue-400">
+                class="whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600">
                 Harian
             </a>
             <a href="{{ route('laporan-mingguan.index') }}" wire:navigate
-                class="whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600">
+                class="whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium border-blue-500 text-blue-600 dark:text-blue-400">
                 Mingguan
             </a>
             <a href="#"
@@ -42,7 +42,7 @@
     <div class="mb-6 flex flex-col lg:flex-row lg:items-center gap-3">
         <div class="flex-1">
             <input wire:model.live.debounce.300ms="search" type="text"
-                placeholder="Cari laporan harian..."
+                placeholder="Cari laporan mingguan..."
                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
         </div>
 
@@ -79,7 +79,7 @@
                 </x-loading-button>
             @endcan
             @can('laporan_create')
-                <a href="{{ route('laporan-harian.create') }}" wire:navigate
+                <a href="{{ route('laporan-mingguan.create') }}" wire:navigate
                     x-data="{ loading: false }" x-on:click="loading = true"
                     x-bind:class="loading ? 'opacity-75 pointer-events-none' : ''"
                     class="inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500 px-3 py-2 text-sm gap-1.5 flex-1 lg:flex-none whitespace-nowrap">
@@ -103,7 +103,7 @@
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Judul</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tanggal</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tanggal Laporan</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Jenis Kapal</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Pembuat</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dibuat</th>
@@ -117,48 +117,7 @@
                                 {{ $laporanList->firstItem() + $index }}
                             </td>
                             <td class="px-6 py-4">
-                                <div class="flex items-center gap-1.5 flex-wrap">
-                                    <span class="text-sm font-medium text-gray-900 dark:text-white">{{ $laporan->judul }}</span>
-                                    @if($laporan->isFileProcessing())
-                                        <svg class="animate-spin w-4 h-4 text-blue-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" title="File lampiran sedang diproses">
-                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                    @elseif($laporan->isFileFailed())
-                                        <svg class="w-4 h-4 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="Gagal memproses file lampiran">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                        </svg>
-                                    @elseif($laporan->hasFile())
-                                        <svg class="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="{{ $laporan->file_name }}">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
-                                        </svg>
-                                    @endif
-
-                                    {{-- Word doc status badge --}}
-                                        @if($laporan->isDocProcessing())
-                                            <span title="Dokumen Word sedang diproses" class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                                                <svg class="animate-spin w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                </svg>
-                                                .docx
-                                            </span>
-                                        @elseif($laporan->isDocCompleted())
-                                            <span title="Dokumen Word siap diunduh" class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                                                </svg>
-                                                .docx
-                                            </span>
-                                        @elseif($laporan->isDocFailed())
-                                            <span title="Generate dokumen Word gagal" class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
-                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                                </svg>
-                                                .docx
-                                            </span>
-                                        @endif
-                                </div>
+                                <span class="text-sm font-medium text-gray-900 dark:text-white">{{ $laporan->judul }}</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm text-gray-900 dark:text-white">{{ $laporan->tanggal_laporan->translatedFormat('d M Y') }}</div>
@@ -198,7 +157,7 @@
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div class="flex items-center justify-end gap-2">
                                     @can('laporan_show')
-                                        <a href="{{ route('laporan-harian.show', $laporan) }}" wire:navigate
+                                        <a href="{{ route('laporan-mingguan.show', $laporan) }}" wire:navigate
                                             x-data="{ loading: false }" x-on:click="loading = true"
                                             x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                                             class="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
@@ -214,7 +173,7 @@
                                         </a>
                                     @endcan
                                     @can('laporan_update')
-                                        <a href="{{ route('laporan-harian.edit', $laporan) }}" wire:navigate
+                                        <a href="{{ route('laporan-mingguan.edit', $laporan) }}" wire:navigate
                                             x-data="{ loading: false }" x-on:click="loading = true"
                                             x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                                             class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
@@ -252,9 +211,9 @@
                                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                 </svg>
-                                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Belum ada laporan harian</p>
+                                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Belum ada laporan mingguan</p>
                                 @can('laporan_create')
-                                    <a href="{{ route('laporan-harian.create') }}" wire:navigate
+                                    <a href="{{ route('laporan-mingguan.create') }}" wire:navigate
                                         x-data="{ loading: false }" x-on:click="loading = true"
                                         x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                                         class="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300">

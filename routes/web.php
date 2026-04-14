@@ -73,6 +73,20 @@ Route::middleware(['auth', 'verified', 'active'])->group(function () {
             ->name('edit');
     });
 
+    // Manajemen Laporan Mingguan
+    Route::prefix('laporan-mingguan')->name('laporan-mingguan.')->middleware('can:laporan_view')->group(function () {
+        Route::get('/', App\Livewire\LaporanMingguan\LaporanMingguanIndex::class)->name('index');
+        Route::get('/create', App\Livewire\LaporanMingguan\LaporanMingguanCreate::class)
+            ->middleware('can:laporan_create')
+            ->name('create');
+        Route::get('/{laporanMingguan}', App\Livewire\LaporanMingguan\LaporanMingguanShow::class)
+            ->middleware('can:laporan_show')
+            ->name('show');
+        Route::get('/{laporanMingguan}/edit', App\Livewire\LaporanMingguan\LaporanMingguanEdit::class)
+            ->middleware('can:laporan_update')
+            ->name('edit');
+    });
+
     // Settings Routes - each route checks its own permission
     Route::prefix('settings')->name('settings.')->group(function () {
         Route::get('/system', function () {
