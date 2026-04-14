@@ -87,4 +87,20 @@ class LaporanHarianPolicy
     {
         return $user->can('laporan_download');
     }
+
+    /**
+     * Determine whether the user can preview lampiran.
+     */
+    public function lampiranPreview(User $user): bool
+    {
+        return $user->can('laporan_lampiran_preview');
+    }
+
+    /**
+     * Determine whether the user can download lampiran.
+     */
+    public function lampiranDownload(User $user): bool
+    {
+        return $user->can('laporan_lampiran_download');
+    }
 }

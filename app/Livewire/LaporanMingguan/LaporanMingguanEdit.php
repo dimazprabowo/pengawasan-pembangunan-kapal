@@ -27,7 +27,7 @@ class LaporanMingguanEdit extends Component
         $this->laporan = $laporanMingguan;
         $this->jenis_kapal_id = $laporanMingguan->jenis_kapal_id;
         $this->judul = $laporanMingguan->judul;
-        $this->tanggal_laporan = $laporanMingguan->tanggal_laporan->format('Y-m-d');
+        $this->tanggal_laporan = $laporanMingguan->tanggal_laporan ? $laporanMingguan->tanggal_laporan->format('Y-m-d') : '';
     }
 
     protected function rules(): array

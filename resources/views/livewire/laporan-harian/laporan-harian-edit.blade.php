@@ -160,7 +160,7 @@
                                             <span class="text-xs text-gray-400">{{ number_format($existingLampiran->file_size / 1024, 0) }} KB</span>
                                             @if($existingLampiran->hasFile() && $existingLampiran->isFileCompleted())
                                                 @if($existingLampiran->isPreviewable())
-                                                    @can('laporan_lampiran_preview')
+                                                    @can('lampiranPreview', \App\Models\LaporanHarian::class)
                                                         <button type="button" wire:click="openLampiranPreview({{ $existingLampiran->id }})"
                                                             wire:loading.attr="disabled"
                                                             wire:target="openLampiranPreview({{ $existingLampiran->id }})"

@@ -24,7 +24,7 @@
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Informasi lengkap laporan</p>
         </div>
         <div class="flex items-center gap-2">
-            @can('laporan_update')
+            @can('update', $laporan)
                 <a href="{{ route('laporan-harian.edit', $laporan) }}" wire:navigate
                     x-data="{ loading: false }" x-on:click="loading = true"
                     x-bind:class="loading ? 'opacity-75 pointer-events-none' : ''"
@@ -72,7 +72,7 @@
     @endif
 
     {{-- Word Document Card (Harian only) --}}
-        @can('laporan_download')
+        @can('download', $laporan)
         <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div class="px-5 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
                 <div class="flex items-center gap-2">
@@ -165,7 +165,7 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-2 flex-shrink-0">
-                            @can('laporan_download')
+                            @can('download', $laporan)
                                 <button wire:click="downloadWord"
                                     x-data="{ loading: false }"
                                     x-on:click="loading = true; setTimeout(() => loading = false, 2000)"
@@ -179,7 +179,7 @@
                                     </svg>
                                 </button>
                             @endcan
-                            @can('laporan_download')
+                            @can('download', $laporan)
                                 <button wire:click="confirmDeleteDoc"
                                     wire:loading.attr="disabled"
                                     wire:target="confirmDeleteDoc,deleteDoc"
@@ -437,7 +437,7 @@
                                 @if($lampiranItem->hasFile() && $lampiranItem->isFileCompleted())
                                     <div class="flex items-center gap-1.5 flex-shrink-0">
                                         @if($lampiranItem->isPreviewable())
-                                            @can('laporan_lampiran_preview')
+                                            @can('lampiranPreview', \App\Models\LaporanHarian::class)
                                                 <button wire:click="openLampiranPreview({{ $lampiranItem->id }})" 
                                                     type="button"
                                                     wire:loading.attr="disabled"
@@ -455,7 +455,7 @@
                                                 </button>
                                             @endcan
                                         @endif
-                                        @can('laporan_lampiran_download')
+                                        @can('lampiranDownload', \App\Models\LaporanHarian::class)
                                             <button wire:click="downloadLampiran({{ $lampiranItem->id }})" type="button"
                                                 wire:loading.attr="disabled"
                                                 wire:target="downloadLampiran({{ $lampiranItem->id }})"

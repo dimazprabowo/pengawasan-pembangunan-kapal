@@ -62,7 +62,7 @@
         </div>
 
         <div class="flex items-center gap-2 flex-wrap">
-            @can('laporan_export_excel')
+            @can('exportExcel', \App\Models\LaporanHarian::class)
                 <x-loading-button wire:click="exportExcel" target="exportExcel" variant="success" size="md" loadingText="Exporting..." title="Export Excel">
                     <x-slot:icon>
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
@@ -70,7 +70,7 @@
                     Excel
                 </x-loading-button>
             @endcan
-            @can('laporan_export_pdf')
+            @can('exportPdf', \App\Models\LaporanHarian::class)
                 <x-loading-button wire:click="exportPdf" target="exportPdf" variant="danger" size="md" loadingText="Exporting..." title="Export PDF">
                     <x-slot:icon>
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
@@ -78,7 +78,7 @@
                     PDF
                 </x-loading-button>
             @endcan
-            @can('laporan_create')
+            @can('create', \App\Models\LaporanHarian::class)
                 <a href="{{ route('laporan-harian.create') }}" wire:navigate
                     x-data="{ loading: false }" x-on:click="loading = true"
                     x-bind:class="loading ? 'opacity-75 pointer-events-none' : ''"
@@ -197,7 +197,7 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div class="flex items-center justify-end gap-2">
-                                    @can('laporan_show')
+                                    @can('view', $laporan)
                                         <a href="{{ route('laporan-harian.show', $laporan) }}" wire:navigate
                                             x-data="{ loading: false }" x-on:click="loading = true"
                                             x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
@@ -213,7 +213,7 @@
                                             </svg>
                                         </a>
                                     @endcan
-                                    @can('laporan_update')
+                                    @can('update', $laporan)
                                         <a href="{{ route('laporan-harian.edit', $laporan) }}" wire:navigate
                                             x-data="{ loading: false }" x-on:click="loading = true"
                                             x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
@@ -228,7 +228,7 @@
                                             </svg>
                                         </a>
                                     @endcan
-                                    @can('laporan_delete')
+                                    @can('delete', $laporan)
                                         <button wire:click="confirmDelete({{ $laporan->id }})"
                                             wire:loading.attr="disabled"
                                             wire:target="confirmDelete({{ $laporan->id }})"
@@ -253,7 +253,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                 </svg>
                                 <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Belum ada laporan harian</p>
-                                @can('laporan_create')
+                                @can('create', \App\Models\LaporanHarian::class)
                                     <a href="{{ route('laporan-harian.create') }}" wire:navigate
                                         x-data="{ loading: false }" x-on:click="loading = true"
                                         x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"

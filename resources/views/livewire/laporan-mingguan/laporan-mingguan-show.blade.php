@@ -20,7 +20,7 @@
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Informasi lengkap laporan</p>
         </div>
         <div class="flex items-center gap-2">
-            @can('laporan_update')
+            @can('update', $laporan)
                 <a href="{{ route('laporan-mingguan.edit', $laporan) }}" wire:navigate
                     x-data="{ loading: false }" x-on:click="loading = true"
                     x-bind:class="loading ? 'opacity-75 pointer-events-none' : ''"
