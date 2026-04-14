@@ -252,13 +252,13 @@
 
     {{-- Detail Card --}}
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
-        {{-- Card Header --}}
-        <div class="px-5 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-            <div class="flex items-center justify-between">
-                <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Informasi Laporan</h3>
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                    Harian
-                </span>
+            {{-- Card Header --}}
+            <div class="px-5 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Informasi Laporan</h3>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                        Harian
+                    </span>
             </div>
         </div>
 
@@ -515,9 +515,13 @@
             x-init="
                 document.body.style.overflow = 'hidden';
                 $nextTick(() => $el.querySelector('[data-modal-panel]').focus());
+                $watch('$wire.showRegenerateConfirm', (value) => {
+                    if (!value) {
+                        document.body.style.overflow = '';
+                    }
+                });
             "
             x-on:keydown.escape.window="$wire.cancelRegenerate()"
-            x-on:remove="document.body.style.overflow = ''"
             class="fixed inset-0 z-50 flex items-center justify-center p-4"
             role="dialog"
             aria-modal="true"
@@ -635,9 +639,13 @@
             x-init="
                 document.body.style.overflow = 'hidden';
                 $nextTick(() => $el.querySelector('[data-modal-panel]').focus());
+                $watch('$wire.showDeleteDocConfirm', (value) => {
+                    if (!value) {
+                        document.body.style.overflow = '';
+                    }
+                });
             "
             x-on:keydown.escape.window="$wire.cancelDeleteDoc()"
-            x-on:remove="document.body.style.overflow = ''"
             class="fixed inset-0 z-50 flex items-center justify-center p-4"
             role="dialog"
             aria-modal="true"
