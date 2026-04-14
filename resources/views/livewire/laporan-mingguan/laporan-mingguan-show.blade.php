@@ -93,7 +93,29 @@
                 </div>
             </div>
 
-            {{-- Pembuat + Dibuat --}}
+            {{-- Periode --}}
+            @if($laporan->periode_mulai || $laporan->periode_selesai)
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Periode Mulai</label>
+                    <p class="text-sm text-gray-900 dark:text-white">{{ $laporan->periode_mulai?->translatedFormat('d F Y') ?? '-' }}</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Periode Selesai</label>
+                    <p class="text-sm text-gray-900 dark:text-white">{{ $laporan->periode_selesai?->translatedFormat('d F Y') ?? '-' }}</p>
+                </div>
+            </div>
+            @endif
+
+            {{-- Ringkasan --}}
+            @if($laporan->ringkasan)
+            <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Ringkasan</label>
+                <p class="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">{{ $laporan->ringkasan }}</p>
+            </div>
+            @endif
+
+            {{-- Pembuat + Dibuat }}--}}
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Pembuat</label>
@@ -118,6 +140,86 @@
         </div>
     </div>
 
+    {{-- Laporan Harian Teragregasi --}}
+    @if($laporan->laporanHarian->count() > 0)
+    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mt-6">
+        <div class="flex items-center gap-2 mb-3">
+            <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span class="text-sm font-medium text-blue-800 dark:text-blue-200">
+                {{ $laporan->laporanHarian->count() }} laporan harian otomatis dipilih
+            </span>
+        </div>
+        <div class="space-y-2">
+            @foreach($laporan->laporanHarian as $laporanHarian)
+                <div class="flex items-center gap-3 text-sm">
+                    <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <div class="flex-1">
+                        <a href="{{ route('laporan-harian.show', $laporanHarian) }}" wire:navigate
+                            class="font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400">
+                            {{ $laporanHarian->judul }}
+                        </a>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">{{ $laporanHarian->tanggal_laporan->translatedFormat('d M Y') }}</div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
+    {{-- Lampiran Harian Terpilih --}}
+    @if($laporan->periode_mulai && $laporan->periode_selesai && $laporan->lampiran->count() > 0)
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mt-6">
+        <div class="px-5 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Lampiran Harian Terpilih
+                    <span class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                        {{ $laporan->lampiran->count() }} dipilih
+                    </span>
+                </h3>
+            </div>
+        </div>
+        <div class="p-5">
+            <div class="space-y-2">
+                @php
+                    $selectedLampiran = collect($lampiranHarianList)->whereIn('id', $laporan->lampiran->pluck('id')->toArray())->values();
+                @endphp
+                @foreach($selectedLampiran as $lampiran)
+                    <div class="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div class="flex items-center justify-center w-5 h-5 bg-green-500 rounded-full flex-shrink-0">
+                            <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                            </svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ $lampiran['file_name'] }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ $lampiran['file_size_formatted'] }} • {{ $lampiran['laporan_tanggal'] }}</p>
+                        </div>
+                        @if($lampiran['is_image'])
+                            <button wire:click="previewLampiranHarian({{ $lampiran['id'] }})" 
+                                    wire:loading.attr="disabled"
+                                    wire:target="previewLampiranHarian({{ $lampiran['id'] }})"
+                                    class="p-1.5 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors disabled:opacity-50"
+                                    title="Preview">
+                                <svg wire:loading.class="hidden" wire:target="previewLampiranHarian({{ $lampiran['id'] }})" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                </svg>
+                                <svg wire:loading wire:target="previewLampiranHarian({{ $lampiran['id'] }})" class="animate-spin w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </button>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    </div>
+    @endif
+
     {{-- Back button --}}
     <div class="flex items-center mt-6">
         <a href="{{ route('laporan-mingguan.index') }}" wire:navigate
@@ -134,5 +236,12 @@
             <span x-show="!loading">Kembali ke Daftar</span>
             <span x-show="loading" x-cloak>Memuat...</span>
         </a>
-    </div>
+
+        {{-- Lampiran Preview Modal --}}
+        <x-lampiran-preview-modal
+            :show="$showPreviewModal"
+            :lampiran="$this->previewLampiran"
+            :laporan="null"
+            :imageUrl="$this->previewLampiranImageUrl"
+        />
 </div>

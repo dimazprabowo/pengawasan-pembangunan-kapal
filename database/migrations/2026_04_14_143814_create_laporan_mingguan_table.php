@@ -17,10 +17,15 @@ return new class extends Migration
             $table->foreignId('jenis_kapal_id')->nullable()->constrained('jenis_kapal')->nullOnDelete();
             $table->string('judul');
             $table->date('tanggal_laporan');
+            $table->date('periode_mulai')->nullable();
+            $table->date('periode_selesai')->nullable();
+            $table->text('ringkasan')->nullable();
             $table->timestamps();
             $table->softDeletes();
 
             $table->index('tanggal_laporan');
+            $table->index('periode_mulai');
+            $table->index('periode_selesai');
             $table->index('user_id');
             $table->index('jenis_kapal_id');
         });

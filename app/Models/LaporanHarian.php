@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class LaporanHarian extends Model
@@ -115,6 +116,11 @@ class LaporanHarian extends Model
     public function aktivitas(): HasMany
     {
         return $this->hasMany(LaporanAktivitas::class)->orderBy('created_at', 'asc');
+    }
+
+    public function laporanMingguan(): BelongsToMany
+    {
+        return $this->belongsToMany(LaporanMingguan::class, 'laporan_mingguan_harian');
     }
 
     public function scopeByUser($query, int $userId)

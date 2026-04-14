@@ -12,7 +12,7 @@ class LaporanMingguanService
         ?int $jenisKapalId = null,
         int $perPage = 15
     ): LengthAwarePaginator {
-        $query = LaporanMingguan::with(['user', 'jenisKapal.company', 'jenisKapal.galangan'])
+        $query = LaporanMingguan::with(['user', 'jenisKapal.company', 'jenisKapal.galangan', 'laporanHarian'])
             ->byJenisKapal($jenisKapalId);
 
         if ($search) {
@@ -31,12 +31,39 @@ class LaporanMingguanService
 
     public function create(array $data): LaporanMingguan
     {
-        return LaporanMingguan::create($data);
+        $laporanHarianIds = $data['laporan_harian_ids'] ?? [];
+        $lampiranIds = $data['lampiran_ids'] ?? [];
+        unset($data['laporan_harian_ids'], $data['lampiran_ids']);
+
+        $laporanMingguan = LaporanMingguan::create($data);
+
+        if (!empty($laporanHarianIds)) {
+            $laporanMingguan->laporanHarian()->sync($laporanHarianIds);
+        }
+
+        if (!empty($lampiranIds)) {
+            $laporanMingguan->lampiran()->sync($lampiranIds);
+        }
+
+        return $laporanMingguan;
     }
 
     public function update(LaporanMingguan $laporanMingguan, array $data): LaporanMingguan
     {
+        $laporanHarianIds = $data['laporan_harian_ids'] ?? null;
+        $lampiranIds = $data['lampiran_ids'] ?? null;
+        unset($data['laporan_harian_ids'], $data['lampiran_ids']);
+
         $laporanMingguan->update($data);
+
+        if ($laporanHarianIds !== null) {
+            $laporanMingguan->laporanHarian()->sync($laporanHarianIds);
+        }
+
+        if ($lampiranIds !== null) {
+            $laporanMingguan->lampiran()->sync($lampiranIds);
+        }
+
         return $laporanMingguan;
     }
 
