@@ -617,6 +617,7 @@ class LaporanHarianEdit extends Component
         }
         $this->showDeletePersonelModal = false;
         $this->deletingPersonelIndex = null;
+        $this->notifySuccess('Personel berhasil dihapus');
     }
 
     public function removePersonel(int $index): void
@@ -649,6 +650,7 @@ class LaporanHarianEdit extends Component
         }
         $this->showDeletePeralatanModal = false;
         $this->deletingPeralatanIndex = null;
+        $this->notifySuccess('Peralatan berhasil dihapus');
     }
 
     public function removePeralatan(int $index): void
@@ -681,6 +683,7 @@ class LaporanHarianEdit extends Component
         }
         $this->showDeleteConsumableModal = false;
         $this->deletingConsumableIndex = null;
+        $this->notifySuccess('Consumable berhasil dihapus');
     }
 
     public function removeConsumable(int $index): void
@@ -713,6 +716,7 @@ class LaporanHarianEdit extends Component
         }
         $this->showDeleteAktivitasModal = false;
         $this->deletingAktivitasIndex = null;
+        $this->notifySuccess('Aktivitas berhasil dihapus');
     }
 
     public function removeAktivitas(int $index): void

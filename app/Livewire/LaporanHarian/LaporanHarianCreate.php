@@ -252,6 +252,7 @@ class LaporanHarianCreate extends Component
         $this->showDeletePersonelModal = false;
         $this->deletingPersonelItemIndex = null;
         $this->deletingPersonelIndex = null;
+        $this->notifySuccess('Personel berhasil dihapus');
     }
 
     public function removePersonel(int $itemIndex, int $personelIndex): void
@@ -286,6 +287,7 @@ class LaporanHarianCreate extends Component
         $this->showDeletePeralatanModal = false;
         $this->deletingPeralatanItemIndex = null;
         $this->deletingPeralatanIndex = null;
+        $this->notifySuccess('Peralatan berhasil dihapus');
     }
 
     public function removePeralatan(int $itemIndex, int $peralatanIndex): void
@@ -320,6 +322,7 @@ class LaporanHarianCreate extends Component
         $this->showDeleteConsumableModal = false;
         $this->deletingConsumableItemIndex = null;
         $this->deletingConsumableIndex = null;
+        $this->notifySuccess('Consumable berhasil dihapus');
     }
 
     public function removeConsumable(int $itemIndex, int $consumableIndex): void
@@ -354,6 +357,7 @@ class LaporanHarianCreate extends Component
         $this->showDeleteAktivitasModal = false;
         $this->deletingAktivitasItemIndex = null;
         $this->deletingAktivitasIndex = null;
+        $this->notifySuccess('Aktivitas berhasil dihapus');
     }
 
     public function removeAktivitas(int $itemIndex, int $aktivitasIndex): void
