@@ -1,13 +1,12 @@
 <?php
 
-namespace App\Livewire\Laporan;
+namespace App\Livewire\LaporanHarian;
 
-use App\Enums\LaporanTipe;
-use App\Exports\LaporanExport;
+use App\Exports\LaporanHarianExport;
 use App\Livewire\Traits\HasNotification;
 use App\Models\JenisKapal;
-use App\Models\Laporan;
-use App\Services\LaporanService;
+use App\Models\LaporanHarian;
+use App\Services\LaporanHarianService;
 use App\Services\QueueStatusService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -16,15 +15,12 @@ use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-#[Layout('layouts.app', ['title' => 'Manajemen Laporan'])]
-class LaporanIndex extends Component
+#[Layout('layouts.app', ['title' => 'Manajemen Laporan Harian'])]
+class LaporanHarianIndex extends Component
 {
     use WithPagination, AuthorizesRequests, HasNotification;
 
     protected $paginationTheme = 'tailwind';
-
-    // #[Url(as: 'tab')]
-    public string $activeTab = 'harian';
 
     #[Url(as: 'q')]
     public string $search = '';
@@ -40,9 +36,9 @@ class LaporanIndex extends Component
 
     public function mount(): void
     {
-        $this->authorize('viewAny', Laporan::class);
+        $this->authorize('viewAny', LaporanHarian::class);
 
-        $this->jenisKapalId = session('laporan_jenis_kapal_id');
+        $this->jenisKapalId = session('laporan_harian_jenis_kapal_id');
 
         if (session()->has('notify')) {
             $notify = session('notify');
@@ -52,16 +48,8 @@ class LaporanIndex extends Component
 
     public function updatedJenisKapalId($value): void
     {
-        session(['laporan_jenis_kapal_id' => $value]);
+        session(['laporan_harian_jenis_kapal_id' => $value]);
         $this->resetPage();
-    }
-
-    public function setTab(string $tab): void
-    {
-        if (in_array($tab, LaporanTipe::values())) {
-            $this->activeTab = $tab;
-            $this->resetPage();
-        }
     }
 
     public function updatingSearch(): void
@@ -76,16 +64,16 @@ class LaporanIndex extends Component
 
     public function confirmDelete(int $id): void
     {
-        $laporan = Laporan::findOrFail($id);
+        $laporan = LaporanHarian::findOrFail($id);
         $this->deletingLaporanId = $laporan->id;
         $this->deletingLaporanJudul = $laporan->judul;
         $this->showDeleteModal = true;
     }
 
-    public function delete(LaporanService $service): void
+    public function delete(LaporanHarianService $service): void
     {
         try {
-            $laporan = Laporan::findOrFail($this->deletingLaporanId);
+            $laporan = LaporanHarian::findOrFail($this->deletingLaporanId);
             $this->authorize('delete', $laporan);
 
             $service->delete($laporan);
@@ -102,27 +90,22 @@ class LaporanIndex extends Component
 
     public function exportExcel()
     {
-        $this->authorize('exportExcel', Laporan::class);
+        $this->authorize('exportExcel', LaporanHarian::class);
 
-        $tipeEnum = LaporanTipe::from($this->activeTab);
-        $filename = 'laporan-' . $tipeEnum->value . '-' . now()->format('Y-m-d-His') . '.xlsx';
+        $filename = 'laporan-harian-' . now()->format('Y-m-d-His') . '.xlsx';
 
-        return (new LaporanExport($this->activeTab, $this->search))
+        return (new LaporanHarianExport($this->search))
             ->download($filename);
     }
 
     public function exportPdf()
     {
-        $this->authorize('exportPdf', Laporan::class);
+        $this->authorize('exportPdf', LaporanHarian::class);
 
-        $tipeEnum = LaporanTipe::from($this->activeTab);
-
-        $laporanList = Laporan::with('user')
-            ->where('tipe', $this->activeTab)
+        $laporanList = LaporanHarian::with(['user', 'jenisKapal.company', 'jenisKapal.galangan'])
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
                     $q->where('judul', 'like', "%{$this->search}%")
-                      ->orWhere('isi', 'like', "%{$this->search}%")
                       ->orWhereHas('user', function ($q) {
                           $q->where('name', 'like', "%{$this->search}%");
                       });
@@ -132,13 +115,13 @@ class LaporanIndex extends Component
             ->orderByDesc('created_at')
             ->get();
 
-        $pdf = Pdf::loadView('exports.laporan-pdf', [
+        $pdf = Pdf::loadView('exports.laporan-harian-pdf', [
             'laporanList' => $laporanList,
-            'tipeLabel' => $tipeEnum->label(),
+            'tipeLabel' => 'Harian',
         ]);
         $pdf->setPaper('a4', 'landscape');
 
-        $filename = 'laporan-' . $tipeEnum->value . '-' . now()->format('Y-m-d-His') . '.pdf';
+        $filename = 'laporan-harian-' . now()->format('Y-m-d-His') . '.pdf';
 
         return response()->streamDownload(
             fn () => print($pdf->output()),
@@ -146,7 +129,7 @@ class LaporanIndex extends Component
         );
     }
 
-    public function render(LaporanService $service, QueueStatusService $queueStatusService)
+    public function render(LaporanHarianService $service, QueueStatusService $queueStatusService)
     {
         $canViewAllJenisKapal = auth()->user()->can('laporan_view_all_jenis_kapal');
         
@@ -160,14 +143,12 @@ class LaporanIndex extends Component
             ->orderBy('nama')
             ->get();
 
-        return view('livewire.laporan.laporan-index', [
+        return view('livewire.laporan-harian.laporan-harian-index', [
             'laporanList' => $service->getFiltered(
-                $this->activeTab,
                 $this->search,
                 $this->jenisKapalId,
                 $this->perPage
             ),
-            'tabs' => LaporanTipe::cases(),
             'queueStatus' => $queueStatusService->getQueueStatusMessage(),
             'jenisKapalList' => $jenisKapalList,
             'canViewAllJenisKapal' => $canViewAllJenisKapal,

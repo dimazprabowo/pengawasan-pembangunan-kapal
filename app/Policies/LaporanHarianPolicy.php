@@ -2,10 +2,10 @@
 
 namespace App\Policies;
 
-use App\Models\Laporan;
+use App\Models\LaporanHarian;
 use App\Models\User;
 
-class LaporanPolicy
+class LaporanHarianPolicy
 {
     /**
      * Determine whether the user can view any models.
@@ -18,7 +18,7 @@ class LaporanPolicy
     /**
      * Determine whether the user can view the model detail.
      */
-    public function view(User $user, Laporan $laporan): bool
+    public function view(User $user, LaporanHarian $laporanHarian): bool
     {
         return $user->can('laporan_show');
     }
@@ -34,7 +34,7 @@ class LaporanPolicy
     /**
      * Determine whether the user can update the model.
      */
-    public function update(User $user, Laporan $laporan): bool
+    public function update(User $user, LaporanHarian $laporanHarian): bool
     {
         return $user->can('laporan_update');
     }
@@ -42,7 +42,7 @@ class LaporanPolicy
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, Laporan $laporan): bool
+    public function delete(User $user, LaporanHarian $laporanHarian): bool
     {
         return $user->can('laporan_delete');
     }
@@ -50,7 +50,7 @@ class LaporanPolicy
     /**
      * Determine whether the user can download files.
      */
-    public function download(User $user, Laporan $laporan): bool
+    public function download(User $user, LaporanHarian $laporanHarian): bool
     {
         return $user->can('laporan_download');
     }
@@ -75,7 +75,7 @@ class LaporanPolicy
      * Determine whether the user can generate/download the Word document.
      * Reuses laporan_download permission.
      */
-    public function generateWord(User $user, Laporan $laporan): bool
+    public function generateWord(User $user, LaporanHarian $laporanHarian): bool
     {
         return $user->can('laporan_download');
     }
@@ -83,7 +83,7 @@ class LaporanPolicy
     /**
      * Determine whether the user can download the generated Word document.
      */
-    public function downloadWord(User $user, Laporan $laporan): bool
+    public function downloadWord(User $user, LaporanHarian $laporanHarian): bool
     {
         return $user->can('laporan_download');
     }

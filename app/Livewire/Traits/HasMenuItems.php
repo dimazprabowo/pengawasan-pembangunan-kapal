@@ -8,7 +8,7 @@ use App\Models\Cuaca;
 use App\Models\Galangan;
 use App\Models\JenisKapal;
 use App\Models\Kelembaban;
-use App\Models\Laporan;
+use App\Models\LaporanHarian;
 use App\Models\Notification;
 use App\Models\SystemConfiguration;
 use App\Models\User;
@@ -40,7 +40,7 @@ trait HasMenuItems
             'notifications_view' => Gate::allows('viewAny', Notification::class),
             'notifications_send' => Gate::allows('send', Notification::class),
             'chat_view'          => Gate::allows('viewAny', Chat::class),
-            'laporan_view'       => Gate::allows('viewAny', Laporan::class),
+            'laporan_view'       => Gate::allows('viewAny', LaporanHarian::class),
             'configuration_view' => Gate::allows('viewAny', SystemConfiguration::class),
             'users_view'         => Gate::allows('viewAny', User::class),
             'roles_view'         => Gate::allows('viewAny', Role::class),
@@ -151,13 +151,13 @@ trait HasMenuItems
             ];
         }
 
-        // Manajemen Laporan
+        // Manajemen Laporan Harian
         if ($perms['laporan_view']) {
             $items[] = [
                 'name'   => 'Manajemen Laporan',
-                'route'  => 'laporan.index',
+                'route'  => 'laporan-harian.index',
                 'icon'   => 'document-report',
-                'active' => $req->routeIs('laporan.*'),
+                'active' => $req->routeIs('laporan-harian.*'),
             ];
         }
 

@@ -7,7 +7,7 @@
     <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
             <div class="flex items-center gap-2">
-                <a href="{{ route('laporan.index') }}" wire:navigate
+                <a href="{{ route('laporan-harian.index') }}" wire:navigate
                     x-data="{ loading: false }" x-on:click="loading = true"
                     x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                     class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
@@ -19,13 +19,13 @@
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                 </a>
-                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Detail Laporan {{ $tipeEnum->label() }}</h2>
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Detail Laporan Harian</h2>
             </div>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Informasi lengkap laporan</p>
         </div>
         <div class="flex items-center gap-2">
             @can('laporan_update')
-                <a href="{{ route('laporan.edit', $laporan) }}" wire:navigate
+                <a href="{{ route('laporan-harian.edit', $laporan) }}" wire:navigate
                     x-data="{ loading: false }" x-on:click="loading = true"
                     x-bind:class="loading ? 'opacity-75 pointer-events-none' : ''"
                     class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800">
@@ -72,7 +72,6 @@
     @endif
 
     {{-- Word Document Card (Harian only) --}}
-    @if($laporan->tipe->value === 'harian')
         @can('laporan_download')
         <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div class="px-5 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
@@ -167,10 +166,9 @@
                         </div>
                         <div class="flex items-center gap-2 flex-shrink-0">
                             @can('laporan_download')
-                                <a href="{{ route('laporan.download-word', $laporan) }}"
+                                <button wire:click="downloadWord"
                                     x-data="{ loading: false }"
-                                    x-on:click="loading = true; setTimeout(() => loading = false, 3000)"
-                                    x-bind:class="loading ? 'opacity-75 pointer-events-none' : ''"
+                                    x-on:click="loading = true; setTimeout(() => loading = false, 2000)"
                                     class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 shadow-sm">
                                     <svg x-show="!loading" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
@@ -179,7 +177,7 @@
                                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg>
-                                </a>
+                                </button>
                             @endcan
                             @can('laporan_download')
                                 <button wire:click="confirmDeleteDoc"
@@ -251,7 +249,6 @@
             </div>
         </div>
         @endcan
-    @endif
 
     {{-- Detail Card --}}
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
@@ -259,15 +256,8 @@
         <div class="px-5 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-center justify-between">
                 <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Informasi Laporan</h3>
-                @php
-                    $colorMap = [
-                        'harian' => 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-                        'mingguan' => 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
-                        'bulanan' => 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
-                    ];
-                @endphp
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $colorMap[$laporan->tipe->value] ?? '' }}">
-                    {{ $laporan->tipe->label() }}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                    Harian
                 </span>
             </div>
         </div>
@@ -306,7 +296,6 @@
 
 
             {{-- Weather Information for Harian --}}
-            @if($laporan->tipe->value === 'harian')
                 @php
                     $hasWeatherData = $laporan->suhu || $laporan->cuacaPagi || $laporan->kelembabanPagi || $laporan->cuacaSiang || $laporan->kelembabanSiang || $laporan->cuacaSore || $laporan->kelembabanSore;
                 @endphp
@@ -365,10 +354,8 @@
                         <x-laporan.empty-state icon="weather" message="Informasi cuaca belum diisi" />
                     @endif
                 </x-laporan.section-wrapper>
-            @endif
 
             {{-- Personel Section --}}
-            @if($laporan->tipe->value === 'harian')
                 <x-laporan.section-wrapper label="B. Personel" :isEmpty="$laporan->personel->count() === 0" :count="$laporan->personel->count()">
                     @if($laporan->personel->count() > 0)
                         <x-laporan.personel-table
@@ -380,10 +367,8 @@
                         <x-laporan.empty-state icon="personel" message="Data personel belum diisi" />
                     @endif
                 </x-laporan.section-wrapper>
-            @endif
 
             {{-- Peralatan Section --}}
-            @if($laporan->tipe->value === 'harian')
                 <x-laporan.section-wrapper label="C. Peralatan" :isEmpty="$laporan->peralatan->count() === 0" :count="$laporan->peralatan->count()">
                     @if($laporan->peralatan->count() > 0)
                         <x-laporan.peralatan-table
@@ -395,10 +380,8 @@
                         <x-laporan.empty-state icon="peralatan" message="Data peralatan belum diisi" />
                     @endif
                 </x-laporan.section-wrapper>
-            @endif
 
             {{-- Consumable Section --}}
-            @if($laporan->tipe->value === 'harian')
                 <x-laporan.section-wrapper label="D. Consumable" :isEmpty="$laporan->consumable->count() === 0" :count="$laporan->consumable->count()">
                     @if($laporan->consumable->count() > 0)
                         <x-laporan.consumable-table
@@ -410,10 +393,8 @@
                         <x-laporan.empty-state icon="consumable" message="Data consumable belum diisi" />
                     @endif
                 </x-laporan.section-wrapper>
-            @endif
 
             {{-- Aktivitas Section --}}
-            @if($laporan->tipe->value === 'harian')
                 <x-laporan.section-wrapper label="E. Aktivitas" :isEmpty="$laporan->aktivitas->count() === 0" :count="$laporan->aktivitas->count()">
                     @if($laporan->aktivitas->count() > 0)
                         <x-laporan.aktivitas-table
@@ -425,7 +406,6 @@
                         <x-laporan.empty-state icon="aktivitas" message="Data aktivitas belum diisi" />
                     @endif
                 </x-laporan.section-wrapper>
-            @endif
 
             {{-- Lampiran Section --}}
             <x-laporan.section-wrapper label="F. Lampiran" :isEmpty="$laporan->lampiran->count() === 0" :count="$laporan->lampiran->count()" countLabel="file">
@@ -476,13 +456,19 @@
                                             @endcan
                                         @endif
                                         @can('laporan_lampiran_download')
-                                            <a href="{{ route('laporan.lampiran.download', [$laporan, $lampiranItem]) }}" 
-                                                class="text-blue-500 hover:text-blue-700 p-1.5 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors inline-block" 
+                                            <button wire:click="downloadLampiran({{ $lampiranItem->id }})" type="button"
+                                                wire:loading.attr="disabled"
+                                                wire:target="downloadLampiran({{ $lampiranItem->id }})"
+                                                class="text-blue-500 hover:text-blue-700 p-1.5 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors bg-transparent border-none cursor-pointer disabled:opacity-50" 
                                                 title="Download">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg wire:loading.class="hidden" wire:target="downloadLampiran({{ $lampiranItem->id }})" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                                                 </svg>
-                                            </a>
+                                                <svg wire:loading wire:target="downloadLampiran({{ $lampiranItem->id }})" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                            </button>
                                         @endcan
                                     </div>
                                 @endif
@@ -498,7 +484,7 @@
 
     {{-- Back button --}}
     <div class="flex items-center">
-        <a href="{{ route('laporan.index') }}" wire:navigate
+        <a href="{{ route('laporan-harian.index') }}" wire:navigate
             x-data="{ loading: false }" x-on:click="loading = true"
             x-bind:class="loading ? 'opacity-75 pointer-events-none' : ''"
             class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
@@ -515,10 +501,11 @@
     </div>
 
     {{-- Lampiran Preview Modal --}}
-    <x-lampiran-preview-modal 
-        :show="$showPreviewModal" 
-        :lampiran="$this->previewLampiran" 
-        :laporan="$laporan" 
+    <x-lampiran-preview-modal
+        :show="$showPreviewModal"
+        :lampiran="$this->previewLampiran"
+        :laporan="$laporan"
+        :imageUrl="$this->previewLampiranImageUrl"
     />
 
     {{-- Regenerate Confirmation Modal --}}

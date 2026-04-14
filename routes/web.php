@@ -59,33 +59,18 @@ Route::middleware(['auth', 'verified', 'active'])->group(function () {
         return view('chat.index');
     })->middleware('can:chat_view')->name('chat.index');
 
-    // Manajemen Laporan
-    Route::prefix('laporan')->name('laporan.')->middleware('can:laporan_view')->group(function () {
-        Route::get('/', App\Livewire\Laporan\LaporanIndex::class)->name('index');
-        Route::get('/create/{tipe}', App\Livewire\Laporan\LaporanCreate::class)
+    // Manajemen Laporan Harian
+    Route::prefix('laporan-harian')->name('laporan-harian.')->middleware('can:laporan_view')->group(function () {
+        Route::get('/', App\Livewire\LaporanHarian\LaporanHarianIndex::class)->name('index');
+        Route::get('/create', App\Livewire\LaporanHarian\LaporanHarianCreate::class)
             ->middleware('can:laporan_create')
             ->name('create');
-        Route::get('/{laporan}', App\Livewire\Laporan\LaporanShow::class)
+        Route::get('/{laporanHarian}', App\Livewire\LaporanHarian\LaporanHarianShow::class)
             ->middleware('can:laporan_show')
             ->name('show');
-        Route::get('/{laporan}/edit', App\Livewire\Laporan\LaporanEdit::class)
+        Route::get('/{laporanHarian}/edit', App\Livewire\LaporanHarian\LaporanHarianEdit::class)
             ->middleware('can:laporan_update')
             ->name('edit');
-        Route::get('/{laporan}/download', [App\Http\Controllers\LaporanFileController::class, 'download'])
-            ->middleware('can:laporan_download')
-            ->name('download');
-        Route::get('/{laporan}/preview', [App\Http\Controllers\LaporanFileController::class, 'preview'])
-            ->middleware('can:laporan_show')
-            ->name('preview');
-        Route::get('/{laporan}/download-word', [App\Http\Controllers\LaporanFileController::class, 'downloadWord'])
-            ->middleware('can:laporan_download')
-            ->name('download-word');
-        Route::get('/{laporan}/lampiran/{lampiran}/download', [App\Http\Controllers\LaporanFileController::class, 'downloadLampiran'])
-            ->middleware('can:laporan_lampiran_download')
-            ->name('lampiran.download');
-        Route::get('/{laporan}/lampiran/{lampiran}/preview', [App\Http\Controllers\LaporanFileController::class, 'previewLampiran'])
-            ->middleware('can:laporan_lampiran_preview')
-            ->name('lampiran.preview');
     });
 
     // Settings Routes - each route checks its own permission

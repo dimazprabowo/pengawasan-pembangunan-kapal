@@ -1,15 +1,15 @@
 <?php
 
-namespace App\Livewire\Laporan;
+namespace App\Livewire\LaporanHarian;
 
-use App\Enums\LaporanTipe;
 use App\Jobs\ProcessLaporanLampiran;
 use App\Livewire\Traits\HasNotification;
 use App\Models\Cuaca;
 use App\Models\JenisKapal;
 use App\Models\Kelembaban;
-use App\Models\Laporan;
-use App\Services\LaporanService;
+use App\Models\LaporanHarian;
+use App\Models\LaporanLampiran;
+use App\Services\LaporanHarianService;
 use App\Services\QueueStatusService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Storage;
@@ -17,12 +17,12 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
-#[Layout('layouts.app', ['title' => 'Edit Laporan'])]
-class LaporanEdit extends Component
+#[Layout('layouts.app', ['title' => 'Edit Laporan Harian'])]
+class LaporanHarianEdit extends Component
 {
     use AuthorizesRequests, HasNotification, WithFileUploads;
 
-    public Laporan $laporan;
+    public LaporanHarian $laporan;
 
     public ?int $jenis_kapal_id = null;
     public string $judul = '';
@@ -80,17 +80,17 @@ class LaporanEdit extends Component
     public bool $showPreviewModal = false;
     public ?int $previewLampiranId = null;
 
-    public function mount(Laporan $laporan): void
+    public function mount(LaporanHarian $laporanHarian): void
     {
-        $this->authorize('update', $laporan);
+        $this->authorize('update', $laporanHarian);
 
-        $this->laporan = $laporan;
-        $this->jenis_kapal_id = $laporan->jenis_kapal_id;
-        $this->judul = $laporan->judul;
-        $this->tanggal_laporan = $laporan->tanggal_laporan->format('Y-m-d');
+        $this->laporan = $laporanHarian;
+        $this->jenis_kapal_id = $laporanHarian->jenis_kapal_id;
+        $this->judul = $laporanHarian->judul;
+        $this->tanggal_laporan = $laporanHarian->tanggal_laporan->format('Y-m-d');
 
         // Load existing lampiran keterangan
-        foreach ($laporan->lampiran as $lampiran) {
+        foreach ($laporanHarian->lampiran as $lampiran) {
             $this->lampiranKeterangan[$lampiran->id] = $lampiran->keterangan ?? '';
         }
 
@@ -104,46 +104,42 @@ class LaporanEdit extends Component
             ]
         ];
 
-        if ($laporan->tipe->value === 'harian') {
-            $this->suhu = $laporan->suhu;
-            $this->cuaca_pagi_id = $laporan->cuaca_pagi_id;
-            $this->kelembaban_pagi_id = $laporan->kelembaban_pagi_id;
-            $this->cuaca_siang_id = $laporan->cuaca_siang_id;
-            $this->kelembaban_siang_id = $laporan->kelembaban_siang_id;
-            $this->cuaca_sore_id = $laporan->cuaca_sore_id;
-            $this->kelembaban_sore_id = $laporan->kelembaban_sore_id;
+        $this->suhu = $laporanHarian->suhu;
+        $this->cuaca_pagi_id = $laporanHarian->cuaca_pagi_id;
+        $this->kelembaban_pagi_id = $laporanHarian->kelembaban_pagi_id;
+        $this->cuaca_siang_id = $laporanHarian->cuaca_siang_id;
+        $this->kelembaban_siang_id = $laporanHarian->kelembaban_siang_id;
+        $this->cuaca_sore_id = $laporanHarian->cuaca_sore_id;
+        $this->kelembaban_sore_id = $laporanHarian->kelembaban_sore_id;
 
-            // Load existing dynamic data
-            $this->personel = $laporan->personel->map(fn($p) => [
-                'id' => $p->id,
-                'jabatan' => $p->jabatan,
-                'status' => $p->status,
-                'keterangan' => $p->keterangan ?? '',
-            ])->toArray();
+        // Load existing dynamic data
+        $this->personel = $laporanHarian->personel->map(fn($p) => [
+            'id' => $p->id,
+            'jabatan' => $p->jabatan,
+            'status' => $p->status,
+            'keterangan' => $p->keterangan ?? '',
+        ])->toArray();
 
-            $this->peralatan = $laporan->peralatan->map(fn($p) => [
-                'id' => $p->id,
-                'jenis' => $p->jenis,
-                'jumlah' => $p->jumlah,
-                'keterangan' => $p->keterangan ?? '',
-            ])->toArray();
+        $this->peralatan = $laporanHarian->peralatan->map(fn($p) => [
+            'id' => $p->id,
+            'jenis' => $p->jenis,
+            'jumlah' => $p->jumlah,
+            'keterangan' => $p->keterangan ?? '',
+        ])->toArray();
 
-            $this->consumable = $laporan->consumable->map(fn($c) => [
-                'id' => $c->id,
-                'jenis' => $c->jenis,
-                'jumlah' => $c->jumlah,
-                'keterangan' => $c->keterangan ?? '',
-            ])->toArray();
+        $this->consumable = $laporanHarian->consumable->map(fn($c) => [
+            'id' => $c->id,
+            'jenis' => $c->jenis,
+            'jumlah' => $c->jumlah,
+            'keterangan' => $c->keterangan ?? '',
+        ])->toArray();
 
-            $this->aktivitas = $laporan->aktivitas->map(fn($a) => [
-                'id' => $a->id,
-                'kategori' => $a->kategori,
-                'aktivitas' => $a->aktivitas,
-                'pic' => $a->pic,
-            ])->toArray();
-
-            // Sections A-E are optional - no default empty rows
-        }
+        $this->aktivitas = $laporanHarian->aktivitas->map(fn($a) => [
+            'id' => $a->id,
+            'kategori' => $a->kategori,
+            'aktivitas' => $a->aktivitas,
+            'pic' => $a->pic,
+        ])->toArray();
     }
 
     public function rules(): array
@@ -157,31 +153,29 @@ class LaporanEdit extends Component
             'lampiranKeterangan.*' => 'nullable|string|max:1000',
         ];
 
-        if ($this->laporan->tipe->value === 'harian') {
-            $rules['suhu'] = 'nullable|numeric|min:-50|max:100';
-            $rules['cuaca_pagi_id'] = 'nullable|exists:cuaca,id';
-            $rules['kelembaban_pagi_id'] = 'nullable|exists:kelembaban,id';
-            $rules['cuaca_siang_id'] = 'nullable|exists:cuaca,id';
-            $rules['kelembaban_siang_id'] = 'nullable|exists:kelembaban,id';
-            $rules['cuaca_sore_id'] = 'nullable|exists:cuaca,id';
-            $rules['kelembaban_sore_id'] = 'nullable|exists:kelembaban,id';
-            $rules['personel'] = 'nullable|array';
-            $rules['personel.*.jabatan'] = 'nullable|string|max:255';
-            $rules['personel.*.status'] = 'nullable|string|max:255';
-            $rules['personel.*.keterangan'] = 'nullable|string|max:1000';
-            $rules['peralatan'] = 'nullable|array';
-            $rules['peralatan.*.jenis'] = 'nullable|string|max:255';
-            $rules['peralatan.*.jumlah'] = 'nullable|integer|min:1';
-            $rules['peralatan.*.keterangan'] = 'nullable|string|max:1000';
-            $rules['consumable'] = 'nullable|array';
-            $rules['consumable.*.jenis'] = 'nullable|string|max:255';
-            $rules['consumable.*.jumlah'] = 'nullable|integer|min:1';
-            $rules['consumable.*.keterangan'] = 'nullable|string|max:1000';
-            $rules['aktivitas'] = 'nullable|array';
-            $rules['aktivitas.*.kategori'] = 'nullable|string|max:255';
-            $rules['aktivitas.*.aktivitas'] = 'nullable|string';
-            $rules['aktivitas.*.pic'] = 'nullable|string|max:255';
-        }
+        $rules['suhu'] = 'nullable|numeric|min:-50|max:100';
+        $rules['cuaca_pagi_id'] = 'nullable|exists:cuaca,id';
+        $rules['kelembaban_pagi_id'] = 'nullable|exists:kelembaban,id';
+        $rules['cuaca_siang_id'] = 'nullable|exists:cuaca,id';
+        $rules['kelembaban_siang_id'] = 'nullable|exists:kelembaban,id';
+        $rules['cuaca_sore_id'] = 'nullable|exists:cuaca,id';
+        $rules['kelembaban_sore_id'] = 'nullable|exists:kelembaban,id';
+        $rules['personel'] = 'nullable|array';
+        $rules['personel.*.jabatan'] = 'nullable|string|max:255';
+        $rules['personel.*.status'] = 'nullable|string|max:255';
+        $rules['personel.*.keterangan'] = 'nullable|string|max:1000';
+        $rules['peralatan'] = 'nullable|array';
+        $rules['peralatan.*.jenis'] = 'nullable|string|max:255';
+        $rules['peralatan.*.jumlah'] = 'nullable|integer|min:1';
+        $rules['peralatan.*.keterangan'] = 'nullable|string|max:1000';
+        $rules['consumable'] = 'nullable|array';
+        $rules['consumable.*.jenis'] = 'nullable|string|max:255';
+        $rules['consumable.*.jumlah'] = 'nullable|integer|min:1';
+        $rules['consumable.*.keterangan'] = 'nullable|string|max:1000';
+        $rules['aktivitas'] = 'nullable|array';
+        $rules['aktivitas.*.kategori'] = 'nullable|string|max:255';
+        $rules['aktivitas.*.aktivitas'] = 'nullable|string';
+        $rules['aktivitas.*.pic'] = 'nullable|string|max:255';
 
         return $rules;
     }
@@ -197,15 +191,13 @@ class LaporanEdit extends Component
             'lampiranKeterangan.*' => 'keterangan lampiran',
         ];
 
-        if ($this->laporan->tipe->value === 'harian') {
-            $attributes['suhu'] = 'suhu';
-            $attributes['cuaca_pagi_id'] = 'cuaca pagi';
-            $attributes['kelembaban_pagi_id'] = 'kelembaban pagi';
-            $attributes['cuaca_siang_id'] = 'cuaca siang';
-            $attributes['kelembaban_siang_id'] = 'kelembaban siang';
-            $attributes['cuaca_sore_id'] = 'cuaca sore';
-            $attributes['kelembaban_sore_id'] = 'kelembaban sore';
-        }
+        $attributes['suhu'] = 'suhu';
+        $attributes['cuaca_pagi_id'] = 'cuaca pagi';
+        $attributes['kelembaban_pagi_id'] = 'kelembaban pagi';
+        $attributes['cuaca_siang_id'] = 'cuaca siang';
+        $attributes['kelembaban_siang_id'] = 'kelembaban siang';
+        $attributes['cuaca_sore_id'] = 'cuaca sore';
+        $attributes['kelembaban_sore_id'] = 'kelembaban sore';
 
         return $attributes;
     }
@@ -216,7 +208,7 @@ class LaporanEdit extends Component
         $this->showDeleteLampiranModal = true;
     }
 
-    public function deleteLampiran(LaporanService $service): void
+    public function deleteLampiran(LaporanHarianService $service): void
     {
         $this->authorize('update', $this->laporan);
 
@@ -309,7 +301,7 @@ class LaporanEdit extends Component
         $this->closeCropper();
     }
 
-    public function updateLampiranKeterangan(int $lampiranId, string $keterangan, LaporanService $service): void
+    public function updateLampiranKeterangan(int $lampiranId, string $keterangan, LaporanHarianService $service): void
     {
         try {
             $lampiran = $this->laporan->lampiran()->findOrFail($lampiranId);
@@ -320,7 +312,7 @@ class LaporanEdit extends Component
         }
     }
 
-    public function save(LaporanService $service): void
+    public function save(LaporanHarianService $service): void
     {
         $this->authorize('update', $this->laporan);
         
@@ -338,20 +330,18 @@ class LaporanEdit extends Component
                 'tanggal_laporan' => $this->tanggal_laporan,
             ];
 
-            if ($this->laporan->tipe->value === 'harian') {
-                $data['suhu'] = $this->suhu;
-                $data['cuaca_pagi_id'] = $this->cuaca_pagi_id;
-                $data['kelembaban_pagi_id'] = $this->kelembaban_pagi_id;
-                $data['cuaca_siang_id'] = $this->cuaca_siang_id;
-                $data['kelembaban_siang_id'] = $this->kelembaban_siang_id;
-                $data['cuaca_sore_id'] = $this->cuaca_sore_id;
-                $data['kelembaban_sore_id'] = $this->kelembaban_sore_id;
-            }
+            $data['suhu'] = $this->suhu;
+            $data['cuaca_pagi_id'] = $this->cuaca_pagi_id;
+            $data['kelembaban_pagi_id'] = $this->kelembaban_pagi_id;
+            $data['cuaca_siang_id'] = $this->cuaca_siang_id;
+            $data['kelembaban_siang_id'] = $this->kelembaban_siang_id;
+            $data['cuaca_sore_id'] = $this->cuaca_sore_id;
+            $data['kelembaban_sore_id'] = $this->kelembaban_sore_id;
 
             $service->update($this->laporan, $data);
 
-            // Update dynamic inputs for harian only
-            if ($this->laporan->tipe->value === 'harian') {
+            // Update dynamic inputs
+            {
                 // Sync personel - allow partial data (any field filled)
                 $this->laporan->personel()->delete();
                 foreach ($this->personel as $personelData) {
@@ -440,9 +430,8 @@ class LaporanEdit extends Component
                 }
             }
 
-            $tipeLabel = $this->laporan->tipe->label();
             $hasNewLampiran = collect($this->newLampiran)->filter(fn($l) => isset($l['file']) && $l['file'])->isNotEmpty();
-            $message = "Laporan {$tipeLabel} berhasil diupdate!";
+            $message = 'Laporan Harian berhasil diupdate!';
             if ($hasNewLampiran) {
                 $message .= ' Lampiran baru sedang diproses di background.';
             }
@@ -452,7 +441,7 @@ class LaporanEdit extends Component
                 'message' => $message,
             ]);
 
-            $this->redirect(route('laporan.index'), navigate: true);
+            $this->redirect(route('laporan-harian.index'), navigate: true);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk mengupdate laporan ini.');
         } catch (\Exception $e) {
@@ -486,6 +475,103 @@ class LaporanEdit extends Component
         }
 
         return $this->laporan->lampiran->find($this->previewLampiranId);
+    }
+
+    public function previewLampiran(int $lampiranId)
+    {
+        $this->authorize('view', $this->laporan);
+
+        $lampiran = $this->laporan->lampiran->find($lampiranId);
+
+        if (!$lampiran || $lampiran->laporan_harian_id !== $this->laporan->id) {
+            $this->notifyError('Lampiran tidak ditemukan.');
+            return;
+        }
+
+        if (!$lampiran->file_path || !Storage::disk('local')->exists($lampiran->file_path)) {
+            $this->notifyError('File tidak ditemukan.');
+            return;
+        }
+
+        $extension = strtolower(pathinfo($lampiran->file_name, PATHINFO_EXTENSION));
+        $mimeTypes = [
+            'pdf'  => 'application/pdf',
+            'doc'  => 'application/msword',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls'  => 'application/vnd.ms-excel',
+            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'png'  => 'image/png',
+            'jpg'  => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif'  => 'image/gif',
+            'webp' => 'image/webp',
+        ];
+
+        $mime = $mimeTypes[$extension] ?? 'application/octet-stream';
+
+        return response(Storage::disk('local')->get($lampiran->file_path))
+            ->header('Content-Type', $mime)
+            ->header('Content-Disposition', 'inline; filename="' . $lampiran->file_name . '"');
+    }
+
+    public function getLampiranImageDataUrl(int $lampiranId): ?string
+    {
+        $lampiran = $this->laporan->lampiran->find($lampiranId);
+
+        if (!$lampiran || $lampiran->laporan_harian_id !== $this->laporan->id) {
+            return null;
+        }
+
+        if (!$lampiran->file_path || !Storage::disk('local')->exists($lampiran->file_path)) {
+            return null;
+        }
+
+        $extension = strtolower(pathinfo($lampiran->file_name, PATHINFO_EXTENSION));
+        $mimeTypes = [
+            'png'  => 'image/png',
+            'jpg'  => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif'  => 'image/gif',
+            'webp' => 'image/webp',
+        ];
+
+        if (!isset($mimeTypes[$extension])) {
+            return null;
+        }
+
+        $fileContent = Storage::disk('local')->get($lampiran->file_path);
+        $base64 = base64_encode($fileContent);
+        $mime = $mimeTypes[$extension];
+
+        return "data:{$mime};base64,{$base64}";
+    }
+
+    public function getPreviewLampiranImageUrlProperty(): ?string
+    {
+        if (!$this->previewLampiran) {
+            return null;
+        }
+
+        return $this->getLampiranImageDataUrl($this->previewLampiran->id);
+    }
+
+    public function downloadLampiran(int $lampiranId)
+    {
+        $this->authorize('view', $this->laporan);
+
+        $lampiran = $this->laporan->lampiran->find($lampiranId);
+
+        if (!$lampiran || $lampiran->laporan_harian_id !== $this->laporan->id) {
+            $this->notifyError('Lampiran tidak ditemukan.');
+            return;
+        }
+
+        if (!$lampiran->file_path || !Storage::disk('local')->exists($lampiran->file_path)) {
+            $this->notifyError('File tidak ditemukan.');
+            return;
+        }
+
+        return Storage::disk('local')->download($lampiran->file_path, $lampiran->file_name);
     }
 
     public function previewCroppedImage(int $index): void
@@ -724,8 +810,7 @@ class LaporanEdit extends Component
         $cuacaList = Cuaca::active()->orderBy('nama')->get();
         $kelembabanList = Kelembaban::active()->orderBy('nama')->get();
 
-        return view('livewire.laporan.laporan-edit', [
-            'tipeEnum' => $this->laporan->tipe,
+        return view('livewire.laporan-harian.laporan-harian-edit', [
             'queueStatus' => $queueStatusService->getQueueStatusMessage(),
             'jenisKapalList' => $jenisKapalList,
             'cuacaList' => $cuacaList,

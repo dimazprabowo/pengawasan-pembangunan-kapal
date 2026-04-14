@@ -1,27 +1,24 @@
 <?php
 
-namespace App\Livewire\Laporan;
+namespace App\Livewire\LaporanHarian;
 
-use App\Enums\LaporanTipe;
 use App\Jobs\ProcessLaporanLampiran;
 use App\Livewire\Traits\HasNotification;
 use App\Models\Cuaca;
 use App\Models\JenisKapal;
 use App\Models\Kelembaban;
-use App\Models\Laporan;
-use App\Services\LaporanService;
+use App\Models\LaporanHarian;
+use App\Services\LaporanHarianService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
-#[Layout('layouts.app', ['title' => 'Tambah Laporan'])]
-class LaporanCreate extends Component
+#[Layout('layouts.app', ['title' => 'Tambah Laporan Harian'])]
+class LaporanHarianCreate extends Component
 {
     use AuthorizesRequests, HasNotification, WithFileUploads;
-
-    public string $tipe = 'harian';
 
     public ?int $jenis_kapal_id = null;
 
@@ -66,16 +63,11 @@ class LaporanCreate extends Component
     public ?string $croppingImageUrl = null;
     public array $cropData = [];
 
-    public function mount(string $tipe): void
+    public function mount(): void
     {
-        $this->authorize('create', Laporan::class);
+        $this->authorize('create', LaporanHarian::class);
 
-        if (!in_array($tipe, LaporanTipe::values())) {
-            abort(404);
-        }
-
-        $this->tipe = $tipe;
-        $this->jenis_kapal_id = session('laporan_jenis_kapal_id');
+        $this->jenis_kapal_id = session('laporan_harian_jenis_kapal_id');
         $this->addItem();
     }
 
@@ -383,8 +375,7 @@ class LaporanCreate extends Component
             'lampiran.*.*.keterangan' => 'nullable|string|max:1000',
         ];
 
-        if ($this->tipe === 'harian') {
-            $rules['items.*.suhu'] = 'nullable|numeric|min:-50|max:100';
+        $rules['items.*.suhu'] = 'nullable|numeric|min:-50|max:100';
             $rules['items.*.cuaca_pagi_id'] = 'nullable|exists:cuaca,id';
             $rules['items.*.kelembaban_pagi_id'] = 'nullable|exists:kelembaban,id';
             $rules['items.*.cuaca_siang_id'] = 'nullable|exists:cuaca,id';
@@ -407,7 +398,6 @@ class LaporanCreate extends Component
             $rules['items.*.aktivitas.*.kategori'] = 'nullable|string|max:255';
             $rules['items.*.aktivitas.*.aktivitas'] = 'nullable|string';
             $rules['items.*.aktivitas.*.pic'] = 'nullable|string|max:255';
-        }
 
         return $rules;
     }
@@ -429,22 +419,20 @@ class LaporanCreate extends Component
                 $attributes["lampiran.{$index}.{$lampIndex}.keterangan"] = "keterangan lampiran #{$lampNum} pada laporan #{$num}";
             }
             
-            if ($this->tipe === 'harian') {
-                $attributes["items.{$index}.suhu"] = "suhu laporan #{$num}";
-                $attributes["items.{$index}.cuaca_pagi_id"] = "cuaca pagi laporan #{$num}";
-                $attributes["items.{$index}.kelembaban_pagi_id"] = "kelembaban pagi laporan #{$num}";
-                $attributes["items.{$index}.cuaca_siang_id"] = "cuaca siang laporan #{$num}";
-                $attributes["items.{$index}.kelembaban_siang_id"] = "kelembaban siang laporan #{$num}";
-                $attributes["items.{$index}.cuaca_sore_id"] = "cuaca sore laporan #{$num}";
-                $attributes["items.{$index}.kelembaban_sore_id"] = "kelembaban sore laporan #{$num}";
-            }
+            $attributes["items.{$index}.suhu"] = "suhu laporan #{$num}";
+            $attributes["items.{$index}.cuaca_pagi_id"] = "cuaca pagi laporan #{$num}";
+            $attributes["items.{$index}.kelembaban_pagi_id"] = "kelembaban pagi laporan #{$num}";
+            $attributes["items.{$index}.cuaca_siang_id"] = "cuaca siang laporan #{$num}";
+            $attributes["items.{$index}.kelembaban_siang_id"] = "kelembaban siang laporan #{$num}";
+            $attributes["items.{$index}.cuaca_sore_id"] = "cuaca sore laporan #{$num}";
+            $attributes["items.{$index}.kelembaban_sore_id"] = "kelembaban sore laporan #{$num}";
         }
         return $attributes;
     }
 
-    public function save(LaporanService $service): void
+    public function save(LaporanHarianService $service): void
     {
-        $this->authorize('create', Laporan::class);
+        $this->authorize('create', LaporanHarian::class);
         
         try {
             $this->validate();
@@ -461,20 +449,17 @@ class LaporanCreate extends Component
                 $itemData = [
                     'user_id' => $userId,
                     'jenis_kapal_id' => $this->jenis_kapal_id,
-                    'tipe' => $this->tipe,
                     'judul' => $item['judul'],
                     'tanggal_laporan' => $item['tanggal_laporan'],
                 ];
 
-                if ($this->tipe === 'harian') {
-                    $itemData['suhu'] = $item['suhu'] ?: null;
+                $itemData['suhu'] = $item['suhu'] ?: null;
                     $itemData['cuaca_pagi_id'] = $item['cuaca_pagi_id'] ?: null;
                     $itemData['kelembaban_pagi_id'] = $item['kelembaban_pagi_id'] ?: null;
                     $itemData['cuaca_siang_id'] = $item['cuaca_siang_id'] ?: null;
                     $itemData['kelembaban_siang_id'] = $item['kelembaban_siang_id'] ?: null;
                     $itemData['cuaca_sore_id'] = $item['cuaca_sore_id'] ?: null;
-                    $itemData['kelembaban_sore_id'] = $item['kelembaban_sore_id'] ?: null;
-                }
+                $itemData['kelembaban_sore_id'] = $item['kelembaban_sore_id'] ?: null;
 
                 $dataItems[] = $itemData;
             }
@@ -485,8 +470,8 @@ class LaporanCreate extends Component
             foreach ($createdLaporans as $index => $laporan) {
                 $item = $this->items[$index];
 
-                // Save dynamic inputs for harian only
-                if ($this->tipe === 'harian') {
+                // Save dynamic inputs
+                {
                     // Save personel - allow partial data (any field filled)
                     if (isset($item['personel']) && is_array($item['personel'])) {
                         foreach ($item['personel'] as $personelData) {
@@ -584,9 +569,7 @@ class LaporanCreate extends Component
 
             $count = count($dataItems);
             $hasLampiran = collect($this->lampiran)->flatten(1)->filter(fn($l) => isset($l['file']) && $l['file'])->isNotEmpty();
-            $tipeLabel = LaporanTipe::from($this->tipe)->label();
-
-            $message = "{$count} laporan {$tipeLabel} berhasil ditambahkan!";
+            $message = "{$count} laporan harian berhasil ditambahkan!";
             if ($hasLampiran) {
                 $message .= ' Lampiran sedang diproses di background.';
             }
@@ -596,7 +579,7 @@ class LaporanCreate extends Component
                 'message' => $message,
             ]);
 
-            $this->redirect(route('laporan.index'), navigate: true);
+            $this->redirect(route('laporan-harian.index'), navigate: true);
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
         }
@@ -694,8 +677,7 @@ class LaporanCreate extends Component
         $cuacaList = Cuaca::active()->orderBy('nama')->get();
         $kelembabanList = Kelembaban::active()->orderBy('nama')->get();
 
-        return view('livewire.laporan.laporan-create', [
-            'tipeEnum' => LaporanTipe::from($this->tipe),
+        return view('livewire.laporan-harian.laporan-harian-create', [
             'jenisKapalList' => $jenisKapalList,
             'cuacaList' => $cuacaList,
             'kelembabanList' => $kelembabanList,

@@ -1,8 +1,8 @@
 <div>
     {{-- Header --}}
     <div class="mb-6">
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Manajemen Laporan</h2>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Kelola laporan harian, mingguan, dan bulanan</p>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Manajemen Laporan Harian</h2>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Kelola laporan harian pengawasan pembangunan kapal</p>
     </div>
 
     {{-- Jenis Kapal Filter --}}
@@ -22,27 +22,20 @@
     {{-- Tabs --}}
     <div class="mb-6 border-b border-gray-200 dark:border-gray-700">
         <nav class="-mb-px flex space-x-6" aria-label="Tabs">
-            @php
-                $activeClasses = [
-                    'harian'   => 'border-blue-500 text-blue-600 dark:text-blue-400',
-                    'mingguan' => 'border-amber-500 text-amber-600 dark:text-amber-400',
-                    'bulanan'  => 'border-emerald-500 text-emerald-600 dark:text-emerald-400',
-                ];
-                $inactiveClass = 'border-transparent text-gray-500 dark:text-gray-400 hover:border-gray-300 hover:text-gray-700 dark:hover:text-gray-300';
-            @endphp
-            @foreach($tabs as $tab)
-                <button wire:click="setTab('{{ $tab->value }}')"
-                    wire:loading.attr="disabled"
-                    wire:target="setTab('{{ $tab->value }}')"
-                    class="whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium transition-colors disabled:opacity-50 inline-flex items-center gap-1.5
-                        {{ $activeTab === $tab->value ? $activeClasses[$tab->value] : $inactiveClass }}">
-                    <svg wire:loading wire:target="setTab('{{ $tab->value }}')" class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    {{ $tab->label() }}
-                </button>
-            @endforeach
+            <a href="{{ route('laporan-harian.index') }}" wire:navigate
+                class="whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium border-blue-500 text-blue-600 dark:text-blue-400">
+                Harian
+            </a>
+            <a href="#"
+                class="whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium border-transparent text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50"
+                title="Segera hadir">
+                Mingguan
+            </a>
+            <a href="#"
+                class="whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium border-transparent text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50"
+                title="Segera hadir">
+                Bulanan
+            </a>
         </nav>
     </div>
 
@@ -50,7 +43,7 @@
     <div class="mb-6 flex flex-col lg:flex-row lg:items-center gap-3">
         <div class="flex-1">
             <input wire:model.live.debounce.300ms="search" type="text"
-                placeholder="Cari laporan {{ \App\Enums\LaporanTipe::from($activeTab)->label() }}..."
+                placeholder="Cari laporan harian..."
                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
         </div>
 
@@ -87,7 +80,7 @@
                 </x-loading-button>
             @endcan
             @can('laporan_create')
-                <a href="{{ route('laporan.create', $activeTab) }}" wire:navigate
+                <a href="{{ route('laporan-harian.create') }}" wire:navigate
                     x-data="{ loading: false }" x-on:click="loading = true"
                     x-bind:class="loading ? 'opacity-75 pointer-events-none' : ''"
                     class="inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500 px-3 py-2 text-sm gap-1.5 flex-1 lg:flex-none whitespace-nowrap">
@@ -142,8 +135,7 @@
                                         </svg>
                                     @endif
 
-                                    {{-- Word doc status badge (Harian only) --}}
-                                    @if($laporan->tipe->value === 'harian')
+                                    {{-- Word doc status badge --}}
                                         @if($laporan->isDocProcessing())
                                             <span title="Dokumen Word sedang diproses" class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
                                                 <svg class="animate-spin w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -167,7 +159,6 @@
                                                 .docx
                                             </span>
                                         @endif
-                                    @endif
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
@@ -208,7 +199,7 @@
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div class="flex items-center justify-end gap-2">
                                     @can('laporan_show')
-                                        <a href="{{ route('laporan.show', $laporan) }}" wire:navigate
+                                        <a href="{{ route('laporan-harian.show', $laporan) }}" wire:navigate
                                             x-data="{ loading: false }" x-on:click="loading = true"
                                             x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                                             class="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
@@ -224,7 +215,7 @@
                                         </a>
                                     @endcan
                                     @can('laporan_update')
-                                        <a href="{{ route('laporan.edit', $laporan) }}" wire:navigate
+                                        <a href="{{ route('laporan-harian.edit', $laporan) }}" wire:navigate
                                             x-data="{ loading: false }" x-on:click="loading = true"
                                             x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                                             class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
@@ -262,9 +253,9 @@
                                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                 </svg>
-                                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Belum ada laporan {{ \App\Enums\LaporanTipe::from($activeTab)->label() }}</p>
+                                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Belum ada laporan harian</p>
                                 @can('laporan_create')
-                                    <a href="{{ route('laporan.create', $activeTab) }}" wire:navigate
+                                    <a href="{{ route('laporan-harian.create') }}" wire:navigate
                                         x-data="{ loading: false }" x-on:click="loading = true"
                                         x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                                         class="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300">

@@ -27,19 +27,19 @@ class Cuaca extends Model
         'deleted_at' => 'datetime',
     ];
 
-    public function laporanPagi(): HasMany
+    public function laporanHarianPagi(): HasMany
     {
-        return $this->hasMany(Laporan::class, 'cuaca_pagi_id');
+        return $this->hasMany(LaporanHarian::class, 'cuaca_pagi_id');
     }
 
-    public function laporanSiang(): HasMany
+    public function laporanHarianSiang(): HasMany
     {
-        return $this->hasMany(Laporan::class, 'cuaca_siang_id');
+        return $this->hasMany(LaporanHarian::class, 'cuaca_siang_id');
     }
 
-    public function laporanSore(): HasMany
+    public function laporanHarianSore(): HasMany
     {
-        return $this->hasMany(Laporan::class, 'cuaca_sore_id');
+        return $this->hasMany(LaporanHarian::class, 'cuaca_sore_id');
     }
 
     public function scopeActive($query)

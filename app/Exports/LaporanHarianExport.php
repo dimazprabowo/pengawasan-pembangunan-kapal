@@ -2,7 +2,7 @@
 
 namespace App\Exports;
 
-use App\Models\Laporan;
+use App\Models\LaporanHarian;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\Exportable;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -11,22 +11,20 @@ use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class LaporanExport implements FromQuery, WithHeadings, WithMapping, WithStyles, ShouldAutoSize
+class LaporanHarianExport implements FromQuery, WithHeadings, WithMapping, WithStyles, ShouldAutoSize
 {
     use Exportable;
 
-    protected string $tipe;
     protected ?string $search;
 
-    public function __construct(string $tipe, ?string $search = null)
+    public function __construct(?string $search = null)
     {
-        $this->tipe = $tipe;
         $this->search = $search;
     }
 
     public function query()
     {
-        $query = Laporan::with(['user', 'jenisKapal.company', 'jenisKapal.galangan'])->where('tipe', $this->tipe);
+        $query = LaporanHarian::with(['user', 'jenisKapal.company', 'jenisKapal.galangan']);
 
         if ($this->search) {
             $query->where(function ($q) {
@@ -49,7 +47,6 @@ class LaporanExport implements FromQuery, WithHeadings, WithMapping, WithStyles,
             'No',
             'Judul',
             'Tanggal Laporan',
-            'Tipe',
             'Jenis Kapal',
             'Perusahaan',
             'Galangan',
@@ -67,7 +64,6 @@ class LaporanExport implements FromQuery, WithHeadings, WithMapping, WithStyles,
             $no,
             $laporan->judul,
             $laporan->tanggal_laporan->format('d/m/Y'),
-            $laporan->tipe->label(),
             $laporan->jenisKapal->nama ?? '-',
             $laporan->jenisKapal->company->name ?? '-',
             $laporan->jenisKapal->galangan->nama ?? '-',

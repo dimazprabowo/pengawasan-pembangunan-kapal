@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('laporan_lampiran', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('laporan_id')->constrained('laporan')->cascadeOnDelete();
+            $table->foreignId('laporan_harian_id')->constrained('laporan_harian')->cascadeOnDelete();
             $table->string('file_path')->nullable();
             $table->string('file_name');
             $table->unsignedBigInteger('file_size')->nullable();
@@ -20,7 +20,7 @@ return new class extends Migration
             $table->timestamp('file_processed_at')->nullable();
             $table->timestamps();
 
-            $table->index('laporan_id');
+            $table->index('laporan_harian_id');
             $table->index('file_status');
         });
     }

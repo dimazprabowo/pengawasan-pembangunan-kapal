@@ -2,8 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Models\Laporan;
-use App\Services\LaporanWordService;
+use App\Models\LaporanHarian;
+use App\Services\LaporanHarianWordService;
 use App\Services\QueueStatusService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -20,10 +20,10 @@ class GenerateLaporanHarianJob implements ShouldQueue
     public int $timeout = 120;
 
     public function __construct(
-        public Laporan $laporan,
+        public LaporanHarian $laporan,
     ) {}
 
-    public function handle(LaporanWordService $wordService, QueueStatusService $queueStatusService): void
+    public function handle(LaporanHarianWordService $wordService, QueueStatusService $queueStatusService): void
     {
         $queueStatusService->markWorkerActive();
 

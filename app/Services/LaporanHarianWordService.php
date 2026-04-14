@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
-use App\Models\Laporan;
+use App\Models\LaporanHarian;
 use PhpOffice\PhpWord\TemplateProcessor;
 
-class LaporanWordService
+class LaporanHarianWordService
 {
     private const TEMPLATE_PATH = 'templates/laporan-harian/template-laporan-harian.docx';
     private const MAX_ROWS      = 30;
@@ -19,7 +19,7 @@ class LaporanWordService
      * Generate Word document dari template dengan TemplateProcessor.
      * Returns storage-relative path (e.g. "laporan/word/laporan-harian-1-20260406.docx").
      */
-    public function generate(Laporan $laporan): string
+    public function generate(LaporanHarian $laporan): string
     {
         $laporan->loadMissing([
             'user',
@@ -42,8 +42,8 @@ class LaporanWordService
         $templateFullPath = null;
         $templateSource = 'default';
 
-        if ($laporan->jenisKapal && $laporan->jenisKapal->hasTemplate($laporan->tipe->value)) {
-            $templateFullPath = $laporan->jenisKapal->getTemplateFullPath($laporan->tipe->value);
+        if ($laporan->jenisKapal && $laporan->jenisKapal->hasTemplate('harian')) {
+            $templateFullPath = $laporan->jenisKapal->getTemplateFullPath('harian');
             $templateSource = 'jenis_kapal';
         }
         
@@ -75,7 +75,7 @@ class LaporanWordService
     // SET SINGLE VALUES
     // ────────────────────────────────────────────────────────────────────────────
 
-    private function setSingleValues(TemplateProcessor $processor, Laporan $laporan): void
+    private function setSingleValues(TemplateProcessor $processor, LaporanHarian $laporan): void
     {
         $values = [];
 
@@ -116,7 +116,7 @@ class LaporanWordService
     // FILL TABLE ROWS
     // ────────────────────────────────────────────────────────────────────────────
 
-    private function fillTableRows(TemplateProcessor $processor, Laporan $laporan): void
+    private function fillTableRows(TemplateProcessor $processor, LaporanHarian $laporan): void
     {
         $this->fillPersonelTable($processor, $laporan);
         $this->fillPeralatanTable($processor, $laporan);
@@ -125,7 +125,7 @@ class LaporanWordService
         $this->fillLampiranTable($processor, $laporan);
     }
 
-    private function fillPersonelTable(TemplateProcessor $processor, Laporan $laporan): void
+    private function fillPersonelTable(TemplateProcessor $processor, LaporanHarian $laporan): void
     {
         $rows = $laporan->personel->values();
         
@@ -154,7 +154,7 @@ class LaporanWordService
         }
     }
 
-    private function fillPeralatanTable(TemplateProcessor $processor, Laporan $laporan): void
+    private function fillPeralatanTable(TemplateProcessor $processor, LaporanHarian $laporan): void
     {
         $rows = $laporan->peralatan->values();
         
@@ -185,7 +185,7 @@ class LaporanWordService
         }
     }
 
-    private function fillConsumableTable(TemplateProcessor $processor, Laporan $laporan): void
+    private function fillConsumableTable(TemplateProcessor $processor, LaporanHarian $laporan): void
     {
         $rows = $laporan->consumable->values();
         
@@ -216,7 +216,7 @@ class LaporanWordService
         }
     }
 
-    private function fillAktivitasTable(TemplateProcessor $processor, Laporan $laporan): void
+    private function fillAktivitasTable(TemplateProcessor $processor, LaporanHarian $laporan): void
     {
         $rows = $laporan->aktivitas->values();
         
@@ -247,7 +247,7 @@ class LaporanWordService
         }
     }
 
-    private function fillLampiranTable(TemplateProcessor $processor, Laporan $laporan): void
+    private function fillLampiranTable(TemplateProcessor $processor, LaporanHarian $laporan): void
     {
         $rows = $laporan->lampiran->filter(fn($l) => $l->isFileCompleted())->values();
         
@@ -334,7 +334,7 @@ class LaporanWordService
     // HELPERS
     // ────────────────────────────────────────────────────────────────────────────
 
-    private function saveDocument(TemplateProcessor $processor, Laporan $laporan): string
+    private function saveDocument(TemplateProcessor $processor, LaporanHarian $laporan): string
     {
         $dir = storage_path('app/laporan/word');
         if (!is_dir($dir)) {

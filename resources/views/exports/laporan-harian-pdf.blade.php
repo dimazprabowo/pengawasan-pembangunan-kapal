@@ -61,11 +61,12 @@
             <tr>
                 <th width="5%" class="text-center">No</th>
                 <th width="20%">Judul</th>
-                <th width="10%" class="text-center">Tanggal</th>
-                <th width="15%">Pembuat</th>
-                <th width="30%">Isi Laporan</th>
-                <th width="10%" class="text-center">File</th>
-                <th width="10%" class="text-center">Dibuat</th>
+                <th width="10%" class="text-center">Tanggal Laporan</th>
+                <th width="15%">Jenis Kapal</th>
+                <th width="15%">Perusahaan</th>
+                <th width="15%">Galangan</th>
+                <th width="10%">Pembuat</th>
+                <th width="10%" class="text-center">Tanggal Dibuat</th>
             </tr>
         </thead>
         <tbody>
@@ -74,14 +75,15 @@
                     <td class="text-center">{{ $index + 1 }}</td>
                     <td>{{ $laporan->judul }}</td>
                     <td class="text-center">{{ $laporan->tanggal_laporan->format('d/m/Y') }}</td>
+                    <td>{{ $laporan->jenisKapal->nama ?? '-' }}</td>
+                    <td>{{ $laporan->jenisKapal->company->name ?? '-' }}</td>
+                    <td>{{ $laporan->jenisKapal->galangan->nama ?? '-' }}</td>
                     <td>{{ $laporan->user->name ?? '-' }}</td>
-                    <td>{{ Str::limit($laporan->isi ?? '-', 100) }}</td>
-                    <td class="text-center">{{ $laporan->file_name ?? '-' }}</td>
                     <td class="text-center">{{ $laporan->created_at->format('d/m/Y H:i') }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="7" class="text-center">Tidak ada data</td>
+                    <td colspan="8" class="text-center">Tidak ada data</td>
                 </tr>
             @endforelse
         </tbody>

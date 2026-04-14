@@ -13,7 +13,7 @@ class LaporanAktivitas extends Model
     protected $table = 'laporan_aktivitas';
 
     protected $fillable = [
-        'laporan_id',
+        'laporan_harian_id',
         'kategori',
         'aktivitas',
         'pic',
@@ -24,8 +24,8 @@ class LaporanAktivitas extends Model
         'updated_at' => 'datetime',
     ];
 
-    public function laporan(): BelongsTo
+    public function laporanHarian(): BelongsTo
     {
-        return $this->belongsTo(Laporan::class);
+        return $this->belongsTo(LaporanHarian::class);
     }
 }

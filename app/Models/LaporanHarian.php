@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\LaporanTipe;
 use App\Traits\HasEncryptedRouteKey;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,16 +9,15 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Laporan extends Model
+class LaporanHarian extends Model
 {
     use HasFactory, SoftDeletes, HasEncryptedRouteKey;
 
-    protected $table = 'laporan';
+    protected $table = 'laporan_harian';
 
     protected $fillable = [
         'user_id',
         'jenis_kapal_id',
-        'tipe',
         'judul',
         'tanggal_laporan',
         'file_path',
@@ -44,7 +42,6 @@ class Laporan extends Model
     ];
 
     protected $casts = [
-        'tipe' => LaporanTipe::class,
         'tanggal_laporan' => 'date',
         'suhu' => 'decimal:2',
         'file_processed_at' => 'datetime',
@@ -118,12 +115,6 @@ class Laporan extends Model
     public function aktivitas(): HasMany
     {
         return $this->hasMany(LaporanAktivitas::class)->orderBy('created_at', 'asc');
-    }
-
-    // Scopes
-    public function scopeTipe($query, string $tipe)
-    {
-        return $query->where('tipe', $tipe);
     }
 
     public function scopeByUser($query, int $userId)

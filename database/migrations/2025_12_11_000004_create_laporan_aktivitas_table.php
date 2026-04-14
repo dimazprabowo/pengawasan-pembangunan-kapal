@@ -10,13 +10,13 @@ return new class extends Migration
     {
         Schema::create('laporan_aktivitas', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('laporan_id')->constrained('laporan')->cascadeOnDelete();
+            $table->foreignId('laporan_harian_id')->constrained('laporan_harian')->cascadeOnDelete();
             $table->string('kategori')->nullable();
             $table->text('aktivitas')->nullable();
             $table->string('pic')->nullable();
             $table->timestamps();
 
-            $table->index('laporan_id');
+            $table->index('laporan_harian_id');
             $table->index('kategori');
         });
     }

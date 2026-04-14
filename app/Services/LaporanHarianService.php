@@ -2,22 +2,20 @@
 
 namespace App\Services;
 
-use App\Models\Laporan;
+use App\Models\LaporanHarian;
 use App\Models\LaporanLampiran;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
-class LaporanService
+class LaporanHarianService
 {
     public function getFiltered(
-        string $tipe,
         ?string $search = null,
         ?int $jenisKapalId = null,
         int $perPage = 15
     ): LengthAwarePaginator {
-        $query = Laporan::with(['user', 'jenisKapal.company', 'jenisKapal.galangan', 'lampiran'])
-            ->where('tipe', $tipe)
+        $query = LaporanHarian::with(['user', 'jenisKapal.company', 'jenisKapal.galangan', 'lampiran'])
             ->byJenisKapal($jenisKapalId);
 
         if ($search) {
@@ -34,9 +32,9 @@ class LaporanService
             ->paginate($perPage);
     }
 
-    public function create(array $data): Laporan
+    public function create(array $data): LaporanHarian
     {
-        return Laporan::create($data);
+        return LaporanHarian::create($data);
     }
 
     public function createMany(array $items): array
@@ -45,48 +43,48 @@ class LaporanService
 
         DB::transaction(function () use ($items, &$created) {
             foreach ($items as $data) {
-                $created[] = Laporan::create($data);
+                $created[] = LaporanHarian::create($data);
             }
         });
 
         return $created;
     }
 
-    public function update(Laporan $laporan, array $data): Laporan
+    public function update(LaporanHarian $laporanHarian, array $data): LaporanHarian
     {
-        $laporan->update($data);
-        return $laporan;
+        $laporanHarian->update($data);
+        return $laporanHarian;
     }
 
-    public function delete(Laporan $laporan): void
+    public function delete(LaporanHarian $laporanHarian): void
     {
         // Delete all lampiran files first
-        foreach ($laporan->lampiran as $lampiran) {
+        foreach ($laporanHarian->lampiran as $lampiran) {
             $this->deleteLampiranFile($lampiran);
         }
 
         // Delete old single file if exists (backward compatibility)
-        $this->deleteFile($laporan);
+        $this->deleteFile($laporanHarian);
 
         // Delete generated Word document if exists
-        $this->deleteDocFile($laporan);
+        $this->deleteDocFile($laporanHarian);
 
-        $laporan->delete();
+        $laporanHarian->delete();
     }
 
-    public function removeFile(Laporan $laporan): void
+    public function removeFile(LaporanHarian $laporanHarian): void
     {
-        $this->deleteFile($laporan);
-        $laporan->update([
+        $this->deleteFile($laporanHarian);
+        $laporanHarian->update([
             'file_path' => null,
             'file_name' => null,
             'file_size' => null,
         ]);
     }
 
-    public function addLampiran(Laporan $laporan, array $lampiranData): LaporanLampiran
+    public function addLampiran(LaporanHarian $laporanHarian, array $lampiranData): LaporanLampiran
     {
-        return $laporan->lampiran()->create([
+        return $laporanHarian->lampiran()->create([
             'file_name' => $lampiranData['file_name'],
             'file_size' => $lampiranData['file_size'] ?? null,
             'keterangan' => $lampiranData['keterangan'] ?? null,
@@ -105,10 +103,10 @@ class LaporanService
         $lampiran->delete();
     }
 
-    public function removeDoc(Laporan $laporan): void
+    public function removeDoc(LaporanHarian $laporanHarian): void
     {
-        $this->deleteDocFile($laporan);
-        $laporan->update([
+        $this->deleteDocFile($laporanHarian);
+        $laporanHarian->update([
             'doc_path'         => null,
             'doc_name'         => null,
             'doc_status'       => null,
@@ -117,17 +115,17 @@ class LaporanService
         ]);
     }
 
-    private function deleteFile(Laporan $laporan): void
+    private function deleteFile(LaporanHarian $laporanHarian): void
     {
-        if ($laporan->file_path && Storage::disk('local')->exists($laporan->file_path)) {
-            Storage::disk('local')->delete($laporan->file_path);
+        if ($laporanHarian->file_path && Storage::disk('local')->exists($laporanHarian->file_path)) {
+            Storage::disk('local')->delete($laporanHarian->file_path);
         }
     }
 
-    private function deleteDocFile(Laporan $laporan): void
+    private function deleteDocFile(LaporanHarian $laporanHarian): void
     {
-        if ($laporan->doc_path) {
-            $path = storage_path('app/' . $laporan->doc_path);
+        if ($laporanHarian->doc_path) {
+            $path = storage_path('app/' . $laporanHarian->doc_path);
             if (file_exists($path)) {
                 @unlink($path);
             }

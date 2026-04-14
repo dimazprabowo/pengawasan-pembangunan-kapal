@@ -53,8 +53,7 @@ class ProcessLaporanLampiran implements ShouldQueue
 
             // Generate unique filename
             $fileName = time() . '_' . uniqid() . '.' . $extension;
-            $tipeLaporan = $this->lampiran->laporan->tipe->value;
-            $destinationPath = 'laporan-lampiran/' . $tipeLaporan . '/' . $fileName;
+            $destinationPath = 'laporan-lampiran/harian/' . $fileName;
 
             Storage::disk('local')->put($destinationPath, $fileContent);
 

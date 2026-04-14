@@ -13,7 +13,7 @@ class LaporanLampiran extends Model
     protected $table = 'laporan_lampiran';
 
     protected $fillable = [
-        'laporan_id',
+        'laporan_harian_id',
         'file_path',
         'file_name',
         'file_size',
@@ -30,9 +30,9 @@ class LaporanLampiran extends Model
         'updated_at' => 'datetime',
     ];
 
-    public function laporan(): BelongsTo
+    public function laporanHarian(): BelongsTo
     {
-        return $this->belongsTo(Laporan::class);
+        return $this->belongsTo(LaporanHarian::class);
     }
 
     public function isFileProcessing(): bool

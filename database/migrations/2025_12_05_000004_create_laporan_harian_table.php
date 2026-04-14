@@ -8,11 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('laporan', function (Blueprint $table) {
+        Schema::create('laporan_harian', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('jenis_kapal_id')->nullable()->constrained('jenis_kapal')->nullOnDelete();
-            $table->enum('tipe', ['harian', 'mingguan', 'bulanan']);
             $table->string('judul');
             $table->date('tanggal_laporan');
             $table->string('file_path')->nullable();
@@ -37,7 +36,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index(['tipe', 'tanggal_laporan']);
+            $table->index('tanggal_laporan');
             $table->index('user_id');
             $table->index('jenis_kapal_id');
         });
@@ -45,6 +44,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('laporan');
+        Schema::dropIfExists('laporan_harian');
     }
 };

@@ -28,19 +28,19 @@ class Kelembaban extends Model
         'deleted_at' => 'datetime',
     ];
 
-    public function laporanPagi(): HasMany
+    public function laporanHarianPagi(): HasMany
     {
-        return $this->hasMany(Laporan::class, 'kelembaban_pagi_id');
+        return $this->hasMany(LaporanHarian::class, 'kelembaban_pagi_id');
     }
 
-    public function laporanSiang(): HasMany
+    public function laporanHarianSiang(): HasMany
     {
-        return $this->hasMany(Laporan::class, 'kelembaban_siang_id');
+        return $this->hasMany(LaporanHarian::class, 'kelembaban_siang_id');
     }
 
-    public function laporanSore(): HasMany
+    public function laporanHarianSore(): HasMany
     {
-        return $this->hasMany(Laporan::class, 'kelembaban_sore_id');
+        return $this->hasMany(LaporanHarian::class, 'kelembaban_sore_id');
     }
 
     public function scopeActive($query)

@@ -2,7 +2,7 @@
     {{-- Header --}}
     <div class="mb-6">
         <div class="flex items-center gap-2">
-            <a href="{{ route('laporan.index') }}" wire:navigate
+            <a href="{{ route('laporan-harian.index') }}" wire:navigate
                 x-data="{ loading: false }" x-on:click="loading = true"
                 x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                 class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
@@ -14,7 +14,7 @@
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
             </a>
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Tambah Laporan {{ $tipeEnum->label() }}</h2>
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Tambah Laporan Harian</h2>
         </div>
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Anda dapat menambahkan beberapa laporan sekaligus</p>
     </div>
@@ -84,7 +84,6 @@
                             </div>
 
 
-                            @if($tipeEnum->value === 'harian')
                                 {{-- A. Kondisi Cuaca --}}
                                 <div class="md:col-span-2 mt-6">
                                     <x-laporan.cuaca-section
@@ -137,7 +136,6 @@
                                         wireKeyPrefix="aktivitas-{{ $index }}"
                                     />
                                 </div>
-                            @endif
 
                             {{-- Lampiran Section - Paling Bawah --}}
                             <div class="md:col-span-2 mt-4">
@@ -301,7 +299,7 @@
                 Total: <span class="font-semibold text-gray-900 dark:text-white">{{ count($items) }}</span> laporan akan ditambahkan
             </div>
             <div class="flex items-center gap-2 w-full sm:w-auto">
-                <a href="{{ route('laporan.index') }}" wire:navigate
+                <a href="{{ route('laporan-harian.index') }}" wire:navigate
                     x-data="{ loading: false }" x-on:click="loading = true"
                     x-bind:class="loading ? 'opacity-75 pointer-events-none' : ''"
                     class="inline-flex items-center justify-center gap-1.5 font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 focus:ring-blue-500 px-4 py-2 text-sm w-full sm:w-auto">
