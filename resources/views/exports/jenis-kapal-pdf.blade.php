@@ -26,8 +26,10 @@
                 <th width="20%">Jenis Kapal</th>
                 <th width="20%">Perusahaan</th>
                 <th width="30%">Deskripsi</th>
-                <th width="10%" class="text-center">Laporan</th>
-                <th width="15%" class="text-center">Status</th>
+                <th width="5%" class="text-center">Laporan Harian</th>
+                <th width="5%" class="text-center">Laporan Mingguan</th>
+                <th width="5%" class="text-center">Laporan Bulanan</th>
+                <th width="10%" class="text-center">Status</th>
             </tr>
         </thead>
         <tbody>
@@ -40,7 +42,9 @@
                         <small>{{ $jenisKapal->company->code }}</small>
                     </td>
                     <td>{{ $jenisKapal->deskripsi ?? '-' }}</td>
-                    <td class="text-center">{{ $jenisKapal->laporan_count }}</td>
+                    <td class="text-center">{{ $jenisKapal->getLaporanCount('harian') }}</td>
+                    <td class="text-center">{{ $jenisKapal->getLaporanCount('mingguan') }}</td>
+                    <td class="text-center">{{ $jenisKapal->getLaporanCount('bulanan') }}</td>
                     <td class="text-center">
                         <span class="badge {{ $jenisKapal->status->value === 'active' ? 'badge-success' : 'badge-secondary' }}">
                             {{ $jenisKapal->status->label() }}
@@ -49,7 +53,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6" class="text-center">Tidak ada data</td>
+                    <td colspan="8" class="text-center">Tidak ada data</td>
                 </tr>
             @endforelse
         </tbody>

@@ -43,9 +43,9 @@ class JenisKapal extends Model
         return $this->belongsTo(Galangan::class);
     }
 
-    public function laporan(): HasMany
+    public function laporanHarian(): HasMany
     {
-        return $this->hasMany(Laporan::class);
+        return $this->hasMany(LaporanHarian::class);
     }
 
     public function scopeActive($query)
@@ -85,5 +85,15 @@ class JenisKapal extends Model
     public function hasAnyTemplate(): bool
     {
         return $this->hasTemplate('harian') || $this->hasTemplate('mingguan') || $this->hasTemplate('bulanan');
+    }
+
+    public function getLaporanCount(string $tipe): int
+    {
+        // Currently all reports are stored in laporan_harian table
+        // TODO: Add tipe field to laporan_harian table to distinguish between harian, mingguan, bulanan
+        if ($tipe === 'harian') {
+            return $this->laporan_harian_count ?? 0;
+        }
+        return 0;
     }
 }

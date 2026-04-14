@@ -18,7 +18,7 @@ class JenisKapalService
         int $perPage = 15
     ): LengthAwarePaginator {
         return JenisKapal::with(['company', 'galangan'])
-            ->withCount('laporan')
+            ->withCount('laporanHarian')
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($q) use ($search) {
                     $q->where('nama', 'like', "%{$search}%")

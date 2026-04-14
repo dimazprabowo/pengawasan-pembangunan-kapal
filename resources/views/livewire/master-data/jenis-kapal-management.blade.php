@@ -306,9 +306,29 @@
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
-                                    {{ $jenisKapal->laporan_count }} laporan
-                                </span>
+                                <div class="space-y-1">
+                                    {{-- Harian --}}
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs text-gray-500 dark:text-gray-400 w-16">Harian:</span>
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
+                                            {{ $jenisKapal->getLaporanCount('harian') }} laporan
+                                        </span>
+                                    </div>
+                                    {{-- Mingguan --}}
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs text-gray-500 dark:text-gray-400 w-16">Mingguan:</span>
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
+                                            {{ $jenisKapal->getLaporanCount('mingguan') }} laporan
+                                        </span>
+                                    </div>
+                                    {{-- Bulanan --}}
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs text-gray-500 dark:text-gray-400 w-16">Bulanan:</span>
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
+                                            {{ $jenisKapal->getLaporanCount('bulanan') }} laporan
+                                        </span>
+                                    </div>
+                                </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 @can('jenis_kapal_update')

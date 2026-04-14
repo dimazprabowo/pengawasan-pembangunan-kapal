@@ -252,7 +252,7 @@ class JenisKapalManagement extends Component
         $this->authorize('exportPdf', JenisKapal::class);
 
         $jenisKapalList = JenisKapal::with('company')
-            ->withCount('laporan')
+            ->withCount('laporanHarian')
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
                     $q->where('nama', 'like', "%{$this->search}%")

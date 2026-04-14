@@ -27,7 +27,7 @@ class JenisKapalExport implements FromCollection, WithHeadings, WithMapping, Wit
     public function collection()
     {
         return JenisKapal::with('company')
-            ->withCount('laporan')
+            ->withCount('laporanHarian')
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
                     $q->where('nama', 'like', "%{$this->search}%")
@@ -56,7 +56,9 @@ class JenisKapalExport implements FromCollection, WithHeadings, WithMapping, Wit
             'Perusahaan',
             'Kode Perusahaan',
             'Deskripsi',
-            'Jumlah Laporan',
+            'Laporan Harian',
+            'Laporan Mingguan',
+            'Laporan Bulanan',
             'Status',
             'Dibuat Pada',
         ];
@@ -73,7 +75,9 @@ class JenisKapalExport implements FromCollection, WithHeadings, WithMapping, Wit
             $jenisKapal->company->name,
             $jenisKapal->company->code,
             $jenisKapal->deskripsi ?? '-',
-            $jenisKapal->laporan_count,
+            $jenisKapal->getLaporanCount('harian'),
+            $jenisKapal->getLaporanCount('mingguan'),
+            $jenisKapal->getLaporanCount('bulanan'),
             $jenisKapal->status->label(),
             $jenisKapal->created_at->format('d/m/Y H:i'),
         ];

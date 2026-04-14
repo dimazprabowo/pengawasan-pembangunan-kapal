@@ -61,9 +61,9 @@ class User extends Authenticatable implements MustVerifyEmail
             ->withTimestamps();
     }
 
-    public function laporan(): HasMany
+    public function laporanHarian(): HasMany
     {
-        return $this->hasMany(Laporan::class);
+        return $this->hasMany(LaporanHarian::class);
     }
 
     // Scopes
