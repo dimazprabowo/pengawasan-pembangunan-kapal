@@ -46,9 +46,18 @@ class LaporanMingguanCreate extends Component
     public function updatedJenisKapalId(): void
     {
         $this->laporan_harian_ids = [];
-        $this->lampiran_ids = [];
-        $this->periode_mulai = '';
-        $this->periode_selesai = '';
+        
+        // Load lampiran list based on new jenis kapal if period exists
+        if ($this->periode_mulai && $this->periode_selesai) {
+            $this->loadLampiranHarian();
+            
+            // Filter lampiran_ids to only keep lampiran that are still available with new jenis kapal
+            $availableLampiranIds = collect($this->lampiranHarianList)->pluck('id')->toArray();
+            $this->lampiran_ids = array_intersect($this->lampiran_ids, $availableLampiranIds);
+        } else {
+            $this->lampiran_ids = [];
+        }
+        
         $this->loadAvailableLaporanHarian();
     }
 
