@@ -148,11 +148,9 @@
                     <div class="flex items-center justify-between mb-2">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             Lampiran Harian Terpilih
-                            @if(count($lampiran_ids) > 0)
-                                <span class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                                    {{ count($lampiran_ids) }} dipilih
-                                </span>
-                            @endif
+                            <span class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full @if(count($lampiran_ids) > 0) bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 @else bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 @endif">
+                                {{ count($lampiran_ids) }}/{{ count($lampiranHarianList) }} dipilih
+                            </span>
                         </label>
                         <button type="button" wire:click="openLampiranModal"
                             wire:loading.attr="disabled"
