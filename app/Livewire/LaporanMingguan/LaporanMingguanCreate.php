@@ -104,13 +104,18 @@ class LaporanMingguanCreate extends Component
             return;
         }
 
+        // Return empty if jenis kapal is not selected
+        if (!$this->jenis_kapal_id) {
+            $this->availableLaporanHarian = [];
+            $this->laporan_harian_ids = [];
+            return;
+        }
+
         $query = LaporanHarian::with(['user', 'jenisKapal'])
             ->byUser(auth()->id())
             ->orderByDesc('tanggal_laporan');
 
-        if ($this->jenis_kapal_id) {
-            $query->where('jenis_kapal_id', $this->jenis_kapal_id);
-        }
+        $query->where('jenis_kapal_id', $this->jenis_kapal_id);
 
         // Filter by period
         $query->whereBetween('tanggal_laporan', [$this->periode_mulai, $this->periode_selesai]);
@@ -174,16 +179,20 @@ class LaporanMingguanCreate extends Component
 
     private function loadLampiranHarian(): void
     {
+        // Return empty if jenis kapal is not selected
+        if (!$this->jenis_kapal_id) {
+            $this->lampiranHarianList = [];
+            $this->loadingLampiran = false;
+            return;
+        }
+
         $this->loadingLampiran = true;
 
         $query = LaporanLampiran::with(['laporanHarian'])
             ->whereHas('laporanHarian', function ($q) {
                 $q->byUser(auth()->id())
-                    ->whereBetween('tanggal_laporan', [$this->periode_mulai, $this->periode_selesai]);
-                
-                if ($this->jenis_kapal_id) {
-                    $q->where('jenis_kapal_id', $this->jenis_kapal_id);
-                }
+                    ->whereBetween('tanggal_laporan', [$this->periode_mulai, $this->periode_selesai])
+                    ->where('jenis_kapal_id', $this->jenis_kapal_id);
             })
             ->where('file_status', 'completed')
             ->orderBy('created_at', 'desc');
