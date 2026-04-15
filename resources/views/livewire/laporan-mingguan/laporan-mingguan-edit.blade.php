@@ -58,8 +58,8 @@
                     </div>
 
                     {{-- Periode --}}
-                    <div class="md:col-span-2" x-data="{ hasError: $errors.has('periode_mulai') || $errors.has('periode_selesai') }"
-                         x-init="$watch('$errors', () => hasError = $errors.has('periode_mulai') || $errors.has('periode_selesai'))">
+                    <div class="md:col-span-2" x-data="{ hasError: @this.$errors.has('periode_mulai') || @this.$errors.has('periode_selesai') }"
+                         x-init="$watch('$wire.errors', () => hasError = @this.$errors.has('periode_mulai') || @this.$errors.has('periode_selesai'))">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Periode Mingguan <span class="text-red-500">*</span>
                         </label>
