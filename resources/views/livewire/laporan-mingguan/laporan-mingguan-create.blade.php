@@ -19,7 +19,7 @@
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Isi form di bawah untuk membuat laporan mingguan baru</p>
     </div>
 
-    <form wire:submit="save">
+    <form wire:submit="save" x-data="{ watchJenisKapal: false }" x-init="$watch('$wire.jenis_kapal_id', (val) => { if(val) setTimeout(() => window.initFlatpickr && window.initFlatpickr(), 150) })">
         {{-- Jenis Kapal Selection --}}
         <div class="mb-6">
             <x-laporan.jenis-kapal-selector
@@ -68,7 +68,8 @@
                             </div>
                         @else
                             <input id="period-range-picker" type="text" placeholder="Pilih rentang tanggal periode"
-                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer">
+                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer"
+                                wire:ignore>
                         @endif
                         <input type="hidden" wire:model.live="periode_mulai">
                         <input type="hidden" wire:model.live="periode_selesai">
@@ -238,14 +239,22 @@
     />
 
 <script>
-function initFlatpickr() {
+let pickerInstance = null;
+
+window.initFlatpickr = function() {
     const element = document.getElementById('period-range-picker');
     if (!element || !window.flatpickr) {
-        setTimeout(initFlatpickr, 100);
+        setTimeout(window.initFlatpickr, 100);
         return;
     }
     
-    const picker = flatpickr(element, {
+    // Destroy existing picker if any
+    if (pickerInstance) {
+        pickerInstance.destroy();
+        pickerInstance = null;
+    }
+    
+    pickerInstance = flatpickr(element, {
         mode: 'range',
         dateFormat: 'Y-m-d',
         minDate: null,
@@ -263,12 +272,14 @@ function initFlatpickr() {
     });
     
     @if($periode_mulai && $periode_selesai)
-    picker.setDate(['{{ $periode_mulai }}', '{{ $periode_selesai }}']);
+    if (pickerInstance) {
+        pickerInstance.setDate(['{{ $periode_mulai }}', '{{ $periode_selesai }}']);
+    }
     @endif
-}
+};
 
 // Support both DOMContentLoaded and Livewire navigation
-document.addEventListener('DOMContentLoaded', initFlatpickr);
-document.addEventListener('livewire:navigated', initFlatpickr);
+document.addEventListener('DOMContentLoaded', window.initFlatpickr);
+document.addEventListener('livewire:navigated', window.initFlatpickr);
 </script>
 </div>

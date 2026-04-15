@@ -19,7 +19,7 @@
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Perbarui data laporan di bawah ini</p>
     </div>
 
-    <form wire:submit="save">
+    <form wire:submit="save" x-data="{ watchJenisKapal: false }" x-init="$watch('$wire.jenis_kapal_id', (val) => { if(val) setTimeout(() => window.initFlatpickrEdit && window.initFlatpickrEdit(), 150) })">
         {{-- Jenis Kapal Selection --}}
         <div class="mb-6">
             <x-laporan.jenis-kapal-selector
@@ -238,14 +238,21 @@
     />
 
 <script>
-function initFlatpickrEdit() {
+let pickerInstanceEdit = null;
+
+window.initFlatpickrEdit = function() {
     const element = document.getElementById('period-range-picker-edit');
     if (!element || !window.flatpickr) {
-        setTimeout(initFlatpickrEdit, 100);
+        setTimeout(window.initFlatpickrEdit, 100);
         return;
     }
     
-    const picker = flatpickr(element, {
+    // Destroy existing picker if any
+    if (pickerInstanceEdit) {
+        pickerInstanceEdit.destroy();
+    }
+    
+    pickerInstanceEdit = flatpickr(element, {
         mode: 'range',
         dateFormat: 'Y-m-d',
         minDate: null,
@@ -263,12 +270,14 @@ function initFlatpickrEdit() {
     });
     
     @if($periode_mulai && $periode_selesai)
-    picker.setDate(['{{ $periode_mulai }}', '{{ $periode_selesai }}']);
+    if (pickerInstanceEdit) {
+        pickerInstanceEdit.setDate(['{{ $periode_mulai }}', '{{ $periode_selesai }}']);
+    }
     @endif
-}
+};
 
 // Support both DOMContentLoaded and Livewire navigation
-document.addEventListener('DOMContentLoaded', initFlatpickrEdit);
-document.addEventListener('livewire:navigated', initFlatpickrEdit);
+document.addEventListener('DOMContentLoaded', window.initFlatpickrEdit);
+document.addEventListener('livewire:navigated', window.initFlatpickrEdit);
 </script>
 </div>
