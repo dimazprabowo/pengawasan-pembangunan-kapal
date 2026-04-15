@@ -89,7 +89,14 @@ class LaporanMingguanEdit extends Component
         }
         
         $this->loadAvailableLaporanHarian();
-        $this->autoSelectLaporanHarian();
+        
+        // Filter laporan_harian_ids to only keep laporan that are still available in new period
+        if ($this->periode_mulai && $this->periode_selesai && $this->jenis_kapal_id) {
+            $availableLaporanIds = collect($this->availableLaporanHarian)->pluck('id')->toArray();
+            $this->laporan_harian_ids = array_intersect($this->laporan_harian_ids, $availableLaporanIds);
+        } else {
+            $this->laporan_harian_ids = [];
+        }
     }
 
     public function updatedPeriodeSelesai(): void
@@ -106,7 +113,14 @@ class LaporanMingguanEdit extends Component
         }
         
         $this->loadAvailableLaporanHarian();
-        $this->autoSelectLaporanHarian();
+        
+        // Filter laporan_harian_ids to only keep laporan that are still available in new period
+        if ($this->periode_mulai && $this->periode_selesai && $this->jenis_kapal_id) {
+            $availableLaporanIds = collect($this->availableLaporanHarian)->pluck('id')->toArray();
+            $this->laporan_harian_ids = array_intersect($this->laporan_harian_ids, $availableLaporanIds);
+        } else {
+            $this->laporan_harian_ids = [];
+        }
     }
 
     private function loadAvailableLaporanHarian(): void
