@@ -60,29 +60,42 @@ class LaporanMingguanEdit extends Component
     public function updatedJenisKapalId(): void
     {
         $this->laporan_harian_ids = [];
+        $this->lampiran_ids = [];
         $this->loadAvailableLaporanHarian();
     }
 
     public function updatedPeriodeMulai(): void
     {
-        $this->loadAvailableLaporanHarian();
-        $this->autoSelectLaporanHarian();
-        
-        // Load lampiran list for display
+        // Load lampiran list first to get available lampiran in new period
         if ($this->periode_mulai && $this->periode_selesai) {
             $this->loadLampiranHarian();
+            
+            // Filter lampiran_ids to only keep lampiran that are still available in new period
+            $availableLampiranIds = collect($this->lampiranHarianList)->pluck('id')->toArray();
+            $this->lampiran_ids = array_intersect($this->lampiran_ids, $availableLampiranIds);
+        } else {
+            $this->lampiran_ids = [];
         }
+        
+        $this->loadAvailableLaporanHarian();
+        $this->autoSelectLaporanHarian();
     }
 
     public function updatedPeriodeSelesai(): void
     {
-        $this->loadAvailableLaporanHarian();
-        $this->autoSelectLaporanHarian();
-        
-        // Load lampiran list for display
+        // Load lampiran list first to get available lampiran in new period
         if ($this->periode_mulai && $this->periode_selesai) {
             $this->loadLampiranHarian();
+            
+            // Filter lampiran_ids to only keep lampiran that are still available in new period
+            $availableLampiranIds = collect($this->lampiranHarianList)->pluck('id')->toArray();
+            $this->lampiran_ids = array_intersect($this->lampiran_ids, $availableLampiranIds);
+        } else {
+            $this->lampiran_ids = [];
         }
+        
+        $this->loadAvailableLaporanHarian();
+        $this->autoSelectLaporanHarian();
     }
 
     private function loadAvailableLaporanHarian(): void
