@@ -24,6 +24,9 @@ class LaporanMingguanShow extends Component
     public bool $showPreviewModal = false;
     public ?int $previewLampiranId = null;
 
+    // Available Laporan Harian
+    public \Illuminate\Database\Eloquent\Collection $availableLaporanHarian;
+
     public function mount(LaporanMingguan $laporanMingguan): void
     {
         $this->authorize('view', $laporanMingguan);
@@ -59,7 +62,24 @@ class LaporanMingguanShow extends Component
         // Load lampiran list if periode exists
         if ($this->laporan->periode_mulai && $this->laporan->periode_selesai) {
             $this->loadLampiranHarian();
+            $this->loadAvailableLaporanHarian();
         }
+    }
+
+    private function loadAvailableLaporanHarian(): void
+    {
+        $query = \App\Models\LaporanHarian::with(['user', 'jenisKapal'])
+            ->byUser($this->laporan->user_id)
+            ->orderByDesc('tanggal_laporan');
+
+        if ($this->laporan->jenis_kapal_id) {
+            $query->where('jenis_kapal_id', $this->laporan->jenis_kapal_id);
+        }
+
+        // Filter by period
+        $query->whereBetween('tanggal_laporan', [$this->laporan->periode_mulai, $this->laporan->periode_selesai]);
+
+        $this->availableLaporanHarian = $query->get();
     }
 
     public function openLampiranModal(): void
