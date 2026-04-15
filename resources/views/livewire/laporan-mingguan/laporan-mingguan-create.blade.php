@@ -58,9 +58,10 @@
                     </div>
 
                     {{-- Periode --}}
-                    <div class="md:col-span-2">
+                    <div class="md:col-span-2" x-data="{ hasError: $errors.has('periode_mulai') || $errors.has('periode_selesai') }"
+                         x-init="$watch('$errors', () => hasError = $errors.has('periode_mulai') || $errors.has('periode_selesai'))">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Periode Mingguan
+                            Periode Mingguan <span class="text-red-500">*</span>
                         </label>
                         @if(!$jenis_kapal_id)
                             <div class="w-full h-[42px] px-3 py-2 bg-gray-100 dark:bg-gray-600/50 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 text-sm flex items-center cursor-not-allowed">
@@ -68,13 +69,14 @@
                             </div>
                         @else
                             <input id="period-range-picker" type="text" placeholder="Pilih rentang tanggal periode"
-                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer"
+                                :class="hasError ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'"
+                                class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer"
                                 wire:ignore>
                         @endif
-                        <input type="hidden" wire:model.live="periode_mulai">
-                        <input type="hidden" wire:model.live="periode_selesai">
+                        <input type="hidden" wire:model.live="periode_mulai" required>
+                        <input type="hidden" wire:model.live="periode_selesai" required>
                         @error('periode_mulai') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                        @error('periode_selesai') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                        @error('periode_selesai') <span class="text-red-500 text-xs">{{ $message }}</span> @endif
                     </div>
                 </div>
 
@@ -92,7 +94,7 @@
                 {{-- Laporan Harian Summary --}}
                 <div class="mt-6">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Laporan Harian dalam Periode
+                        Laporan Harian dalam Periode <span class="text-red-500">*</span>
                     </label>
                     
                     <div wire:loading wire:target="periode_mulai,periode_selesai" class="w-full bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
@@ -136,6 +138,7 @@
                                     Silakan pilih periode mingguan untuk melihat laporan harian yang tersedia.
                                 @endif
                             </div>
+                            @error('laporan_harian_ids') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                         @endif
                     </div>
                 </div>
