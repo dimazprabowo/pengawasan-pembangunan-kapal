@@ -24,7 +24,7 @@
 @endphp
 
 @if($jenisKapalList?->isNotEmpty())
-    <div class="{{ $variantClasses }} rounded-lg border p-4">
+    <div class="{{ $variantClasses }} rounded-lg border px-4 pt-4 pb-4 min-h-[145px] ">
         <div class="flex flex-col gap-3">
             @if($labelIcon)
                 <div class="flex items-center gap-2">

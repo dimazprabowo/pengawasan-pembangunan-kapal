@@ -62,8 +62,14 @@
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Periode Mingguan
                         </label>
-                        <input id="period-range-picker" type="text" placeholder="Pilih rentang tanggal periode"
-                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer">
+                        @if(!$jenis_kapal_id)
+                            <div class="w-full h-[42px] px-3 py-2 bg-gray-100 dark:bg-gray-600/50 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 text-sm flex items-center cursor-not-allowed">
+                                Pilih jenis kapal terlebih dahulu
+                            </div>
+                        @else
+                            <input id="period-range-picker" type="text" placeholder="Pilih rentang tanggal periode"
+                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer">
+                        @endif
                         <input type="hidden" wire:model.live="periode_mulai">
                         <input type="hidden" wire:model.live="periode_selesai">
                         @error('periode_mulai') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
