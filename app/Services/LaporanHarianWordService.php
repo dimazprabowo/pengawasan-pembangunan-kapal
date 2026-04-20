@@ -281,12 +281,20 @@ class LaporanHarianWordService
                 
                 if (file_exists($imagePath)) {
                     try {
+                        // Convert WebP to PNG if needed (PhpWord doesn't support WebP)
+                        $finalImagePath = $this->prepareImageForWord($imagePath);
+                        
                         $processor->setImageValue('lampiran_gambar#' . $i, [
-                            'path' => $imagePath,
+                            'path' => $finalImagePath,
                             'width' => 200,
                             'height' => 150,
                             'ratio' => true
                         ]);
+                        
+                        // Clean up temporary PNG file if it was created
+                        if ($finalImagePath !== $imagePath && file_exists($finalImagePath)) {
+                            @unlink($finalImagePath);
+                        }
                         
                     } catch (\Exception $e) {
                         // Jika gagal insert image, set nama file saja
@@ -328,6 +336,43 @@ class LaporanHarianWordService
         $imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
 
         return in_array($extension, $imageExtensions);
+    }
+
+    /**
+     * Prepare image for Word document embedding.
+     * PhpWord doesn't support WebP, so we convert it to PNG temporarily.
+     * 
+     * @param string $imagePath Full path to the image file
+     * @return string Path to the image ready for Word (original or converted)
+     */
+    private function prepareImageForWord(string $imagePath): string
+    {
+        $extension = strtolower(pathinfo($imagePath, PATHINFO_EXTENSION));
+        
+        // If not WebP, return original path
+        if ($extension !== 'webp') {
+            return $imagePath;
+        }
+
+        // Convert WebP to PNG using Intervention Image
+        try {
+            $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver());
+            $image = $manager->read($imagePath);
+            
+            // Create temporary PNG file
+            $tempPngPath = sys_get_temp_dir() . '/' . uniqid('word_img_') . '.png';
+            $image->toPng()->save($tempPngPath);
+            
+            return $tempPngPath;
+        } catch (\Exception $e) {
+            \Log::error('LaporanWordService: Failed to convert WebP to PNG', [
+                'image_path' => $imagePath,
+                'error' => $e->getMessage()
+            ]);
+            
+            // Return original path as fallback (will likely fail, but logged)
+            return $imagePath;
+        }
     }
 
     // ────────────────────────────────────────────────────────────────────────────

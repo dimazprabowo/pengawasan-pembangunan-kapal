@@ -46,9 +46,13 @@ class ProcessLaporanLampiran implements ShouldQueue
             $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
             $isImage = in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp']);
 
-            // Process image if it's an image and has crop data
-            if ($isImage && $this->cropData) {
-                $fileContent = $this->processImageCrop($fileContent, $extension);
+            // Store original filename without extension for later use
+            $baseFileName = pathinfo($originalName, PATHINFO_FILENAME);
+
+            // Process image: crop (if needed) and convert to WebP
+            if ($isImage) {
+                $fileContent = $this->processImage($fileContent, $extension);
+                $extension = 'webp';
             }
 
             // Generate unique filename
@@ -57,8 +61,12 @@ class ProcessLaporanLampiran implements ShouldQueue
 
             Storage::disk('local')->put($destinationPath, $fileContent);
 
+            // Update file_name to reflect WebP conversion for proper Word generation
+            $finalFileName = $isImage ? $baseFileName . '.webp' : $originalName;
+
             $this->lampiran->update([
                 'file_path' => $destinationPath,
+                'file_name' => $finalFileName,
                 'file_size' => strlen($fileContent),
                 'file_status' => 'completed',
                 'file_processed_at' => now(),
@@ -75,29 +83,31 @@ class ProcessLaporanLampiran implements ShouldQueue
         }
     }
 
-    private function processImageCrop(string $fileContent, string $extension): string
+    /**
+     * Process image: apply crop (if crop data exists) and convert to WebP format with compression.
+     * This ensures optimal file size while maintaining quality for Word document generation.
+     */
+    private function processImage(string $fileContent, string $extension): string
     {
         $manager = new ImageManager(new Driver());
         $image = $manager->read($fileContent);
 
+        // Apply crop if crop data is provided
         if ($this->cropData) {
-            $x = $this->cropData['x'] ?? 0;
-            $y = $this->cropData['y'] ?? 0;
-            $width = $this->cropData['width'] ?? $image->width();
-            $height = $this->cropData['height'] ?? $image->height();
+            $x = (int) ($this->cropData['x'] ?? 0);
+            $y = (int) ($this->cropData['y'] ?? 0);
+            $width = (int) ($this->cropData['width'] ?? $image->width());
+            $height = (int) ($this->cropData['height'] ?? $image->height());
 
             $image->crop($width, $height, $x, $y);
         }
 
-        // Convert to appropriate format and return
-        $quality = 90;
-        return match ($extension) {
-            'jpg', 'jpeg' => $image->encodeByExtension('jpg', quality: $quality),
-            'png' => $image->encodeByExtension('png'),
-            'gif' => $image->encodeByExtension('gif'),
-            'webp' => $image->encodeByExtension('webp', quality: $quality),
-            default => $image->encode(),
-        };
+        // Convert to WebP format with quality compression
+        // Quality 85 provides excellent balance between file size and visual quality
+        // WebP is fully supported by PhpOffice\PhpWord for Word document generation
+        $quality = 85;
+        
+        return $image->toWebp($quality);
     }
 
     public function failed(\Throwable $exception): void
