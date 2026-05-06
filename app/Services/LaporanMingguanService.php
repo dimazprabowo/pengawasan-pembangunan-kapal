@@ -71,4 +71,22 @@ class LaporanMingguanService
     {
         $laporanMingguan->delete();
     }
+
+    public function removeDoc(LaporanMingguan $laporanMingguan): void
+    {
+        if ($laporanMingguan->doc_path) {
+            $filePath = storage_path('app/' . $laporanMingguan->doc_path);
+            if (file_exists($filePath)) {
+                @unlink($filePath);
+            }
+        }
+
+        $laporanMingguan->update([
+            'doc_path'         => null,
+            'doc_name'         => null,
+            'doc_status'       => null,
+            'doc_generated_at' => null,
+            'doc_error'        => null,
+        ]);
+    }
 }

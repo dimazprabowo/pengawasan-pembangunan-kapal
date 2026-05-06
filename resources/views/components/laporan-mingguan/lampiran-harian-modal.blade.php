@@ -69,7 +69,7 @@
                             @foreach($lampiranList as $item)
                                 <div class="bg-white dark:bg-gray-700 border-2 {{ $item['is_selected'] ? 'border-green-500 dark:border-green-400' : 'border-gray-200 dark:border-gray-600' }} rounded-lg overflow-hidden hover:shadow-md transition-all relative cursor-pointer"
                                      wire:click="toggleLampiran({{ $item['id'] }})">
-                                    
+
                                     {{-- Checkbox Badge --}}
                                     <div class="absolute top-2 left-2 z-10 flex items-center justify-center w-6 h-6 bg-white dark:bg-gray-600 border-2 {{ $item['is_selected'] ? 'border-green-500 dark:border-green-400' : 'border-gray-300 dark:border-gray-500' }} rounded-full shadow"
                                          wire:loading.class="animate-spin"
@@ -87,7 +87,7 @@
                                     
                                     {{-- Preview Button - Top Right --}}
                                     @if($item['is_image'])
-                                        <button type="button" 
+                                        <button type="button"
                                             wire:click.stop="previewLampiranHarian({{ $item['id'] }})"
                                             wire:loading.attr="disabled"
                                             wire:target="previewLampiranHarian({{ $item['id'] }})"

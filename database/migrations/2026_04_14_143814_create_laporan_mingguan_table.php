@@ -20,6 +20,14 @@ return new class extends Migration
             $table->date('periode_mulai')->nullable();
             $table->date('periode_selesai')->nullable();
             $table->text('ringkasan')->nullable();
+
+            // Generated Word document
+            $table->string('doc_path')->nullable();
+            $table->string('doc_name')->nullable();
+            $table->enum('doc_status', ['pending', 'processing', 'completed', 'failed'])->nullable();
+            $table->timestamp('doc_generated_at')->nullable();
+            $table->text('doc_error')->nullable();
+
             $table->timestamps();
             $table->softDeletes();
 

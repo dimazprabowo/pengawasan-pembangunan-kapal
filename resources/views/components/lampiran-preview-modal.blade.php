@@ -1,7 +1,7 @@
 @props(['show' => false, 'lampiran', 'laporan', 'imageUrl' => null])
 
 @if($show && $lampiran)
-    <div class="fixed inset-0 z-50 overflow-y-auto" x-data x-trap.noscroll="true">
+    <div class="fixed inset-0 z-[60] overflow-y-auto" x-data x-trap.noscroll="true">
         <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20">
             {{-- Overlay --}}
             <div class="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75 transition-opacity"

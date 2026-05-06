@@ -23,12 +23,18 @@ class LaporanMingguan extends Model
         'periode_mulai',
         'periode_selesai',
         'ringkasan',
+        'doc_path',
+        'doc_name',
+        'doc_status',
+        'doc_generated_at',
+        'doc_error',
     ];
 
     protected $casts = [
         'tanggal_laporan' => 'date',
         'periode_mulai' => 'date',
         'periode_selesai' => 'date',
+        'doc_generated_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
@@ -87,5 +93,26 @@ class LaporanMingguan extends Model
     public function syncLampiran(array $lampiranIds): void
     {
         $this->lampiran()->sync($lampiranIds);
+    }
+
+    // Doc (Generated Word) Status Helpers
+    public function isDocProcessing(): bool
+    {
+        return in_array($this->doc_status, ['pending', 'processing']);
+    }
+
+    public function isDocCompleted(): bool
+    {
+        return $this->doc_status === 'completed';
+    }
+
+    public function isDocFailed(): bool
+    {
+        return $this->doc_status === 'failed';
+    }
+
+    public function hasDoc(): bool
+    {
+        return !empty($this->doc_path) && !empty($this->doc_name);
     }
 }

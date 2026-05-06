@@ -4,12 +4,17 @@ namespace App\Services;
 
 use App\Models\LaporanHarian;
 use PhpOffice\PhpWord\TemplateProcessor;
+use App\Services\WordImageService;
 
 class LaporanHarianWordService
 {
     private const TEMPLATE_PATH = 'templates/laporan-harian/template-laporan-harian.docx';
     private const MAX_ROWS      = 30;
     private const MAX_LAMPIRAN  = 10;
+
+    public function __construct(
+        private WordImageService $imageService
+    ) {}
 
     // ────────────────────────────────────────────────────────────────────────────
     // PUBLIC ENTRY POINT
@@ -270,32 +275,25 @@ class LaporanHarianWordService
             $processor->setValue('lampiran_no#' . $i, (string) $i);
             
             // Set gambar jika file adalah image
-            if ($this->isImageFile($item->file_path)) {
-                // Try with 'private/' prefix first (Laravel's default for file uploads)
-                $imagePath = storage_path('app/private/' . $item->file_path);
-                
-                // If not found, try without 'private/' prefix
-                if (!file_exists($imagePath)) {
-                    $imagePath = storage_path('app/' . $item->file_path);
-                }
-                
+            if ($this->imageService->isImageFile($item->file_path)) {
+                $imagePath = $this->imageService->resolveLampiranPath($item->file_path);
+
                 if (file_exists($imagePath)) {
                     try {
-                        // Convert WebP to PNG if needed (PhpWord doesn't support WebP)
-                        $finalImagePath = $this->prepareImageForWord($imagePath);
-                        
+                        $finalImagePath = $this->imageService->prepareImageForWord($imagePath);
+
                         $processor->setImageValue('lampiran_gambar#' . $i, [
                             'path' => $finalImagePath,
-                            'width' => 200,
-                            'height' => 150,
+                            'width' => WordImageService::DEFAULT_WIDTH,
+                            'height' => WordImageService::DEFAULT_HEIGHT,
                             'ratio' => true
                         ]);
-                        
-                        // Clean up temporary PNG file if it was created
+
+                        // Clean up temporary file if it was created
                         if ($finalImagePath !== $imagePath && file_exists($finalImagePath)) {
                             @unlink($finalImagePath);
                         }
-                        
+
                     } catch (\Exception $e) {
                         // Jika gagal insert image, set nama file saja
                         \Log::error('LaporanWordService: Failed to insert image', [
@@ -320,63 +318,13 @@ class LaporanHarianWordService
                 // Jika bukan image, tampilkan nama file
                 $processor->setValue('lampiran_gambar#' . $i, $item->file_name ?? '-');
             }
-            
             // Set keterangan
             $processor->setValue('lampiran_ket#' . $i, $item->keterangan ?? '-');
         }
     }
 
-    private function isImageFile(?string $filePath): bool
-    {
-        if (!$filePath) {
-            return false;
-        }
-
-        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-        $imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
-
-        return in_array($extension, $imageExtensions);
-    }
-
-    /**
-     * Prepare image for Word document embedding.
-     * PhpWord doesn't support WebP, so we convert it to PNG temporarily.
-     * 
-     * @param string $imagePath Full path to the image file
-     * @return string Path to the image ready for Word (original or converted)
-     */
-    private function prepareImageForWord(string $imagePath): string
-    {
-        $extension = strtolower(pathinfo($imagePath, PATHINFO_EXTENSION));
-        
-        // If not WebP, return original path
-        if ($extension !== 'webp') {
-            return $imagePath;
-        }
-
-        // Convert WebP to PNG using Intervention Image
-        try {
-            $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver());
-            $image = $manager->read($imagePath);
-            
-            // Create temporary PNG file
-            $tempPngPath = sys_get_temp_dir() . '/' . uniqid('word_img_') . '.png';
-            $image->toPng()->save($tempPngPath);
-            
-            return $tempPngPath;
-        } catch (\Exception $e) {
-            \Log::error('LaporanWordService: Failed to convert WebP to PNG', [
-                'image_path' => $imagePath,
-                'error' => $e->getMessage()
-            ]);
-            
-            // Return original path as fallback (will likely fail, but logged)
-            return $imagePath;
-        }
-    }
-
     // ────────────────────────────────────────────────────────────────────────────
-    // HELPERS
+    // SAVE DOCUMENT
     // ────────────────────────────────────────────────────────────────────────────
 
     private function saveDocument(TemplateProcessor $processor, LaporanHarian $laporan): string

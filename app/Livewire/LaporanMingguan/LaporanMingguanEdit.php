@@ -29,7 +29,10 @@ class LaporanMingguanEdit extends Component
     public array $laporan_harian_ids = [];
     public array $availableLaporanHarian = [];
     public array $lampiran_ids = [];
-    
+
+    // Track previous laporan_harian_ids for filtering lampiran
+    public array $previousLaporanHarianIds = [];
+
     // Lampiran Harian Modal
     public bool $showLampiranModal = false;
     public array $lampiranHarianList = [];
@@ -49,10 +52,11 @@ class LaporanMingguanEdit extends Component
         $this->ringkasan = $laporanMingguan->ringkasan ?? '';
         $this->laporan_harian_ids = $laporanMingguan->laporanHarian->pluck('id')->toArray();
         $this->lampiran_ids = $laporanMingguan->lampiran->pluck('id')->toArray();
+        $this->previousLaporanHarianIds = $this->laporan_harian_ids;
         $this->loadAvailableLaporanHarian();
-        
-        // Load lampiran list if periode exists
-        if ($this->periode_mulai && $this->periode_selesai) {
+
+        // Load lampiran list if laporan harian exists
+        if (count($this->laporan_harian_ids) > 0) {
             $this->loadLampiranHarian();
         }
     }
@@ -60,67 +64,22 @@ class LaporanMingguanEdit extends Component
     public function updatedJenisKapalId(): void
     {
         $this->laporan_harian_ids = [];
-        
-        // Load lampiran list based on new jenis kapal if period exists
-        if ($this->periode_mulai && $this->periode_selesai) {
-            $this->loadLampiranHarian();
-            
-            // Filter lampiran_ids to only keep lampiran that are still available with new jenis kapal
-            $availableLampiranIds = collect($this->lampiranHarianList)->pluck('id')->toArray();
-            $this->lampiran_ids = array_intersect($this->lampiran_ids, $availableLampiranIds);
-        } else {
-            $this->lampiran_ids = [];
-        }
-        
+        $this->lampiran_ids = [];
         $this->loadAvailableLaporanHarian();
     }
 
     public function updatedPeriodeMulai(): void
     {
-        // Load lampiran list first to get available lampiran in new period
-        if ($this->periode_mulai && $this->periode_selesai) {
-            $this->loadLampiranHarian();
-            
-            // Filter lampiran_ids to only keep lampiran that are still available in new period
-            $availableLampiranIds = collect($this->lampiranHarianList)->pluck('id')->toArray();
-            $this->lampiran_ids = array_intersect($this->lampiran_ids, $availableLampiranIds);
-        } else {
-            $this->lampiran_ids = [];
-        }
-        
+        $this->laporan_harian_ids = [];
+        $this->lampiran_ids = [];
         $this->loadAvailableLaporanHarian();
-        
-        // Filter laporan_harian_ids to only keep laporan that are still available in new period
-        if ($this->periode_mulai && $this->periode_selesai && $this->jenis_kapal_id) {
-            $availableLaporanIds = collect($this->availableLaporanHarian)->pluck('id')->toArray();
-            $this->laporan_harian_ids = array_intersect($this->laporan_harian_ids, $availableLaporanIds);
-        } else {
-            $this->laporan_harian_ids = [];
-        }
     }
 
     public function updatedPeriodeSelesai(): void
     {
-        // Load lampiran list first to get available lampiran in new period
-        if ($this->periode_mulai && $this->periode_selesai) {
-            $this->loadLampiranHarian();
-            
-            // Filter lampiran_ids to only keep lampiran that are still available in new period
-            $availableLampiranIds = collect($this->lampiranHarianList)->pluck('id')->toArray();
-            $this->lampiran_ids = array_intersect($this->lampiran_ids, $availableLampiranIds);
-        } else {
-            $this->lampiran_ids = [];
-        }
-        
+        $this->laporan_harian_ids = [];
+        $this->lampiran_ids = [];
         $this->loadAvailableLaporanHarian();
-        
-        // Filter laporan_harian_ids to only keep laporan that are still available in new period
-        if ($this->periode_mulai && $this->periode_selesai && $this->jenis_kapal_id) {
-            $availableLaporanIds = collect($this->availableLaporanHarian)->pluck('id')->toArray();
-            $this->laporan_harian_ids = array_intersect($this->laporan_harian_ids, $availableLaporanIds);
-        } else {
-            $this->laporan_harian_ids = [];
-        }
     }
 
     private function loadAvailableLaporanHarian(): void
@@ -145,10 +104,8 @@ class LaporanMingguanEdit extends Component
 
         $query->where('jenis_kapal_id', $this->jenis_kapal_id);
 
-        // Filter by period if both dates are set
-        if ($this->periode_mulai && $this->periode_selesai) {
-            $query->whereBetween('tanggal_laporan', [$this->periode_mulai, $this->periode_selesai]);
-        }
+        // Filter by period
+        $query->whereBetween('tanggal_laporan', [$this->periode_mulai, $this->periode_selesai]);
 
         $this->availableLaporanHarian = $query->get()->map(function ($item) {
             return [
@@ -157,18 +114,43 @@ class LaporanMingguanEdit extends Component
                 'tanggal' => $item->tanggal_laporan->format('d M Y'),
             ];
         })->toArray();
+
+        // Only auto-select if laporan_harian_ids is empty (for Create)
+        // For Edit, preserve the originally selected laporan harian
+        if (count($this->laporan_harian_ids) === 0) {
+            $this->laporan_harian_ids = collect($this->availableLaporanHarian)->pluck('id')->toArray();
+        }
     }
 
-    private function autoSelectLaporanHarian(): void
+    public function updatedLaporanHarianIds(): void
     {
-        // Auto-select all available laporan harian
-        $this->laporan_harian_ids = collect($this->availableLaporanHarian)->pluck('id')->toArray();
+        // Get lampiran IDs that belong to the unchecked laporan harian
+        $removedLaporanHarianIds = array_diff(
+            $this->previousLaporanHarianIds,
+            $this->laporan_harian_ids
+        );
+
+        if (count($removedLaporanHarianIds) > 0) {
+            // Get lampiran IDs that belong to the removed laporan harian
+            $lampiranToRemove = LaporanLampiran::whereHas('laporanHarian', function ($q) use ($removedLaporanHarianIds) {
+                $q->whereIn('id', $removedLaporanHarianIds);
+            })->pluck('id')->toArray();
+
+            // Remove only the lampiran that belong to the unchecked laporan harian
+            $this->lampiran_ids = array_values(array_diff($this->lampiran_ids, $lampiranToRemove));
+        }
+
+        // Update previous state for next change
+        $this->previousLaporanHarianIds = $this->laporan_harian_ids;
+
+        // Reload lampiran list to update the UI
+        $this->loadLampiranHarian();
     }
 
     protected function rules(): array
     {
         return [
-            'jenis_kapal_id' => 'nullable|exists:jenis_kapal,id',
+            'jenis_kapal_id' => 'required|exists:jenis_kapal,id',
             'judul' => 'required|string|max:255',
             'tanggal_laporan' => 'required|date',
             'periode_mulai' => 'required|date|before_or_equal:periode_selesai',
@@ -176,6 +158,8 @@ class LaporanMingguanEdit extends Component
             'ringkasan' => 'nullable|string',
             'laporan_harian_ids' => 'required|array|min:1',
             'laporan_harian_ids.*' => 'exists:laporan_harian,id',
+            'lampiran_ids' => 'array',
+            'lampiran_ids.*' => 'exists:laporan_lampiran,id',
         ];
     }
 
@@ -194,8 +178,8 @@ class LaporanMingguanEdit extends Component
 
     public function openLampiranModal(): void
     {
-        if (!$this->periode_mulai || !$this->periode_selesai) {
-            $this->notifyWarning('Silakan pilih periode terlebih dahulu.');
+        if (count($this->laporan_harian_ids) === 0) {
+            $this->notifyWarning('Silakan pilih laporan harian terlebih dahulu.');
             return;
         }
 
@@ -210,8 +194,8 @@ class LaporanMingguanEdit extends Component
 
     private function loadLampiranHarian(): void
     {
-        // Return empty if jenis kapal is not selected
-        if (!$this->jenis_kapal_id) {
+        // Return empty if no laporan harian selected
+        if (count($this->laporan_harian_ids) === 0) {
             $this->lampiranHarianList = [];
             $this->loadingLampiran = false;
             return;
@@ -222,18 +206,15 @@ class LaporanMingguanEdit extends Component
         $query = LaporanLampiran::with(['laporanHarian'])
             ->whereHas('laporanHarian', function ($q) {
                 $q->byUser(auth()->id())
-                    ->whereBetween('tanggal_laporan', [$this->periode_mulai, $this->periode_selesai])
-                    ->where('jenis_kapal_id', $this->jenis_kapal_id);
+                    ->whereIn('id', $this->laporan_harian_ids);
             })
             ->where('file_status', 'completed')
             ->orderBy('created_at', 'desc');
 
-        $lampiran = $query->get();
-        
-        $this->lampiranHarianList = $lampiran->map(function ($item) {
+        $this->lampiranHarianList = $query->get()->map(function ($item) {
             $extension = strtolower(pathinfo($item->file_name, PATHINFO_EXTENSION));
             $isImage = in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
-            
+
             return [
                 'id' => $item->id,
                 'file_name' => $item->file_name,
@@ -267,12 +248,12 @@ class LaporanMingguanEdit extends Component
     public function toggleLampiran(int $lampiranId): void
     {
         if (in_array($lampiranId, $this->lampiran_ids)) {
-            $this->lampiran_ids = array_values(array_diff($this->lampiran_ids, [$lampiranId]));
+            $this->lampiran_ids = array_diff($this->lampiran_ids, [$lampiranId]);
         } else {
             $this->lampiran_ids[] = $lampiranId;
         }
-        
-        // Reload list to update is_selected flag
+
+        // Reload lampiran list to update is_selected state
         $this->loadLampiranHarian();
     }
 
@@ -307,10 +288,18 @@ class LaporanMingguanEdit extends Component
 
     public function previewLampiranHarian(int $lampiranId): void
     {
-        $lampiran = LaporanLampiran::find($lampiranId);
-        
+        $this->authorize('lampiranPreview', LaporanMingguan::class);
+
+        $lampiran = LaporanLampiran::with('laporanHarian')->find($lampiranId);
+
         if (!$lampiran) {
             $this->notifyError('Lampiran tidak ditemukan.');
+            return;
+        }
+
+        // Ownership check: lampiran must belong to user's laporan harian
+        if (!$lampiran->laporanHarian || $lampiran->laporanHarian->user_id !== auth()->id()) {
+            $this->notifyError('Anda tidak memiliki akses ke lampiran ini.');
             return;
         }
 
@@ -342,10 +331,18 @@ class LaporanMingguanEdit extends Component
 
     public function downloadLampiran(int $lampiranId)
     {
-        $lampiran = LaporanLampiran::find($lampiranId);
+        $this->authorize('lampiranDownload', LaporanMingguan::class);
+
+        $lampiran = LaporanLampiran::with('laporanHarian')->find($lampiranId);
 
         if (!$lampiran) {
             $this->notifyError('Lampiran tidak ditemukan.');
+            return;
+        }
+
+        // Ownership check: lampiran must belong to user's laporan harian
+        if (!$lampiran->laporanHarian || $lampiran->laporanHarian->user_id !== auth()->id()) {
+            $this->notifyError('Anda tidak memiliki akses ke lampiran ini.');
             return;
         }
 
@@ -362,10 +359,18 @@ class LaporanMingguanEdit extends Component
 
     public function previewLampiran(int $lampiranId)
     {
-        $lampiran = LaporanLampiran::find($lampiranId);
+        $this->authorize('lampiranPreview', LaporanMingguan::class);
+
+        $lampiran = LaporanLampiran::with('laporanHarian')->find($lampiranId);
 
         if (!$lampiran) {
             $this->notifyError('Lampiran tidak ditemukan.');
+            return;
+        }
+
+        // Ownership check: lampiran must belong to user's laporan harian
+        if (!$lampiran->laporanHarian || $lampiran->laporanHarian->user_id !== auth()->id()) {
+            $this->notifyError('Anda tidak memiliki akses ke lampiran ini.');
             return;
         }
 
@@ -394,12 +399,28 @@ class LaporanMingguanEdit extends Component
     public function save(LaporanMingguanService $service): void
     {
         $this->authorize('update', $this->laporan);
-        
+
         try {
             $this->validate();
         } catch (\Illuminate\Validation\ValidationException $e) {
             $this->notifyValidationError($e);
             throw $e;
+        }
+
+        // Server-side validation for lampiran_ids ownership
+        if (count($this->lampiran_ids) > 0) {
+            $validLampiranIds = LaporanLampiran::whereHas('laporanHarian', function ($q) {
+                $q->byUser(auth()->id())
+                    ->whereIn('id', $this->laporan_harian_ids);
+            })->whereIn('id', $this->lampiran_ids)
+                ->pluck('id')
+                ->toArray();
+
+            $invalidIds = array_diff($this->lampiran_ids, $validLampiranIds);
+            if (count($invalidIds) > 0) {
+                $this->notifyError('Beberapa lampiran tidak valid atau tidak termasuk dalam laporan harian yang dipilih.');
+                return;
+            }
         }
 
         try {

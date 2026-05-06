@@ -2,9 +2,12 @@
 
 namespace App\Livewire\LaporanMingguan;
 
+use App\Jobs\GenerateLaporanMingguanJob;
 use App\Livewire\Traits\HasNotification;
 use App\Models\LaporanLampiran;
 use App\Models\LaporanMingguan;
+use App\Services\LaporanMingguanService;
+use App\Services\QueueStatusService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
@@ -26,6 +29,11 @@ class LaporanMingguanShow extends Component
 
     // Available Laporan Harian
     public \Illuminate\Database\Eloquent\Collection $availableLaporanHarian;
+
+    // Word Document Status
+    public bool $loadingDoc = false;
+    public bool $showRegenerateConfirm = false;
+    public bool $showDeleteDocConfirm = false;
 
     public function mount(LaporanMingguan $laporanMingguan): void
     {
@@ -55,12 +63,12 @@ class LaporanMingguanShow extends Component
             'laporanHarian.kelembabanSore',
             'lampiran',
         ]);
-        
+
         // Force reload laporanHarian to ensure correct count
         $this->laporan->load('laporanHarian');
-        
-        // Load lampiran list if periode exists
-        if ($this->laporan->periode_mulai && $this->laporan->periode_selesai) {
+
+        // Load lampiran list if laporan harian exists
+        if ($this->laporan->laporanHarian->count() > 0) {
             $this->loadLampiranHarian();
             $this->loadAvailableLaporanHarian();
         }
@@ -68,18 +76,13 @@ class LaporanMingguanShow extends Component
 
     private function loadAvailableLaporanHarian(): void
     {
-        $query = \App\Models\LaporanHarian::with(['user', 'jenisKapal'])
+        $laporanHarianIds = $this->laporan->laporanHarian->pluck('id')->toArray();
+
+        $this->availableLaporanHarian = \App\Models\LaporanHarian::with(['user', 'jenisKapal'])
             ->byUser($this->laporan->user_id)
-            ->orderByDesc('tanggal_laporan');
-
-        if ($this->laporan->jenis_kapal_id) {
-            $query->where('jenis_kapal_id', $this->laporan->jenis_kapal_id);
-        }
-
-        // Filter by period
-        $query->whereBetween('tanggal_laporan', [$this->laporan->periode_mulai, $this->laporan->periode_selesai]);
-
-        $this->availableLaporanHarian = $query->get();
+            ->whereIn('id', $laporanHarianIds)
+            ->orderByDesc('tanggal_laporan')
+            ->get();
     }
 
     public function openLampiranModal(): void
@@ -97,13 +100,11 @@ class LaporanMingguanShow extends Component
     {
         $this->loadingLampiran = true;
 
+        $laporanHarianIds = $this->laporan->laporanHarian->pluck('id')->toArray();
+
         $query = LaporanLampiran::with(['laporanHarian'])
-            ->whereHas('laporanHarian', function ($q) {
-                $q->whereBetween('tanggal_laporan', [$this->laporan->periode_mulai, $this->laporan->periode_selesai]);
-                
-                if ($this->laporan->jenis_kapal_id) {
-                    $q->where('jenis_kapal_id', $this->laporan->jenis_kapal_id);
-                }
+            ->whereHas('laporanHarian', function ($q) use ($laporanHarianIds) {
+                $q->whereIn('id', $laporanHarianIds);
             })
             ->where('file_status', 'completed')
             ->orderBy('created_at', 'desc');
@@ -111,7 +112,7 @@ class LaporanMingguanShow extends Component
         $this->lampiranHarianList = $query->get()->map(function ($item) {
             $extension = strtolower(pathinfo($item->file_name, PATHINFO_EXTENSION));
             $isImage = in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
-            
+
             return [
                 'id' => $item->id,
                 'file_name' => $item->file_name,
@@ -170,6 +171,24 @@ class LaporanMingguanShow extends Component
 
     public function previewLampiranHarian(int $lampiranId): void
     {
+        $this->authorize('lampiranPreview', LaporanMingguan::class);
+
+        $lampiran = LaporanLampiran::with('laporanHarian')->find($lampiranId);
+
+        if (!$lampiran) {
+            $this->notifyError('Lampiran tidak ditemukan.');
+            return;
+        }
+
+        // Ownership check: lampiran must belong to user's laporan harian or be linked to this laporan mingguan
+        $belongsToUser = $lampiran->laporanHarian && $lampiran->laporanHarian->user_id === $this->laporan->user_id;
+        $isLinkedToReport = $this->laporan->lampiran->contains('id', $lampiran->id);
+
+        if (!$belongsToUser && !$isLinkedToReport) {
+            $this->notifyError('Anda tidak memiliki akses ke lampiran ini.');
+            return;
+        }
+
         $this->previewLampiranId = $lampiranId;
         $this->showPreviewModal = true;
     }
@@ -199,10 +218,21 @@ class LaporanMingguanShow extends Component
 
     public function downloadLampiran(int $lampiranId)
     {
-        $lampiran = LaporanLampiran::find($lampiranId);
+        $this->authorize('lampiranDownload', LaporanMingguan::class);
+
+        $lampiran = LaporanLampiran::with('laporanHarian')->find($lampiranId);
 
         if (!$lampiran || !$lampiran->file_path || !Storage::disk('local')->exists($lampiran->file_path)) {
             $this->notifyError('File tidak ditemukan.');
+            return;
+        }
+
+        // Ownership check: lampiran must belong to user's laporan harian or be linked to this laporan mingguan
+        $belongsToUser = $lampiran->laporanHarian && $lampiran->laporanHarian->user_id === $this->laporan->user_id;
+        $isLinkedToReport = $this->laporan->lampiran->contains('id', $lampiran->id);
+
+        if (!$belongsToUser && !$isLinkedToReport) {
+            $this->notifyError('Anda tidak memiliki akses ke lampiran ini.');
             return;
         }
 
@@ -211,10 +241,21 @@ class LaporanMingguanShow extends Component
 
     public function previewLampiran(int $lampiranId)
     {
-        $lampiran = LaporanLampiran::find($lampiranId);
+        $this->authorize('lampiranPreview', LaporanMingguan::class);
+
+        $lampiran = LaporanLampiran::with('laporanHarian')->find($lampiranId);
 
         if (!$lampiran || !$lampiran->file_path || !Storage::disk('local')->exists($lampiran->file_path)) {
             $this->notifyError('File tidak ditemukan.');
+            return;
+        }
+
+        // Ownership check: lampiran must belong to user's laporan harian or be linked to this laporan mingguan
+        $belongsToUser = $lampiran->laporanHarian && $lampiran->laporanHarian->user_id === $this->laporan->user_id;
+        $isLinkedToReport = $this->laporan->lampiran->contains('id', $lampiran->id);
+
+        if (!$belongsToUser && !$isLinkedToReport) {
+            $this->notifyError('Anda tidak memiliki akses ke lampiran ini.');
             return;
         }
 
@@ -239,8 +280,138 @@ class LaporanMingguanShow extends Component
             ->header('Content-Disposition', 'inline; filename="' . $lampiran->file_name . '"');
     }
 
-    public function render()
+    public function confirmRegenerate(): void
     {
-        return view('livewire.laporan-mingguan.laporan-mingguan-show');
+        $this->authorize('generateWord', $this->laporan);
+
+        if ($this->laporan->isDocCompleted()) {
+            $this->showRegenerateConfirm = true;
+            return;
+        }
+
+        $this->generateWord();
+    }
+
+    public function cancelRegenerate(): void
+    {
+        $this->showRegenerateConfirm = false;
+    }
+
+    public function generateWord(): void
+    {
+        $this->showRegenerateConfirm = false;
+        $this->authorize('generateWord', $this->laporan);
+
+        if ($this->laporan->isDocProcessing()) {
+            $this->notifyWarning('Dokumen sedang dalam proses generate. Mohon tunggu.');
+            return;
+        }
+
+        try {
+            // Hapus file lama jika ada (untuk generate ulang)
+            if ($this->laporan->doc_path) {
+                $oldPath = storage_path('app/' . $this->laporan->doc_path);
+                if (file_exists($oldPath)) {
+                    @unlink($oldPath);
+                }
+            }
+
+            $this->laporan->update([
+                'doc_status' => 'pending',
+                'doc_error' => null,
+            ]);
+
+            GenerateLaporanMingguanJob::dispatch($this->laporan);
+
+            $this->laporan->refresh();
+
+            $this->notifySuccess('Proses generate dokumen Word dimulai. Halaman akan otomatis diperbarui.');
+        } catch (\Exception $e) {
+            $this->notifyError('Gagal memulai proses generate: ' . $e->getMessage());
+        }
+    }
+
+    public function refreshDocStatus(): void
+    {
+        $this->laporan->refresh();
+
+        if ($this->laporan->isDocCompleted()) {
+            $this->notifySuccess('Dokumen Word berhasil digenerate! Silakan download.');
+        } elseif ($this->laporan->isDocFailed()) {
+            $this->notifyError('Generate dokumen gagal: ' . ($this->laporan->doc_error ?? 'Unknown error'));
+        }
+    }
+
+    public function confirmDeleteDoc(): void
+    {
+        $this->authorize('generateWord', $this->laporan);
+        $this->showDeleteDocConfirm = true;
+    }
+
+    public function cancelDeleteDoc(): void
+    {
+        $this->showDeleteDocConfirm = false;
+    }
+
+    public function deleteDoc(): void
+    {
+        $this->showDeleteDocConfirm = false;
+        $this->authorize('generateWord', $this->laporan);
+
+        try {
+            if ($this->laporan->doc_path) {
+                $path = storage_path('app/' . $this->laporan->doc_path);
+                if (file_exists($path)) {
+                    @unlink($path);
+                }
+            }
+
+            $this->laporan->update([
+                'doc_path' => null,
+                'doc_name' => null,
+                'doc_status' => null,
+                'doc_generated_at' => null,
+                'doc_error' => null,
+            ]);
+
+            $this->laporan->refresh();
+            $this->notifySuccess('Dokumen Word berhasil dihapus.');
+        } catch (\Exception $e) {
+            $this->notifyError('Gagal menghapus dokumen: ' . $e->getMessage());
+        }
+    }
+
+    public function downloadWord()
+    {
+        $this->authorize('downloadWord', $this->laporan);
+
+        if (!$this->laporan->hasDoc() || !$this->laporan->isDocCompleted()) {
+            $this->notifyError('Dokumen tidak tersedia.');
+            return;
+        }
+
+        $filePath = storage_path('app/' . $this->laporan->doc_path);
+        if (!file_exists($filePath)) {
+            $this->notifyError('File tidak ditemukan.');
+            return;
+        }
+
+        return response()->download($filePath, $this->laporan->doc_name);
+    }
+
+    public function removeDoc(LaporanMingguanService $service): void
+    {
+        $this->authorize('update', $this->laporan);
+
+        $service->removeDoc($this->laporan);
+
+        $this->notifySuccess('Dokumen berhasil dihapus.');
+    }
+
+    public function render(QueueStatusService $queueStatusService)
+    {
+        return view('livewire.laporan-mingguan.laporan-mingguan-show', [
+            'queueStatus' => $queueStatusService->getQueueStatusMessage(),
+        ]);
     }
 }

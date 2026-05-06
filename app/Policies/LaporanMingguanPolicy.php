@@ -70,4 +70,36 @@ class LaporanMingguanPolicy
     {
         return $user->can('laporan_view_all_jenis_kapal');
     }
+
+    /**
+     * Determine whether the user can generate/regenerate the Word document.
+     */
+    public function generateWord(User $user, LaporanMingguan $laporanMingguan): bool
+    {
+        return $user->can('laporan_download');
+    }
+
+    /**
+     * Determine whether the user can download the generated Word document.
+     */
+    public function downloadWord(User $user, LaporanMingguan $laporanMingguan): bool
+    {
+        return $user->can('laporan_download');
+    }
+
+    /**
+     * Determine whether the user can preview lampiran.
+     */
+    public function lampiranPreview(User $user): bool
+    {
+        return $user->can('laporan_lampiran_preview');
+    }
+
+    /**
+     * Determine whether the user can download lampiran.
+     */
+    public function lampiranDownload(User $user): bool
+    {
+        return $user->can('laporan_lampiran_download');
+    }
 }

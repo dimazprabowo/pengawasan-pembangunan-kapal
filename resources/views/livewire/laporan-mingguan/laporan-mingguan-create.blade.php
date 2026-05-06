@@ -91,12 +91,15 @@
                     @error('ringkasan') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                 </div>
 
-                {{-- Laporan Harian Summary --}}
+                {{-- Laporan Harian Selection --}}
                 <div class="mt-6">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Laporan Harian dalam Periode <span class="text-red-500">*</span>
+                        <span class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full @if(count($laporan_harian_ids) > 0) bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 @else bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 @endif">
+                            {{ count($laporan_harian_ids) }}/{{ count($availableLaporanHarian) }} dipilih
+                        </span>
                     </label>
-                    
+
                     <div wire:loading wire:target="periode_mulai,periode_selesai" class="w-full bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
                         <div class="flex flex-col items-center justify-center gap-2">
                             <svg class="animate-spin w-6 h-6 text-blue-600 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -106,27 +109,22 @@
                             <span class="text-sm text-gray-600 dark:text-gray-400">Memuat laporan harian...</span>
                         </div>
                     </div>
-                    
+
                     <div wire:loading.remove wire:target="periode_mulai,periode_selesai">
                         @if(count($availableLaporanHarian) > 0)
-                            <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                                <div class="flex items-center gap-2 mb-3">
-                                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                    </svg>
-                                    <span class="text-sm font-medium text-blue-800 dark:text-blue-200">
-                                        {{ count($availableLaporanHarian) }} laporan harian otomatis dipilih
-                                    </span>
-                                </div>
-                                <div class="space-y-2">
+                            <div class="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                                <div class="space-y-2 max-h-60 overflow-y-auto">
                                     @foreach($availableLaporanHarian as $laporan)
-                                        <div class="flex items-center gap-3 text-sm">
-                                            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                                        <label class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors">
+                                            <input type="checkbox"
+                                                value="{{ $laporan['id'] }}"
+                                                wire:model.live="laporan_harian_ids"
+                                                class="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500 dark:bg-gray-700">
                                             <div class="flex-1">
-                                                <div class="font-medium text-gray-900 dark:text-white">{{ $laporan['judul'] }}</div>
+                                                <div class="font-medium text-gray-900 dark:text-white text-sm">{{ $laporan['judul'] }}</div>
                                                 <div class="text-xs text-gray-500 dark:text-gray-400">{{ $laporan['tanggal'] }}</div>
                                             </div>
-                                        </div>
+                                        </label>
                                     @endforeach
                                 </div>
                             </div>
@@ -155,7 +153,7 @@
                         <button type="button" wire:click="openLampiranModal"
                             wire:loading.attr="disabled"
                             wire:target="openLampiranModal"
-                            @if(!$periode_mulai || !$periode_selesai || count($availableLaporanHarian) === 0) disabled @endif
+                            @if(count($laporan_harian_ids) === 0) disabled @endif
                             class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                             <svg wire:loading.class="hidden" wire:target="openLampiranModal" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -169,7 +167,7 @@
                             <span wire:loading wire:target="openLampiranModal">Memuat...</span>
                         </button>
                     </div>
-                    
+
                     @if(count($lampiran_ids) > 0)
                         <div class="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
                             <div class="space-y-2">
@@ -193,10 +191,10 @@
                         </div>
                     @else
                         <div class="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-4 text-sm text-gray-500 dark:text-gray-400 text-center">
-                            @if($periode_mulai && $periode_selesai)
-                                Klik tombol "Pilih Lampiran" untuk memilih lampiran dari laporan harian dalam periode ini.
+                            @if(count($laporan_harian_ids) > 0)
+                                Klik tombol "Pilih Lampiran" untuk memilih lampiran dari laporan harian yang dipilih.
                             @else
-                                Silakan pilih periode mingguan terlebih dahulu untuk melihat lampiran.
+                                Silakan pilih laporan harian terlebih dahulu untuk melihat lampiran.
                             @endif
                         </div>
                     @endif
