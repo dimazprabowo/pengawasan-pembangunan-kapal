@@ -7,6 +7,7 @@ use App\Models\JenisKapal;
 use App\Models\LaporanHarian;
 use App\Models\LaporanLampiran;
 use App\Models\LaporanMingguan;
+use App\Services\KurvaSService;
 use App\Services\LaporanMingguanService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Storage;
@@ -28,6 +29,13 @@ class LaporanMingguanCreate extends Component
     public array $availableLaporanHarian = [];
     public array $lampiran_ids = [];
 
+    // Kurva S
+    public ?int $minggu_ke = null;
+    public array $progressPerGroup = [];
+    public array $workGroupsForInput = [];
+    public array $mingguOptions = [];
+    public bool $hasKurvaS = false;
+
     // Track previous laporan_harian_ids for filtering lampiran
     public array $previousLaporanHarianIds = [];
 
@@ -44,13 +52,45 @@ class LaporanMingguanCreate extends Component
         $this->jenis_kapal_id = session('laporan_harian_jenis_kapal_id');
         $this->tanggal_laporan = now()->format('Y-m-d');
         $this->loadAvailableLaporanHarian();
+        $this->loadKurvaSOptions();
     }
 
     public function updatedJenisKapalId(): void
     {
         $this->laporan_harian_ids = [];
         $this->lampiran_ids = [];
+        $this->minggu_ke = null;
+        $this->progressPerGroup = [];
         $this->loadAvailableLaporanHarian();
+        $this->loadKurvaSOptions();
+    }
+
+    private function loadKurvaSOptions(): void
+    {
+        if (!$this->jenis_kapal_id) {
+            $this->mingguOptions       = [];
+            $this->hasKurvaS           = false;
+            $this->workGroupsForInput  = [];
+            $this->progressPerGroup    = [];
+            return;
+        }
+
+        $jenisKapal = JenisKapal::find($this->jenis_kapal_id);
+        $service    = app(KurvaSService::class);
+
+        $this->hasKurvaS = $jenisKapal && $service->hasRencana($jenisKapal);
+
+        if ($jenisKapal && $this->hasKurvaS) {
+            $this->mingguOptions      = $service->getMingguOptions($jenisKapal);
+            $this->workGroupsForInput = $service->getProgressInputData(
+                new \App\Models\LaporanMingguan(['jenis_kapal_id' => $this->jenis_kapal_id])
+            );
+            $this->progressPerGroup   = array_column($this->workGroupsForInput, 'pct_realisasi', 'work_group_id');
+        } else {
+            $this->mingguOptions      = [];
+            $this->workGroupsForInput = [];
+            $this->progressPerGroup   = [];
+        }
     }
 
     public function updatedPeriodeMulai(): void
@@ -103,6 +143,7 @@ class LaporanMingguanCreate extends Component
         // Auto-select all available laporan harian
         $this->laporan_harian_ids = collect($this->availableLaporanHarian)->pluck('id')->toArray();
         $this->previousLaporanHarianIds = $this->laporan_harian_ids;
+        $this->loadLampiranHarian();
     }
 
     public function updatedLaporanHarianIds(): void
@@ -132,29 +173,33 @@ class LaporanMingguanCreate extends Component
     protected function rules(): array
     {
         return [
-            'jenis_kapal_id' => 'required|exists:jenis_kapal,id',
-            'judul' => 'required|string|max:255',
-            'tanggal_laporan' => 'required|date',
-            'periode_mulai' => 'required|date|before_or_equal:periode_selesai',
-            'periode_selesai' => 'required|date|after_or_equal:periode_mulai',
-            'ringkasan' => 'nullable|string',
-            'laporan_harian_ids' => 'required|array|min:1',
-            'laporan_harian_ids.*' => 'exists:laporan_harian,id',
-            'lampiran_ids' => 'array',
-            'lampiran_ids.*' => 'exists:laporan_lampiran,id',
+            'jenis_kapal_id'      => 'required|exists:jenis_kapal,id',
+            'judul'               => 'required|string|max:255',
+            'tanggal_laporan'     => 'required|date',
+            'periode_mulai'       => 'required|date|before_or_equal:periode_selesai',
+            'periode_selesai'     => 'required|date|after_or_equal:periode_mulai',
+            'ringkasan'           => 'nullable|string',
+            'laporan_harian_ids'  => 'required|array|min:1',
+            'laporan_harian_ids.*'=> 'exists:laporan_harian,id',
+            'lampiran_ids'        => 'array',
+            'lampiran_ids.*'      => 'exists:laporan_lampiran,id',
+            'minggu_ke'              => 'nullable|integer|min:1',
+            'progressPerGroup'       => 'array',
+            'progressPerGroup.*'     => 'nullable|numeric|min:0|max:100',
         ];
     }
 
     public function validationAttributes(): array
     {
         return [
-            'jenis_kapal_id' => 'jenis kapal',
-            'judul' => 'judul laporan',
-            'tanggal_laporan' => 'tanggal laporan',
-            'periode_mulai' => 'periode mulai',
-            'periode_selesai' => 'periode selesai',
-            'ringkasan' => 'ringkasan',
+            'jenis_kapal_id'     => 'jenis kapal',
+            'judul'              => 'judul laporan',
+            'tanggal_laporan'    => 'tanggal laporan',
+            'periode_mulai'      => 'periode mulai',
+            'periode_selesai'    => 'periode selesai',
+            'ringkasan'          => 'ringkasan',
             'laporan_harian_ids' => 'laporan harian',
+            'minggu_ke'          => 'minggu ke',
         ];
     }
 
@@ -399,18 +444,23 @@ class LaporanMingguanCreate extends Component
 
         try {
             $data = [
-                'user_id' => auth()->id(),
-                'jenis_kapal_id' => $this->jenis_kapal_id,
-                'judul' => $this->judul,
-                'tanggal_laporan' => $this->tanggal_laporan,
-                'periode_mulai' => $this->periode_mulai ?: null,
-                'periode_selesai' => $this->periode_selesai ?: null,
-                'ringkasan' => $this->ringkasan ?: null,
+                'user_id'            => auth()->id(),
+                'jenis_kapal_id'     => $this->jenis_kapal_id,
+                'judul'              => $this->judul,
+                'tanggal_laporan'    => $this->tanggal_laporan,
+                'periode_mulai'      => $this->periode_mulai ?: null,
+                'periode_selesai'    => $this->periode_selesai ?: null,
+                'ringkasan'          => $this->ringkasan ?: null,
+                'minggu_ke'          => $this->minggu_ke ?: null,
                 'laporan_harian_ids' => $this->laporan_harian_ids,
-                'lampiran_ids' => $this->lampiran_ids,
+                'lampiran_ids'       => $this->lampiran_ids,
             ];
 
-            $service->create($data);
+            $laporan = $service->create($data);
+
+            if ($this->hasKurvaS && !empty($this->progressPerGroup)) {
+                app(KurvaSService::class)->saveProgress($laporan, $this->progressPerGroup);
+            }
 
             session()->flash('notify', [
                 'type' => 'success',
@@ -423,10 +473,19 @@ class LaporanMingguanCreate extends Component
         }
     }
 
-    public function render()
+    public function render(KurvaSService $kurvaSService)
     {
+        $kurvaSChartData = [];
+        if ($this->jenis_kapal_id && $this->hasKurvaS) {
+            $jenisKapal = JenisKapal::find($this->jenis_kapal_id);
+            if ($jenisKapal) {
+                $kurvaSChartData = $kurvaSService->getChartData($jenisKapal);
+            }
+        }
+
         return view('livewire.laporan-mingguan.laporan-mingguan-create', [
-            'jenisKapalList' => JenisKapal::with(['company', 'galangan'])->get(),
+            'jenisKapalList'  => JenisKapal::with(['company', 'galangan'])->get(),
+            'kurvaSChartData' => $kurvaSChartData,
         ]);
     }
 }

@@ -46,6 +46,7 @@ class PermissionSeeder extends Seeder
             'jenis_kapal_export_pdf',
             'jenis_kapal_upload_template',
             'jenis_kapal_download_template',
+            'jenis_kapal_manage_kurva_s',
 
             // Master Data — Galangan
             'galangan_view',

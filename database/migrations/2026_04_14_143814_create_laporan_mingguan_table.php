@@ -20,6 +20,8 @@ return new class extends Migration
             $table->date('periode_mulai')->nullable();
             $table->date('periode_selesai')->nullable();
             $table->text('ringkasan')->nullable();
+            $table->tinyInteger('minggu_ke')->unsigned()->nullable()
+                ->comment('Nomor minggu konstruksi (referensi ke kurva_s_rencana)');
 
             // Generated Word document
             $table->string('doc_path')->nullable();

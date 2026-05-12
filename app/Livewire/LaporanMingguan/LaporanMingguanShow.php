@@ -6,6 +6,7 @@ use App\Jobs\GenerateLaporanMingguanJob;
 use App\Livewire\Traits\HasNotification;
 use App\Models\LaporanLampiran;
 use App\Models\LaporanMingguan;
+use App\Services\KurvaSService;
 use App\Services\LaporanMingguanService;
 use App\Services\QueueStatusService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -408,10 +409,21 @@ class LaporanMingguanShow extends Component
         $this->notifySuccess('Dokumen berhasil dihapus.');
     }
 
-    public function render(QueueStatusService $queueStatusService)
+    public function render(QueueStatusService $queueStatusService, KurvaSService $kurvaSService)
     {
+        $chartData       = [];
+        $detailTableData = [];
+
+        if ($this->laporan->jenisKapal) {
+            $chartData       = $kurvaSService->getChartData($this->laporan->jenisKapal);
+            $detailTableData = $kurvaSService->getDetailTableData($this->laporan);
+        }
+
         return view('livewire.laporan-mingguan.laporan-mingguan-show', [
-            'queueStatus' => $queueStatusService->getQueueStatusMessage(),
+            'queueStatus'      => $queueStatusService->getQueueStatusMessage(),
+            'kurvaSChartData'  => $chartData,
+            'kurvaSDetail'     => $detailTableData,
+            'jenisKapalNama'   => $this->laporan->jenisKapal?->nama,
         ]);
     }
 }

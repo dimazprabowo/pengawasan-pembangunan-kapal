@@ -6,6 +6,7 @@ use App\Livewire\Traits\HasNotification;
 use App\Models\JenisKapal;
 use App\Models\LaporanMingguan;
 use App\Exports\LaporanMingguanExport;
+use App\Services\KurvaSService;
 use App\Services\LaporanMingguanService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -27,6 +28,9 @@ class LaporanMingguanIndex extends Component
     public ?int $jenisKapalId = null;
 
     public int $perPage = 10;
+
+    // Kurva S Panel
+    public bool $showKurvaS = false;
 
     // Delete Modal
     public bool $showDeleteModal = false;
@@ -131,8 +135,16 @@ class LaporanMingguanIndex extends Component
         );
     }
 
-    public function render(LaporanMingguanService $service)
+    public function render(LaporanMingguanService $service, KurvaSService $kurvaSService)
     {
+        $chartData = [];
+        if ($this->showKurvaS && $this->jenisKapalId) {
+            $jenisKapal = JenisKapal::find($this->jenisKapalId);
+            if ($jenisKapal) {
+                $chartData = $kurvaSService->getChartData($jenisKapal);
+            }
+        }
+
         return view('livewire.laporan-mingguan.laporan-mingguan-index', [
             'laporanList' => $service->getFiltered(
                 $this->search,
@@ -144,6 +156,8 @@ class LaporanMingguanIndex extends Component
                 : JenisKapal::whereHas('users', function ($q) {
                     $q->where('users.id', auth()->id());
                 })->with(['company', 'galangan'])->get(),
+            'kurvaSChartData'  => $chartData,
+            'selectedJenisKapal' => $this->jenisKapalId ? JenisKapal::find($this->jenisKapalId) : null,
         ]);
     }
 }

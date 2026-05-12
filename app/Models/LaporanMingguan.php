@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class LaporanMingguan extends Model
 {
@@ -23,6 +24,7 @@ class LaporanMingguan extends Model
         'periode_mulai',
         'periode_selesai',
         'ringkasan',
+        'minggu_ke',
         'doc_path',
         'doc_name',
         'doc_status',
@@ -34,6 +36,7 @@ class LaporanMingguan extends Model
         'tanggal_laporan' => 'date',
         'periode_mulai' => 'date',
         'periode_selesai' => 'date',
+        'minggu_ke'        => 'integer',
         'doc_generated_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
@@ -48,6 +51,11 @@ class LaporanMingguan extends Model
     public function jenisKapal(): BelongsTo
     {
         return $this->belongsTo(JenisKapal::class);
+    }
+
+    public function laporanProgress(): HasMany
+    {
+        return $this->hasMany(LaporanMingguanProgress::class, 'laporan_mingguan_id');
     }
 
     public function laporanHarian(): BelongsToMany

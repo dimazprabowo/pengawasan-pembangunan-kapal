@@ -48,6 +48,11 @@ class JenisKapal extends Model
         return $this->hasMany(LaporanHarian::class);
     }
 
+    public function kurvaSWorkGroups(): HasMany
+    {
+        return $this->hasMany(KurvaSWorkGroup::class)->orderBy('sort_order');
+    }
+
     public function scopeActive($query)
     {
         return $query->where('status', JenisKapalStatus::Active);

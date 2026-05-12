@@ -1,0 +1,368 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\JenisKapal;
+use App\Models\KurvaSRencana;
+use App\Models\KurvaSWorkGroup;
+use App\Models\LaporanMingguan;
+use App\Models\LaporanMingguanProgress;
+use Illuminate\Support\Collection;
+
+class KurvaSService
+{
+    /**
+     * Ambil semua work groups beserta rencana per minggu untuk satu jenis kapal.
+     */
+    public function getWorkGroups(JenisKapal $jenisKapal): Collection
+    {
+        return KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
+            ->with(['kurvaSRencana' => fn($q) => $q->orderBy('minggu_ke')])
+            ->orderBy('sort_order')
+            ->get();
+    }
+
+    /**
+     * Simpan semua work groups dan rencana per minggu (replace total).
+     * Format $workGroups:
+     * [
+     *   ['id' => null, 'nama' => 'Engineering', 'bobot' => '5.00',
+     *    'weeks' => [['minggu_ke' => 1, 'pct_rencana' => '3.00', 'keterangan' => ''], ...]],
+     *   ...
+     * ]
+     */
+    public function saveWorkGroups(JenisKapal $jenisKapal, array $workGroups): void
+    {
+        $existingIds = KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
+            ->pluck('id')
+            ->toArray();
+
+        $savedIds = [];
+        $now      = now();
+
+        foreach ($workGroups as $sortOrder => $wgData) {
+            $id = isset($wgData['id']) && $wgData['id'] ? (int) $wgData['id'] : null;
+
+            if ($id && in_array($id, $existingIds)) {
+                $wg = KurvaSWorkGroup::find($id);
+            } else {
+                $wg = new KurvaSWorkGroup();
+            }
+
+            $wg->fill([
+                'jenis_kapal_id' => $jenisKapal->id,
+                'nama'           => trim($wgData['nama'] ?? ''),
+                'bobot'          => (float) ($wgData['bobot'] ?? 0),
+                'sort_order'     => $sortOrder,
+            ])->save();
+
+            KurvaSRencana::where('work_group_id', $wg->id)->delete();
+
+            $insert = [];
+            foreach ((array) ($wgData['weeks'] ?? []) as $w) {
+                $minggu = (int) ($w['minggu_ke'] ?? 0);
+                if ($minggu <= 0) {
+                    continue;
+                }
+                $insert[] = [
+                    'work_group_id' => $wg->id,
+                    'minggu_ke'     => $minggu,
+                    'pct_rencana'   => max(0, min(100, (float) ($w['pct_rencana'] ?? 0))),
+                    'keterangan'    => $w['keterangan'] ?? null,
+                    'created_at'    => $now,
+                    'updated_at'    => $now,
+                ];
+            }
+
+            if (!empty($insert)) {
+                KurvaSRencana::insert($insert);
+            }
+
+            $savedIds[] = $wg->id;
+        }
+
+        KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
+            ->whereNotIn('id', $savedIds)
+            ->delete();
+    }
+
+    /**
+     * Simpan realisasi per work group untuk satu laporan mingguan.
+     * Format $progressData: [work_group_id => pct_realisasi, ...]
+     */
+    public function saveProgress(LaporanMingguan $laporan, array $progressData): void
+    {
+        $now = now();
+        foreach ($progressData as $workGroupId => $pct) {
+            if (!$workGroupId) {
+                continue;
+            }
+            LaporanMingguanProgress::updateOrCreate(
+                [
+                    'laporan_mingguan_id' => $laporan->id,
+                    'work_group_id'       => (int) $workGroupId,
+                ],
+                [
+                    'pct_realisasi' => max(0, min(100, (float) $pct)),
+                    'updated_at'    => $now,
+                ]
+            );
+        }
+    }
+
+    /**
+     * Cek apakah sebuah jenis kapal sudah memiliki work groups dengan rencana Kurva S.
+     */
+    public function hasRencana(JenisKapal $jenisKapal): bool
+    {
+        return KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)->exists();
+    }
+
+    /**
+     * Ambil daftar minggu yang tersedia untuk dropdown di laporan mingguan.
+     * Minggu diambil dari union semua minggu yang direncanakan oleh work groups.
+     */
+    public function getMingguOptions(JenisKapal $jenisKapal): array
+    {
+        $workGroupIds = KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)->pluck('id');
+
+        return KurvaSRencana::whereIn('work_group_id', $workGroupIds)
+            ->select('minggu_ke')
+            ->distinct()
+            ->orderBy('minggu_ke')
+            ->pluck('minggu_ke')
+            ->map(fn($m) => ['value' => $m, 'label' => 'Minggu ke-' . $m])
+            ->toArray();
+    }
+
+    /**
+     * Ambil data work groups beserta pct_realisasi untuk sebuah laporan (untuk form input).
+     * Returns: [['work_group_id' => 1, 'nama' => '...', 'bobot' => 5.0, 'pct_realisasi' => 0.0], ...]
+     */
+    public function getProgressInputData(LaporanMingguan $laporan): array
+    {
+        if (!$laporan->jenis_kapal_id) {
+            return [];
+        }
+
+        $workGroups = KurvaSWorkGroup::where('jenis_kapal_id', $laporan->jenis_kapal_id)
+            ->orderBy('sort_order')
+            ->get();
+
+        $existing = LaporanMingguanProgress::where('laporan_mingguan_id', $laporan->id)
+            ->pluck('pct_realisasi', 'work_group_id');
+
+        return $workGroups->map(fn($wg) => [
+            'work_group_id' => $wg->id,
+            'nama'          => $wg->nama,
+            'bobot'         => $wg->bobot,
+            'pct_realisasi' => (float) ($existing[$wg->id] ?? 0),
+        ])->toArray();
+    }
+
+    /**
+     * Bangun data lengkap untuk Chart Kurva S.
+     *
+     * pct_rencana  = incremental % progress group per minggu
+     * pct_realisasi = cumulative % progress group as of this report
+     *
+     * Returns array dengan keys:
+     *   labels, rencana (kumulatif proyek), aktual (kumulatif proyek),
+     *   has_rencana, has_aktual, total_minggu, total_bobot,
+     *   progress_terkini, deviasi, work_groups (for detail table)
+     */
+    public function getChartData(JenisKapal $jenisKapal): array
+    {
+        $workGroups = KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
+            ->with(['kurvaSRencana' => fn($q) => $q->orderBy('minggu_ke')])
+            ->orderBy('sort_order')
+            ->get();
+
+        if ($workGroups->isEmpty()) {
+            return [
+                'labels'           => [],
+                'rencana'          => [],
+                'aktual'           => [],
+                'has_rencana'      => false,
+                'has_aktual'       => false,
+                'total_minggu'     => 0,
+                'total_bobot'      => 0.0,
+                'progress_terkini' => null,
+                'deviasi'          => null,
+                'work_groups'      => [],
+            ];
+        }
+
+        $allWeeks = $workGroups
+            ->flatMap(fn($wg) => $wg->kurvaSRencana->pluck('minggu_ke'))
+            ->unique()
+            ->sort()
+            ->values()
+            ->toArray();
+
+        if (empty($allWeeks)) {
+            return [
+                'labels'           => [],
+                'rencana'          => [],
+                'aktual'           => [],
+                'has_rencana'      => false,
+                'has_aktual'       => false,
+                'total_minggu'     => 0,
+                'total_bobot'      => round($workGroups->sum('bobot'), 2),
+                'progress_terkini' => null,
+                'deviasi'          => null,
+                'work_groups'      => $workGroups->map(fn($wg) => ['id' => $wg->id, 'nama' => $wg->nama, 'bobot' => $wg->bobot])->toArray(),
+            ];
+        }
+
+        $workGroupIds = $workGroups->pluck('id')->toArray();
+
+        // Ambil laporan mingguan dengan progress untuk jenis kapal ini
+        $laporanList = LaporanMingguan::where('jenis_kapal_id', $jenisKapal->id)
+            ->whereNotNull('minggu_ke')
+            ->whereHas('laporanProgress')
+            ->with(['laporanProgress'])
+            ->orderBy('minggu_ke')
+            ->orderBy('created_at')
+            ->get();
+
+        // Map: minggu_ke -> [work_group_id -> pct_realisasi] (ambil laporan terbaru per minggu)
+        $aktualByWeek = [];
+        foreach ($laporanList as $laporan) {
+            $week = $laporan->minggu_ke;
+            $map  = [];
+            foreach ($laporan->laporanProgress as $prog) {
+                if (in_array($prog->work_group_id, $workGroupIds)) {
+                    $map[$prog->work_group_id] = (float) $prog->pct_realisasi;
+                }
+            }
+            if (!empty($map)) {
+                $aktualByWeek[$week] = $map;
+            }
+        }
+
+        // Build cumulative project plan and project actual per week
+        $labels      = [];
+        $rencanaKum  = [];
+        $aktualKum   = [];
+        $lastAktual  = null;
+        $cumPlan     = 0.0;
+
+        foreach ($allWeeks as $week) {
+            $labels[] = 'Minggu ' . $week;
+
+            // Project plan for this week = Σ(pct_rencana[group, week] × bobot / 100)
+            $weekPlan = 0.0;
+            foreach ($workGroups as $wg) {
+                $rencana = $wg->kurvaSRencana->firstWhere('minggu_ke', $week);
+                if ($rencana) {
+                    $weekPlan += (float) $rencana->pct_rencana * (float) $wg->bobot / 100.0;
+                }
+            }
+            $cumPlan   += $weekPlan;
+            $rencanaKum[] = round($cumPlan, 2);
+
+            // Project actual for this week = Σ(pct_realisasi[group] × bobot / 100)
+            if (isset($aktualByWeek[$week])) {
+                $weekActual = 0.0;
+                foreach ($workGroups as $wg) {
+                    $pct = $aktualByWeek[$week][$wg->id] ?? null;
+                    if ($pct !== null) {
+                        $weekActual += (float) $pct * (float) $wg->bobot / 100.0;
+                    }
+                }
+                $aktualKum[] = round($weekActual, 2);
+                $lastAktual  = ['minggu_ke' => $week, 'kumulatif' => round($weekActual, 2), 'rencana' => round($cumPlan, 2)];
+            } else {
+                $aktualKum[] = null;
+            }
+        }
+
+        $deviasi = null;
+        if ($lastAktual !== null) {
+            $deviasi = round($lastAktual['kumulatif'] - $lastAktual['rencana'], 2);
+        }
+
+        return [
+            'labels'           => $labels,
+            'rencana'          => $rencanaKum,
+            'aktual'           => $aktualKum,
+            'has_rencana'      => true,
+            'has_aktual'       => !empty($aktualByWeek),
+            'total_minggu'     => count($allWeeks),
+            'total_bobot'      => round($workGroups->sum('bobot'), 2),
+            'progress_terkini' => $lastAktual ? $lastAktual['kumulatif'] : null,
+            'deviasi'          => $deviasi,
+            'work_groups'      => $workGroups->map(fn($wg) => ['id' => $wg->id, 'nama' => $wg->nama, 'bobot' => $wg->bobot])->toArray(),
+        ];
+    }
+
+    /**
+     * Bangun data detail tabel untuk satu laporan (untuk halaman show).
+     * Returns per-group breakdown: group plan, project plan, group realization, project realization, deviasi
+     */
+    public function getDetailTableData(LaporanMingguan $laporan): array
+    {
+        if (!$laporan->jenis_kapal_id || !$laporan->minggu_ke) {
+            return [];
+        }
+
+        $workGroups = KurvaSWorkGroup::where('jenis_kapal_id', $laporan->jenis_kapal_id)
+            ->with(['kurvaSRencana' => fn($q) => $q->orderBy('minggu_ke')])
+            ->orderBy('sort_order')
+            ->get();
+
+        if ($workGroups->isEmpty()) {
+            return [];
+        }
+
+        $progressMap = LaporanMingguanProgress::where('laporan_mingguan_id', $laporan->id)
+            ->pluck('pct_realisasi', 'work_group_id');
+
+        $rows       = [];
+        $totalBobot = 0.0;
+        $totalPlanGroup  = 0.0;
+        $totalPlanProj   = 0.0;
+        $totalRealGroup  = 0.0;
+        $totalRealProj   = 0.0;
+
+        foreach ($workGroups as $wg) {
+            // Cumulative group plan until minggu_ke
+            $groupPlan = $wg->kurvaSRencana
+                ->where('minggu_ke', '<=', $laporan->minggu_ke)
+                ->sum('pct_rencana');
+
+            $projectPlan = round($groupPlan * $wg->bobot / 100, 2);
+            $groupReal   = (float) ($progressMap[$wg->id] ?? 0);
+            $projectReal = round($groupReal * $wg->bobot / 100, 2);
+
+            $rows[] = [
+                'nama'         => $wg->nama,
+                'bobot'        => $wg->bobot,
+                'group_plan'   => round($groupPlan, 2),
+                'project_plan' => $projectPlan,
+                'group_real'   => round($groupReal, 2),
+                'project_real' => $projectReal,
+                'dev_group'    => round($groupReal - $groupPlan, 2),
+                'dev_project'  => round($projectReal - $projectPlan, 2),
+            ];
+
+            $totalBobot     += $wg->bobot;
+            $totalPlanGroup += $groupPlan;
+            $totalPlanProj  += $projectPlan;
+            $totalRealGroup += $groupReal;
+            $totalRealProj  += $projectReal;
+        }
+
+        return [
+            'minggu_ke'  => $laporan->minggu_ke,
+            'rows'       => $rows,
+            'totals'     => [
+                'bobot'        => round($totalBobot, 2),
+                'project_plan' => round($totalPlanProj, 2),
+                'project_real' => round($totalRealProj, 2),
+                'dev_project'  => round($totalRealProj - $totalPlanProj, 2),
+            ],
+        ];
+    }
+}

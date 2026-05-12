@@ -56,4 +56,14 @@ class JenisKapalPolicy
     {
         return $user->can('jenis_kapal_download_template');
     }
+
+    public function managekurvaSRencana(User $user, JenisKapal $jenisKapal): bool
+    {
+        return $user->can('jenis_kapal_manage_kurva_s');
+    }
+
+    public function viewkurvaSRencana(User $user, JenisKapal $jenisKapal): bool
+    {
+        return $user->can('jenis_kapal_view');
+    }
 }

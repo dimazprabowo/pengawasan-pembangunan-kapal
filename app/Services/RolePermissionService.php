@@ -92,6 +92,7 @@ class RolePermissionService
                 ['name' => 'jenis_kapal_delete',            'label' => 'Hapus Jenis Kapal'],
                 ['name' => 'jenis_kapal_upload_template',   'label' => 'Upload Template Laporan'],
                 ['name' => 'jenis_kapal_download_template', 'label' => 'Download Template Harian'],
+                ['name' => 'jenis_kapal_manage_kurva_s', 'label' => 'Manage Kurva S'],
                 ['name' => 'jenis_kapal_export_excel',      'label' => 'Export Excel Jenis Kapal'],
                 ['name' => 'jenis_kapal_export_pdf',        'label' => 'Export PDF Jenis Kapal'],
             ],

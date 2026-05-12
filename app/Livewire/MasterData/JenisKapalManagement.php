@@ -407,6 +407,13 @@ class JenisKapalManagement extends Component
         }
     }
 
+    public function openKurvaSModal(int $id): void
+    {
+        $jenisKapal = JenisKapal::findOrFail($id);
+        $this->authorize('managekurvaSRencana', $jenisKapal);
+        $this->dispatch('open-kurvas-modal', jenisKapalId: $id);
+    }
+
     public function render(JenisKapalService $service)
     {
         return view('livewire.master-data.jenis-kapal-management', [
