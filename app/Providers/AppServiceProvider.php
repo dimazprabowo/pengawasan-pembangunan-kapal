@@ -8,6 +8,7 @@ use App\Models\Company;
 use App\Models\Cuaca;
 use App\Models\Kelembaban;
 use App\Models\LaporanHarian;
+use App\Models\LaporanMingguan;
 use App\Models\Notification;
 use App\Models\SystemConfiguration;
 use App\Models\User;
@@ -17,6 +18,7 @@ use App\Policies\CuacaPolicy;
 use App\Policies\DashboardPolicy;
 use App\Policies\KelembabanPolicy;
 use App\Policies\LaporanHarianPolicy;
+use App\Policies\LaporanMingguanPolicy;
 use App\Policies\NotificationPolicy;
 use App\Policies\RolePolicy;
 use App\Policies\SystemConfigurationPolicy;
@@ -50,6 +52,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Chat::class, ChatPolicy::class);
         Gate::policy(ChatMessage::class, ChatPolicy::class);
         Gate::policy(LaporanHarian::class, LaporanHarianPolicy::class);
+        Gate::policy(LaporanMingguan::class, LaporanMingguanPolicy::class);
         Gate::policy(Kelembaban::class, KelembabanPolicy::class);
         Gate::policy(Cuaca::class, CuacaPolicy::class);
 

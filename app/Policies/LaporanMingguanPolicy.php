@@ -48,6 +48,14 @@ class LaporanMingguanPolicy
     }
 
     /**
+     * Determine whether the user can download files.
+     */
+    public function download(User $user, LaporanMingguan $laporanMingguan): bool
+    {
+        return $user->can('laporan_download');
+    }
+
+    /**
      * Determine whether the user can export to Excel.
      */
     public function exportExcel(User $user): bool

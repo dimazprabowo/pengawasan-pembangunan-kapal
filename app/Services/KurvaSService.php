@@ -121,16 +121,32 @@ class KurvaSService
     /**
      * Ambil daftar minggu yang tersedia untuk dropdown di laporan mingguan.
      * Minggu diambil dari union semua minggu yang direncanakan oleh work groups.
+     * Minggu yang sudah memiliki laporan mingguan akan dikecualikan.
      */
-    public function getMingguOptions(JenisKapal $jenisKapal): array
+    public function getMingguOptions(JenisKapal $jenisKapal, ?int $excludeCurrentWeek = null): array
     {
         $workGroupIds = KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)->pluck('id');
 
-        return KurvaSRencana::whereIn('work_group_id', $workGroupIds)
+        // Get all planned weeks
+        $plannedWeeks = KurvaSRencana::whereIn('work_group_id', $workGroupIds)
             ->select('minggu_ke')
             ->distinct()
             ->orderBy('minggu_ke')
             ->pluck('minggu_ke')
+            ->toArray();
+
+        // Get weeks that already have laporan mingguan
+        $usedWeeks = LaporanMingguan::where('jenis_kapal_id', $jenisKapal->id)
+            ->whereNotNull('minggu_ke')
+            ->when($excludeCurrentWeek, fn($q) => $q->where('minggu_ke', '!=', $excludeCurrentWeek))
+            ->pluck('minggu_ke')
+            ->toArray();
+
+        // Exclude used weeks from planned weeks
+        $availableWeeks = array_diff($plannedWeeks, $usedWeeks);
+
+        return collect($availableWeeks)
+            ->sort()
             ->map(fn($m) => ['value' => $m, 'label' => 'Minggu ke-' . $m])
             ->toArray();
     }
@@ -295,6 +311,37 @@ class KurvaSService
             'deviasi'          => $deviasi,
             'work_groups'      => $workGroups->map(fn($wg) => ['id' => $wg->id, 'nama' => $wg->nama, 'bobot' => $wg->bobot])->toArray(),
         ];
+    }
+
+    /**
+     * Ambil history progress per work group untuk semua minggu yang sudah ada laporannya.
+     * Returns: [['minggu_ke' => 1, 'work_groups' => [wg_id => pct_realisasi]], ...]
+     */
+    public function getProgressHistory(JenisKapal $jenisKapal): array
+    {
+        $laporanList = LaporanMingguan::where('jenis_kapal_id', $jenisKapal->id)
+            ->whereNotNull('minggu_ke')
+            ->whereHas('laporanProgress')
+            ->with(['laporanProgress'])
+            ->orderBy('minggu_ke')
+            ->orderBy('created_at')
+            ->get();
+
+        $history = [];
+        foreach ($laporanList as $laporan) {
+            $week = $laporan->minggu_ke;
+            $progressMap = [];
+            foreach ($laporan->laporanProgress as $prog) {
+                $progressMap[$prog->work_group_id] = (float) $prog->pct_realisasi;
+            }
+            $history[] = [
+                'minggu_ke' => $week,
+                'progress'  => $progressMap,
+                'created_at' => $laporan->created_at->format('d M Y'),
+            ];
+        }
+
+        return $history;
     }
 
     /**

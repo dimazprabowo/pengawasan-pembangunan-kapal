@@ -81,17 +81,21 @@ document.addEventListener('alpine:init', () => {
         },
 
         init() {
-            console.log('kurvaSChart init:', { chartData: this.chartData, canvasId: this.canvasId });
-            if (!this.chartData || !this.chartData.labels || !this.chartData.has_rencana) {
-                console.log('kurvaSChart: insufficient data, skipping chart init');
-                return;
-            }
+            if (!this.chartData || !this.chartData.labels || !this.chartData.has_rencana) return;
             this.$nextTick(() => {
                 const ctx = this.canvasId ? document.getElementById(this.canvasId) : this.$el.querySelector('canvas');
-                console.log('kurvaSChart: canvas element:', ctx);
-                if (!ctx || typeof Chart === 'undefined') {
-                    console.log('kurvaSChart: canvas not found or Chart.js not loaded');
-                    return;
+                if (!ctx || typeof Chart === 'undefined') return;
+
+                // Destroy existing chart if it exists using Chart.getChart()
+                const existingChart = Chart.getChart(ctx);
+                if (existingChart) {
+                    existingChart.destroy();
+                }
+
+                // Also destroy our reference if it exists
+                if (this.chart) {
+                    this.chart.destroy();
+                    this.chart = null;
                 }
 
                 const c = this.getColors();
@@ -138,7 +142,6 @@ document.addEventListener('alpine:init', () => {
                         }
                     }
                 });
-                console.log('kurvaSChart: chart created successfully');
             });
         },
 
@@ -155,6 +158,13 @@ document.addEventListener('alpine:init', () => {
             this.chart.options.plugins.tooltip.bodyColor       = this.isDark() ? '#d1d5db' : '#374151';
             this.chart.options.plugins.tooltip.borderColor     = this.isDark() ? '#374151' : '#e5e7eb';
             this.chart.update();
+        },
+
+        destroy() {
+            if (this.chart) {
+                this.chart.destroy();
+                this.chart = null;
+            }
         },
     }));
 });

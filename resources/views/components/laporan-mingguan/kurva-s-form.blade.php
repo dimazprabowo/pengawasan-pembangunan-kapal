@@ -4,6 +4,7 @@
     'workGroupsForInput' => [],
     'minggu_ke'          => null,
     'progressPerGroup'   => [],
+    'progressHistory'    => [],
 ])
 
 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -53,11 +54,44 @@
                  x-data="{
                      pcts: @js(collect($workGroupsForInput)->mapWithKeys(fn($wg) => [(string)$wg['work_group_id'] => (float)($progressPerGroup[$wg['work_group_id']] ?? 0)])->all()),
                      bobots: @js(collect($workGroupsForInput)->mapWithKeys(fn($wg) => [(string)$wg['work_group_id'] => (float)$wg['bobot']])->all()),
-                     kontribusi(id) { return ((this.pcts[String(id)] || 0) * (this.bobots[String(id)] || 0) / 100); },
-                     totalKontribusi() { return Object.keys(this.bobots).reduce((s, id) => s + this.kontribusi(id), 0); },
+                     currentMingguKe: {{ $minggu_ke ?? 0 }},
+                     progressHistory: @js($progressHistory),
+                     historyTotals: @js(collect($workGroupsForInput)->mapWithKeys(function($wg) use ($progressHistory, $minggu_ke) {
+                         $total = 0;
+                         foreach($progressHistory as $hist) {
+                             // Exclude current week from history (only sum previous weeks)
+                             if(isset($hist['progress'][$wg['work_group_id']]) && $hist['minggu_ke'] != $minggu_ke) {
+                                 $total += $hist['progress'][$wg['work_group_id']] * $wg['bobot'] / 100;
+                             }
+                         }
+                         return [(string)$wg['work_group_id'] => $total];
+                     })->all()),
+                     kontribusi(id) { const k = this.kontribusiVal(id); return k; },
+                     kontribusiVal(id) { return ((this.pcts[String(id)] || 0) * (this.bobots[String(id)] || 0) / 100); },
+                     historyKontribusi(wgId, weekIndex) { const p = this.progressHistory[weekIndex]?.progress[String(wgId)]; return p ? p * this.bobots[String(wgId)] / 100 : 0; },
+                     totalKontribusiHistory(id) { return ((this.historyTotals && this.historyTotals[String(id)]) || 0) + this.kontribusiVal(id); },
+                     totalAllKontribusiHistory() { return Object.keys(this.bobots).reduce((s, id) => s + this.totalKontribusiHistory(id), 0); },
+                     exceedsBobot(id) { return this.kontribusiVal(id) > this.bobots[String(id)]; },
+                     historyExceedsBobot(id) { return this.totalKontribusiHistory(id) > this.bobots[String(id)]; },
+                     anyExceedsBobot() { return Object.keys(this.bobots).some(id => this.exceedsBobot(id)); },
+                     totalKontribusi() { return Object.keys(this.bobots).reduce((s, id) => s + this.kontribusiVal(id), 0); },
+                     totalHistoryKontribusi(wgId) { return this.progressHistory.reduce((s, h, i) => s + this.historyKontribusi(wgId, i), 0); },
                      init() { this.$wire.$watch('progressPerGroup', (v) => { for (const k in v) this.pcts[String(k)] = parseFloat(v[k]) || 0; }); }
                  }"
-                 @input="const t = $event.target, id = t.dataset.wgId; if (id !== undefined) pcts[id] = parseFloat(t.value) || 0;">
+                 @input="const t = $event.target, id = t.dataset.wgId; if (id !== undefined) { pcts[id] = parseFloat(t.value) || 0; window.dispatchEvent(new CustomEvent('progress-input-changed', { detail: { pcts } })); }">
+
+                {{-- Warning banner when kontribusi exceeds bobot --}}
+                <div x-show="anyExceedsBobot()" x-cloak
+                     class="mb-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-3 flex items-start gap-2">
+                    <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                    <div>
+                        <p class="text-sm font-medium text-red-700 dark:text-red-400">Kontribusi Proyek melebihi Bobot</p>
+                        <p class="text-xs text-red-600 dark:text-red-300 mt-0.5">Kontribusi proyek tidak boleh melebihi bobot work group. Silakan kurangi nilai realisasi group.</p>
+                    </div>
+                </div>
+
                 <table class="min-w-full text-sm">
                     <thead>
                         <tr class="bg-blue-100/60 dark:bg-blue-900/30">
@@ -65,6 +99,7 @@
                             <th class="px-3 py-2 text-center text-xs font-medium text-blue-700 dark:text-blue-300 uppercase w-24">Bobot (%)</th>
                             <th class="px-3 py-2 text-left text-xs font-medium text-blue-700 dark:text-blue-300 uppercase w-44">Realisasi Group (%)</th>
                             <th class="px-3 py-2 text-right text-xs font-medium text-blue-700 dark:text-blue-300 uppercase w-36">Kontribusi Proyek</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium text-blue-700 dark:text-blue-300 uppercase w-36">Total Kontribusi</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-blue-100 dark:divide-blue-900/30">
@@ -86,8 +121,12 @@
                                     <span class="text-red-500 text-xs">{{ $message }}</span>
                                 @enderror
                             </td>
-                            <td class="px-3 py-2 text-right text-gray-600 dark:text-gray-300 tabular-nums"
+                            <td class="px-3 py-2 text-right tabular-nums"
+                                :class="exceedsBobot({{ $wg['work_group_id'] }}) ? 'text-red-600 dark:text-red-400 font-bold' : 'text-gray-600 dark:text-gray-300'"
                                 x-text="kontribusi({{ $wg['work_group_id'] }}).toFixed(2) + '%'"></td>
+                            <td class="px-3 py-2 text-right tabular-nums font-medium"
+                                :class="historyExceedsBobot({{ $wg['work_group_id'] }}) ? 'text-red-600 dark:text-red-400 font-bold' : 'text-gray-700 dark:text-gray-300'"
+                                x-text="totalKontribusiHistory({{ $wg['work_group_id'] }}).toFixed(2) + '%'"></td>
                         </tr>
                         @endforeach
                     </tbody>
@@ -100,10 +139,99 @@
                             <td class="px-3 py-2"></td>
                             <td class="px-3 py-2 text-right text-xs text-blue-700 dark:text-blue-300 tabular-nums"
                                 x-text="totalKontribusi().toFixed(2) + '%'"></td>
+                            <td class="px-3 py-2 text-right text-xs text-blue-700 dark:text-blue-300 tabular-nums"
+                                x-text="totalAllKontribusiHistory().toFixed(2) + '%'"></td>
                         </tr>
                     </tfoot>
                 </table>
-            </div>{{-- /overflow-x-auto (Alpine) --}}
+            </div>{{-- /overflow-x-auto (Alpine) }}
+
+            {{-- Progress History Table --}}
+            @if(count($progressHistory) > 0)
+            <div class="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4"
+                 x-data="{
+                     bobots: @js(collect($workGroupsForInput)->mapWithKeys(fn($wg) => [(string)$wg['work_group_id'] => (float)$wg['bobot']])->all()),
+                     progressHistory: @js($progressHistory),
+                     currentMingguKe: {{ $minggu_ke ?? 0 }},
+                     pcts: @js(collect($workGroupsForInput)->mapWithKeys(fn($wg) => [(string)$wg['work_group_id'] => (float)($progressPerGroup[$wg['work_group_id']] ?? 0)])->all()),
+                     allHistory() {
+                         const all = [...this.progressHistory];
+                         const currentWeekIndex = all.findIndex(h => h.minggu_ke === this.currentMingguKe);
+                         const currentProgress = {};
+                         Object.keys(this.pcts).forEach(id => {
+                             currentProgress[id] = this.pcts[id];
+                         });
+                         const currentEntry = {
+                             minggu_ke: this.currentMingguKe,
+                             progress: currentProgress,
+                             created_at: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+                         };
+                         if (currentWeekIndex >= 0) {
+                             all[currentWeekIndex] = currentEntry;
+                         } else {
+                             all.push(currentEntry);
+                         }
+                         return all.sort((a, b) => a.minggu_ke - b.minggu_ke);
+                     },
+                     historyKontribusi(wgId, weekIndex) {
+                         const hist = this.allHistory()[weekIndex];
+                         if (!hist || !hist.progress) return 0;
+                         const p = hist.progress[String(wgId)];
+                         return p ? p * this.bobots[String(wgId)] / 100 : 0;
+                     },
+                     totalHistoryKontribusi(wgId) { return this.allHistory().reduce((s, h, i) => s + this.historyKontribusi(wgId, i), 0); },
+                     init() {
+                        window.addEventListener('progress-input-changed', (e) => {
+                            if (e.detail && e.detail.pcts) {
+                                for (const k in e.detail.pcts) {
+                                    this.pcts[String(k)] = parseFloat(e.detail.pcts[k]) || 0;
+                                }
+                            }
+                        });
+                        this.$watch('$wire.progressPerGroup', (v) => {
+                            for (const k in v) this.pcts[String(k)] = parseFloat(v[k]) || 0;
+                        });
+                     }
+                 }">
+                <h4 class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-3">Riwayat Progress per Work Group</h4>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-xs">
+                        <thead>
+                            <tr class="bg-gray-50 dark:bg-gray-900">
+                                <th class="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Minggu</th>
+                                @foreach($workGroupsForInput as $wg)
+                                <th class="px-3 py-2 text-center font-medium text-gray-600 dark:text-gray-400">{{ $wg['nama'] }}</th>
+                                @endforeach
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                            <template x-for="(hist, weekIndex) in allHistory()" :key="weekIndex">
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                                <td class="px-3 py-2 text-gray-600 dark:text-gray-400">
+                                    <span class="font-medium" x-text="'Minggu ' + hist.minggu_ke"></span>
+                                    <span class="text-gray-400 ml-1" x-text="'(' + hist.created_at + ')'"></span>
+                                </td>
+                                <template x-for="wgId in Object.keys(bobots)" :key="wgId">
+                                <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300 tabular-nums"
+                                    x-text="historyKontribusi(wgId, weekIndex).toFixed(2) + '%'"></td>
+                                </template>
+                            </tr>
+                            </template>
+                        </tbody>
+                        <tfoot>
+                            <tr class="bg-gray-100 dark:bg-gray-800 font-semibold">
+                                <td class="px-3 py-2 text-xs text-gray-600 dark:text-gray-400">Total Kontribusi (Semua Minggu)</td>
+                                <template x-for="wgId in Object.keys(bobots)" :key="wgId">
+                                <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300 tabular-nums"
+                                    x-text="totalHistoryKontribusi(wgId).toFixed(2) + '%'"></td>
+                                </template>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            @endif
+
             <p class="text-xs text-blue-500 dark:text-blue-400 mt-2">
                 Masukkan % kumulatif realisasi masing-masing work group hingga periode laporan ini.
             </p>

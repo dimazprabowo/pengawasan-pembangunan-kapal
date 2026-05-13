@@ -37,6 +37,7 @@ class LaporanMingguanEdit extends Component
     public array $workGroupsForInput = [];
     public array $mingguOptions = [];
     public bool $hasKurvaS = false;
+    public array $progressHistory = [];
 
     // Track previous laporan_harian_ids for filtering lampiran
     public array $previousLaporanHarianIds = [];
@@ -97,10 +98,10 @@ class LaporanMingguanEdit extends Component
         $this->hasKurvaS = $jenisKapal && $service->hasRencana($jenisKapal);
 
         if ($jenisKapal && $this->hasKurvaS) {
-            $this->mingguOptions      = $service->getMingguOptions($jenisKapal);
-            $laporanRef               = isset($this->laporan) ? $this->laporan : new LaporanMingguan(['jenis_kapal_id' => $this->jenis_kapal_id]);
-            $this->workGroupsForInput = $service->getProgressInputData($laporanRef);
+            $this->mingguOptions      = $service->getMingguOptions($jenisKapal, $this->minggu_ke);
+            $this->workGroupsForInput = $service->getProgressInputData($this->laporan);
             $this->progressPerGroup   = array_column($this->workGroupsForInput, 'pct_realisasi', 'work_group_id');
+            $this->progressHistory    = $service->getProgressHistory($jenisKapal);
         } else {
             $this->mingguOptions      = [];
             $this->workGroupsForInput = [];

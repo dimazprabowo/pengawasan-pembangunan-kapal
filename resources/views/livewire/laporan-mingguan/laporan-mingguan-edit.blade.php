@@ -210,6 +210,7 @@
                 :workGroupsForInput="$workGroupsForInput"
                 :minggu_ke="$minggu_ke"
                 :progressPerGroup="$progressPerGroup"
+                :progressHistory="$progressHistory"
             />
         </div>
 
@@ -232,8 +233,6 @@
                 />
             </div>
         </div>
-        @else
-        <script>console.log('Edit: kurvaSChartData is empty', {{ json_encode($kurvaSChartData) }}, 'hasKurvaS:', {{ $hasKurvaS ? 'true' : 'false' }}, 'jenis_kapal_id:', {{ $jenis_kapal_id ?: 'null' }});</script>
         @endif
         @endif
 
