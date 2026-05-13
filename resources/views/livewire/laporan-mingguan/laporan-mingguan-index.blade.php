@@ -127,26 +127,24 @@
 
     {{-- Kurva S Chart Panel --}}
     @if($showKurvaS && $jenisKapalId)
-    <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div class="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
-            <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-            </svg>
-            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Kurva S Progress</h3>
-            @if($selectedJenisKapal)
-                <span class="ml-auto text-xs text-gray-400 dark:text-gray-500">{{ $selectedJenisKapal->nama }}</span>
-            @endif
-        </div>
-        <div class="p-5">
-            <x-kurva-s-chart
-                :chartData="$kurvaSChartData"
-                :jenisKapalNama="$selectedJenisKapal?->nama"
-                :showStats="true"
-                height="280px"
-            />
-        </div>
-    </div>
+    <x-kurva-s-chart-card
+        :chartData="$kurvaSChartData"
+        :jenisKapalNama="$selectedJenisKapal?->nama"
+        :showStats="true"
+        :showMingguBadge="false"
+        :totalRencana="$totalRencana"
+        :totalAktual="$totalAktual"
+        height="280px"
+    />
+
+    {{-- Riwayat Progress per Work Group --}}
+    @if(count($workGroupsForHistory) > 0 && count($progressHistory) > 0)
+    <x-laporan-mingguan.riwayat-progress-card
+        :workGroups="$workGroupsForHistory"
+        :progressHistory="$progressHistory"
+        class="mb-6"
+    />
+    @endif
     @endif
 
     {{-- Table --}}

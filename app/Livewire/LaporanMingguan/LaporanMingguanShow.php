@@ -36,6 +36,9 @@ class LaporanMingguanShow extends Component
     public bool $showRegenerateConfirm = false;
     public bool $showDeleteDocConfirm = false;
 
+    // Progress per group (for compatibility with progress history component)
+    public array $progressPerGroup = [];
+
     public function mount(LaporanMingguan $laporanMingguan): void
     {
         $this->authorize('view', $laporanMingguan);
@@ -413,10 +416,57 @@ class LaporanMingguanShow extends Component
     {
         $chartData       = [];
         $detailTableData = [];
+        $totalRencana    = null;
+        $totalAktual     = null;
+        $progressHistory = [];
+        $workGroupsForHistory = [];
 
         if ($this->laporan->jenisKapal) {
             $chartData       = $kurvaSService->getChartData($this->laporan->jenisKapal);
             $detailTableData = $kurvaSService->getDetailTableData($this->laporan);
+            $progressHistory = $kurvaSService->getProgressHistory($this->laporan->jenisKapal);
+
+            // Get work groups for history table
+            $workGroupsForHistory = \App\Models\KurvaSWorkGroup::where('jenis_kapal_id', $this->laporan->jenis_kapal_id)
+                ->orderBy('sort_order')
+                ->get()
+                ->map(fn($wg) => [
+                    'work_group_id' => $wg->id,
+                    'nama' => $wg->nama,
+                    'bobot' => $wg->bobot,
+                ])
+                ->toArray();
+
+            // Calculate totals from progress history
+            if (!empty($progressHistory)) {
+                $workGroups = \App\Models\KurvaSWorkGroup::where('jenis_kapal_id', $this->laporan->jenis_kapal_id)
+                    ->orderBy('sort_order')
+                    ->get();
+
+                $totalRencana = 0;
+                $totalAktual = 0;
+
+                foreach ($progressHistory as $hist) {
+                    // Calculate total rencana for this week
+                    if (!empty($hist['plans'])) {
+                        foreach ($workGroups as $wg) {
+                            $plan = $hist['plans'][$wg->id] ?? 0;
+                            $totalRencana += $plan * $wg->bobot / 100;
+                        }
+                    }
+
+                    // Calculate total aktual for this week
+                    if (!empty($hist['progress'])) {
+                        foreach ($workGroups as $wg) {
+                            $actual = $hist['progress'][$wg->id] ?? 0;
+                            $totalAktual += $actual * $wg->bobot / 100;
+                        }
+                    }
+                }
+
+                $totalRencana = round($totalRencana, 2);
+                $totalAktual = round($totalAktual, 2);
+            }
         }
 
         return view('livewire.laporan-mingguan.laporan-mingguan-show', [
@@ -424,6 +474,10 @@ class LaporanMingguanShow extends Component
             'kurvaSChartData'  => $chartData,
             'kurvaSDetail'     => $detailTableData,
             'jenisKapalNama'   => $this->laporan->jenisKapal?->nama,
+            'totalRencana'    => $totalRencana,
+            'totalAktual'     => $totalAktual,
+            'progressHistory' => $progressHistory,
+            'workGroupsForHistory' => $workGroupsForHistory,
         ]);
     }
 }

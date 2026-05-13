@@ -263,6 +263,7 @@ class KurvaSService
         $aktualKum   = [];
         $lastAktual  = null;
         $cumPlan     = 0.0;
+        $cumAktual   = 0.0;
 
         foreach ($allWeeks as $week) {
             $labels[] = 'Minggu ' . $week;
@@ -279,6 +280,7 @@ class KurvaSService
             $rencanaKum[] = round($cumPlan, 2);
 
             // Project actual for this week = Σ(pct_realisasi[group] × bobot / 100)
+            // Cumulative: add to running total
             if (isset($aktualByWeek[$week])) {
                 $weekActual = 0.0;
                 foreach ($workGroups as $wg) {
@@ -287,8 +289,9 @@ class KurvaSService
                         $weekActual += (float) $pct * (float) $wg->bobot / 100.0;
                     }
                 }
-                $aktualKum[] = round($weekActual, 2);
-                $lastAktual  = ['minggu_ke' => $week, 'kumulatif' => round($weekActual, 2), 'rencana' => round($cumPlan, 2)];
+                $cumAktual  += $weekActual;
+                $aktualKum[] = round($cumAktual, 2);
+                $lastAktual  = ['minggu_ke' => $week, 'kumulatif' => round($cumAktual, 2), 'rencana' => round($cumPlan, 2)];
             } else {
                 $aktualKum[] = null;
             }
@@ -315,7 +318,7 @@ class KurvaSService
 
     /**
      * Ambil history progress per work group untuk semua minggu yang sudah ada laporannya.
-     * Returns: [['minggu_ke' => 1, 'work_groups' => [wg_id => pct_realisasi]], ...]
+     * Returns: [['minggu_ke' => 1, 'progress' => [wg_id => pct_realisasi], 'plans' => [wg_id => pct_rencana], 'created_at' => '...'], ...]
      */
     public function getProgressHistory(JenisKapal $jenisKapal): array
     {
@@ -327,6 +330,42 @@ class KurvaSService
             ->orderBy('created_at')
             ->get();
 
+        // Get all work groups for this jenis kapal
+        $workGroups = KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
+            ->with(['kurvaSRencana' => fn($q) => $q->orderBy('minggu_ke')])
+            ->orderBy('sort_order')
+            ->get();
+
+        // Build plan map: minggu_ke -> work_group_id -> cumulative plan
+        // Get all weeks from laporan to ensure we have plans for all reported weeks
+        $allWeeks = $laporanList->pluck('minggu_ke')->unique()->sort()->values()->toArray();
+
+        // Also get all weeks from rencana to include weeks that might not have laporan yet
+        $allRencanaWeeks = $workGroups
+            ->flatMap(fn($wg) => $wg->kurvaSRencana->pluck('minggu_ke'))
+            ->unique()
+            ->sort()
+            ->values()
+            ->toArray();
+
+        // Merge weeks from both sources
+        $allWeeks = array_unique(array_merge($allWeeks, $allRencanaWeeks));
+        sort($allWeeks);
+
+        $planMap = [];
+        foreach ($workGroups as $wg) {
+            // Sort rencana by minggu_ke
+            $rencanaList = $wg->kurvaSRencana->sortBy('minggu_ke');
+
+            foreach ($allWeeks as $week) {
+                // Get plan for this specific week (not cumulative)
+                $weeklyPlan = $rencanaList
+                    ->where('minggu_ke', $week)
+                    ->sum('pct_rencana');
+                $planMap[$week][$wg->id] = round($weeklyPlan, 2);
+            }
+        }
+
         $history = [];
         foreach ($laporanList as $laporan) {
             $week = $laporan->minggu_ke;
@@ -334,9 +373,14 @@ class KurvaSService
             foreach ($laporan->laporanProgress as $prog) {
                 $progressMap[$prog->work_group_id] = (float) $prog->pct_realisasi;
             }
+
+            // Get plans for this week
+            $weekPlans = $planMap[$week] ?? [];
+
             $history[] = [
                 'minggu_ke' => $week,
                 'progress'  => $progressMap,
+                'plans'     => $weekPlans,
                 'created_at' => $laporan->created_at->format('d M Y'),
             ];
         }

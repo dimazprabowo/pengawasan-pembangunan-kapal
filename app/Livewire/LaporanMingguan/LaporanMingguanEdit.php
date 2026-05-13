@@ -501,19 +501,151 @@ class LaporanMingguanEdit extends Component
         }
     }
 
+    public function getKontribusiPerGroupProperty(): array
+    {
+        $kontribusi = [];
+        foreach ($this->workGroupsForInput as $wg) {
+            $wgId = $wg['work_group_id'];
+            $pct = (float)($this->progressPerGroup[$wgId] ?? 0);
+            $bobot = (float)$wg['bobot'];
+            $kontribusi[$wgId] = round($pct * $bobot / 100, 2);
+        }
+        return $kontribusi;
+    }
+
+    public function getTotalKontribusiHistoryProperty(): array
+    {
+        $totalKontribusi = [];
+
+        // Calculate history totals (excluding current week)
+        $historyTotals = [];
+        foreach ($this->workGroupsForInput as $wg) {
+            $wgId = $wg['work_group_id'];
+            $total = 0;
+            foreach ($this->progressHistory as $hist) {
+                if (isset($hist['progress'][$wgId]) && $hist['minggu_ke'] != $this->minggu_ke) {
+                    $total += (float)$hist['progress'][$wgId] * (float)$wg['bobot'] / 100;
+                }
+            }
+            $historyTotals[$wgId] = $total;
+        }
+
+        // Add current week contribution
+        $kontribusiPerGroup = $this->kontribusiPerGroup;
+        foreach ($this->workGroupsForInput as $wg) {
+            $wgId = $wg['work_group_id'];
+            $totalKontribusi[$wgId] = round(($historyTotals[$wgId] ?? 0) + ($kontribusiPerGroup[$wgId] ?? 0), 2);
+        }
+
+        return $totalKontribusi;
+    }
+
+    public function getAnyExceedsBobotProperty(): bool
+    {
+        $totalKontribusiHistory = $this->totalKontribusiHistory;
+        foreach ($this->workGroupsForInput as $wg) {
+            $wgId = $wg['work_group_id'];
+            if (($totalKontribusiHistory[$wgId] ?? 0) > $wg['bobot']) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public function getTotalKontribusiProperty(): float
+    {
+        return round(array_sum($this->kontribusiPerGroup), 2);
+    }
+
+    public function getTotalAllKontribusiHistoryProperty(): float
+    {
+        return round(array_sum($this->totalKontribusiHistory), 2);
+    }
+
+    public function getFullProgressHistoryProperty(): array
+    {
+        $fullHistory = $this->progressHistory;
+        
+        // Add current week if minggu_ke is set
+        if ($this->minggu_ke && !empty($this->progressPerGroup)) {
+            $currentWeekIndex = array_search($this->minggu_ke, array_column($fullHistory, 'minggu_ke'));
+            
+            $currentProgress = [];
+            foreach ($this->workGroupsForInput as $wg) {
+                $wgId = $wg['work_group_id'];
+                $currentProgress[$wgId] = (float)($this->progressPerGroup[$wgId] ?? 0);
+            }
+            
+            // Preserve plans from existing entry
+            $existingPlans = $currentWeekIndex !== false ? ($fullHistory[$currentWeekIndex]['plans'] ?? []) : [];
+            
+            $currentEntry = [
+                'minggu_ke' => $this->minggu_ke,
+                'progress' => $currentProgress,
+                'plans' => $existingPlans,
+                'created_at' => now()->format('d M Y')
+            ];
+            
+            if ($currentWeekIndex !== false) {
+                $fullHistory[$currentWeekIndex] = $currentEntry;
+            } else {
+                $fullHistory[] = $currentEntry;
+            }
+        }
+        
+        // Sort by minggu_ke
+        usort($fullHistory, function($a, $b) {
+            return $a['minggu_ke'] <=> $b['minggu_ke'];
+        });
+        
+        return $fullHistory;
+    }
+
     public function render(KurvaSService $kurvaSService)
     {
         $kurvaSChartData = [];
+        $totalRencana = null;
+        $totalAktual = null;
+
         if ($this->jenis_kapal_id && $this->hasKurvaS) {
             $jenisKapal = JenisKapal::find($this->jenis_kapal_id);
             if ($jenisKapal) {
                 $kurvaSChartData = $kurvaSService->getChartData($jenisKapal);
+
+                // Calculate totals from progress history
+                if (!empty($this->progressHistory)) {
+                    $totalRencana = 0;
+                    $totalAktual = 0;
+
+                    foreach ($this->progressHistory as $hist) {
+                        // Calculate total rencana for this week
+                        if (!empty($hist['plans'])) {
+                            foreach ($this->workGroupsForInput as $wg) {
+                                $plan = $hist['plans'][$wg['work_group_id']] ?? 0;
+                                $totalRencana += $plan * $wg['bobot'] / 100;
+                            }
+                        }
+
+                        // Calculate total aktual for this week
+                        if (!empty($hist['progress'])) {
+                            foreach ($this->workGroupsForInput as $wg) {
+                                $actual = $hist['progress'][$wg['work_group_id']] ?? 0;
+                                $totalAktual += $actual * $wg['bobot'] / 100;
+                            }
+                        }
+                    }
+
+                    $totalRencana = round($totalRencana, 2);
+                    $totalAktual = round($totalAktual, 2);
+                }
             }
         }
 
         return view('livewire.laporan-mingguan.laporan-mingguan-edit', [
             'jenisKapalList'  => JenisKapal::with(['company', 'galangan'])->get(),
             'kurvaSChartData' => $kurvaSChartData,
+            'totalRencana'   => $totalRencana,
+            'totalAktual'    => $totalAktual,
         ]);
     }
 }

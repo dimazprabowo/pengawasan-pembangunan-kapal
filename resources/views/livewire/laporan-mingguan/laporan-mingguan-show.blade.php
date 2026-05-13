@@ -322,92 +322,25 @@
         </div>
     </div>
 
-    {{-- Kurva S Chart --}}
-    @if(!empty($kurvaSChartData))
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mt-6">
-        <div class="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
-            <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-            </svg>
-            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Kurva S Progress</h3>
-            @if($jenisKapalNama)
-                <span class="ml-auto text-xs text-gray-400 dark:text-gray-500">{{ $jenisKapalNama }}</span>
-            @endif
-        </div>
-        <div class="p-5">
-            @if($laporan->minggu_ke)
-                <div class="mb-4 flex flex-wrap gap-3">
-                    <div class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 rounded-lg">
-                        <span class="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Laporan Ini:</span>
-                        <span class="text-xs text-emerald-700 dark:text-emerald-300">Minggu ke-{{ $laporan->minggu_ke }}</span>
-                    </div>
-                </div>
-            @endif
-            <x-kurva-s-chart
-                :chartData="$kurvaSChartData"
-                :jenisKapalNama="$jenisKapalNama"
-                :showStats="true"
-                height="300px"
-            />
-        </div>
-    </div>
-    @endif
+    {{-- Kurva S Progress History --}}
+    <x-laporan-mingguan.riwayat-progress-card
+        :workGroups="$workGroupsForHistory"
+        :progressHistory="$progressHistory"
+        class="mt-6"
+    />
 
-    {{-- Kurva S Detail Table (per work group) --}}
-    @if(!empty($kurvaSDetail) && !empty($kurvaSDetail['rows']))
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mt-6">
-        <div class="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
-            <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 0v10m0-10a2 2 0 012 2h2a2 2 0 012-2"/>
-            </svg>
-            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Detail Progress per Work Group — Minggu ke-{{ $kurvaSDetail['minggu_ke'] }}</h3>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="min-w-full text-sm">
-                <thead>
-                    <tr class="bg-blue-50 dark:bg-blue-900/20">
-                        <th class="px-4 py-2 text-left text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase">Work Group</th>
-                        <th class="px-4 py-2 text-center text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase w-20">Bobot (%)</th>
-                        <th class="px-4 py-2 text-right text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase w-28">Rencana Group</th>
-                        <th class="px-4 py-2 text-right text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase w-28">Rencana Proyek</th>
-                        <th class="px-4 py-2 text-right text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase w-28">Realisasi Group</th>
-                        <th class="px-4 py-2 text-right text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase w-28">Realisasi Proyek</th>
-                        <th class="px-4 py-2 text-right text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase w-24">Deviasi</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                    @foreach($kurvaSDetail['rows'] as $row)
-                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                        <td class="px-4 py-2 font-medium text-gray-800 dark:text-gray-200">{{ $row['nama'] }}</td>
-                        <td class="px-4 py-2 text-center text-gray-600 dark:text-gray-400">{{ number_format($row['bobot'], 2) }}</td>
-                        <td class="px-4 py-2 text-right text-gray-600 dark:text-gray-400 tabular-nums">{{ number_format($row['group_plan'], 2) }}%</td>
-                        <td class="px-4 py-2 text-right text-gray-600 dark:text-gray-400 tabular-nums">{{ number_format($row['project_plan'], 2) }}%</td>
-                        <td class="px-4 py-2 text-right font-medium text-gray-800 dark:text-gray-200 tabular-nums">{{ number_format($row['group_real'], 2) }}%</td>
-                        <td class="px-4 py-2 text-right font-medium text-gray-800 dark:text-gray-200 tabular-nums">{{ number_format($row['project_real'], 2) }}%</td>
-                        <td class="px-4 py-2 text-right tabular-nums {{ $row['dev_project'] >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400' }}">
-                            {{ $row['dev_project'] >= 0 ? '+' : '' }}{{ number_format($row['dev_project'], 2) }}%
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-                <tfoot>
-                    <tr class="bg-blue-50 dark:bg-blue-900/20 font-semibold">
-                        <td class="px-4 py-2 text-xs text-blue-700 dark:text-blue-300 uppercase">Total</td>
-                        <td class="px-4 py-2 text-center text-xs text-blue-700 dark:text-blue-300">{{ number_format($kurvaSDetail['totals']['bobot'], 2) }}</td>
-                        <td class="px-4 py-2"></td>
-                        <td class="px-4 py-2 text-right text-xs text-blue-700 dark:text-blue-300 tabular-nums">{{ number_format($kurvaSDetail['totals']['project_plan'], 2) }}%</td>
-                        <td class="px-4 py-2"></td>
-                        <td class="px-4 py-2 text-right text-xs text-blue-700 dark:text-blue-300 tabular-nums">{{ number_format($kurvaSDetail['totals']['project_real'], 2) }}%</td>
-                        <td class="px-4 py-2 text-right text-xs tabular-nums {{ $kurvaSDetail['totals']['dev_project'] >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400' }}">
-                            {{ $kurvaSDetail['totals']['dev_project'] >= 0 ? '+' : '' }}{{ number_format($kurvaSDetail['totals']['dev_project'], 2) }}%
-                        </td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-    </div>
-    @endif
+    {{-- Kurva S Chart --}}
+    <x-kurva-s-chart-card
+        :chartData="$kurvaSChartData"
+        :jenisKapalNama="$jenisKapalNama"
+        :mingguKe="$laporan->minggu_ke"
+        :showStats="true"
+        :showMingguBadge="true"
+        :totalRencana="$totalRencana"
+        :totalAktual="$totalAktual"
+        height="300px"
+        class="mt-6"
+    />
 
     {{-- Laporan Harian Teragregasi --}}
     @if(count($availableLaporanHarian) > 0)

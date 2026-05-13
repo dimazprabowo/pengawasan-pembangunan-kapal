@@ -53,6 +53,13 @@ class LaporanMingguanIndex extends Component
     {
         session(['laporan_harian_jenis_kapal_id' => $value]);
         $this->resetPage();
+        
+        // Auto-show Kurva S when a jenis kapal is selected
+        if ($value) {
+            $this->showKurvaS = true;
+        } else {
+            $this->showKurvaS = false;
+        }
     }
 
     public function updatingSearch(): void
@@ -138,10 +145,58 @@ class LaporanMingguanIndex extends Component
     public function render(LaporanMingguanService $service, KurvaSService $kurvaSService)
     {
         $chartData = [];
+        $progressHistory = [];
+        $workGroupsForHistory = [];
+        $totalRencana = null;
+        $totalAktual = null;
+        
         if ($this->showKurvaS && $this->jenisKapalId) {
             $jenisKapal = JenisKapal::find($this->jenisKapalId);
             if ($jenisKapal) {
                 $chartData = $kurvaSService->getChartData($jenisKapal);
+                $progressHistory = $kurvaSService->getProgressHistory($jenisKapal);
+                
+                // Get work groups for history table
+                $workGroupsForHistory = \App\Models\KurvaSWorkGroup::where('jenis_kapal_id', $this->jenisKapalId)
+                    ->orderBy('sort_order')
+                    ->get()
+                    ->map(function ($wg) {
+                        return [
+                            'work_group_id' => $wg->id,
+                            'nama' => $wg->nama,
+                            'bobot' => $wg->bobot,
+                        ];
+                    })
+                    ->toArray();
+                
+                // Calculate totals from progress history
+                if (!empty($progressHistory) && !empty($workGroupsForHistory)) {
+                    $totalRencana = 0;
+                    $totalAktual = 0;
+                    
+                    foreach ($progressHistory as $hist) {
+                        // Calculate total rencana for this week
+                        if (!empty($hist['plans'])) {
+                            foreach ($workGroupsForHistory as $wg) {
+                                $wgId = $wg['work_group_id'];
+                                $plan = $hist['plans'][$wgId] ?? 0;
+                                $totalRencana += (float)$plan * (float)$wg['bobot'] / 100;
+                            }
+                        }
+                        
+                        // Calculate total aktual for this week
+                        if (!empty($hist['progress'])) {
+                            foreach ($workGroupsForHistory as $wg) {
+                                $wgId = $wg['work_group_id'];
+                                $actual = $hist['progress'][$wgId] ?? 0;
+                                $totalAktual += (float)$actual * (float)$wg['bobot'] / 100;
+                            }
+                        }
+                    }
+                    
+                    $totalRencana = round($totalRencana, 2);
+                    $totalAktual = round($totalAktual, 2);
+                }
             }
         }
 
@@ -157,6 +212,10 @@ class LaporanMingguanIndex extends Component
                     $q->where('users.id', auth()->id());
                 })->with(['company', 'galangan'])->get(),
             'kurvaSChartData'  => $chartData,
+            'progressHistory' => $progressHistory,
+            'workGroupsForHistory' => $workGroupsForHistory,
+            'totalRencana'    => $totalRencana,
+            'totalAktual'     => $totalAktual,
             'selectedJenisKapal' => $this->jenisKapalId ? JenisKapal::find($this->jenisKapalId) : null,
         ]);
     }

@@ -5,6 +5,8 @@
     'showStats'      => true,
     'showEmptyState' => true,
     'height'         => '320px',
+    'totalRencana'   => null,  // Optional: override total rencana from progress history
+    'totalAktual'    => null,  // Optional: override total aktual from progress history
 ])
 
 @php
@@ -13,7 +15,13 @@
     $hasAktual  = $chartData['has_aktual']  ?? false;
     $deviasi    = $chartData['deviasi']     ?? null;
     $terkini    = $chartData['progress_terkini'] ?? null;
-    $total      = $chartData['total_bobot'] ?? 0;
+    $total      = $totalRencana ?? ($chartData['total_bobot'] ?? 0);
+    $aktual     = $totalAktual ?? null;
+
+    // Calculate deviation if both total rencana and total aktual are provided
+    if ($totalRencana !== null && $totalAktual !== null) {
+        $deviasi = $totalAktual - $totalRencana;
+    }
 @endphp
 
 <div x-data="kurvaSChart(@js($chartData), '{{ $uid }}')"
@@ -44,7 +52,9 @@
             </div>
             <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
                 <p class="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Progress Aktual</p>
-                @if($terkini !== null)
+                @if($aktual !== null)
+                    <p class="text-lg font-semibold text-emerald-600 dark:text-emerald-400">{{ number_format($aktual, 2) }}%</p>
+                @elseif($terkini !== null)
                     <p class="text-lg font-semibold text-emerald-600 dark:text-emerald-400">{{ number_format($terkini, 2) }}%</p>
                 @else
                     <p class="text-lg font-semibold text-gray-400 dark:text-gray-500">—</p>
