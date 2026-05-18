@@ -83,7 +83,6 @@ class LaporanMingguanShow extends Component
         $laporanHarianIds = $this->laporan->laporanHarian->pluck('id')->toArray();
 
         $this->availableLaporanHarian = \App\Models\LaporanHarian::with(['user', 'jenisKapal'])
-            ->byUser($this->laporan->user_id)
             ->whereIn('id', $laporanHarianIds)
             ->orderByDesc('tanggal_laporan')
             ->get();

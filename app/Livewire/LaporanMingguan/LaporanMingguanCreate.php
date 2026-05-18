@@ -163,7 +163,6 @@ class LaporanMingguanCreate extends Component
         }
 
         $query = LaporanHarian::with(['user', 'jenisKapal'])
-            ->byUser(auth()->id())
             ->orderByDesc('tanggal_laporan');
 
         $query->where('jenis_kapal_id', $this->jenis_kapal_id);
@@ -271,8 +270,7 @@ class LaporanMingguanCreate extends Component
 
         $query = LaporanLampiran::with(['laporanHarian'])
             ->whereHas('laporanHarian', function ($q) {
-                $q->byUser(auth()->id())
-                    ->whereIn('id', $this->laporan_harian_ids);
+                $q->whereIn('id', $this->laporan_harian_ids);
             })
             ->where('file_status', 'completed')
             ->orderBy('created_at', 'desc');
