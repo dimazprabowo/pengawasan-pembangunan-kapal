@@ -343,7 +343,7 @@
     />
 
     {{-- Laporan Harian Teragregasi --}}
-    @if(count($availableLaporanHarian) > 0)
+    @if($availableLaporanHarian && count($availableLaporanHarian) > 0)
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mt-6">
         <div class="px-5 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-center justify-between">

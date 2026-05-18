@@ -29,7 +29,7 @@ class LaporanMingguanShow extends Component
     public ?int $previewLampiranId = null;
 
     // Available Laporan Harian
-    public \Illuminate\Database\Eloquent\Collection $availableLaporanHarian;
+    public ?\Illuminate\Database\Eloquent\Collection $availableLaporanHarian = null;
 
     // Word Document Status
     public bool $loadingDoc = false;
