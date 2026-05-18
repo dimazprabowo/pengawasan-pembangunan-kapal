@@ -147,7 +147,9 @@ class KurvaSService
 
         return collect($availableWeeks)
             ->sort()
+            ->values()
             ->map(fn($m) => ['value' => $m, 'label' => 'Minggu ke-' . $m])
+            ->values()
             ->toArray();
     }
 
