@@ -9,6 +9,6 @@ class GalanganSeeder extends Seeder
 {
     public function run(): void
     {
-        Galangan::factory()->count(15)->create();
+        Galangan::factory()->count(3)->create();
     }
 }

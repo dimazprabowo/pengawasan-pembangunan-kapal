@@ -36,21 +36,6 @@ class JenisKapalSeeder extends Seeder
                 'deskripsi' => 'Kapal crew boat dengan kapasitas 50 penumpang untuk transportasi pekerja offshore',
                 'status' => JenisKapalStatus::Active,
             ],
-            [
-                'nama' => 'Supply Vessel',
-                'deskripsi' => 'Kapal supply untuk pengiriman material dan peralatan ke platform offshore',
-                'status' => JenisKapalStatus::Active,
-            ],
-            [
-                'nama' => 'Tug Boat',
-                'deskripsi' => 'Kapal tunda untuk membantu manuver kapal besar di pelabuhan',
-                'status' => JenisKapalStatus::Active,
-            ],
-            [
-                'nama' => 'Barge',
-                'deskripsi' => 'Kapal tongkang untuk pengangkutan kargo dalam jumlah besar',
-                'status' => JenisKapalStatus::Active,
-            ],
         ];
 
         foreach ($companies as $company) {

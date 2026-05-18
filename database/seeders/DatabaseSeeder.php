@@ -22,6 +22,8 @@ class DatabaseSeeder extends Seeder
             CuacaSeeder::class,
             SystemConfigurationSeeder::class,
             UserSeeder::class,
+            LaporanHarianSeeder::class,
+            LaporanMingguanSeeder::class,
         ]);
     }
 }
