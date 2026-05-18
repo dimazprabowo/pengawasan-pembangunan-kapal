@@ -18,10 +18,12 @@
              bobots: @js(collect($workGroups)->mapWithKeys(fn($wg) => [(string)$wg['work_group_id'] => (float)$wg['bobot']])->all()),
              progressHistory: @js($fullProgressHistory ?? $progressHistory),
              init() {
+                 @isset($fullProgressHistory)
                  this.$watch(
                      () => this.$wire.fullProgressHistory,
                      (val) => { if (Array.isArray(val)) this.progressHistory = val; }
                  );
+                 @endisset
              },
              historyKontribusi(wgId, weekIndex) {
                  const hist = this.progressHistory[weekIndex];
