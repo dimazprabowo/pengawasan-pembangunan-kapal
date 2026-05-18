@@ -30,156 +30,153 @@ document.addEventListener('alpine:init', () => {
     }
 
     // Kurva S Chart component for global use
-    Alpine.data('kurvaSChart', (chartData = null, canvasId = null) => ({
-        chart: null,
-        chartData: chartData,
-        canvasId: canvasId,
+    Alpine.data('kurvaSChart', (chartData = null, canvasId = null) => {
+        let chartInstance = null; // Plain closure variable — NOT Alpine-reactive, prevents Proxy recursion
 
-        isDark() {
-            return document.documentElement.classList.contains('dark');
-        },
+        return {
+            chartData: chartData,
+            canvasId: canvasId,
 
-        getColors() {
-            const dark = this.isDark();
-            return {
-                gridColor  : dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)',
-                tickColor  : dark ? '#9ca3af' : '#6b7280',
-                rencana    : { border: '#3b82f6', bg: 'rgba(59,130,246,0.08)' },
-                aktual     : { border: '#10b981', bg: 'rgba(16,185,129,0.08)' },
-            };
-        },
+            isDark() {
+                return document.documentElement.classList.contains('dark');
+            },
 
-        buildDatasets(c) {
-            if (!this.chartData || !this.chartData.rencana) return [];
-            return [
-                {
-                    label          : 'Rencana (%)',
-                    data           : this.chartData.rencana,
-                    borderColor    : c.rencana.border,
-                    backgroundColor: c.rencana.bg,
-                    borderWidth    : 2.5,
-                    pointRadius    : 4,
-                    pointHoverRadius: 6,
-                    pointBackgroundColor: c.rencana.border,
-                    fill           : true,
-                    tension        : 0.35,
-                },
-                {
-                    label          : 'Aktual (%)',
-                    data           : this.chartData.aktual,
-                    borderColor    : c.aktual.border,
-                    backgroundColor: c.aktual.bg,
-                    borderWidth    : 2.5,
-                    pointRadius    : 4,
-                    pointHoverRadius: 6,
-                    pointBackgroundColor: c.aktual.border,
-                    fill           : true,
-                    tension        : 0.35,
-                    spanGaps       : false,
-                },
-            ];
-        },
+            getColors() {
+                const dark = this.isDark();
+                return {
+                    gridColor  : dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)',
+                    tickColor  : dark ? '#9ca3af' : '#6b7280',
+                    rencana    : { border: '#3b82f6', bg: 'rgba(59,130,246,0.08)' },
+                    aktual     : { border: '#10b981', bg: 'rgba(16,185,129,0.08)' },
+                };
+            },
 
-        init() {
-            if (!this.chartData || !this.chartData.labels || !this.chartData.has_rencana) return;
-            this.$nextTick(() => {
-                const ctx = this.canvasId ? document.getElementById(this.canvasId) : this.$el.querySelector('canvas');
-                if (!ctx || typeof Chart === 'undefined') return;
-
-                // Destroy existing chart if it exists using Chart.getChart()
-                const existingChart = Chart.getChart(ctx);
-                if (existingChart) {
-                    existingChart.destroy();
-                }
-
-                // Also destroy our reference if it exists
-                if (this.chart) {
-                    this.chart.destroy();
-                    this.chart = null;
-                }
-
-                const c = this.getColors();
-
-                this.chart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels  : this.chartData.labels,
-                        datasets: this.buildDatasets(c),
+            buildDatasets(c, rawData) {
+                const src = (rawData !== undefined) ? rawData : this.chartData;
+                if (!src || !src.rencana) return [];
+                return [
+                    {
+                        label          : 'Rencana (%)',
+                        data           : [...(src.rencana || [])],
+                        borderColor    : c.rencana.border,
+                        backgroundColor: c.rencana.bg,
+                        borderWidth    : 2.5,
+                        pointRadius    : 4,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: c.rencana.border,
+                        fill           : true,
+                        tension        : 0.35,
                     },
-                    options: {
-                        responsive        : true,
-                        maintainAspectRatio: false,
-                        interaction: { mode: 'index', intersect: false },
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                backgroundColor: this.isDark() ? '#1f2937' : '#ffffff',
-                                titleColor      : this.isDark() ? '#f9fafb' : '#111827',
-                                bodyColor       : this.isDark() ? '#d1d5db' : '#374151',
-                                borderColor     : this.isDark() ? '#374151' : '#e5e7eb',
-                                borderWidth     : 1,
-                                padding         : 10,
-                                callbacks: {
-                                    label: (ctx) => ` ${ctx.dataset.label}: ${ctx.parsed.y !== null ? ctx.parsed.y.toFixed(2) + '%' : 'N/A'}`,
+                    {
+                        label          : 'Aktual (%)',
+                        data           : [...(src.aktual || [])],
+                        borderColor    : c.aktual.border,
+                        backgroundColor: c.aktual.bg,
+                        borderWidth    : 2.5,
+                        pointRadius    : 4,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: c.aktual.border,
+                        fill           : true,
+                        tension        : 0.35,
+                        spanGaps       : false,
+                    },
+                ];
+            },
+
+            init() {
+                if (!this.chartData || !this.chartData.labels || !this.chartData.has_rencana) return;
+                this.$nextTick(() => {
+                    const ctx = this.canvasId ? document.getElementById(this.canvasId) : this.$el.querySelector('canvas');
+                    if (!ctx || typeof Chart === 'undefined') return;
+
+                    const existingChart = Chart.getChart(ctx);
+                    if (existingChart) existingChart.destroy();
+                    if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+
+                    const c = this.getColors();
+
+                    chartInstance = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels  : [...(this.chartData.labels || [])],
+                            datasets: this.buildDatasets(c),
+                        },
+                        options: {
+                            responsive        : true,
+                            maintainAspectRatio: false,
+                            interaction: { mode: 'index', intersect: false },
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    backgroundColor: this.isDark() ? '#1f2937' : '#ffffff',
+                                    titleColor      : this.isDark() ? '#f9fafb' : '#111827',
+                                    bodyColor       : this.isDark() ? '#d1d5db' : '#374151',
+                                    borderColor     : this.isDark() ? '#374151' : '#e5e7eb',
+                                    borderWidth     : 1,
+                                    padding         : 10,
+                                    callbacks: {
+                                        label: (ctx) => ` ${ctx.dataset.label}: ${ctx.parsed.y !== null ? ctx.parsed.y.toFixed(2) + '%' : 'N/A'}`,
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    grid : { color: c.gridColor },
+                                    ticks: { color: c.tickColor, maxRotation: 45, font: { size: 11 } },
+                                },
+                                y: {
+                                    min  : 0,
+                                    max  : 100,
+                                    grid : { color: c.gridColor },
+                                    ticks: {
+                                        color   : c.tickColor,
+                                        font    : { size: 11 },
+                                        callback: (v) => v + '%',
+                                    },
                                 }
                             }
-                        },
-                        scales: {
-                            x: {
-                                grid : { color: c.gridColor },
-                                ticks: { color: c.tickColor, maxRotation: 45, font: { size: 11 } },
-                            },
-                            y: {
-                                min  : 0,
-                                max  : 100,
-                                grid : { color: c.gridColor },
-                                ticks: {
-                                    color   : c.tickColor,
-                                    font    : { size: 11 },
-                                    callback: (v) => v + '%',
-                                },
-                            }
                         }
-                    }
+                    });
                 });
-            });
-        },
+            },
 
-        updateData(newChartData) {
-            if (!newChartData || !newChartData.labels) return;
-            this.chartData = newChartData;
-            if (!this.chart) {
-                this.init();
-                return;
-            }
-            const c = this.getColors();
-            this.chart.data.labels   = newChartData.labels;
-            this.chart.data.datasets = this.buildDatasets(c);
-            this.chart.update('none');
-        },
+            updateData(newChartData) {
+                if (!newChartData || !newChartData.labels) return;
+                if (!chartInstance) {
+                    this.chartData = newChartData;
+                    this.init();
+                    return;
+                }
+                const c = this.getColors();
+                chartInstance.data.labels   = [...(newChartData.labels || [])];
+                chartInstance.data.datasets = this.buildDatasets(c, newChartData);
+                chartInstance.update('none');
+                this.chartData = newChartData;
+            },
 
-        updateColors() {
-            if (!this.chart) return;
-            const c = this.getColors();
-            this.chart.data.datasets = this.buildDatasets(c);
-            this.chart.options.scales.x.grid.color  = c.gridColor;
-            this.chart.options.scales.x.ticks.color = c.tickColor;
-            this.chart.options.scales.y.grid.color  = c.gridColor;
-            this.chart.options.scales.y.ticks.color = c.tickColor;
-            this.chart.options.plugins.tooltip.backgroundColor = this.isDark() ? '#1f2937' : '#ffffff';
-            this.chart.options.plugins.tooltip.titleColor      = this.isDark() ? '#f9fafb' : '#111827';
-            this.chart.options.plugins.tooltip.bodyColor       = this.isDark() ? '#d1d5db' : '#374151';
-            this.chart.options.plugins.tooltip.borderColor     = this.isDark() ? '#374151' : '#e5e7eb';
-            this.chart.update();
-        },
+            updateColors() {
+                if (!chartInstance) return;
+                const c = this.getColors();
+                chartInstance.data.datasets = this.buildDatasets(c);
+                chartInstance.options.scales.x.grid.color  = c.gridColor;
+                chartInstance.options.scales.x.ticks.color = c.tickColor;
+                chartInstance.options.scales.y.grid.color  = c.gridColor;
+                chartInstance.options.scales.y.ticks.color = c.tickColor;
+                chartInstance.options.plugins.tooltip.backgroundColor = this.isDark() ? '#1f2937' : '#ffffff';
+                chartInstance.options.plugins.tooltip.titleColor      = this.isDark() ? '#f9fafb' : '#111827';
+                chartInstance.options.plugins.tooltip.bodyColor       = this.isDark() ? '#d1d5db' : '#374151';
+                chartInstance.options.plugins.tooltip.borderColor     = this.isDark() ? '#374151' : '#e5e7eb';
+                chartInstance.update();
+            },
 
-        destroy() {
-            if (this.chart) {
-                this.chart.destroy();
-                this.chart = null;
-            }
-        },
-    }));
+            destroy() {
+                if (chartInstance) {
+                    chartInstance.destroy();
+                    chartInstance = null;
+                }
+            },
+        };
+    });
 });
 
 /**

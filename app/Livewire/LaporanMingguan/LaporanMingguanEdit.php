@@ -38,6 +38,7 @@ class LaporanMingguanEdit extends Component
     public array $mingguOptions = [];
     public bool $hasKurvaS = false;
     public array $progressHistory = [];
+    public array $fullProgressHistory = [];
 
     // Track previous laporan_harian_ids for filtering lampiran
     public array $previousLaporanHarianIds = [];
@@ -65,6 +66,7 @@ class LaporanMingguanEdit extends Component
         $this->previousLaporanHarianIds = $this->laporan_harian_ids;
         $this->loadAvailableLaporanHarian();
         $this->loadKurvaSOptions();
+        $this->fullProgressHistory = $this->buildFullProgressHistory();
 
         // Load lampiran list if laporan harian exists
         if (count($this->laporan_harian_ids) > 0) {
@@ -80,6 +82,7 @@ class LaporanMingguanEdit extends Component
         $this->progressPerGroup = [];
         $this->loadAvailableLaporanHarian();
         $this->loadKurvaSOptions();
+        $this->fullProgressHistory = $this->buildFullProgressHistory();
     }
 
     private function loadKurvaSOptions(): void
@@ -111,11 +114,13 @@ class LaporanMingguanEdit extends Component
 
     public function updatedProgressPerGroup($value, $key): void
     {
+        $this->fullProgressHistory = $this->buildFullProgressHistory();
         $this->dispatchRealtimeUpdates();
     }
 
     public function updatedMingguKe(): void
     {
+        $this->fullProgressHistory = $this->buildFullProgressHistory();
         $this->dispatchRealtimeUpdates();
     }
 
@@ -595,7 +600,7 @@ class LaporanMingguanEdit extends Component
         return round(array_sum($this->totalKontribusiHistory), 2);
     }
 
-    public function getFullProgressHistoryProperty(): array
+    private function buildFullProgressHistory(): array
     {
         $fullHistory = $this->progressHistory;
         
@@ -609,9 +614,18 @@ class LaporanMingguanEdit extends Component
                 $currentProgress[$wgId] = (float)($this->progressPerGroup[$wgId] ?? 0);
             }
             
-            // Preserve plans from existing entry
-            $existingPlans = $currentWeekIndex !== false ? ($fullHistory[$currentWeekIndex]['plans'] ?? []) : [];
-            
+            // Preserve plans from existing entry; for new weeks query KurvaSRencana directly
+            $existingPlans = $currentWeekIndex !== false
+                ? ($fullHistory[$currentWeekIndex]['plans'] ?? [])
+                : [];
+
+            if ($currentWeekIndex === false && $this->jenis_kapal_id) {
+                $jenisKapal = JenisKapal::find($this->jenis_kapal_id);
+                if ($jenisKapal) {
+                    $existingPlans = app(KurvaSService::class)->getWeekPlans($jenisKapal, $this->minggu_ke);
+                }
+            }
+
             $currentEntry = [
                 'minggu_ke' => $this->minggu_ke,
                 'progress' => $currentProgress,

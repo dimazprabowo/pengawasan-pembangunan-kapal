@@ -17,6 +17,12 @@
          x-data="{
              bobots: @js(collect($workGroups)->mapWithKeys(fn($wg) => [(string)$wg['work_group_id'] => (float)$wg['bobot']])->all()),
              progressHistory: @js($fullProgressHistory ?? $progressHistory),
+             init() {
+                 this.$watch(
+                     () => this.$wire.fullProgressHistory,
+                     (val) => { if (Array.isArray(val)) this.progressHistory = val; }
+                 );
+             },
              historyKontribusi(wgId, weekIndex) {
                  const hist = this.progressHistory[weekIndex];
                  if (!hist || !hist.progress) return 0;

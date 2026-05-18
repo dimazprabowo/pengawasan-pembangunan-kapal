@@ -411,6 +411,21 @@ class KurvaSService
     }
 
     /**
+     * Ambil rencana (pct_rencana) per work group untuk satu minggu tertentu.
+     * Returns: [work_group_id => pct_rencana, ...]
+     */
+    public function getWeekPlans(JenisKapal $jenisKapal, int $mingguKe): array
+    {
+        $workGroupIds = KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)->pluck('id');
+
+        return KurvaSRencana::whereIn('work_group_id', $workGroupIds)
+            ->where('minggu_ke', $mingguKe)
+            ->pluck('pct_rencana', 'work_group_id')
+            ->map(fn($v) => round((float) $v, 2))
+            ->toArray();
+    }
+
+    /**
      * Bangun data detail tabel untuk satu laporan (untuk halaman show).
      * Returns per-group breakdown: group plan, project plan, group realization, project realization, deviasi
      */
