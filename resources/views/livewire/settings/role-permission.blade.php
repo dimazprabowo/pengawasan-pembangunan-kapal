@@ -32,7 +32,7 @@
                 </div>
                 <div class="divide-y divide-gray-200 dark:divide-gray-700">
                     @forelse($roles as $role)
-                        <div wire:click="selectRole({{ $role->id }})" 
+                        <div wire:key="role-{{ $role->id }}" wire:click="selectRole({{ $role->id }})" 
                             class="p-4 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 {{ $selectedRole == $role->id ? 'bg-blue-50 dark:bg-blue-900/20' : '' }}">
                             <div class="flex items-center justify-between">
                                 <div class="flex-1">

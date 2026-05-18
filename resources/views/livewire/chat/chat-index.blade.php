@@ -43,7 +43,7 @@
                         @if($searchResults->count() > 0)
                             <div class="mt-2 max-h-48 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
                                 @foreach($searchResults as $user)
-                                    <button wire:click="startDirectChat({{ $user->id }})"
+                                    <button wire:key="search-user-{{ $user->id }}" wire:click="startDirectChat({{ $user->id }})"
                                             @click="showNew = false; showMobileList = false"
                                             class="w-full flex items-center space-x-3 px-2 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors text-left">
                                         <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">

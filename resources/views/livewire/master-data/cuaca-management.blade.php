@@ -70,7 +70,7 @@
                 </thead>
                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     @forelse($cuacaList as $cuaca)
-                        <tr class="hover:bg-orange-50 dark:hover:bg-orange-900/10 transition-colors">
+                        <tr wire:key="cuaca-{{ $cuaca->id }}" class="hover:bg-orange-50 dark:hover:bg-orange-900/10 transition-colors">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
                                     <div class="flex-shrink-0 h-10 w-10">

@@ -71,7 +71,7 @@
                 </thead>
                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     @forelse($kelembabanList as $kelembaban)
-                        <tr class="hover:bg-yellow-50 dark:hover:bg-yellow-900/10 transition-colors">
+                        <tr wire:key="kelembaban-{{ $kelembaban->id }}" class="hover:bg-yellow-50 dark:hover:bg-yellow-900/10 transition-colors">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
                                     <div class="flex-shrink-0 h-10 w-10">

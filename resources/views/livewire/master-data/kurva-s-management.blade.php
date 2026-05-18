@@ -206,7 +206,7 @@
                 @else
                     <div class="space-y-3" @input="onInput($event)">
                         @foreach($workGroups as $gi => $wg)
-                        <div class="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
+                        <div wire:key="wg-{{ $wg['id'] ?? $gi }}" class="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
 
                             {{-- Work Group Row --}}
                             <div class="flex items-center gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-700/50">
@@ -281,7 +281,7 @@
                                         </thead>
                                         <tbody class="divide-y divide-gray-100 dark:divide-gray-700/50">
                                             @foreach($wg['weeks'] as $wi => $week)
-                                                <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-700/20">
+                                                <tr wire:key="wg-{{ $wg['id'] ?? $gi }}-week-{{ $wi }}" class="hover:bg-gray-50/50 dark:hover:bg-gray-700/20">
                                                     <td class="px-3 py-1.5">
                                                         <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-semibold">
                                                             {{ $week['minggu_ke'] }}
