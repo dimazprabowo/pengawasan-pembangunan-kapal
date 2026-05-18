@@ -24,11 +24,7 @@
     }
 @endphp
 
-<div x-data="kurvaSChart(@js($chartData), '{{ $uid }}')"
-     x-init="init()"
-     @dark-mode-changed.window="updateColors()"
-     wire:ignore>
-
+<div>
     @if(!$hasRencana && $showEmptyState)
         <div class="flex flex-col items-center justify-center py-12 text-gray-400 dark:text-gray-500">
             <svg class="w-14 h-14 mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -39,7 +35,7 @@
             <p class="text-xs mt-1">Atur jadwal Kurva S di menu Jenis Kapal terlebih dahulu.</p>
         </div>
     @else
-        {{-- Stats Cards --}}
+        {{-- Stats Cards — outside wire:ignore so they update on every Livewire re-render --}}
         @if($showStats && $hasRencana)
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
             <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
@@ -76,9 +72,16 @@
         </div>
         @endif
 
-        {{-- Chart Canvas --}}
-        <div class="relative" style="height: {{ $height }}">
-            <canvas id="{{ $uid }}"></canvas>
+        {{-- Chart Canvas — wire:ignore preserves Chart.js instance across Livewire re-renders.
+             The kurva-s-updated event triggers updateData() to redraw with new data. --}}
+        <div x-data="kurvaSChart(@js($chartData), '{{ $uid }}')"
+             x-init="init()"
+             @dark-mode-changed.window="updateColors()"
+             @kurva-s-updated.window="updateData($event.detail.chartData)"
+             wire:ignore>
+            <div class="relative" style="height: {{ $height }}">
+                <canvas id="{{ $uid }}"></canvas>
+            </div>
         </div>
 
         {{-- Legend --}}

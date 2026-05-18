@@ -59,7 +59,8 @@
              totalAllWeeksDeviation() {
                  return Math.round((this.totalAllWeeksActual() - this.totalAllWeeksPlan()) * 100) / 100;
              }
-         }">
+         }"
+         @progress-history-updated.window="progressHistory = $event.detail.history">
         <div class="overflow-x-auto">
             <table class="min-w-full text-xs">
                 <thead>

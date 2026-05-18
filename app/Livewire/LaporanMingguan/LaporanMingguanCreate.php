@@ -95,6 +95,37 @@ class LaporanMingguanCreate extends Component
         }
     }
 
+    public function updatedProgressPerGroup($value, $key): void
+    {
+        $this->dispatchRealtimeUpdates();
+    }
+
+    public function updatedMingguKe(): void
+    {
+        $this->dispatchRealtimeUpdates();
+    }
+
+    private function dispatchRealtimeUpdates(): void
+    {
+        if (!$this->jenis_kapal_id || !$this->hasKurvaS) {
+            return;
+        }
+
+        $jenisKapal = JenisKapal::find($this->jenis_kapal_id);
+        if (!$jenisKapal) {
+            return;
+        }
+
+        $previewChartData = app(KurvaSService::class)->getChartData(
+            $jenisKapal,
+            $this->minggu_ke,
+            $this->progressPerGroup
+        );
+
+        $this->dispatch('kurva-s-updated', chartData: $previewChartData);
+        $this->dispatch('progress-history-updated', history: $this->fullProgressHistory);
+    }
+
     public function updatedPeriodeMulai(): void
     {
         $this->laporan_harian_ids = [];
@@ -578,39 +609,33 @@ class LaporanMingguanCreate extends Component
     public function render(KurvaSService $kurvaSService)
     {
         $kurvaSChartData = [];
-        $totalRencana = null;
-        $totalAktual = null;
+        $totalRencana    = null;
+        $totalAktual     = null;
 
         if ($this->jenis_kapal_id && $this->hasKurvaS) {
             $jenisKapal = JenisKapal::find($this->jenis_kapal_id);
             if ($jenisKapal) {
-                $kurvaSChartData = $kurvaSService->getChartData($jenisKapal);
+                // Build chart data with current unsaved progress overlaid
+                $kurvaSChartData = $kurvaSService->getChartData(
+                    $jenisKapal,
+                    $this->minggu_ke,
+                    $this->progressPerGroup
+                );
 
-                // Calculate totals from progress history
-                if (!empty($this->progressHistory)) {
+                // Compute totals from full history (includes current week's unsaved data)
+                $fullHistory = $this->fullProgressHistory;
+                if (!empty($fullHistory) && !empty($this->workGroupsForInput)) {
                     $totalRencana = 0;
-                    $totalAktual = 0;
-
-                    foreach ($this->progressHistory as $hist) {
-                        // Calculate total rencana for this week
-                        if (!empty($hist['plans'])) {
-                            foreach ($this->workGroupsForInput as $wg) {
-                                $plan = $hist['plans'][$wg['work_group_id']] ?? 0;
-                                $totalRencana += $plan * $wg['bobot'] / 100;
-                            }
-                        }
-
-                        // Calculate total aktual for this week
-                        if (!empty($hist['progress'])) {
-                            foreach ($this->workGroupsForInput as $wg) {
-                                $actual = $hist['progress'][$wg['work_group_id']] ?? 0;
-                                $totalAktual += $actual * $wg['bobot'] / 100;
-                            }
+                    $totalAktual  = 0;
+                    foreach ($fullHistory as $hist) {
+                        foreach ($this->workGroupsForInput as $wg) {
+                            $wgId          = $wg['work_group_id'];
+                            $totalRencana += (float) ($hist['plans'][$wgId]    ?? 0) * $wg['bobot'] / 100;
+                            $totalAktual  += (float) ($hist['progress'][$wgId] ?? 0) * $wg['bobot'] / 100;
                         }
                     }
-
                     $totalRencana = round($totalRencana, 2);
-                    $totalAktual = round($totalAktual, 2);
+                    $totalAktual  = round($totalAktual, 2);
                 }
             }
         }
@@ -618,8 +643,8 @@ class LaporanMingguanCreate extends Component
         return view('livewire.laporan-mingguan.laporan-mingguan-create', [
             'jenisKapalList'  => JenisKapal::with(['company', 'galangan'])->get(),
             'kurvaSChartData' => $kurvaSChartData,
-            'totalRencana'   => $totalRencana,
-            'totalAktual'    => $totalAktual,
+            'totalRencana'    => $totalRencana,
+            'totalAktual'     => $totalAktual,
         ]);
     }
 }

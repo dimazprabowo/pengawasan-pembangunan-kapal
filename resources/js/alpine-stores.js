@@ -145,6 +145,19 @@ document.addEventListener('alpine:init', () => {
             });
         },
 
+        updateData(newChartData) {
+            if (!newChartData || !newChartData.labels) return;
+            this.chartData = newChartData;
+            if (!this.chart) {
+                this.init();
+                return;
+            }
+            const c = this.getColors();
+            this.chart.data.labels   = newChartData.labels;
+            this.chart.data.datasets = this.buildDatasets(c);
+            this.chart.update('none');
+        },
+
         updateColors() {
             if (!this.chart) return;
             const c = this.getColors();

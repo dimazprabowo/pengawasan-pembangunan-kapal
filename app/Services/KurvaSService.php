@@ -186,9 +186,17 @@ class KurvaSService
      *   labels, rencana (kumulatif proyek), aktual (kumulatif proyek),
      *   has_rencana, has_aktual, total_minggu, total_bobot,
      *   progress_terkini, deviasi, work_groups (for detail table)
+     *
+     * @param int|null  $previewMingguKe  Minggu ke- yang sedang di-input (belum tersimpan)
+     * @param array     $previewProgress  [work_group_id => pct_realisasi] dari form (belum tersimpan)
+     * @param int|null  $excludeLaporanId Laporan yang dikecualikan dari DB (digunakan saat edit)
      */
-    public function getChartData(JenisKapal $jenisKapal): array
-    {
+    public function getChartData(
+        JenisKapal $jenisKapal,
+        ?int $previewMingguKe = null,
+        array $previewProgress = [],
+        ?int $excludeLaporanId = null
+    ): array {
         $workGroups = KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
             ->with(['kurvaSRencana' => fn($q) => $q->orderBy('minggu_ke')])
             ->orderBy('sort_order')
@@ -237,6 +245,7 @@ class KurvaSService
         $laporanList = LaporanMingguan::where('jenis_kapal_id', $jenisKapal->id)
             ->whereNotNull('minggu_ke')
             ->whereHas('laporanProgress')
+            ->when($excludeLaporanId, fn($q) => $q->where('id', '!=', $excludeLaporanId))
             ->with(['laporanProgress'])
             ->orderBy('minggu_ke')
             ->orderBy('created_at')
@@ -254,6 +263,19 @@ class KurvaSService
             }
             if (!empty($map)) {
                 $aktualByWeek[$week] = $map;
+            }
+        }
+
+        // Overlay preview data (unsaved form values) for the week being edited/created
+        if ($previewMingguKe !== null && !empty($previewProgress)) {
+            $previewMap = [];
+            foreach ($workGroupIds as $wgId) {
+                if (array_key_exists($wgId, $previewProgress)) {
+                    $previewMap[$wgId] = (float) $previewProgress[$wgId];
+                }
+            }
+            if (!empty($previewMap)) {
+                $aktualByWeek[$previewMingguKe] = $previewMap;
             }
         }
 
