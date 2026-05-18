@@ -42,6 +42,7 @@ class LaporanMingguanIndex extends Component
         $this->authorize('viewAny', LaporanMingguan::class);
 
         $this->jenisKapalId = session('laporan_harian_jenis_kapal_id');
+        $this->showKurvaS = session('laporan_mingguan_show_kurva_s', false);
 
         if (session()->has('notify')) {
             $notify = session('notify');
@@ -53,13 +54,84 @@ class LaporanMingguanIndex extends Component
     {
         session(['laporan_harian_jenis_kapal_id' => $value]);
         $this->resetPage();
-        
-        // Auto-show Kurva S when a jenis kapal is selected
-        if ($value) {
-            $this->showKurvaS = true;
-        } else {
-            $this->showKurvaS = false;
+
+        // Dispatch real-time update for the chart
+        $this->dispatchRealtimeUpdates();
+    }
+
+    public function updatedShowKurvaS($value): void
+    {
+        session(['laporan_mingguan_show_kurva_s' => $value]);
+
+        if ($value && $this->jenisKapalId) {
+            $this->dispatchRealtimeUpdates();
         }
+    }
+
+    private function dispatchRealtimeUpdates(): void
+    {
+        if (!$this->jenisKapalId) {
+            $this->dispatch('kurva-s-updated', chartData: []);
+            return;
+        }
+
+        $jenisKapal = JenisKapal::find($this->jenisKapalId);
+        if (!$jenisKapal) {
+            $this->dispatch('kurva-s-updated', chartData: []);
+            return;
+        }
+
+        $chartData = app(KurvaSService::class)->getChartData($jenisKapal);
+        $progressHistory = app(KurvaSService::class)->getProgressHistory($jenisKapal);
+
+        // Get work groups for history table
+        $workGroupsForHistory = \App\Models\KurvaSWorkGroup::where('jenis_kapal_id', $this->jenisKapalId)
+            ->orderBy('sort_order')
+            ->get()
+            ->map(function ($wg) {
+                return [
+                    'work_group_id' => $wg->id,
+                    'nama' => $wg->nama,
+                    'bobot' => $wg->bobot,
+                ];
+            })
+            ->toArray();
+
+        // Calculate totals from progress history
+        $totalRencana = null;
+        $totalAktual = null;
+        if (!empty($progressHistory) && !empty($workGroupsForHistory)) {
+            $totalRencana = 0;
+            $totalAktual = 0;
+
+            foreach ($progressHistory as $hist) {
+                // Calculate total rencana for this week
+                if (!empty($hist['plans'])) {
+                    foreach ($workGroupsForHistory as $wg) {
+                        $wgId = $wg['work_group_id'];
+                        $plan = $hist['plans'][$wgId] ?? 0;
+                        $totalRencana += (float)$plan * (float)$wg['bobot'] / 100;
+                    }
+                }
+
+                // Calculate total aktual for this week
+                if (!empty($hist['progress'])) {
+                    foreach ($workGroupsForHistory as $wg) {
+                        $wgId = $wg['work_group_id'];
+                        $actual = $hist['progress'][$wgId] ?? 0;
+                        $totalAktual += (float)$actual * (float)$wg['bobot'] / 100;
+                    }
+                }
+            }
+
+            $totalRencana = round($totalRencana, 2);
+            $totalAktual = round($totalAktual, 2);
+        }
+
+        $this->dispatch('kurva-s-updated', chartData: $chartData);
+        $this->dispatch('progress-history-updated', history: $progressHistory);
+        $this->dispatch('work-groups-updated', workGroups: $workGroupsForHistory);
+        $this->dispatch('totals-updated', totalRencana: $totalRencana, totalAktual: $totalAktual);
     }
 
     public function updatingSearch(): void
@@ -149,7 +221,7 @@ class LaporanMingguanIndex extends Component
         $workGroupsForHistory = [];
         $totalRencana = null;
         $totalAktual = null;
-        
+
         if ($this->showKurvaS && $this->jenisKapalId) {
             $jenisKapal = JenisKapal::find($this->jenisKapalId);
             if ($jenisKapal) {

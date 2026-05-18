@@ -111,40 +111,103 @@
                 </a>
             @endcan
             @if($jenisKapalId)
-            <button type="button" wire:click="$toggle('showKurvaS')"
-                class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border transition-colors
-                    {{ $showKurvaS ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600' }}"
-                title="Tampilkan/Sembunyikan Kurva S">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                </svg>
-                Kurva S
-            </button>
+            <div class="inline-flex items-center gap-2">
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" wire:model.live="showKurvaS" class="sr-only peer">
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                    <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Kurva S</span>
+                </label>
+            </div>
             @endif
         </div>
     </div>
 
     {{-- Kurva S Chart Panel --}}
     @if($showKurvaS && $jenisKapalId)
-    <x-kurva-s-chart-card
-        :chartData="$kurvaSChartData"
-        :jenisKapalNama="$selectedJenisKapal?->nama"
-        :showStats="true"
-        :showMingguBadge="false"
-        :totalRencana="$totalRencana"
-        :totalAktual="$totalAktual"
-        height="280px"
-    />
+    <div x-data="{ loading: false, previousId: @js($jenisKapalId) }"
+         x-init="
+            $watch('$wire.jenisKapalId', (newId) => {
+                if (newId !== previousId) {
+                    loading = true;
+                    previousId = newId;
+                    setTimeout(() => loading = false, 800);
+                }
+            });
+         ">
+        <div x-show="loading" x-transition.opacity.duration.200ms class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+            <div class="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
+                <svg class="w-4 h-4 text-blue-500 flex-shrink-0 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Memuat Grafik Kurva S...</h3>
+            </div>
+            <div class="p-5 flex items-center justify-center" style="height: 280px">
+                <svg class="animate-spin w-8 h-8 text-blue-500" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+        </div>
 
-    {{-- Riwayat Progress per Work Group --}}
-    @if(count($workGroupsForHistory) > 0 && count($progressHistory) > 0)
-    <x-laporan-mingguan.riwayat-progress-card
-        :workGroups="$workGroupsForHistory"
-        :progressHistory="$progressHistory"
-        class="mb-6"
-    />
-    @endif
+        <div x-show="!loading" x-transition.opacity.duration.200ms>
+            <x-kurva-s-chart-card
+                :chartData="$kurvaSChartData"
+                :jenisKapalNama="$selectedJenisKapal?->nama"
+                :showStats="true"
+                :showMingguBadge="false"
+                :totalRencana="$totalRencana"
+                :totalAktual="$totalAktual"
+                height="280px"
+            />
+
+            {{-- Riwayat Progress per Work Group --}}
+            <div x-show="!loading" x-transition.opacity.duration.200ms>
+            @if(count($workGroupsForHistory) > 0 && count($progressHistory) > 0)
+            <x-laporan-mingguan.riwayat-progress-card
+                :workGroups="$workGroupsForHistory"
+                :progressHistory="$progressHistory"
+                class="mb-6"
+            />
+            @else
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+                <div class="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Riwayat Progress per Work Group</h3>
+                </div>
+                <div class="p-5">
+                    <div class="flex flex-col items-center justify-center py-8 text-center">
+                        <svg class="w-12 h-12 text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        </svg>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Belum ada riwayat progress untuk jenis kapal ini</p>
+                        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Riwayat akan muncul setelah laporan mingguan dibuat</p>
+                    </div>
+                </div>
+            </div>
+            @endif
+            </div>
+
+            {{-- Loading state for Riwayat Progress --}}
+            <div x-show="loading" x-transition.opacity.duration.200ms class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+                <div class="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-blue-500 flex-shrink-0 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Memuat Riwayat Progress...</h3>
+                </div>
+                <div class="p-5 flex items-center justify-center py-8">
+                    <svg class="animate-spin w-8 h-8 text-blue-500" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
     @endif
 
     {{-- Table --}}
