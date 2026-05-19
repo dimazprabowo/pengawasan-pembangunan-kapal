@@ -507,6 +507,74 @@ class KurvaSService
     }
 
     /**
+     * Hitung total rencana dan aktual dari progress history.
+     * Returns: ['total_rencana' => float, 'total_aktual' => float, 'total_deviasi' => float]
+     */
+    public function calculateTotalsFromHistory(array $progressHistory, $workGroups): array
+    {
+        if (empty($progressHistory)) {
+            return [
+                'total_rencana' => 0.0,
+                'total_aktual' => 0.0,
+                'total_deviasi' => 0.0,
+            ];
+        }
+
+        // Get last entry which contains cumulative totals
+        $lastEntry = end($progressHistory);
+        
+        return [
+            'total_rencana' => $lastEntry['cumulative_plan'] ?? 0.0,
+            'total_aktual' => $lastEntry['cumulative_actual'] ?? 0.0,
+            'total_deviasi' => $lastEntry['cumulative_deviation'] ?? 0.0,
+        ];
+    }
+
+    /**
+     * Hitung kontribusi per work group untuk minggu tertentu.
+     * Returns: [work_group_id => kontribusi_value]
+     */
+    public function calculateKontribusiPerGroup(array $progressPerGroup, $workGroups): array
+    {
+        $kontribusi = [];
+        foreach ($workGroups as $wg) {
+            $wgId = is_array($wg) ? $wg['work_group_id'] : $wg->id;
+            $bobot = is_array($wg) ? (float)$wg['bobot'] : (float)$wg->bobot;
+            $pct = (float)($progressPerGroup[$wgId] ?? 0);
+            $kontribusi[$wgId] = round($pct * $bobot / 100.0, 2);
+        }
+        return $kontribusi;
+    }
+
+    /**
+     * Hitung total kontribusi history per work group (excluding current week).
+     * Returns: [work_group_id => total_kontribusi]
+     */
+    public function calculateTotalKontribusiHistory(array $progressHistory, $workGroups, ?int $excludeMingguKe = null): array
+    {
+        $totalKontribusi = [];
+        
+        foreach ($workGroups as $wg) {
+            $wgId = is_array($wg) ? $wg['work_group_id'] : $wg->id;
+            $bobot = is_array($wg) ? (float)$wg['bobot'] : (float)$wg->bobot;
+            $total = 0.0;
+            
+            foreach ($progressHistory as $hist) {
+                if ($excludeMingguKe && $hist['minggu_ke'] == $excludeMingguKe) {
+                    continue;
+                }
+                if (isset($hist['progress'][$wgId])) {
+                    $total += (float)$hist['progress'][$wgId] * $bobot / 100.0;
+                }
+            }
+            
+            $totalKontribusi[$wgId] = round($total, 2);
+        }
+        
+        return $totalKontribusi;
+    }
+
+    /**
      * Bangun data detail tabel untuk satu laporan (untuk halaman show).
      * Returns per-group breakdown: group plan, project plan, group realization, project realization, deviasi
      */

@@ -436,35 +436,15 @@ class LaporanMingguanShow extends Component
                 ])
                 ->toArray();
 
-            // Calculate totals from progress history
+            // Calculate totals from progress history using service
             if (!empty($progressHistory)) {
                 $workGroups = \App\Models\KurvaSWorkGroup::where('jenis_kapal_id', $this->laporan->jenis_kapal_id)
                     ->orderBy('sort_order')
                     ->get();
 
-                $totalRencana = 0;
-                $totalAktual = 0;
-
-                foreach ($progressHistory as $hist) {
-                    // Calculate total rencana for this week
-                    if (!empty($hist['plans'])) {
-                        foreach ($workGroups as $wg) {
-                            $plan = $hist['plans'][$wg->id] ?? 0;
-                            $totalRencana += $plan * $wg->bobot / 100;
-                        }
-                    }
-
-                    // Calculate total aktual for this week
-                    if (!empty($hist['progress'])) {
-                        foreach ($workGroups as $wg) {
-                            $actual = $hist['progress'][$wg->id] ?? 0;
-                            $totalAktual += $actual * $wg->bobot / 100;
-                        }
-                    }
-                }
-
-                $totalRencana = round($totalRencana, 2);
-                $totalAktual = round($totalAktual, 2);
+                $totals = $kurvaSService->calculateTotalsFromHistory($progressHistory, $workGroups);
+                $totalRencana = $totals['total_rencana'];
+                $totalAktual = $totals['total_aktual'];
             }
         }
 

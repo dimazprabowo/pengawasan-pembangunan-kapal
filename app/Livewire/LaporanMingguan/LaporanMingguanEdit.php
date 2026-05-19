@@ -539,35 +539,21 @@ class LaporanMingguanEdit extends Component
 
     public function getKontribusiPerGroupProperty(): array
     {
-        $kontribusi = [];
-        foreach ($this->workGroupsForInput as $wg) {
-            $wgId = $wg['work_group_id'];
-            $pct = (float)($this->progressPerGroup[$wgId] ?? 0);
-            $bobot = (float)$wg['bobot'];
-            $kontribusi[$wgId] = round($pct * $bobot / 100, 2);
-        }
-        return $kontribusi;
+        return app(KurvaSService::class)->calculateKontribusiPerGroup($this->progressPerGroup, $this->workGroupsForInput);
     }
 
     public function getTotalKontribusiHistoryProperty(): array
     {
-        $totalKontribusi = [];
-
-        // Calculate history totals (excluding current week)
-        $historyTotals = [];
-        foreach ($this->workGroupsForInput as $wg) {
-            $wgId = $wg['work_group_id'];
-            $total = 0;
-            foreach ($this->progressHistory as $hist) {
-                if (isset($hist['progress'][$wgId]) && $hist['minggu_ke'] != $this->minggu_ke) {
-                    $total += (float)$hist['progress'][$wgId] * (float)$wg['bobot'] / 100;
-                }
-            }
-            $historyTotals[$wgId] = $total;
-        }
+        // Calculate history totals (excluding current week) using service
+        $historyTotals = app(KurvaSService::class)->calculateTotalKontribusiHistory(
+            $this->progressHistory, 
+            $this->workGroupsForInput, 
+            $this->minggu_ke
+        );
 
         // Add current week contribution
         $kontribusiPerGroup = $this->kontribusiPerGroup;
+        $totalKontribusi = [];
         foreach ($this->workGroupsForInput as $wg) {
             $wgId = $wg['work_group_id'];
             $totalKontribusi[$wgId] = round(($historyTotals[$wgId] ?? 0) + ($kontribusiPerGroup[$wgId] ?? 0), 2);

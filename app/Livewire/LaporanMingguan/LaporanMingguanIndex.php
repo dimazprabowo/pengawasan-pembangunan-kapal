@@ -97,35 +97,13 @@ class LaporanMingguanIndex extends Component
             })
             ->toArray();
 
-        // Calculate totals from progress history
+        // Calculate totals from progress history using service
         $totalRencana = null;
         $totalAktual = null;
         if (!empty($progressHistory) && !empty($workGroupsForHistory)) {
-            $totalRencana = 0;
-            $totalAktual = 0;
-
-            foreach ($progressHistory as $hist) {
-                // Calculate total rencana for this week
-                if (!empty($hist['plans'])) {
-                    foreach ($workGroupsForHistory as $wg) {
-                        $wgId = $wg['work_group_id'];
-                        $plan = $hist['plans'][$wgId] ?? 0;
-                        $totalRencana += (float)$plan * (float)$wg['bobot'] / 100;
-                    }
-                }
-
-                // Calculate total aktual for this week
-                if (!empty($hist['progress'])) {
-                    foreach ($workGroupsForHistory as $wg) {
-                        $wgId = $wg['work_group_id'];
-                        $actual = $hist['progress'][$wgId] ?? 0;
-                        $totalAktual += (float)$actual * (float)$wg['bobot'] / 100;
-                    }
-                }
-            }
-
-            $totalRencana = round($totalRencana, 2);
-            $totalAktual = round($totalAktual, 2);
+            $totals = app(KurvaSService::class)->calculateTotalsFromHistory($progressHistory, $workGroupsForHistory);
+            $totalRencana = $totals['total_rencana'];
+            $totalAktual = $totals['total_aktual'];
         }
 
         $this->dispatch('kurva-s-updated', chartData: $chartData);
