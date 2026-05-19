@@ -22,14 +22,6 @@
         @endif
     </div>
     <div class="p-5">
-        @if($showMingguBadge && $mingguKe)
-            <div class="mb-4 flex flex-wrap gap-3">
-                <div class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 rounded-lg">
-                    <span class="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Laporan Ini:</span>
-                    <span class="text-xs text-emerald-700 dark:text-emerald-300">Minggu ke-{{ $mingguKe }}</span>
-                </div>
-            </div>
-        @endif
         <x-kurva-s-chart
             :chartData="$chartData"
             :jenisKapalNama="$jenisKapalNama"
