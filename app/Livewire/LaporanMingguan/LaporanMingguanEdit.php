@@ -643,7 +643,90 @@ class LaporanMingguanEdit extends Component
             return $a['minggu_ke'] <=> $b['minggu_ke'];
         });
         
+        // Add cumulative totals using the same logic as KurvaSService
+        if (!empty($fullHistory) && $this->jenis_kapal_id) {
+            $jenisKapal = JenisKapal::find($this->jenis_kapal_id);
+            if ($jenisKapal) {
+                $workGroups = \App\Models\KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
+                    ->orderBy('sort_order')
+                    ->get();
+                $fullHistory = $this->addCumulativeTotalsToHistory($fullHistory, $workGroups);
+            }
+        }
+        
         return $fullHistory;
+    }
+    
+    private function addCumulativeTotalsToHistory(array $history, $workGroups): array
+    {
+        $bobotMap = [];
+        foreach ($workGroups as $wg) {
+            $bobotMap[$wg->id] = (float) $wg->bobot;
+        }
+
+        $cumulativePlan = 0.0;
+        $cumulativeActual = 0.0;
+        
+        // Track total per work group across all weeks
+        $totalPerWorkGroup = [];
+        foreach ($bobotMap as $wgId => $bobot) {
+            $totalPerWorkGroup[$wgId] = [
+                'plan' => 0.0,
+                'actual' => 0.0,
+            ];
+        }
+
+        foreach ($history as $index => &$entry) {
+            // Calculate weekly totals
+            $weekPlan = 0.0;
+            $weekActual = 0.0;
+
+            foreach ($bobotMap as $wgId => $bobot) {
+                $plan = $entry['plans'][$wgId] ?? 0;
+                $actual = $entry['progress'][$wgId] ?? 0;
+
+                // Kontribusi = (pct * bobot) / 100
+                // TIDAK dibulatkan per work group, dijumlahkan dulu
+                $kontribusiPlan = ($plan * $bobot) / 100.0;
+                $kontribusiActual = ($actual * $bobot) / 100.0;
+                
+                $weekPlan += $kontribusiPlan;
+                $weekActual += $kontribusiActual;
+                
+                // Accumulate per work group
+                $totalPerWorkGroup[$wgId]['plan'] += $kontribusiPlan;
+                $totalPerWorkGroup[$wgId]['actual'] += $kontribusiActual;
+            }
+
+            // Add to cumulative (juga tidak dibulatkan dulu)
+            $cumulativePlan += $weekPlan;
+            $cumulativeActual += $weekActual;
+
+            // Bulatkan hanya pada hasil akhir
+            $entry['cumulative_plan'] = round($cumulativePlan, 2);
+            $entry['cumulative_actual'] = round($cumulativeActual, 2);
+            $entry['cumulative_deviation'] = round($cumulativeActual - $cumulativePlan, 2);
+            
+            // Also add weekly totals for consistency
+            $entry['week_plan'] = round($weekPlan, 2);
+            $entry['week_actual'] = round($weekActual, 2);
+            $entry['week_deviation'] = round($weekActual - $weekPlan, 2);
+        }
+        
+        // Add total per work group to the last entry (for footer display)
+        if (!empty($history)) {
+            $totalPerWorkGroupRounded = [];
+            foreach ($totalPerWorkGroup as $wgId => $totals) {
+                $totalPerWorkGroupRounded[$wgId] = [
+                    'plan' => round($totals['plan'], 2),
+                    'actual' => round($totals['actual'], 2),
+                    'deviation' => round($totals['actual'] - $totals['plan'], 2),
+                ];
+            }
+            $history[count($history) - 1]['total_per_work_group'] = $totalPerWorkGroupRounded;
+        }
+
+        return $history;
     }
 
     public function render(KurvaSService $kurvaSService)
