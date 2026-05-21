@@ -157,7 +157,7 @@ class JenisKapalService
                 ];
             }
 
-            $workGroupsData = $rencanaImport->getRencanaData();
+            $workGroupsData = $import->getRencanaData();
 
             if (empty($workGroupsData)) {
                 DB::rollBack();

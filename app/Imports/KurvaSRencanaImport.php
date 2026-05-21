@@ -46,6 +46,11 @@ class KurvaSRencanaImport implements ToCollection, WithHeadingRow
                 continue;
             }
 
+            // Skip TOTAL row
+            if (strtoupper($workGroupName) === 'TOTAL') {
+                continue;
+            }
+
             if (!is_numeric($bobot)) {
                 $this->parent->addError("Baris {$rowNumber}: Bobot harus berupa angka untuk work group \"{$workGroupName}\"");
                 continue;
@@ -66,7 +71,10 @@ class KurvaSRencanaImport implements ToCollection, WithHeadingRow
                 $rencanaKey = 'w' . $minggu . '_rencana';
                 $keteranganKey = 'w' . $minggu . '_keterangan';
                 
-                if (!isset($row[$rencanaKey])) {
+                // Convert row to array for consistent access
+                $rowData = $row->toArray();
+                
+                if (!array_key_exists($rencanaKey, $rowData)) {
                     $this->parent->addError(
                         sprintf(
                             'Baris %d: Kolom "W%d - Rencana (%%)" tidak ditemukan untuk work group "%s"',
@@ -78,7 +86,12 @@ class KurvaSRencanaImport implements ToCollection, WithHeadingRow
                     continue;
                 }
 
-                $pctRencana = $row[$rencanaKey];
+                $pctRencana = $rowData[$rencanaKey];
+
+                // Handle empty cells - treat as 0.00
+                if ($pctRencana === null || $pctRencana === '' || $pctRencana === '-') {
+                    $pctRencana = 0.00;
+                }
 
                 if (!is_numeric($pctRencana)) {
                     $this->parent->addError(
@@ -108,7 +121,7 @@ class KurvaSRencanaImport implements ToCollection, WithHeadingRow
 
                 $totalPctRencana += $pctRencana;
 
-                $keterangan = isset($row[$keteranganKey]) ? trim($row[$keteranganKey]) : null;
+                $keterangan = array_key_exists($keteranganKey, $rowData) ? trim($rowData[$keteranganKey]) : null;
                 if (!empty($keterangan) && strlen($keterangan) > 500) {
                     $this->parent->addError(
                         sprintf(
@@ -139,7 +152,7 @@ class KurvaSRencanaImport implements ToCollection, WithHeadingRow
                 );
             }
 
-            if (abs($totalPctRencana - 100.00) > 0.01) {
+            if (abs($totalPctRencana - 100.00) > 0.05) {
                 $this->parent->addError(
                     sprintf(
                         'Baris %d: Work group "%s" total Kumulatif Rencana harus = 100.00%%. Total saat ini: %.2f%%',
@@ -166,7 +179,8 @@ class KurvaSRencanaImport implements ToCollection, WithHeadingRow
             );
         }
 
-        $this->rencanaData = $workGroupsData;
+        // Store data in parent class to fix instance issue
+        $this->parent->setRencanaData($workGroupsData);
     }
 
     public function getRencanaData(): array
