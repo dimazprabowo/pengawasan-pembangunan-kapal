@@ -66,4 +66,14 @@ class JenisKapalPolicy
     {
         return $user->can('jenis_kapal_view');
     }
+
+    public function exportKurvaSTemplate(User $user, JenisKapal $jenisKapal): bool
+    {
+        return $user->can('jenis_kapal_manage_kurva_s');
+    }
+
+    public function importKurvaSTemplate(User $user, JenisKapal $jenisKapal): bool
+    {
+        return $user->can('jenis_kapal_manage_kurva_s');
+    }
 }

@@ -55,6 +55,11 @@ class JenisKapalManagement extends Component
     public $deletingTemplateJenisKapalId;
     public $deletingTemplateTipe;
 
+    // Kurva S import/export modal states
+    public $showKurvaSImportModal = false;
+    public $kurvaSJenisKapalId;
+    public $kurvaS_file;
+
     public function mount()
     {
         $this->authorize('viewAny', JenisKapal::class);
@@ -412,6 +417,82 @@ class JenisKapalManagement extends Component
         $jenisKapal = JenisKapal::findOrFail($id);
         $this->authorize('managekurvaSRencana', $jenisKapal);
         $this->dispatch('open-kurvas-modal', jenisKapalId: $id);
+    }
+
+    public function exportKurvaSTemplate($id, bool $withData, JenisKapalService $service)
+    {
+        try {
+            $jenisKapal = JenisKapal::findOrFail($id);
+            $this->authorize('exportKurvaSTemplate', $jenisKapal);
+
+            return $service->exportKurvaSTemplate($jenisKapal, $withData);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            $this->notifyError('Anda tidak memiliki izin untuk export template Kurva S.');
+        } catch (\Exception $e) {
+            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+        }
+    }
+
+    public function openKurvaSImportModal($id)
+    {
+        try {
+            $jenisKapal = JenisKapal::findOrFail($id);
+            $this->authorize('importKurvaSTemplate', $jenisKapal);
+
+            $this->kurvaSJenisKapalId = $jenisKapal->id;
+            $this->showKurvaSImportModal = true;
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            $this->notifyError('Anda tidak memiliki izin untuk import template Kurva S.');
+        }
+    }
+
+    public function closeKurvaSImportModal()
+    {
+        $this->showKurvaSImportModal = false;
+        $this->reset(['kurvaSJenisKapalId', 'kurvaS_file']);
+        $this->resetValidation();
+    }
+
+    public function importKurvaSTemplate(JenisKapalService $service)
+    {
+        try {
+            $this->validate([
+                'kurvaS_file' => 'required|file|mimes:xlsx,xls|max:5120',
+            ], [
+                'kurvaS_file.required' => 'File template wajib diupload',
+                'kurvaS_file.file' => 'File tidak valid',
+                'kurvaS_file.mimes' => 'File harus berformat Excel (.xlsx atau .xls)',
+                'kurvaS_file.max' => 'Ukuran file maksimal 5MB',
+            ], [
+                'kurvaS_file' => 'file template',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->notifyValidationError($e);
+            throw $e;
+        }
+
+        try {
+            $jenisKapal = JenisKapal::findOrFail($this->kurvaSJenisKapalId);
+            $this->authorize('importKurvaSTemplate', $jenisKapal);
+
+            $result = $service->importKurvaSTemplate($jenisKapal, $this->kurvaS_file);
+
+            if ($result['success']) {
+                $this->notifySuccess($result['message'] . ' Total work groups: ' . $result['work_groups_count']);
+                $this->closeKurvaSImportModal();
+                $this->dispatch('kurvas-imported');
+            } else {
+                $errorMessage = 'Import gagal:';
+                foreach ($result['errors'] as $error) {
+                    $errorMessage .= "\n• " . $error;
+                }
+                $this->notifyError($errorMessage);
+            }
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            $this->notifyError('Anda tidak memiliki izin untuk import template Kurva S.');
+        } catch (\Exception $e) {
+            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+        }
     }
 
     public function render(JenisKapalService $service)

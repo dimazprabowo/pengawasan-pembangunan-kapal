@@ -3,10 +3,18 @@
 namespace App\Services;
 
 use App\Enums\JenisKapalStatus;
+use App\Exports\KurvaSTemplateExport;
+use App\Imports\KurvaSTemplateImport;
+use App\Imports\KurvaSWorkGroupsImport;
+use App\Imports\KurvaSRencanaImport;
 use App\Models\JenisKapal;
+use App\Models\KurvaSWorkGroup;
+use App\Models\KurvaSRencana;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Maatwebsite\Excel\Facades\Excel;
 
 class JenisKapalService
 {
@@ -111,5 +119,103 @@ class JenisKapalService
         }
 
         return $templatePath;
+    }
+
+    public function exportKurvaSTemplate(JenisKapal $jenisKapal, bool $withData = true)
+    {
+        $filename = 'kurva-s-template-' . \Str::slug($jenisKapal->nama) . '-' . now()->format('Y-m-d-His') . '.xlsx';
+        
+        return Excel::download(
+            new KurvaSTemplateExport($jenisKapal, $withData),
+            $filename
+        );
+    }
+
+    public function importKurvaSTemplate(JenisKapal $jenisKapal, TemporaryUploadedFile $file): array
+    {
+        DB::beginTransaction();
+
+        try {
+            $import = new KurvaSTemplateImport($jenisKapal);
+            Excel::import($import, $file->getRealPath());
+
+            if ($import->hasErrors()) {
+                DB::rollBack();
+                return [
+                    'success' => false,
+                    'errors' => $import->getErrors(),
+                ];
+            }
+
+            $rencanaImport = $import->sheets()['Rencana'];
+
+            if (!($rencanaImport instanceof KurvaSRencanaImport)) {
+                DB::rollBack();
+                return [
+                    'success' => false,
+                    'errors' => ['Format file tidak valid. Pastikan menggunakan template yang benar.'],
+                ];
+            }
+
+            $workGroupsData = $rencanaImport->getRencanaData();
+
+            if (empty($workGroupsData)) {
+                DB::rollBack();
+                return [
+                    'success' => false,
+                    'errors' => ['Tidak ada data work group yang valid untuk diimport.'],
+                ];
+            }
+
+            KurvaSRencana::whereHas('workGroup', function ($q) use ($jenisKapal) {
+                $q->where('jenis_kapal_id', $jenisKapal->id);
+            })->delete();
+            
+            KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)->delete();
+
+            $now = now();
+            foreach ($workGroupsData as $wgName => $wgData) {
+                $workGroup = KurvaSWorkGroup::create([
+                    'jenis_kapal_id' => $jenisKapal->id,
+                    'nama' => $wgName,
+                    'bobot' => $wgData['bobot'],
+                    'sort_order' => $wgData['sort_order'],
+                ]);
+
+                if (isset($wgData['weekly_data'])) {
+                    $rencanaInsert = [];
+                    foreach ($wgData['weekly_data'] as $rencana) {
+                        $rencanaInsert[] = [
+                            'work_group_id' => $workGroup->id,
+                            'minggu_ke' => $rencana['minggu_ke'],
+                            'pct_rencana' => $rencana['pct_rencana'],
+                            'keterangan' => $rencana['keterangan'],
+                            'created_at' => $now,
+                            'updated_at' => $now,
+                        ];
+                    }
+                    
+                    if (!empty($rencanaInsert)) {
+                        KurvaSRencana::insert($rencanaInsert);
+                    }
+                }
+            }
+
+            DB::commit();
+
+            return [
+                'success' => true,
+                'message' => 'Data Kurva S berhasil diimport! Total work groups: ' . count($workGroupsData),
+                'work_groups_count' => count($workGroupsData),
+            ];
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return [
+                'success' => false,
+                'errors' => ['Terjadi kesalahan saat import: ' . $e->getMessage()],
+            ];
+        }
     }
 }
