@@ -3,6 +3,7 @@
 namespace App\Livewire\LaporanHarian;
 
 use App\Exports\LaporanHarianExport;
+use App\Livewire\Traits\HasJenisKapalFilter;
 use App\Livewire\Traits\HasNotification;
 use App\Models\JenisKapal;
 use App\Models\LaporanHarian;
@@ -18,7 +19,7 @@ use Livewire\WithPagination;
 #[Layout('layouts.app', ['title' => 'Manajemen Laporan Harian'])]
 class LaporanHarianIndex extends Component
 {
-    use WithPagination, AuthorizesRequests, HasNotification;
+    use WithPagination, AuthorizesRequests, HasNotification, HasJenisKapalFilter;
 
     protected $paginationTheme = 'tailwind';
 
@@ -38,7 +39,7 @@ class LaporanHarianIndex extends Component
     {
         $this->authorize('viewAny', LaporanHarian::class);
 
-        $this->jenisKapalId = session('laporan_harian_jenis_kapal_id');
+        $this->jenisKapalId = $this->getSelectedJenisKapalId();
 
         if (session()->has('notify')) {
             $notify = session('notify');
@@ -48,7 +49,7 @@ class LaporanHarianIndex extends Component
 
     public function updatedJenisKapalId($value): void
     {
-        session(['laporan_harian_jenis_kapal_id' => $value]);
+        $this->setSelectedJenisKapalId($value);
         $this->resetPage();
     }
 
@@ -131,18 +132,6 @@ class LaporanHarianIndex extends Component
 
     public function render(LaporanHarianService $service, QueueStatusService $queueStatusService)
     {
-        $canViewAllJenisKapal = auth()->user()->can('laporan_view_all_jenis_kapal');
-        
-        $jenisKapalList = JenisKapal::with(['company', 'galangan'])
-            ->active()
-            ->when(!$canViewAllJenisKapal, function ($q) {
-                $q->whereHas('company', function ($q) {
-                    $q->where('id', auth()->user()->company_id);
-                });
-            })
-            ->orderBy('nama')
-            ->get();
-
         return view('livewire.laporan-harian.laporan-harian-index', [
             'laporanList' => $service->getFiltered(
                 $this->search,
@@ -150,8 +139,8 @@ class LaporanHarianIndex extends Component
                 $this->perPage
             ),
             'queueStatus' => $queueStatusService->getQueueStatusMessage(),
-            'jenisKapalList' => $jenisKapalList,
-            'canViewAllJenisKapal' => $canViewAllJenisKapal,
+            'jenisKapalList' => $this->getJenisKapalList(),
+            'canViewAllJenisKapal' => $this->canViewAllJenisKapal(),
         ]);
     }
 }

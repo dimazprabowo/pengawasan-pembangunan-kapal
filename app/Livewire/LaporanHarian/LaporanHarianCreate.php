@@ -3,6 +3,7 @@
 namespace App\Livewire\LaporanHarian;
 
 use App\Jobs\ProcessLaporanLampiran;
+use App\Livewire\Traits\HasJenisKapalFilter;
 use App\Livewire\Traits\HasNotification;
 use App\Models\Cuaca;
 use App\Models\JenisKapal;
@@ -18,7 +19,7 @@ use Livewire\WithFileUploads;
 #[Layout('layouts.app', ['title' => 'Tambah Laporan Harian'])]
 class LaporanHarianCreate extends Component
 {
-    use AuthorizesRequests, HasNotification, WithFileUploads;
+    use AuthorizesRequests, HasNotification, WithFileUploads, HasJenisKapalFilter;
 
     public ?int $jenis_kapal_id = null;
 
@@ -67,7 +68,7 @@ class LaporanHarianCreate extends Component
     {
         $this->authorize('create', LaporanHarian::class);
 
-        $this->jenis_kapal_id = session('laporan_harian_jenis_kapal_id');
+        $this->jenis_kapal_id = $this->getSelectedJenisKapalId();
         $this->addItem();
     }
 

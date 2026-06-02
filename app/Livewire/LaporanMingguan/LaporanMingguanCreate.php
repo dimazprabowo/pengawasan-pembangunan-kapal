@@ -2,6 +2,7 @@
 
 namespace App\Livewire\LaporanMingguan;
 
+use App\Livewire\Traits\HasJenisKapalFilter;
 use App\Livewire\Traits\HasNotification;
 use App\Models\JenisKapal;
 use App\Models\LaporanHarian;
@@ -17,7 +18,7 @@ use Livewire\Component;
 #[Layout('layouts.app', ['title' => 'Tambah Laporan Mingguan'])]
 class LaporanMingguanCreate extends Component
 {
-    use AuthorizesRequests, HasNotification;
+    use AuthorizesRequests, HasNotification, HasJenisKapalFilter;
 
     public ?int $jenis_kapal_id = null;
     public string $judul = '';
@@ -51,7 +52,7 @@ class LaporanMingguanCreate extends Component
     public function mount(): void
     {
         $this->authorize('create', LaporanMingguan::class);
-        $this->jenis_kapal_id = session('laporan_harian_jenis_kapal_id');
+        $this->jenis_kapal_id = $this->getSelectedJenisKapalId();
         $this->tanggal_laporan = now()->format('Y-m-d');
         $this->loadAvailableLaporanHarian();
         $this->loadKurvaSOptions();

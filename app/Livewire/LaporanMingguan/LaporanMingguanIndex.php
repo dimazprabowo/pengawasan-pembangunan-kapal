@@ -2,6 +2,7 @@
 
 namespace App\Livewire\LaporanMingguan;
 
+use App\Livewire\Traits\HasJenisKapalFilter;
 use App\Livewire\Traits\HasNotification;
 use App\Models\JenisKapal;
 use App\Models\LaporanMingguan;
@@ -18,7 +19,7 @@ use Livewire\WithPagination;
 #[Layout('layouts.app', ['title' => 'Manajemen Laporan Mingguan'])]
 class LaporanMingguanIndex extends Component
 {
-    use WithPagination, AuthorizesRequests, HasNotification;
+    use WithPagination, AuthorizesRequests, HasNotification, HasJenisKapalFilter;
 
     protected $paginationTheme = 'tailwind';
 
@@ -41,7 +42,7 @@ class LaporanMingguanIndex extends Component
     {
         $this->authorize('viewAny', LaporanMingguan::class);
 
-        $this->jenisKapalId = session('laporan_harian_jenis_kapal_id');
+        $this->jenisKapalId = $this->getSelectedJenisKapalId();
         $this->showKurvaS = session('laporan_mingguan_show_kurva_s', false);
 
         if (session()->has('notify')) {
@@ -52,7 +53,7 @@ class LaporanMingguanIndex extends Component
 
     public function updatedJenisKapalId($value): void
     {
-        session(['laporan_harian_jenis_kapal_id' => $value]);
+        $this->setSelectedJenisKapalId($value);
         $this->resetPage();
 
         // Dispatch real-time update for the chart
@@ -256,11 +257,7 @@ class LaporanMingguanIndex extends Component
                 $this->jenisKapalId,
                 $this->perPage
             ),
-            'jenisKapalList' => $this->authorize('viewAllJenisKapal', LaporanMingguan::class)
-                ? JenisKapal::with(['company', 'galangan'])->get()
-                : JenisKapal::whereHas('users', function ($q) {
-                    $q->where('users.id', auth()->id());
-                })->with(['company', 'galangan'])->get(),
+            'jenisKapalList' => $this->getJenisKapalList(),
             'kurvaSChartData'  => $chartData,
             'progressHistory' => $progressHistory,
             'workGroupsForHistory' => $workGroupsForHistory,
