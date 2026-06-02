@@ -82,8 +82,8 @@
                     </tr>
                     <tr class="bg-gray-50 dark:bg-gray-900">
                         <th class="px-2 py-1.5 text-center text-[10px] font-medium text-blue-600 dark:text-blue-400 border-l-2 border-blue-200 dark:border-blue-800">Rencana</th>
-                        <th class="px-2 py-1.5 text-center text-[10px] font-medium text-emerald-600 dark:text-emerald-400">Aktual</th>
-                        <th class="px-2 py-1.5 text-center text-[10px] font-medium text-gray-600 dark:text-gray-400">Deviasi</th>
+                        <th class="px-2 py-1.5 text-center text-[10px] font-medium text-blue-600 dark:text-blue-400">Aktual</th>
+                        <th class="px-2 py-1.5 text-center text-[10px] font-medium text-blue-600 dark:text-blue-400">Deviasi</th>
                         <th class="px-2 py-1.5 text-center text-[10px] font-medium text-purple-600 dark:text-purple-400 border-l-2 border-purple-200 dark:border-purple-800">Rencana</th>
                         <th class="px-2 py-1.5 text-center text-[10px] font-medium text-purple-600 dark:text-purple-400">Aktual</th>
                         <th class="px-2 py-1.5 text-center text-[10px] font-medium text-purple-600 dark:text-purple-400">Deviasi</th>
@@ -109,7 +109,7 @@
                         </template>
                         {{-- Minggu Ini --}}
                         <td class="px-2 py-2 text-center text-blue-600 dark:text-blue-400 tabular-nums font-medium border-l-2 border-blue-200 dark:border-blue-800" x-text="(hist.week_plan || 0).toFixed(2) + '%'"></td>
-                        <td class="px-2 py-2 text-center text-emerald-600 dark:text-emerald-400 tabular-nums font-medium" x-text="(hist.week_actual || 0).toFixed(2) + '%'"></td>
+                        <td class="px-2 py-2 text-center text-blue-600 dark:text-blue-400 tabular-nums font-medium" x-text="(hist.week_actual || 0).toFixed(2) + '%'"></td>
                         <td class="px-2 py-2 text-center tabular-nums font-medium"
                             :class="(hist.week_deviation || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'"
                             x-text="((hist.week_deviation || 0) >= 0 ? '+' : '') + (hist.week_deviation || 0).toFixed(2) + '%'"></td>
@@ -153,7 +153,7 @@
                         {{-- Total Minggu Ini (dari backend) --}}
                         <td class="px-2 py-2 text-center text-blue-600 dark:text-blue-400 tabular-nums font-bold border-l-2 border-blue-200 dark:border-blue-800" 
                             x-text="(progressHistory.length > 0 && progressHistory[progressHistory.length - 1].cumulative_plan ? progressHistory[progressHistory.length - 1].cumulative_plan : 0).toFixed(2) + '%'"></td>
-                        <td class="px-2 py-2 text-center text-emerald-600 dark:text-emerald-400 tabular-nums font-bold" 
+                        <td class="px-2 py-2 text-center text-blue-600 dark:text-blue-400 tabular-nums font-bold" 
                             x-text="(progressHistory.length > 0 && progressHistory[progressHistory.length - 1].cumulative_actual ? progressHistory[progressHistory.length - 1].cumulative_actual : 0).toFixed(2) + '%'"></td>
                         <td class="px-2 py-2 text-center tabular-nums font-bold"
                             :class="(progressHistory.length > 0 && progressHistory[progressHistory.length - 1].cumulative_deviation ? progressHistory[progressHistory.length - 1].cumulative_deviation : 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'"

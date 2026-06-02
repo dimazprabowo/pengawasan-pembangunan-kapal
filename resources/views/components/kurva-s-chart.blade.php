@@ -49,9 +49,9 @@
             <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
                 <p class="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Progress Aktual</p>
                 @if($aktual !== null)
-                    <p class="text-lg font-semibold text-emerald-600 dark:text-emerald-400">{{ number_format($aktual, 2) }}%</p>
+                    <p class="text-lg font-semibold text-blue-600 dark:text-blue-400">{{ number_format($aktual, 2) }}%</p>
                 @elseif($terkini !== null)
-                    <p class="text-lg font-semibold text-emerald-600 dark:text-emerald-400">{{ number_format($terkini, 2) }}%</p>
+                    <p class="text-lg font-semibold text-blue-600 dark:text-blue-400">{{ number_format($terkini, 2) }}%</p>
                 @else
                     <p class="text-lg font-semibold text-gray-400 dark:text-gray-500">—</p>
                 @endif
