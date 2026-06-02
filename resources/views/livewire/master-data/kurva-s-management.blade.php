@@ -162,8 +162,8 @@
                     <div class="flex-1 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                         <p class="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">Jumlah Minggu Konstruksi</p>
                         <div class="flex items-center gap-2">
-                            <input type="number" x-model.number="n" min="1" max="100"
-                                class="w-20 px-3 py-1.5 text-sm border border-blue-300 dark:border-blue-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-center">
+                            <input type="number" x-model.number="n" min="1" max="200"
+                                class="w-24 px-3 py-1.5 text-sm border rounded-lg focus:ring-2 dark:bg-gray-700 dark:text-white text-center @error('totalMinggu') border-red-500 dark:border-red-500 focus:ring-red-500 @else border-blue-300 dark:border-blue-600 focus:ring-blue-500 @enderror">
                             <button type="button" x-on:click="$wire.setTotalMinggu(n)"
                                 wire:loading.attr="disabled" wire:target="setTotalMinggu"
                                 class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-75 flex items-center gap-1.5">
@@ -175,7 +175,11 @@
                                 <span wire:loading wire:target="setTotalMinggu">Menerapkan...</span>
                             </button>
                         </div>
-                        <p class="text-xs text-blue-500 dark:text-blue-400 mt-1.5">Ini akan menyesuaikan jumlah minggu pada semua work group.</p>
+                        @error('totalMinggu')
+                            <p class="text-xs text-red-600 dark:text-red-400 mt-1.5">{{ $message }}</p>
+                        @else
+                            <p class="text-xs text-blue-500 dark:text-blue-400 mt-1.5">Ini akan menyesuaikan jumlah minggu pada semua work group.</p>
+                        @enderror
                     </div>
 
                     {{-- Total Bobot (Alpine reactive) --}}

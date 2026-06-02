@@ -43,6 +43,9 @@ class KurvaSRencanaSheet implements FromArray, WithTitle, WithHeadings, WithStyl
             return $this->getDefaultTemplate();
         }
 
+        // Hitung jumlah minggu maksimal dari data aktual
+        $maxWeeks = $this->getMaxWeeks($workGroups);
+
         // Export dengan data yang ada
         $data = [];
         foreach ($workGroups as $index => $wg) {
@@ -54,7 +57,7 @@ class KurvaSRencanaSheet implements FromArray, WithTitle, WithHeadings, WithStyl
                 (float) $wg->bobot,
             ];
             
-            for ($minggu = 1; $minggu <= 100; $minggu++) {
+            for ($minggu = 1; $minggu <= $maxWeeks; $minggu++) {
                 $rencana = $rencanaData->get($minggu);
                 $row[] = $rencana ? (float) $rencana->pct_rencana : 0.00;
                 $row[] = $rencana?->keterangan ?? '';
@@ -77,6 +80,9 @@ class KurvaSRencanaSheet implements FromArray, WithTitle, WithHeadings, WithStyl
             ['nama' => 'Uji Coba & Komisioning', 'bobot' => 5.00],
         ];
 
+        // Gunakan jumlah minggu dari data aktual jika ada, fallback ke 100
+        $maxWeeks = $this->getMaxWeeksFromDb();
+
         $data = [];
         foreach ($defaultWorkGroups as $index => $wg) {
             $row = [
@@ -85,7 +91,7 @@ class KurvaSRencanaSheet implements FromArray, WithTitle, WithHeadings, WithStyl
                 $wg['bobot'],
             ];
             
-            for ($minggu = 1; $minggu <= 100; $minggu++) {
+            for ($minggu = 1; $minggu <= $maxWeeks; $minggu++) {
                 $row[] = 0.00;
                 $row[] = '';
             }
@@ -93,6 +99,37 @@ class KurvaSRencanaSheet implements FromArray, WithTitle, WithHeadings, WithStyl
         }
 
         return $data;
+    }
+
+    /**
+     * Get maximum weeks from work groups collection
+     */
+    protected function getMaxWeeks($workGroups): int
+    {
+        $maxWeeks = 0;
+        foreach ($workGroups as $wg) {
+            $weekCount = $wg->kurvaSRencana->max('minggu_ke') ?? 0;
+            if ($weekCount > $maxWeeks) {
+                $maxWeeks = $weekCount;
+            }
+        }
+        return max(1, $maxWeeks);
+    }
+
+    /**
+     * Get maximum weeks from database
+     */
+    protected function getMaxWeeksFromDb(): int
+    {
+        $workGroups = $this->jenisKapal->kurvaSWorkGroups()
+            ->with('kurvaSRencana')
+            ->get();
+
+        if ($workGroups->isEmpty()) {
+            return 100;
+        }
+
+        return $this->getMaxWeeks($workGroups);
     }
 
     public function headings(): array
@@ -105,7 +142,10 @@ class KurvaSRencanaSheet implements FromArray, WithTitle, WithHeadings, WithStyl
             'Kumulatif Aktual (%)',
         ];
         
-        for ($minggu = 1; $minggu <= 100; $minggu++) {
+        // Selalu gunakan jumlah minggu dari database (baik data maupun template kosong)
+        $maxWeeks = $this->getMaxWeeksFromDb();
+        
+        for ($minggu = 1; $minggu <= $maxWeeks; $minggu++) {
             $headings[] = "W{$minggu} - Rencana (%)";
             $headings[] = "W{$minggu} - Keterangan";
         }
@@ -128,8 +168,11 @@ class KurvaSRencanaSheet implements FromArray, WithTitle, WithHeadings, WithStyl
             'E' => 18,
         ];
         
+        // Selalu gunakan jumlah minggu dari database
+        $maxWeeks = $this->getMaxWeeksFromDb();
+        
         $colIndex = 6;
-        for ($minggu = 1; $minggu <= 100; $minggu++) {
+        for ($minggu = 1; $minggu <= $maxWeeks; $minggu++) {
             $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex);
             $widths[$colLetter] = 10;
             $colIndex++;
@@ -144,7 +187,9 @@ class KurvaSRencanaSheet implements FromArray, WithTitle, WithHeadings, WithStyl
 
     public function styles(Worksheet $sheet)
     {
-        $lastColIndex = 5 + (100 * 2);
+        // Selalu gunakan jumlah minggu dari database
+        $maxWeeks = $this->getMaxWeeksFromDb();
+        $lastColIndex = 5 + ($maxWeeks * 2);
         $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($lastColIndex);
         $dataRows = count($this->array());
         $lastDataRow = $dataRows + 1;
@@ -198,7 +243,7 @@ class KurvaSRencanaSheet implements FromArray, WithTitle, WithHeadings, WithStyl
             
             $rencanaColStart = 6;
             $rencanaFormulaParts = [];
-            for ($minggu = 1; $minggu <= 100; $minggu++) {
+            for ($minggu = 1; $minggu <= $maxWeeks; $minggu++) {
                 $rencanaCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($rencanaColStart);
                 $rencanaFormulaParts[] = "{$rencanaCol}{$row}";
                 

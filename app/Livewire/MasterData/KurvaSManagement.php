@@ -147,7 +147,22 @@ class KurvaSManagement extends Component
 
     public function setTotalMinggu(int $total): void
     {
-        $total = max(1, min(100, $total));
+        // Reset error
+        $this->resetValidation('totalMinggu');
+
+        // Validasi range
+        if ($total < 1) {
+            $this->addError('totalMinggu', 'Jumlah minggu minimal adalah 1 minggu.');
+            $this->notifyWarning('Gagal menerapkan jumlah minggu. Silakan periksa input Anda.');
+            return;
+        }
+
+        if ($total > 200) {
+            $this->addError('totalMinggu', 'Jumlah minggu maksimal adalah 200 minggu.');
+            $this->notifyWarning('Gagal menerapkan jumlah minggu. Silakan periksa input Anda.');
+            return;
+        }
+
         $this->totalMinggu = $total;
 
         $count = count($this->workGroups);

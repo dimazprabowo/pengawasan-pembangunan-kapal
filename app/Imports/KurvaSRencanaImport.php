@@ -31,6 +31,9 @@ class KurvaSRencanaImport implements ToCollection, WithHeadingRow
             return;
         }
 
+        // Deteksi jumlah minggu dari header Excel
+        $maxWeeks = $this->detectMaxWeeksFromHeaders($rows->first());
+
         $totalBobot = 0;
         $workGroupsData = [];
 
@@ -67,23 +70,16 @@ class KurvaSRencanaImport implements ToCollection, WithHeadingRow
             $totalPctRencana = 0;
             $weeklyData = [];
 
-            for ($minggu = 1; $minggu <= 100; $minggu++) {
+            for ($minggu = 1; $minggu <= $maxWeeks; $minggu++) {
                 $rencanaKey = 'w' . $minggu . '_rencana';
                 $keteranganKey = 'w' . $minggu . '_keterangan';
                 
                 // Convert row to array for consistent access
                 $rowData = $row->toArray();
                 
+                // Skip jika kolom tidak ada (untuk fleksibilitas jumlah minggu)
                 if (!array_key_exists($rencanaKey, $rowData)) {
-                    $this->parent->addError(
-                        sprintf(
-                            'Baris %d: Kolom "W%d - Rencana (%%)" tidak ditemukan untuk work group "%s"',
-                            $rowNumber,
-                            $minggu,
-                            $workGroupName
-                        )
-                    );
-                    continue;
+                    break; // Berhenti di minggu ini, tidak ada kolom lagi
                 }
 
                 $pctRencana = $rowData[$rencanaKey];
@@ -141,13 +137,13 @@ class KurvaSRencanaImport implements ToCollection, WithHeadingRow
                 ];
             }
 
-            if (count($weeklyData) !== 100) {
+            // Validasi minimal ada data minggu
+            if (empty($weeklyData)) {
                 $this->parent->addError(
                     sprintf(
-                        'Baris %d: Work group "%s" harus memiliki 100 minggu. Ditemukan: %d minggu',
+                        'Baris %d: Work group "%s" tidak memiliki data minggu',
                         $rowNumber,
-                        $workGroupName,
-                        count($weeklyData)
+                        $workGroupName
                     )
                 );
             }
@@ -186,5 +182,31 @@ class KurvaSRencanaImport implements ToCollection, WithHeadingRow
     public function getRencanaData(): array
     {
         return $this->rencanaData;
+    }
+
+    /**
+     * Detect maximum weeks from Excel headers
+     */
+    protected function detectMaxWeeksFromHeaders($firstRow): int
+    {
+        if (!$firstRow) {
+            return 100; // Default fallback
+        }
+
+        $rowData = $firstRow->toArray();
+        $maxWeek = 0;
+
+        // Cari kolom dengan pattern w{number}_rencana
+        foreach (array_keys($rowData) as $key) {
+            if (preg_match('/^w(\d+)_rencana$/', $key, $matches)) {
+                $weekNumber = (int) $matches[1];
+                if ($weekNumber > $maxWeek) {
+                    $maxWeek = $weekNumber;
+                }
+            }
+        }
+
+        // Jika tidak ditemukan, fallback ke 100
+        return $maxWeek > 0 ? $maxWeek : 100;
     }
 }
