@@ -353,131 +353,21 @@
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div class="flex items-center justify-end gap-2">
                                     @can('managekurvaSRencana', $jenisKapal)
-                                        {{-- Kurva S Dropdown Menu --}}
-                                        <div wire:key="kurva-s-dropdown-{{ $jenisKapal->id }}" 
-                                            x-data="{ 
-                                                open: false,
-                                                isMobile: window.innerWidth < 640,
-                                                updatePosition() {
-                                                    if (this.open) {
-                                                        const button = this.$refs.button;
-                                                        const menu = this.$refs.menu;
-                                                        const rect = button.getBoundingClientRect();
-                                                        const windowWidth = window.innerWidth;
-                                                        const windowHeight = window.innerHeight;
-                                                        const menuHeight = menu.offsetHeight;
-                                                        const menuWidth = menu.offsetWidth;
-                                                        const gap = 8;
-                                                        
-                                                        this.isMobile = windowWidth < 640;
-                                                        
-                                                        // Buka ke atas jika space di bawah tidak cukup
-                                                        if (rect.bottom + gap + menuHeight > windowHeight && rect.top > menuHeight + gap) {
-                                                            menu.style.top = (rect.top - menuHeight - gap) + 'px';
-                                                        } else {
-                                                            menu.style.top = (rect.bottom + gap) + 'px';
-                                                        }
-                                                        
-                                                        if (this.isMobile) {
-                                                            menu.style.left = Math.max(gap, (windowWidth - menuWidth) / 2) + 'px';
-                                                            menu.style.right = 'auto';
-                                                        } else {
-                                                            menu.style.right = Math.max(gap, windowWidth - rect.right) + 'px';
-                                                            menu.style.left = 'auto';
-                                                        }
-                                                    }
-                                                }
-                                            }" 
-                                            @click.outside="open = false" 
-                                            class="relative">
-                                            <button x-ref="button"
-                                                @click="open = !open; $nextTick(() => updatePosition())"
-                                                class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50"
-                                                title="Kurva S"
-                                                wire:loading.class="opacity-50 cursor-wait"
-                                                wire:target="openKurvaSModal({{ $jenisKapal->id }}),exportKurvaSTemplate({{ $jenisKapal->id }}, true),exportKurvaSTemplate({{ $jenisKapal->id }}, false),openKurvaSImportModal({{ $jenisKapal->id }})">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                                                    wire:loading.remove
-                                                    wire:target="openKurvaSModal({{ $jenisKapal->id }}),exportKurvaSTemplate({{ $jenisKapal->id }}, true),exportKurvaSTemplate({{ $jenisKapal->id }}, false),openKurvaSImportModal({{ $jenisKapal->id }})">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                                                </svg>
-                                                <svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"
-                                                    wire:loading
-                                                    wire:target="openKurvaSModal({{ $jenisKapal->id }}),exportKurvaSTemplate({{ $jenisKapal->id }}, true),exportKurvaSTemplate({{ $jenisKapal->id }}, false),openKurvaSImportModal({{ $jenisKapal->id }})">
-                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                </svg>
-                                            </button>
-                                            
-                                            <div x-ref="menu"
-                                                x-show="open" 
-                                                x-transition:enter="transition ease-out duration-100"
-                                                x-transition:enter-start="transform opacity-0 scale-95"
-                                                x-transition:enter-end="transform opacity-100 scale-100"
-                                                x-transition:leave="transition ease-in duration-75"
-                                                x-transition:leave-start="transform opacity-100 scale-100"
-                                                x-transition:leave-end="transform opacity-0 scale-95"
-                                                class="fixed w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700"
-                                                :class="isMobile ? 'origin-top' : 'origin-top-right'"
-                                                style="z-index: 9999;"
-                                                @resize.window="updatePosition()"
-                                                @scroll.window="updatePosition()">
-                                                <div class="py-1">
-                                                    <button wire:click="openKurvaSModal({{ $jenisKapal->id }})"
-                                                        @click="open = false"
-                                                        class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center gap-2">
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                                        </svg>
-                                                        Kelola Kurva S
-                                                    </button>
-                                                    
-                                                    <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
-                                                    
-                                                    <button wire:click="exportKurvaSTemplate({{ $jenisKapal->id }}, true)"
-                                                        @click="open = false"
-                                                        wire:loading.attr="disabled"
-                                                        wire:target="exportKurvaSTemplate({{ $jenisKapal->id }}, true)"
-                                                        class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/20 flex items-center gap-2 disabled:opacity-50">
-                                                        <svg wire:loading.remove wire:target="exportKurvaSTemplate({{ $jenisKapal->id }}, true)" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                                        </svg>
-                                                        <svg wire:loading wire:target="exportKurvaSTemplate({{ $jenisKapal->id }}, true)" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                        </svg>
-                                                        Export (Dengan Data)
-                                                    </button>
-                                                    
-                                                    <button wire:click="exportKurvaSTemplate({{ $jenisKapal->id }}, false)"
-                                                        @click="open = false"
-                                                        wire:loading.attr="disabled"
-                                                        wire:target="exportKurvaSTemplate({{ $jenisKapal->id }}, false)"
-                                                        class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/20 flex items-center gap-2 disabled:opacity-50">
-                                                        <svg wire:loading.remove wire:target="exportKurvaSTemplate({{ $jenisKapal->id }}, false)" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                                        </svg>
-                                                        <svg wire:loading wire:target="exportKurvaSTemplate({{ $jenisKapal->id }}, false)" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                        </svg>
-                                                        Export Template Kosong
-                                                    </button>
-                                                    
-                                                    <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
-                                                    
-                                                    <button wire:click="openKurvaSImportModal({{ $jenisKapal->id }})"
-                                                        @click="open = false"
-                                                        class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 flex items-center gap-2">
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-                                                        </svg>
-                                                        Import Kurva S
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
+                                        {{-- Kurva S Button --}}
+                                        <button 
+                                            wire:click="openKurvaSModal({{ $jenisKapal->id }})"
+                                            wire:loading.attr="disabled"
+                                            wire:target="openKurvaSModal({{ $jenisKapal->id }})"
+                                            class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50 transition-colors"
+                                            title="Kelola Kurva S">
+                                            <svg wire:loading.class="hidden" wire:target="openKurvaSModal({{ $jenisKapal->id }})" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                            </svg>
+                                            <svg wire:loading wire:target="openKurvaSModal({{ $jenisKapal->id }})" class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                        </button>
                                     @endcan
                                     @can('jenis_kapal_update')
                                         <button wire:click="edit({{ $jenisKapal->id }})"

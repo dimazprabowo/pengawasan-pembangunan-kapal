@@ -5,17 +5,23 @@ namespace App\Livewire\MasterData;
 use App\Livewire\Traits\HasNotification;
 use App\Models\JenisKapal;
 use App\Services\KurvaSService;
+use App\Services\JenisKapalService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Attributes\On;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class KurvaSManagement extends Component
 {
-    use AuthorizesRequests, HasNotification;
+    use AuthorizesRequests, HasNotification, WithFileUploads;
 
     public bool $showModal  = false;
     public ?int $jenisKapalId   = null;
     public ?string $jenisKapalNama = null;
+
+    // Import modal states
+    public bool $showKurvaSImportModal = false;
+    public $kurvaS_file;
 
     /**
      * Array of work groups:
@@ -275,6 +281,84 @@ class KurvaSManagement extends Component
             $this->dispatch('kurvas-saved');
         } catch (\Illuminate\Auth\Access\AuthorizationException) {
             $this->notifyError('Anda tidak memiliki izin untuk mengatur Kurva S.');
+        } catch (\Exception $e) {
+            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+        }
+    }
+
+    // ─── Export & Import ─────────────────────────────────────────────────────
+
+    public function exportKurvaSTemplate(bool $withData, JenisKapalService $service)
+    {
+        try {
+            $jenisKapal = JenisKapal::findOrFail($this->jenisKapalId);
+            $this->authorize('exportKurvaSTemplate', $jenisKapal);
+
+            return $service->exportKurvaSTemplate($jenisKapal, $withData);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            $this->notifyError('Anda tidak memiliki izin untuk export template Kurva S.');
+        } catch (\Exception $e) {
+            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+        }
+    }
+
+    public function openKurvaSImportModal()
+    {
+        try {
+            $jenisKapal = JenisKapal::findOrFail($this->jenisKapalId);
+            $this->authorize('importKurvaSTemplate', $jenisKapal);
+
+            $this->showKurvaSImportModal = true;
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            $this->notifyError('Anda tidak memiliki izin untuk import template Kurva S.');
+        }
+    }
+
+    public function closeKurvaSImportModal()
+    {
+        $this->showKurvaSImportModal = false;
+        $this->reset(['kurvaS_file']);
+        $this->resetValidation();
+    }
+
+    public function importKurvaSTemplate(JenisKapalService $service)
+    {
+        try {
+            $this->validate([
+                'kurvaS_file' => 'required|file|mimes:xlsx,xls|max:5120',
+            ], [
+                'kurvaS_file.required' => 'File template wajib diupload',
+                'kurvaS_file.file' => 'File tidak valid',
+                'kurvaS_file.mimes' => 'File harus berformat Excel (.xlsx atau .xls)',
+                'kurvaS_file.max' => 'Ukuran file maksimal 5MB',
+            ], [
+                'kurvaS_file' => 'file template',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->notifyValidationError($e);
+            throw $e;
+        }
+
+        try {
+            $jenisKapal = JenisKapal::findOrFail($this->jenisKapalId);
+            $this->authorize('importKurvaSTemplate', $jenisKapal);
+
+            $result = $service->importKurvaSTemplate($jenisKapal, $this->kurvaS_file);
+
+            if ($result['success']) {
+                $this->notifySuccess($result['message'] . ' Total work groups: ' . $result['work_groups_count']);
+                $this->closeKurvaSImportModal();
+                $this->loadData(); // Reload data to show imported data
+                $this->dispatch('kurvas-imported');
+            } else {
+                $errorMessage = 'Import gagal:';
+                foreach ($result['errors'] as $error) {
+                    $errorMessage .= "\n• " . $error;
+                }
+                $this->notifyError($errorMessage);
+            }
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            $this->notifyError('Anda tidak memiliki izin untuk import template Kurva S.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
         }

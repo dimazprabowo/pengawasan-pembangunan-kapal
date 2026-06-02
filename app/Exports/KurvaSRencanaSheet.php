@@ -27,15 +27,23 @@ class KurvaSRencanaSheet implements FromArray, WithTitle, WithHeadings, WithStyl
 
     public function array(): array
     {
+        // Jika user minta template kosong, langsung return default template
+        if (!$this->withData) {
+            return $this->getDefaultTemplate();
+        }
+
+        // Jika minta dengan data, ambil dari database
         $workGroups = $this->jenisKapal->kurvaSWorkGroups()
             ->with('kurvaSRencana')
             ->orderBy('sort_order')
             ->get();
 
-        if (!$this->withData || $workGroups->isEmpty()) {
+        // Jika tidak ada data di database, return default template
+        if ($workGroups->isEmpty()) {
             return $this->getDefaultTemplate();
         }
 
+        // Export dengan data yang ada
         $data = [];
         foreach ($workGroups as $index => $wg) {
             $rencanaData = $wg->kurvaSRencana->keyBy('minggu_ke');

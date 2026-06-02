@@ -120,17 +120,37 @@
         @endif
 
             {{-- Header --}}
-            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-                <div>
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Kurva S — Work Groups & Rencana</h3>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{{ $jenisKapalNama }}</p>
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Kurva S — Work Groups & Rencana</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{{ $jenisKapalNama }}</p>
+                    </div>
+                    <button type="button" wire:click="closeModal"
+                        class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 rounded">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
                 </div>
-                <button type="button" wire:click="closeModal"
-                    class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 rounded">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </button>
+
+                {{-- Action Buttons --}}
+                <div class="p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div class="flex items-center gap-3">
+                            <div class="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-gray-900 dark:text-white">Kelola Data Kurva S</p>
+                                <p class="text-xs text-gray-600 dark:text-gray-400">Export atau import template Kurva S</p>
+                            </div>
+                        </div>
+                        <x-kurva-s-actions />
+                    </div>
+                </div>
             </div>
 
             {{-- Body --}}
@@ -391,5 +411,14 @@
 
         </div>
     </div>
+    @endif
+
+    {{-- Import Modal --}}
+    @if($showKurvaSImportModal)
+        <x-kurva-s-import-modal 
+            :show="$showKurvaSImportModal"
+            :jenisKapalNama="$jenisKapalNama"
+            wire:model="kurvaS_file"
+        />
     @endif
 </div>

@@ -123,7 +123,8 @@ class JenisKapalService
 
     public function exportKurvaSTemplate(JenisKapal $jenisKapal, bool $withData = true)
     {
-        $filename = 'kurva-s-template-' . \Str::slug($jenisKapal->nama) . '-' . now()->format('Y-m-d-His') . '.xlsx';
+        $prefix = $withData ? 'kurva-s-data' : 'kurva-s-template-kosong';
+        $filename = $prefix . '-' . \Str::slug($jenisKapal->nama) . '-' . now()->format('Y-m-d-His') . '.xlsx';
         
         return Excel::download(
             new KurvaSTemplateExport($jenisKapal, $withData),
