@@ -667,23 +667,11 @@ class LaporanHarianCreate extends Component
 
     public function render()
     {
-        $canViewAllJenisKapal = auth()->user()->can('laporan_view_all_jenis_kapal');
-        
-        $jenisKapalList = JenisKapal::with(['company', 'galangan'])
-            ->active()
-            ->when(!$canViewAllJenisKapal, function ($q) {
-                $q->whereHas('company', function ($q) {
-                    $q->where('id', auth()->user()->company_id);
-                });
-            })
-            ->orderBy('nama')
-            ->get();
-
         $cuacaList = Cuaca::active()->orderBy('nama')->get();
         $kelembabanList = Kelembaban::active()->orderBy('nama')->get();
 
         return view('livewire.laporan-harian.laporan-harian-create', [
-            'jenisKapalList' => $jenisKapalList,
+            'jenisKapalList' => $this->getJenisKapalList(),
             'cuacaList' => $cuacaList,
             'kelembabanList' => $kelembabanList,
         ]);

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\LaporanMingguan;
 
+use App\Livewire\Traits\HasJenisKapalFilter;
 use App\Livewire\Traits\HasNotification;
 use App\Models\JenisKapal;
 use App\Models\LaporanHarian;
@@ -17,7 +18,7 @@ use Livewire\Component;
 #[Layout('layouts.app', ['title' => 'Edit Laporan Mingguan'])]
 class LaporanMingguanEdit extends Component
 {
-    use AuthorizesRequests, HasNotification;
+    use AuthorizesRequests, HasNotification, HasJenisKapalFilter;
 
     public LaporanMingguan $laporan;
 
@@ -751,7 +752,7 @@ class LaporanMingguanEdit extends Component
         }
 
         return view('livewire.laporan-mingguan.laporan-mingguan-edit', [
-            'jenisKapalList'  => JenisKapal::with(['company', 'galangan'])->get(),
+            'jenisKapalList'  => $this->getJenisKapalList(),
             'kurvaSChartData' => $kurvaSChartData,
             'totalRencana'    => $totalRencana,
             'totalAktual'     => $totalAktual,

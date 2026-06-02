@@ -3,6 +3,7 @@
 namespace App\Livewire\LaporanHarian;
 
 use App\Jobs\ProcessLaporanLampiran;
+use App\Livewire\Traits\HasJenisKapalFilter;
 use App\Livewire\Traits\HasNotification;
 use App\Models\Cuaca;
 use App\Models\JenisKapal;
@@ -20,7 +21,7 @@ use Livewire\WithFileUploads;
 #[Layout('layouts.app', ['title' => 'Edit Laporan Harian'])]
 class LaporanHarianEdit extends Component
 {
-    use AuthorizesRequests, HasNotification, WithFileUploads;
+    use AuthorizesRequests, HasNotification, WithFileUploads, HasJenisKapalFilter;
 
     public LaporanHarian $laporan;
 
@@ -799,24 +800,12 @@ class LaporanHarianEdit extends Component
 
     public function render(QueueStatusService $queueStatusService)
     {
-        $canViewAllJenisKapal = auth()->user()->can('laporan_view_all_jenis_kapal');
-        
-        $jenisKapalList = JenisKapal::with(['company', 'galangan'])
-            ->active()
-            ->when(!$canViewAllJenisKapal, function ($q) {
-                $q->whereHas('company', function ($q) {
-                    $q->where('id', auth()->user()->company_id);
-                });
-            })
-            ->orderBy('nama')
-            ->get();
-
         $cuacaList = Cuaca::active()->orderBy('nama')->get();
         $kelembabanList = Kelembaban::active()->orderBy('nama')->get();
 
         return view('livewire.laporan-harian.laporan-harian-edit', [
             'queueStatus' => $queueStatusService->getQueueStatusMessage(),
-            'jenisKapalList' => $jenisKapalList,
+            'jenisKapalList' => $this->getJenisKapalList(),
             'cuacaList' => $cuacaList,
             'kelembabanList' => $kelembabanList,
         ]);

@@ -724,7 +724,7 @@ class LaporanMingguanCreate extends Component
         }
 
         return view('livewire.laporan-mingguan.laporan-mingguan-create', [
-            'jenisKapalList'  => JenisKapal::with(['company', 'galangan'])->get(),
+            'jenisKapalList'  => $this->getJenisKapalList(),
             'kurvaSChartData' => $kurvaSChartData,
             'totalRencana'    => $totalRencana,
             'totalAktual'     => $totalAktual,
