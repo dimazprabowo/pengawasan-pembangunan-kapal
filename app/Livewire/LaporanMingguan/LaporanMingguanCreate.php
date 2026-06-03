@@ -179,8 +179,11 @@ class LaporanMingguanCreate extends Component
             ];
         })->toArray();
 
-        // Auto-select all available laporan harian
-        $this->laporan_harian_ids = collect($this->availableLaporanHarian)->pluck('id')->toArray();
+        // Only auto-select if laporan_harian_ids is empty (for Create)
+        // For Edit, preserve the originally selected laporan harian
+        if (count($this->laporan_harian_ids) === 0) {
+            $this->laporan_harian_ids = collect($this->availableLaporanHarian)->pluck('id')->toArray();
+        }
         $this->previousLaporanHarianIds = $this->laporan_harian_ids;
         $this->loadLampiranHarian();
     }
