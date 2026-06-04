@@ -38,44 +38,125 @@
     @if(count($laporanExternal) > 0)
         <div class="space-y-3">
             @foreach($laporanExternal as $index => $external)
+                @php
+                    $isExisting = isset($external['id']) && is_numeric($external['id']);
+                @endphp
                 <div wire:key="external-{{ $external['id'] }}" class="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                    <div class="flex items-start justify-between gap-4 mb-3">
-                        <div class="flex-1 min-w-0">
-                            <input type="text" wire:model="laporanExternal.{{ $index }}.judul"
-                                placeholder="Judul laporan (wajib)"
-                                class="w-full px-3 py-2 text-sm font-medium text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:focus:ring-blue-600 transition-colors">
-                            @error('laporanExternal.'.$index.'.judul')
+                    @if($isExisting)
+                        {{-- Existing Data - Read Only Display (Like Show Page) --}}
+                        @php
+                            $isProcessing = isset($external['file_status']) && in_array($external['file_status'], ['pending', 'processing']);
+                            $isFailed = isset($external['file_status']) && $external['file_status'] === 'failed';
+                            $isCompleted = isset($external['file_status']) && $external['file_status'] === 'completed';
+                        @endphp
+                        <div class="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            @if($isProcessing)
+                                <svg class="animate-spin w-5 h-5 text-blue-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            @elseif($isFailed)
+                                <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            @else
+                                <svg class="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                            @endif
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ $external['judul'] }}</p>
+                                @if($external['deskripsi'])
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ $external['deskripsi'] }}</p>
+                                @endif
+                                @if($isProcessing)
+                                    <p class="text-xs text-blue-600 dark:text-blue-400">Sedang diproses...</p>
+                                @elseif($isFailed && isset($external['file_error']))
+                                    <p class="text-xs text-red-600 dark:text-red-400">{{ $external['file_error'] }}</p>
+                                @endif
+                            </div>
+                            @if(isset($external['existing_file_name']) && $external['existing_file_name'])
+                                @php
+                                    $extension = strtoupper(pathinfo($external['existing_file_name'], PATHINFO_EXTENSION));
+                                @endphp
+                                <div class="text-xs text-gray-500 dark:text-gray-400 text-right">
+                                    <p>{{ $external['existing_file_name'] }}</p>
+                                    <p>{{ $extension }}
+                                        @if(isset($external['existing_file_size']))
+                                            • {{ number_format($external['existing_file_size'] / 1024, 1) }} KB
+                                        @endif
+                                    </p>
+                                </div>
+                            @endif
+                            <div class="flex items-center gap-3">
+                                @if(isset($external['existing_file_name']) && $external['existing_file_name'] && $isCompleted)
+                                    <button type="button" wire:click="downloadExternalFile({{ $index }})"
+                                        wire:loading.attr="disabled" wire:target="downloadExternalFile({{ $index }})"
+                                        class="text-blue-500 hover:text-blue-700 p-1.5 transition-colors bg-transparent border-none cursor-pointer disabled:opacity-50"
+                                        title="Download">
+                                        <svg wire:loading.remove wire:target="downloadExternalFile({{ $index }})" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                        </svg>
+                                        <svg wire:loading wire:target="downloadExternalFile({{ $index }})" wire:key="download-loading-{{ $index }}" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                    </button>
+                                @endif
+                                <button type="button"
+                                    wire:click="confirmDeleteExternal('{{ $external['id'] }}')"
+                                    wire:loading.attr="disabled"
+                                    wire:target="confirmDeleteExternal('{{ $external['id'] }}')"
+                                    class="text-red-400 hover:text-red-600 p-1 disabled:opacity-50" title="Hapus laporan">
+                                    <svg wire:loading.class="hidden" wire:target="confirmDeleteExternal('{{ $external['id'] }}')" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                    <svg wire:loading wire:target="confirmDeleteExternal('{{ $external['id'] }}')" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    @else
+                        {{-- New Data - Input Fields --}}
+                        <div class="flex items-start justify-between gap-4 mb-3">
+                            <div class="flex-1 min-w-0">
+                                <input type="text" wire:model="laporanExternal.{{ $index }}.judul"
+                                    placeholder="Judul laporan (wajib)"
+                                    class="w-full px-3 py-2 text-sm font-medium text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:focus:ring-blue-600 transition-colors">
+                                @error('laporanExternal.'.$index.'.judul')
+                                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <button type="button"
+                                wire:click="confirmDeleteExternal('{{ $external['id'] }}')"
+                                wire:loading.attr="disabled"
+                                wire:target="confirmDeleteExternal('{{ $external['id'] }}')"
+                                class="text-red-400 hover:text-red-600 p-1 disabled:opacity-50" title="Hapus laporan">
+                                <svg wire:loading.class="hidden" wire:target="confirmDeleteExternal('{{ $external['id'] }}')" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                                <svg wire:loading wire:target="confirmDeleteExternal('{{ $external['id'] }}')" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div class="mb-3">
+                            <textarea wire:model="laporanExternal.{{ $index }}.deskripsi"
+                                placeholder="Deskripsi (opsional)"
+                                rows="2"
+                                class="w-full px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:focus:ring-blue-600 resize-none transition-colors"></textarea>
+                            @error('laporanExternal.'.$index.'.deskripsi')
                                 <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
                             @enderror
                         </div>
-                        <button type="button"
-                            wire:click="confirmDeleteExternal('{{ $external['id'] }}')"
-                            wire:loading.attr="disabled"
-                            wire:target="confirmDeleteExternal('{{ $external['id'] }}')"
-                            class="text-red-400 hover:text-red-600 p-1 disabled:opacity-50" title="Hapus laporan">
-                            <svg wire:loading.class="hidden" wire:target="confirmDeleteExternal('{{ $external['id'] }}')" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                            </svg>
-                            <svg wire:loading wire:target="confirmDeleteExternal('{{ $external['id'] }}')" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                        </button>
-                    </div>
 
-                    <div class="mb-3">
-                        <textarea wire:model="laporanExternal.{{ $index }}.deskripsi"
-                            placeholder="Deskripsi (opsional)"
-                            rows="2"
-                            class="w-full px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:focus:ring-blue-600 resize-none transition-colors"></textarea>
-                        @error('laporanExternal.'.$index.'.deskripsi')
-                            <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    {{-- File Upload --}}
-                    <div>
-                        @if(isset($external['file']) && $external['file'] && is_object($external['file']))
+                        {{-- File Upload --}}
+                        <div>
+                            @if(isset($external['file']) && $external['file'] && is_object($external['file']))
                             {{-- File Selected (New Upload) --}}
                             <div class="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                                 <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -95,53 +176,6 @@
                                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg>
                                 </button>
-                            </div>
-                        @elseif(isset($external['existing_file_name']) && $external['existing_file_name'])
-                            {{-- Existing File from Database --}}
-                            <div class="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-900/30 rounded-lg border border-gray-200 dark:border-gray-700">
-                                @php
-                                    $isProcessing = isset($external['file_status']) && in_array($external['file_status'], ['pending', 'processing']);
-                                    $isFailed = isset($external['file_status']) && $external['file_status'] === 'failed';
-                                    $isCompleted = isset($external['file_status']) && $external['file_status'] === 'completed';
-                                @endphp
-                                @if($isProcessing)
-                                    <svg class="animate-spin w-5 h-5 text-blue-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                @elseif($isFailed)
-                                    <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                    </svg>
-                                @else
-                                    <svg class="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                    </svg>
-                                @endif
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ $external['existing_file_name'] }}</p>
-                                    @if(isset($external['existing_file_size']))
-                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ number_format($external['existing_file_size'] / 1024, 1) }} KB</p>
-                                    @endif
-                                    @if($isFailed && isset($external['file_error']))
-                                        <p class="text-xs text-red-600 dark:text-red-400">{{ $external['file_error'] }}</p>
-                                    @endif
-                                </div>
-                                @if($isCompleted)
-                                    <button type="button" wire:click="downloadExternalFile({{ $index }})"
-                                        wire:loading.attr="disabled" wire:target="downloadExternalFile({{ $index }})"
-                                        class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                                        <svg wire:loading.remove wire:target="downloadExternalFile({{ $index }})" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                                        </svg>
-                                        <svg wire:loading wire:target="downloadExternalFile({{ $index }})" wire:key="download-loading-{{ $index }}" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        <span wire:loading.remove wire:target="downloadExternalFile({{ $index }})">Download</span>
-                                        <span wire:loading wire:target="downloadExternalFile({{ $index }})">Mengunduh...</span>
-                                    </button>
-                                @endif
                             </div>
                         @else
                             {{-- Upload Area with Loading Progress --}}
@@ -170,13 +204,14 @@
                                 </label>
                             </div>
                         @endif
-                        @error('laporanExternal.'.$index.'.file') 
+                        @error('laporanExternal.'.$index.'.file')
                             <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
                         @enderror
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                             {{ get_upload_config_display('laporan_external') }}
                         </p>
                     </div>
+                    @endif
                 </div>
             @endforeach
         </div>

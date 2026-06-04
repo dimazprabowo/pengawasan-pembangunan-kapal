@@ -35,26 +35,29 @@
                         @if($external->deskripsi)
                             <p class="text-xs text-gray-500 dark:text-gray-400">{{ $external->deskripsi }}</p>
                         @endif
-                        @if($external->file_name)
-                            @php
-                                $extension = strtoupper(pathinfo($external->file_name, PATHINFO_EXTENSION));
-                            @endphp
-                            <p class="text-xs text-gray-500 dark:text-gray-400">
-                                {{ $external->file_name }} • {{ $extension }}
-                                @if($external->file_size)
-                                    • {{ number_format($external->file_size / 1024, 1) }} KB
-                                @endif
-                            </p>
-                        @endif
                         @if($external->isFileFailed() && $external->file_error)
                             <p class="text-xs text-red-600 dark:text-red-400">{{ $external->file_error }}</p>
                         @endif
                     </div>
+                    @if($external->file_name)
+                        @php
+                            $extension = strtoupper(pathinfo($external->file_name, PATHINFO_EXTENSION));
+                        @endphp
+                        <div class="text-xs text-gray-500 dark:text-gray-400 text-right">
+                            <p>{{ $external->file_name }}</p>
+                            <p>{{ $extension }}
+                                @if($external->file_size)
+                                    • {{ number_format($external->file_size / 1024, 1) }} KB
+                                @endif
+                            </p>
+                        </div>
+                    @endif
                     @if($external->hasFile() && $external->isFileCompleted())
                         <button wire:click="downloadExternalFile({{ $external->id }})"
                             wire:loading.attr="disabled"
                             wire:target="downloadExternalFile({{ $external->id }})"
-                            class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-50">
+                            class="text-blue-500 hover:text-blue-700 p-1.5 transition-colors bg-transparent border-none cursor-pointer disabled:opacity-50"
+                            title="Download">
                             <svg wire:loading.remove wire:target="downloadExternalFile({{ $external->id }})" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                             </svg>
@@ -62,8 +65,6 @@
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            <span wire:loading.remove wire:target="downloadExternalFile({{ $external->id }})">Download</span>
-                            <span wire:loading wire:target="downloadExternalFile({{ $external->id }})">Mengunduh...</span>
                         </button>
                     @endif
                 </div>
