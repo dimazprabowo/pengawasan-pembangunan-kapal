@@ -313,6 +313,18 @@ class LaporanHarianEdit extends Component
         }
     }
 
+    public function refreshLampiranStatus(): void
+    {
+        $this->laporan->load('lampiran');
+    }
+
+    public function hasProcessingLampiran(): bool
+    {
+        return $this->laporan->lampiran->contains(function ($lampiran) {
+            return $lampiran->isFileProcessing();
+        });
+    }
+
     public function save(LaporanHarianService $service): void
     {
         $this->authorize('update', $this->laporan);

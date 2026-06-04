@@ -1,4 +1,8 @@
-<div>
+<div
+    @if($this->hasProcessingLampiran())
+        wire:poll.4s="refreshLampiranStatus"
+    @endif
+>
     {{-- Header --}}
     <div class="mb-6">
         <div class="flex items-center gap-2">

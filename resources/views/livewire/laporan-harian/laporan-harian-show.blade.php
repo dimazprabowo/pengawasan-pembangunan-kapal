@@ -2,6 +2,9 @@
     @if($laporan->isDocProcessing())
         wire:poll.4s="refreshDocStatus"
     @endif
+    @if($this->hasProcessingLampiran())
+        wire:poll.4s="refreshLampiranStatus"
+    @endif
 >
     {{-- Header --}}
     <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

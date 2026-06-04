@@ -355,4 +355,16 @@ class LaporanHarianShow extends Component
 
         return $this->getLampiranImageDataUrl($this->previewLampiran->id);
     }
+
+    public function refreshLampiranStatus(): void
+    {
+        $this->laporan->load('lampiran');
+    }
+
+    public function hasProcessingLampiran(): bool
+    {
+        return $this->laporan->lampiran->contains(function ($lampiran) {
+            return $lampiran->isFileProcessing();
+        });
+    }
 }
