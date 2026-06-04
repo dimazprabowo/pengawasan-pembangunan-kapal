@@ -4,7 +4,9 @@ namespace App\Livewire\LaporanMingguan;
 
 use App\Livewire\Traits\HasJenisKapalFilter;
 use App\Livewire\Traits\HasNotification;
+use App\Jobs\ProcessLaporanExternal;
 use App\Models\JenisKapal;
+use App\Models\LaporanExternal;
 use App\Models\LaporanHarian;
 use App\Models\LaporanLampiran;
 use App\Models\LaporanMingguan;
@@ -14,11 +16,12 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 #[Layout('layouts.app', ['title' => 'Tambah Laporan Mingguan'])]
 class LaporanMingguanCreate extends Component
 {
-    use AuthorizesRequests, HasNotification, HasJenisKapalFilter;
+    use AuthorizesRequests, HasNotification, HasJenisKapalFilter, WithFileUploads;
 
     public ?int $jenis_kapal_id = null;
     public string $judul = '';
@@ -48,6 +51,12 @@ class LaporanMingguanCreate extends Component
     public bool $loadingLampiran = false;
     public bool $showPreviewModal = false;
     public ?int $previewLampiranId = null;
+
+    // Laporan External
+    public array $laporanExternal = [];
+    public bool $showDeleteExternalModal = false;
+    public ?string $externalToDelete = null;
+    public ?string $deletingExternalId = null;
 
     public function mount(): void
     {
@@ -213,23 +222,26 @@ class LaporanMingguanCreate extends Component
         $this->loadLampiranHarian();
     }
     protected function rules(): array
-    {
-        return [
-            'jenis_kapal_id'      => 'required|exists:jenis_kapal,id',
-            'judul'               => 'required|string|max:255',
-            'tanggal_laporan'     => 'required|date',
-            'periode_mulai'       => 'required|date|before_or_equal:periode_selesai',
-            'periode_selesai'     => 'required|date|after_or_equal:periode_mulai',
-            'ringkasan'           => 'nullable|string',
-            'laporan_harian_ids'  => 'required|array|min:1',
-            'laporan_harian_ids.*'=> 'exists:laporan_harian,id',
-            'lampiran_ids'        => 'array',
-            'lampiran_ids.*'      => 'exists:laporan_lampiran,id',
-            'minggu_ke'              => 'nullable|integer|min:1',
-            'progressPerGroup'       => 'array',
-            'progressPerGroup.*'     => 'nullable|numeric|min:0|max:100',
-        ];
-    }
+{
+    return [
+        'jenis_kapal_id'      => 'required|exists:jenis_kapal,id',
+        'judul'               => 'required|string|max:255',
+        'tanggal_laporan'     => 'required|date',
+        'periode_mulai'       => 'required|date|before_or_equal:periode_selesai',
+        'periode_selesai'     => 'required|date|after_or_equal:periode_mulai',
+        'ringkasan'           => 'nullable|string',
+        'laporan_harian_ids'  => 'required|array|min:1',
+        'laporan_harian_ids.*'=> 'exists:laporan_harian,id',
+        'lampiran_ids'        => 'array',
+        'lampiran_ids.*'      => 'exists:laporan_lampiran,id',
+        'minggu_ke'              => 'nullable|integer|min:1',
+        'progressPerGroup'       => 'array',
+        'progressPerGroup.*'     => 'nullable|numeric|min:0|max:100',
+        'laporanExternal.*.judul'     => 'required|string|max:255',
+        'laporanExternal.*.deskripsi' => 'nullable|string|max:1000',
+        'laporanExternal.*.file'      => file_upload_validation_rule('laporan_external'),
+    ];
+}
 
     public function validationAttributes(): array
     {
@@ -242,6 +254,9 @@ class LaporanMingguanCreate extends Component
             'ringkasan'          => 'ringkasan',
             'laporan_harian_ids' => 'laporan harian',
             'minggu_ke'          => 'minggu ke',
+            'laporanExternal.*.judul'     => 'judul laporan external',
+            'laporanExternal.*.deskripsi' => 'deskripsi laporan external',
+            'laporanExternal.*.file'      => 'file laporan external',
         ];
     }
 
@@ -456,6 +471,95 @@ class LaporanMingguanCreate extends Component
             ->header('Content-Disposition', 'inline; filename="' . $lampiran->file_name . '"');
     }
 
+    // Laporan External Methods
+    public function addExternalReport(): void
+    {
+        $this->laporanExternal[] = [
+            'id' => 'temp_' . uniqid(),
+            'judul' => '',
+            'deskripsi' => '',
+            'file' => null,
+        ];
+    }
+
+    public function removeExternalFile(int $index): void
+    {
+        if (isset($this->laporanExternal[$index])) {
+            $this->laporanExternal[$index]['file'] = null;
+        }
+    }
+
+    public function removeExternalReport(string $tempId): void
+    {
+        $this->laporanExternal = array_values(array_filter($this->laporanExternal, function ($item) use ($tempId) {
+            return ($item['id'] ?? '') !== $tempId;
+        }));
+    }
+
+    public function confirmDeleteExternal(string $tempId): void
+    {
+        $this->externalToDelete = $tempId;
+        $this->deletingExternalId = $tempId;
+        $this->showDeleteExternalModal = true;
+    }
+
+    public function deleteExternalReport(): void
+    {
+        if ($this->externalToDelete) {
+            $this->removeExternalReport($this->externalToDelete);
+            $this->externalToDelete = null;
+            $this->deletingExternalId = null;
+            $this->showDeleteExternalModal = false;
+            $this->notifySuccess('Laporan external berhasil dihapus.');
+        }
+    }
+
+    public function cancelDeleteExternal(): void
+    {
+        $this->externalToDelete = null;
+        $this->deletingExternalId = null;
+        $this->showDeleteExternalModal = false;
+    }
+
+    public function downloadExternalFile(int $index)
+    {
+        $external = $this->laporanExternal[$index] ?? null;
+
+        if (!$external) {
+            $this->notifyError('File tidak ditemukan.');
+            return;
+        }
+
+        if (!isset($external['existing_file_path']) || !$external['existing_file_path']) {
+            $this->notifyError('File tidak ditemukan.');
+            return;
+        }
+
+        if (!Storage::disk('local')->exists($external['existing_file_path'])) {
+            $this->notifyError('File tidak ditemukan.');
+            return;
+        }
+
+        // Determine filename: use title if available, otherwise use original filename
+        $originalFileName = $external['existing_file_name'];
+        $title = $external['judul'] ?? '';
+
+        if (!empty($title)) {
+            // Get the original file extension
+            $extension = pathinfo($originalFileName, PATHINFO_EXTENSION);
+            // Create new filename from title with original extension
+            $downloadFileName = $title . '.' . $extension;
+        } else {
+            // Use original filename if no title
+            $downloadFileName = $originalFileName;
+        }
+
+        return response()->download(
+            Storage::disk('local')->path($external['existing_file_path']),
+            $downloadFileName
+        );
+    }
+
     public function save(LaporanMingguanService $service): void
     {
         $this->authorize('create', LaporanMingguan::class);
@@ -503,6 +607,8 @@ class LaporanMingguanCreate extends Component
                 app(KurvaSService::class)->saveProgress($laporan, $this->progressPerGroup);
             }
 
+            $this->saveLaporanExternal($laporan);
+
             session()->flash('notify', [
                 'type' => 'success',
                 'message' => 'Laporan mingguan berhasil ditambahkan!',
@@ -512,6 +618,73 @@ class LaporanMingguanCreate extends Component
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
         }
+    }
+
+    protected function saveLaporanExternal(LaporanMingguan $laporan): void
+    {
+        foreach ($this->laporanExternal as $external) {
+            if (empty($external['judul'])) {
+                continue;
+            }
+
+            $laporanExternal = new LaporanExternal([
+                'laporan_mingguan_id' => $laporan->id,
+                'judul' => $external['judul'],
+                'deskripsi' => $external['deskripsi'] ?? null,
+                'file_name' => $external['file'] ? $external['file']->getClientOriginalName() : null,
+                'file_size' => null,
+                'file_status' => 'pending',
+            ]);
+
+            $laporanExternal->save();
+
+            if ($external['file']) {
+                $this->handleExternalFileUpload($laporanExternal, $external['file']);
+            }
+        }
+    }
+
+    protected function handleExternalFileUpload(LaporanExternal $laporanExternal, $file): void
+    {
+        $tempPath = $file->store('temp/laporan-external', 'local');
+        ProcessLaporanExternal::dispatch($laporanExternal->id, $tempPath);
+    }
+
+    public function refreshExternalFileStatus(): void
+    {
+        // Reload external reports from database if they have been saved
+        if ($this->laporan) {
+            $this->laporan->load('laporanExternal');
+
+            $savedExternals = $this->laporan->laporanExternal->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'judul' => $item->judul,
+                    'deskripsi' => $item->deskripsi,
+                    'file' => null,
+                    'existing_file_path' => $item->file_path,
+                    'existing_file_name' => $item->file_name,
+                    'existing_file_size' => $item->file_size,
+                    'file_status' => $item->file_status,
+                    'file_error' => $item->file_error,
+                ];
+            })->toArray();
+
+            // Update existing items in laporanExternal array
+            foreach ($savedExternals as $saved) {
+                $index = array_search($saved['id'], array_column($this->laporanExternal, 'id'));
+                if ($index !== false) {
+                    $this->laporanExternal[$index] = array_merge($this->laporanExternal[$index], $saved);
+                }
+            }
+        }
+    }
+
+    public function hasProcessingExternalFiles(): bool
+    {
+        return collect($this->laporanExternal)->contains(function ($item) {
+            return isset($item['file_status']) && in_array($item['file_status'], ['pending', 'processing']);
+        });
     }
 
     public function getKontribusiPerGroupProperty(): array

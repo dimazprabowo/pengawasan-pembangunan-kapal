@@ -1,4 +1,8 @@
-<div>
+<div
+    @if($this->hasProcessingExternalFiles())
+        wire:poll.4s="refreshExternalFileStatus"
+    @endif
+>
     {{-- Header --}}
     <div class="mb-6">
         <div class="flex items-center gap-2">
@@ -51,7 +55,7 @@
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Judul <span class="text-red-500">*</span>
                         </label>
-                        <input wire:model="judul" type="text" required
+                        <input wire:model="judul" type="text"
                             placeholder="Masukkan judul laporan"
                             class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
                         @error('judul') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
@@ -199,6 +203,12 @@
                         </div>
                     @endif
                 </div>
+
+                {{-- Laporan External Section --}}
+                <x-laporan-mingguan.external-reports-section
+                    :laporanExternal="$laporanExternal"
+                    :deletingExternalId="$deletingExternalId"
+                />
             </div>
         </div>
 
@@ -270,6 +280,15 @@
         :lampiran="$this->previewLampiran"
         :laporan="null"
         :imageUrl="$this->previewLampiranImageUrl"
+    />
+
+    {{-- Delete External Report Confirmation Modal --}}
+    <x-delete-modal
+        :show="$showDeleteExternalModal"
+        wire:model="showDeleteExternalModal"
+        title="Hapus Laporan External"
+        message="Apakah Anda yakin ingin menghapus laporan external ini?"
+        confirmMethod="deleteExternalReport"
     />
 
 <script>

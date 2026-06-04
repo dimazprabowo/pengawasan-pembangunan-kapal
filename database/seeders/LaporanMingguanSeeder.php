@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\JenisKapal;
 use App\Models\KurvaSWorkGroup;
+use App\Models\LaporanExternal;
 use App\Models\LaporanMingguan;
 use App\Models\LaporanMingguanProgress;
 use App\Models\User;
@@ -100,6 +101,22 @@ class LaporanMingguanSeeder extends Seeder
                         'pct_realisasi' => $progress,
                     ]
                 );
+            }
+
+            // Add sample external reports for some laporan (randomly)
+            if (rand(1, 3) === 1) { // 33% chance to have external reports
+                $externalCount = rand(1, 3);
+                for ($j = 0; $j < $externalCount; $j++) {
+                    LaporanExternal::create([
+                        'laporan_mingguan_id' => $laporan->id,
+                        'judul' => 'Laporan External ' . ($j + 1) . ' - Minggu ' . $data['minggu_ke'],
+                        'deskripsi' => 'Dokumen tambahan untuk minggu ke-' . $data['minggu_ke'],
+                        'file_name' => 'laporan_external_' . $laporan->id . '_' . ($j + 1) . '.pdf',
+                        'file_size' => rand(500000, 5000000), // 500KB - 5MB
+                        'file_status' => 'completed',
+                        'file_processed_at' => now(),
+                    ]);
+                }
             }
         }
 

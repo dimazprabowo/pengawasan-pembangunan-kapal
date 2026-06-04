@@ -70,6 +70,12 @@ class LaporanMingguan extends Model
             ->orderBy('created_at', 'asc');
     }
 
+    public function laporanExternal(): HasMany
+    {
+        return $this->hasMany(LaporanExternal::class, 'laporan_mingguan_id')
+            ->orderBy('created_at', 'asc');
+    }
+
     public function scopeByUser($query, int $userId)
     {
         return $query->where('user_id', $userId);

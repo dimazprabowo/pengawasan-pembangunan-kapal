@@ -47,6 +47,11 @@ return [
             'mimes' => ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg'],
         ],
 
+        'laporan_external' => [
+            'max_size' => 20480, // 20 MB
+            'mimes' => ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'png', 'jpg', 'jpeg'],
+        ],
+
         'template_laporan_jenis_kapal' => [
             'max_size' => 20480, // 20 MB
             'mimes' => ['doc', 'docx'],
