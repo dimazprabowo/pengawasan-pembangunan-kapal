@@ -2,6 +2,9 @@
     @if($laporan->isDocProcessing())
         wire:poll.4s="refreshDocStatus"
     @endif
+    @if($this->hasProcessingExternalFiles())
+        wire:poll.4s="refreshExternalFileStatus"
+    @endif
 >
     {{-- Header --}}
     <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -377,6 +380,10 @@
         </div>
     </div>
     @endif
+
+
+    {{-- Laporan External --}}
+    <x-laporan-mingguan.external-reports-show-section :laporanExternal="$laporan->laporanExternal" />
 
 
     {{-- Lampiran Harian Terpilih --}}

@@ -66,6 +66,7 @@ class LaporanMingguanShow extends Component
             'laporanHarian.cuacaSore',
             'laporanHarian.kelembabanSore',
             'lampiran',
+            'laporanExternal',
         ]);
 
         // Force reload laporanHarian to ensure correct count
@@ -343,6 +344,59 @@ class LaporanMingguanShow extends Component
         } elseif ($this->laporan->isDocFailed()) {
             $this->notifyError('Generate dokumen gagal: ' . ($this->laporan->doc_error ?? 'Unknown error'));
         }
+    }
+
+    public function refreshExternalFileStatus(): void
+    {
+        $this->laporan->load('laporanExternal');
+    }
+
+    public function hasProcessingExternalFiles(): bool
+    {
+        return $this->laporan->laporanExternal->contains(function ($external) {
+            return $external->isFileProcessing();
+        });
+    }
+
+    public function downloadExternalFile(int $externalId)
+    {
+        $this->authorize('view', $this->laporan);
+
+        $external = $this->laporan->laporanExternal->find($externalId);
+
+        if (!$external) {
+            $this->notifyError('File tidak ditemukan.');
+            return;
+        }
+
+        if (!$external->hasFile() || !$external->isFileCompleted()) {
+            $this->notifyError('File tidak tersedia.');
+            return;
+        }
+
+        if (!Storage::disk('local')->exists($external->file_path)) {
+            $this->notifyError('File tidak ditemukan.');
+            return;
+        }
+
+        // Determine filename: use title if available, otherwise use original filename
+        $originalFileName = $external->file_name;
+        $title = $external->judul ?? '';
+
+        if (!empty($title)) {
+            // Get the original file extension
+            $extension = pathinfo($originalFileName, PATHINFO_EXTENSION);
+            // Create new filename from title with original extension
+            $downloadFileName = $title . '.' . $extension;
+        } else {
+            // Use original filename if no title
+            $downloadFileName = $originalFileName;
+        }
+
+        return response()->download(
+            Storage::disk('local')->path($external->file_path),
+            $downloadFileName
+        );
     }
 
     public function confirmDeleteDoc(): void
