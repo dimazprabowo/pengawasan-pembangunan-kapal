@@ -3,10 +3,13 @@
 namespace App\Services;
 
 use App\Models\Company;
+use App\Traits\HasDynamicLike;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class CompanyService
 {
+    use HasDynamicLike;
+
     public function getFiltered(
         ?string $search = null,
         ?string $statusFilter = null,
@@ -15,12 +18,13 @@ class CompanyService
         $query = Company::withCount(['users', 'jenisKapal']);
 
         if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('code', 'like', "%{$search}%")
-                  ->orWhere('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%")
-                  ->orWhere('pic_name', 'like', "%{$search}%");
+            $operator = $this->getLikeOperator();
+            $query->where(function ($q) use ($search, $operator) {
+                $q->where('code', $operator, "%{$search}%")
+                  ->orWhere('name', $operator, "%{$search}%")
+                  ->orWhere('email', $operator, "%{$search}%")
+                  ->orWhere('phone', $operator, "%{$search}%")
+                  ->orWhere('pic_name', $operator, "%{$search}%");
             });
         }
 
@@ -28,7 +32,7 @@ class CompanyService
             $query->where('status', $statusFilter);
         }
 
-        return $query->orderBy('id', 'desc')->paginate($perPage);
+        return $query->orderBy('name')->paginate($perPage);
     }
 
     public function create(array $data): Company

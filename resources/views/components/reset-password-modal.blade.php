@@ -123,10 +123,8 @@ style="display: none;">
                         loadingText="Mereset..." class="w-full sm:w-auto sm:ml-3">
                         Reset Password
                     </x-loading-button>
-                    <x-loading-button type="button" @click="$wire.closeResetPasswordModal()" variant="secondary" size="lg"
-                        class="mt-3 sm:mt-0 w-full sm:w-auto sm:ml-3">
-                        Batal
-                    </x-loading-button>
+                    <x-cancel-button wire:click="closeResetPasswordModal" target="closeResetPasswordModal"
+                        class="mt-3 sm:mt-0 w-full sm:w-auto sm:ml-3" />
                 </div>
             </form>
         </div>

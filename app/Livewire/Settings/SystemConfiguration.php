@@ -21,8 +21,10 @@ class SystemConfiguration extends Component
     protected $paginationTheme = 'tailwind';
 
     public $search = '';
+    public $isActiveFilter = '';
     public $showModal = false;
     public $editMode = false;
+    public bool $filterChanged = false;
     
     // Form fields
     public $configId;
@@ -41,20 +43,49 @@ class SystemConfiguration extends Component
 
     public function rules()
     {
-        return [
+        $rules = [
             'key' => ['required', 'string', 'max:100', $this->editMode ? 'unique:system_configurations,key,' . $this->configId : 'unique:system_configurations,key'],
             'category' => ['required', 'string', Rule::in(ConfigCategory::values())],
-            'value' => 'required',
             'data_type' => ['required', 'string', Rule::in(ConfigDataType::values())],
             'description' => 'nullable|string',
             'is_editable' => 'boolean',
             'is_active' => 'boolean',
         ];
+
+        if ($this->data_type !== 'datetime') {
+            $rules['value'] = 'required';
+        } else {
+            $rules['value'] = 'nullable';
+        }
+
+        return $rules;
     }
 
     public function updatingSearch()
     {
         $this->resetPage();
+        $this->filterChanged = true;
+    }
+
+    public function updatingIsActiveFilter()
+    {
+        $this->resetPage();
+        $this->filterChanged = true;
+    }
+
+    public function resetFilters(): void
+    {
+        $this->reset(['search', 'isActiveFilter']);
+        $this->resetPage();
+        $this->filterChanged = true;
+    }
+
+    public function getIsActiveOptionsProperty(): array
+    {
+        return [
+            ['value' => '1', 'label' => 'Aktif'],
+            ['value' => '0', 'label' => 'Nonaktif'],
+        ];
     }
 
     public function edit($id)
@@ -85,10 +116,15 @@ class SystemConfiguration extends Component
         }
 
         try {
+            $value = $this->value;
+            if ($this->data_type === 'datetime' && empty($value)) {
+                $value = null;
+            }
+
             $data = [
                 'key' => $this->key,
                 'category' => $this->category,
-                'value' => $this->value,
+                'value' => $value,
                 'data_type' => $this->data_type,
                 'description' => $this->description,
                 'is_editable' => $this->is_editable,
@@ -157,7 +193,7 @@ class SystemConfiguration extends Component
     {
         $this->authorize('exportExcel', SystemConfigModel::class);
 
-        return (new SystemConfigurationsExport($this->search))
+        return (new SystemConfigurationsExport($this->search, $this->isActiveFilter))
             ->download('konfigurasi-' . now()->format('Y-m-d-His') . '.xlsx');
     }
 
@@ -175,6 +211,10 @@ class SystemConfiguration extends Component
             });
         }
 
+        if ($this->isActiveFilter !== null && $this->isActiveFilter !== '') {
+            $query->where('is_active', $this->isActiveFilter === '1');
+        }
+
         $configurations = $query->orderBy('category')->orderBy('key')->get();
 
         $pdf = Pdf::loadView('exports.configurations-pdf', ['configurations' => $configurations]);
@@ -188,8 +228,15 @@ class SystemConfiguration extends Component
 
     public function render(SystemConfigurationService $service)
     {
+        $configurations = $service->getFiltered($this->search, $this->isActiveFilter);
+
+        if ($this->filterChanged) {
+            $this->notifyInfo("Ditemukan {$configurations->total()} konfigurasi.");
+            $this->filterChanged = false;
+        }
+
         return view('livewire.settings.system-configuration', [
-            'configurations' => $service->getFiltered($this->search),
+            'configurations' => $configurations,
             'categories' => ConfigCategory::options(),
             'dataTypes' => ConfigDataType::options(),
         ]);

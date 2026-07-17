@@ -232,9 +232,7 @@
                             <x-loading-button type="submit" target="save" variant="primary" size="md" loadingText="Menyimpan...">
                                 {{ $editMode ? 'Update' : 'Simpan' }}
                             </x-loading-button>
-                            <x-loading-button type="button" wire:click="closeModal" target="closeModal" variant="secondary" size="md" loadingText="Menutup...">
-                                Batal
-                            </x-loading-button>
+                            <x-cancel-button wire:click="closeModal" target="closeModal" size="md" />
                         </div>
                     </form>
                 </div>

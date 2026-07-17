@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Models\User;
+use App\Traits\HasDynamicLike;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\Exportable;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -13,7 +14,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class UsersExport implements FromQuery, WithHeadings, WithMapping, WithStyles, ShouldAutoSize
 {
-    use Exportable;
+    use Exportable, HasDynamicLike;
 
     protected ?string $search;
     protected ?string $roleFilter;
@@ -31,11 +32,12 @@ class UsersExport implements FromQuery, WithHeadings, WithMapping, WithStyles, S
         $query = User::with(['roles', 'company']);
 
         if ($this->search) {
-            $query->where(function ($q) {
-                $q->where('name', 'like', "%{$this->search}%")
-                  ->orWhere('email', 'like', "%{$this->search}%")
-                  ->orWhere('phone', 'like', "%{$this->search}%")
-                  ->orWhere('position', 'like', "%{$this->search}%");
+            $operator = $this->getLikeOperator();
+            $query->where(function ($q) use ($operator) {
+                $q->where('name', $operator, "%{$this->search}%")
+                  ->orWhere('email', $operator, "%{$this->search}%")
+                  ->orWhere('phone', $operator, "%{$this->search}%")
+                  ->orWhere('position', $operator, "%{$this->search}%");
             });
         }
 
@@ -44,7 +46,7 @@ class UsersExport implements FromQuery, WithHeadings, WithMapping, WithStyles, S
         }
 
         if ($this->statusFilter !== null && $this->statusFilter !== '') {
-            $query->where('is_active', $this->statusFilter);
+            $query->where('is_active', $this->statusFilter === '1');
         }
 
         return $query->orderBy('name');

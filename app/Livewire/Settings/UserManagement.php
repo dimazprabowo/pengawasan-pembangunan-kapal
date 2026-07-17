@@ -25,6 +25,8 @@ class UserManagement extends Component
     public int $perPage = 10;
     public $showModal = false;
     public $editMode = false;
+
+    public bool $filterChanged = false;
     
     // Form fields
     public $userId;
@@ -79,21 +81,40 @@ class UserManagement extends Component
     public function updatingSearch()
     {
         $this->resetPage();
+        $this->filterChanged = true;
     }
 
     public function updatingRoleFilter()
     {
         $this->resetPage();
+        $this->filterChanged = true;
     }
 
     public function updatingStatusFilter()
     {
         $this->resetPage();
+        $this->filterChanged = true;
     }
 
     public function updatingPerPage()
     {
         $this->resetPage();
+        $this->filterChanged = true;
+    }
+
+    public function resetFilters(): void
+    {
+        $this->reset(['search', 'roleFilter', 'statusFilter']);
+        $this->resetPage();
+        $this->filterChanged = true;
+    }
+
+    public function getIsActiveOptionsProperty(): array
+    {
+        return [
+            ['value' => '1', 'label' => 'Aktif'],
+            ['value' => '0', 'label' => 'Nonaktif'],
+        ];
     }
 
     public function create()
@@ -306,13 +327,20 @@ class UserManagement extends Component
 
     public function render(UserService $service)
     {
+        $users = $service->getFilteredUsers(
+            $this->search,
+            $this->roleFilter,
+            $this->statusFilter,
+            $this->perPage
+        );
+
+        if ($this->filterChanged) {
+            $this->notifyInfo("Ditemukan {$users->total()} user.");
+            $this->filterChanged = false;
+        }
+
         return view('livewire.settings.user-management', [
-            'users' => $service->getFilteredUsers(
-                $this->search,
-                $this->roleFilter,
-                $this->statusFilter,
-                $this->perPage
-            ),
+            'users' => $users,
             'roles' => Role::all(),
             'companies' => Company::orderBy('name')->get(),
         ]);

@@ -29,6 +29,78 @@ document.addEventListener('alpine:init', () => {
         });
     }
 
+    if (!Alpine.store('notification')) {
+        Alpine.store('notification', {
+            items: [],
+            nextId: 0,
+            maxVisible: 5,
+            duration: 5000,
+
+            add(type, message, title) {
+                const id = this.nextId++;
+                const defaultTitle = type === 'success' ? 'Berhasil'
+                    : type === 'error' ? 'Error'
+                    : type === 'warning' ? 'Peringatan'
+                    : 'Informasi';
+
+                this.items.push({ id, type, message, title: title || defaultTitle, timeout: null, startTime: 0, remaining: this.duration, paused: false });
+
+                if (this.items.length > this.maxVisible) {
+                    const removed = this.items.shift();
+                    if (removed.timeout) clearTimeout(removed.timeout);
+                }
+
+                this._startTimer(id);
+            },
+
+            _startTimer(id) {
+                const item = this.items.find(i => i.id === id);
+                if (!item) return;
+                item.paused = false;
+                item.startTime = Date.now();
+                clearTimeout(item.timeout);
+                item.timeout = setTimeout(() => this.remove(id), item.remaining);
+            },
+
+            pause(id) {
+                const item = this.items.find(i => i.id === id);
+                if (!item || item.paused) return;
+                item.paused = true;
+                item.remaining -= Date.now() - item.startTime;
+                clearTimeout(item.timeout);
+            },
+
+            resume(id) {
+                const item = this.items.find(i => i.id === id);
+                if (!item || !item.paused) return;
+                this._startTimer(id);
+            },
+
+            remove(id) {
+                const item = this.items.find(i => i.id === id);
+                if (item && item.timeout) clearTimeout(item.timeout);
+                this.items = this.items.filter(i => i.id !== id);
+            }
+        });
+
+        // Listen for Livewire notify events
+        window.addEventListener('notify', (e) => {
+            const notification = Array.isArray(e.detail) ? e.detail[0] : e.detail;
+            Alpine.store('notification').add(notification.type || 'success', notification.message || '', notification.title);
+        });
+    }
+
+    if (!Alpine.store('darkMode')) {
+        const stored = localStorage.getItem('darkMode');
+        Alpine.store('darkMode', {
+            dark: stored === 'true' || (stored === null && window.matchMedia('(prefers-color-scheme: dark)').matches),
+            toggle() {
+                this.dark = !this.dark;
+                localStorage.setItem('darkMode', this.dark);
+            },
+        });
+    }
+
     // Kurva S Chart component for global use
     Alpine.data('kurvaSChart', (chartData = null, canvasId = null) => {
         let chartInstance = null; // Plain closure variable — NOT Alpine-reactive, prevents Proxy recursion
@@ -183,7 +255,8 @@ document.addEventListener('alpine:init', () => {
  * Dark mode sync — keeps <html> class in sync with localStorage.
  */
 function syncDarkMode() {
-    const dark = localStorage.getItem('darkMode') === 'true';
+    const stored = localStorage.getItem('darkMode');
+    const dark = stored === 'true' || (stored === null && window.matchMedia('(prefers-color-scheme: dark)').matches);
     document.documentElement.classList.toggle('dark', dark);
 }
 
@@ -208,7 +281,15 @@ document.addEventListener('livewire:navigating', () => {
 
 /**
  * After Livewire SPA navigation completes, dispatch event to reset Alpine component states.
+ * Also scroll to hash anchor if present (e.g. #impersonate).
  */
 document.addEventListener('livewire:navigated', () => {
     window.dispatchEvent(new Event('resize'));
+
+    if (window.location.hash) {
+        const target = document.querySelector(window.location.hash);
+        if (target) {
+            setTimeout(() => target.scrollIntoView({ behavior: 'smooth' }), 100);
+        }
+    }
 });

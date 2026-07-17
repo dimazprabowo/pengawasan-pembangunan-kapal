@@ -1,3 +1,51 @@
+<div>
+{{-- Impersonation Banner --}}
+@if($isImpersonating)
+    <div class="relative z-40 bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md">
+        <div class="px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-4">
+            <div class="flex items-center space-x-3 min-w-0">
+                <div class="flex items-center space-x-2 flex-shrink-0">
+                    <div class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                    </div>
+                    <span class="text-xs font-semibold uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded">Impersonating</span>
+                </div>
+                <div class="flex items-center space-x-2 min-w-0 text-sm">
+                    @if($originalUser)
+                        <span class="flex items-center space-x-1.5 flex-shrink-0">
+                            <span class="w-6 h-6 rounded-full bg-white/25 flex items-center justify-center text-xs font-bold">{{ substr($originalUser->name, 0, 1) }}</span>
+                            <span class="hidden sm:inline text-white/80">{{ $originalUser->name }}</span>
+                        </span>
+                        <svg class="w-4 h-4 flex-shrink-0 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+                        </svg>
+                    @endif
+                    <span class="flex items-center space-x-1.5 min-w-0">
+                        <span class="w-6 h-6 rounded-full bg-white flex items-center justify-center text-xs font-bold text-orange-600">{{ substr($authUser->name, 0, 1) }}</span>
+                        <span class="font-semibold truncate">{{ $authUser->name }}</span>
+                    </span>
+                </div>
+            </div>
+            <button wire:click="stopImpersonating"
+                    wire:loading.attr="disabled"
+                    wire:target="stopImpersonating"
+                    class="inline-flex items-center px-3.5 py-1.5 rounded-lg bg-white text-orange-600 hover:bg-orange-50 transition-all text-sm font-semibold shadow-sm disabled:opacity-50 flex-shrink-0">
+                <svg wire:loading.remove wire:target="stopImpersonating" class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                </svg>
+                <svg wire:loading wire:target="stopImpersonating" class="animate-spin w-4 h-4 mr-1.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Kembali ke Akun Saya
+            </button>
+        </div>
+    </div>
+@endif
+
 <nav class="sticky top-0 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
     <div class="px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
@@ -213,12 +261,12 @@
                 </button>
 
                 {{-- Dark Mode Toggle --}}
-                <button @click="darkMode = !darkMode"
+                <button @click="$store.darkMode.toggle()"
                         class="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                    <svg x-show="!darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg x-show="!$store.darkMode.dark" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
                     </svg>
-                    <svg x-show="darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg x-show="$store.darkMode.dark" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
                     </svg>
                 </button>
@@ -272,6 +320,18 @@
                                 Profil Saya
                             </a>
 
+                            @can('users_impersonate')
+                            <a href="{{ route('profile') }}#impersonate"
+                               wire:navigate
+                               class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                </svg>
+                                Impersonate User
+                            </a>
+                            @endcan
+
                             @can('configuration_view')
                             <a href="{{ route('settings.system') }}"
                                wire:navigate
@@ -284,6 +344,24 @@
                             </a>
                             @endcan
                         </div>
+
+                        @if($isImpersonating)
+                        <div class="py-1">
+                            <button wire:click="stopImpersonating"
+                                    wire:loading.attr="disabled"
+                                    wire:target="stopImpersonating"
+                                    class="flex items-center w-full px-4 py-2 text-sm text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors disabled:opacity-50">
+                                <svg wire:loading.remove wire:target="stopImpersonating" class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                                </svg>
+                                <svg wire:loading wire:target="stopImpersonating" class="animate-spin w-4 h-4 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Kembali ke Akun Saya
+                            </button>
+                        </div>
+                        @endif
 
                         <div class="py-1">
                             <button wire:click="logout"
@@ -301,3 +379,4 @@
     </div>
 
 </nav>
+</div>

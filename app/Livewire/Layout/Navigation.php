@@ -4,12 +4,14 @@ namespace App\Livewire\Layout;
 
 use App\Livewire\Actions\Logout;
 use App\Livewire\Traits\HasMenuItems;
+use App\Livewire\Traits\HasNotification;
+use App\Services\ImpersonateService;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
 class Navigation extends Component
 {
-    use HasMenuItems;
+    use HasMenuItems, HasNotification;
 
     #[On('profile-updated')]
     public function refreshUserData(): void
@@ -23,7 +25,16 @@ class Navigation extends Component
         $this->redirect('/', navigate: true);
     }
 
-    public function render()
+    public function stopImpersonating(ImpersonateService $service): void
+    {
+        abort_unless($service->isImpersonating(), 403, 'Tidak ada sesi impersonate yang aktif.');
+
+        $service->stop();
+        $this->notifySuccess('Berhasil kembali ke akun Anda.');
+        $this->redirect(route('dashboard'), navigate: true);
+    }
+
+    public function render(ImpersonateService $impersonateService)
     {
         $user = auth()->user();
         $roles = $user->getRoleNames();
@@ -33,6 +44,8 @@ class Navigation extends Component
             'menuItems' => $this->getMenuItems(),
             'authUser' => $user,
             'authUserRole' => $roles->isNotEmpty() ? $roles->join(', ') : 'User',
+            'isImpersonating' => $impersonateService->isImpersonating(),
+            'originalUser' => $impersonateService->getOriginalUser(),
         ]);
     }
 }

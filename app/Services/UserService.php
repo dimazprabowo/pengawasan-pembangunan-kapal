@@ -3,12 +3,15 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Traits\HasDynamicLike;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class UserService
 {
+    use HasDynamicLike;
+
     public function getFilteredUsers(
         ?string $search = null,
         ?string $roleFilter = null,
@@ -18,11 +21,12 @@ class UserService
         $query = User::with(['roles', 'company']);
 
         if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%")
-                  ->orWhere('position', 'like', "%{$search}%");
+            $operator = $this->getLikeOperator();
+            $query->where(function ($q) use ($search, $operator) {
+                $q->where('name', $operator, "%{$search}%")
+                  ->orWhere('email', $operator, "%{$search}%")
+                  ->orWhere('phone', $operator, "%{$search}%")
+                  ->orWhere('position', $operator, "%{$search}%");
             });
         }
 
@@ -31,10 +35,10 @@ class UserService
         }
 
         if ($statusFilter !== null && $statusFilter !== '') {
-            $query->where('is_active', $statusFilter);
+            $query->where('is_active', $statusFilter === '1');
         }
 
-        return $query->orderBy('id', 'desc')->paginate($perPage);
+        return $query->orderBy('name')->paginate($perPage);
     }
 
     public function create(array $data, array $roles): User

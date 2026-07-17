@@ -21,6 +21,7 @@ class Company extends Model
         'pic_name',
         'pic_email',
         'pic_phone',
+        'npwp',
         'status',
     ];
 
@@ -52,6 +53,32 @@ class Company extends Model
     public function getIsActiveAttribute(): bool
     {
         return $this->status === CompanyStatus::Active;
+    }
+
+    public function getNpwpFormattedAttribute(): ?string
+    {
+        if (!$this->npwp) {
+            return null;
+        }
+
+        $npwp = preg_replace('/\D/', '', $this->npwp);
+        $length = strlen($npwp);
+
+        if ($length === 15) {
+            return substr($npwp, 0, 2) . '.' . 
+                   substr($npwp, 2, 3) . '.' . 
+                   substr($npwp, 5, 3) . '.' . 
+                   substr($npwp, 8, 1) . '-' . 
+                   substr($npwp, 9, 3) . '.' . 
+                   substr($npwp, 12, 3);
+        } elseif ($length === 16) {
+            return substr($npwp, 0, 4) . '.' . 
+                   substr($npwp, 4, 4) . '.' . 
+                   substr($npwp, 8, 4) . '.' . 
+                   substr($npwp, 12, 4);
+        }
+
+        return $npwp;
     }
 
     public function getRouteKeyName(): string

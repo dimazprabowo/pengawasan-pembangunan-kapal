@@ -85,6 +85,10 @@ class PermissionSeeder extends Seeder
             'users_delete',
             'users_export_excel',
             'users_export_pdf',
+            'users_impersonate',
+
+            // Manajemen Perusahaan Sendiri
+            'manage_own_company',
 
             // Roles & Permissions
             'roles_view',

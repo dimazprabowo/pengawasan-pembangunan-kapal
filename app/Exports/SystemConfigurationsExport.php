@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Models\SystemConfiguration;
+use App\Traits\HasDynamicLike;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\Exportable;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -13,13 +14,15 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class SystemConfigurationsExport implements FromQuery, WithHeadings, WithMapping, WithStyles, ShouldAutoSize
 {
-    use Exportable;
+    use Exportable, HasDynamicLike;
 
     protected ?string $search;
+    protected ?string $isActive;
 
-    public function __construct(?string $search = null)
+    public function __construct(?string $search = null, ?string $isActive = null)
     {
         $this->search = $search;
+        $this->isActive = $isActive;
     }
 
     public function query()
@@ -27,11 +30,16 @@ class SystemConfigurationsExport implements FromQuery, WithHeadings, WithMapping
         $query = SystemConfiguration::query();
 
         if ($this->search) {
-            $query->where(function ($q) {
-                $q->where('key', 'like', "%{$this->search}%")
-                  ->orWhere('description', 'like', "%{$this->search}%")
-                  ->orWhere('value', 'like', "%{$this->search}%");
+            $operator = $this->getLikeOperator();
+            $query->where(function ($q) use ($operator) {
+                $q->where('key', $operator, "%{$this->search}%")
+                  ->orWhere('description', $operator, "%{$this->search}%")
+                  ->orWhere('value', $operator, "%{$this->search}%");
             });
+        }
+
+        if ($this->isActive !== null && $this->isActive !== '') {
+            $query->where('is_active', $this->isActive === '1');
         }
 
         return $query->orderBy('category')->orderBy('key');

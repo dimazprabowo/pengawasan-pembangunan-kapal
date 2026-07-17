@@ -1,10 +1,18 @@
 <div>
     <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div class="flex-1">
+        <div class="flex-1 flex flex-col sm:flex-row gap-3">
             <input wire:model.live.debounce.300ms="search" type="text" placeholder="Cari konfigurasi..."
-                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
-        </div>
+                class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
 
+            <div class="w-full sm:w-40">
+                <x-searchable-select
+                    wire:model.live="isActiveFilter"
+                    :options="$this->isActiveOptions"
+                    placeholder="Filter Status"
+                    searchPlaceholder="Cari status..."
+                />
+            </div>
+        </div>
 
         <div class="flex items-center gap-2 w-full sm:w-auto">
             @can('configuration_export_excel')
@@ -150,9 +158,27 @@
                                 </div>
 
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Value <span class="text-red-500">*</span></label>
-                                    <input wire:model="value" type="text" required
-                                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Value
+                                        @if($data_type !== 'datetime') <span class="text-red-500">*</span> @endif
+                                    </label>
+                                    @if($data_type === 'datetime')
+                                        <input wire:model="value" type="datetime-local"
+                                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                                    @elseif($data_type === 'boolean')
+                                        <x-searchable-select
+                                            wire:model.live="value"
+                                            :options="[['value' => '1', 'label' => 'Aktif'], ['value' => '0', 'label' => 'Nonaktif']]"
+                                            placeholder="Pilih Nilai"
+                                            searchPlaceholder="Cari nilai..."
+                                            :error="$errors->has('value')"
+                                        />
+                                    @elseif($data_type === 'integer')
+                                        <input wire:model="value" type="number" required
+                                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                                    @else
+                                        <input wire:model="value" type="text" required
+                                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                                    @endif
                                     @error('value') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                                 </div>
 
@@ -193,10 +219,8 @@
                                 loadingText="Menyimpan..." class="w-full sm:w-auto">
                                 Update
                             </x-loading-button>
-                            <x-loading-button type="button" @click="$wire.closeModal()" variant="secondary" size="lg"
-                                class="mt-3 sm:mt-0 w-full sm:w-auto">
-                                Batal
-                            </x-loading-button>
+                            <x-cancel-button wire:click="closeModal" target="closeModal"
+                                class="mt-3 sm:mt-0 w-full sm:w-auto" />
                         </div>
                     </form>
                 </div>

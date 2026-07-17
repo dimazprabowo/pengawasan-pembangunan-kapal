@@ -133,6 +133,10 @@ class RolePermissionService
                 ['name' => 'users_delete',       'label' => 'Hapus User'],
                 ['name' => 'users_export_excel', 'label' => 'Export Excel User'],
                 ['name' => 'users_export_pdf',   'label' => 'Export PDF User'],
+                ['name' => 'users_impersonate',  'label' => 'Impersonate User'],
+            ],
+            'Manajemen Perusahaan Sendiri' => [
+                ['name' => 'manage_own_company', 'label' => 'Kelola Perusahaan Sendiri'],
             ],
             'Roles & Permissions' => [
                 ['name' => 'roles_view',         'label' => 'Lihat Roles'],
