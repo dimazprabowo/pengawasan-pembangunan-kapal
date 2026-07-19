@@ -50,9 +50,9 @@ class Chat extends Model
     }
 
     // Scopes
-    public function scopeForUser($query, int $userId)
+    public function scopeForUser($query, ?int $userId)
     {
-        return $query->whereHas('participants', fn ($q) => $q->where('users.id', $userId));
+        return $query->whereHas('participants', fn ($q) => $q->where('users.id', $userId ?? 0));
     }
 
     // Helpers

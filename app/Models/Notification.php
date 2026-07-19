@@ -46,9 +46,9 @@ class Notification extends Model
         return $query->whereNotNull('read_at');
     }
 
-    public function scopeForUser($query, int $userId)
+    public function scopeForUser($query, ?int $userId)
     {
-        return $query->where('user_id', $userId);
+        return $query->where('user_id', $userId ?? 0);
     }
 
     // Helpers
