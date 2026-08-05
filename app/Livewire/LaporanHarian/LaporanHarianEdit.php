@@ -265,7 +265,8 @@ class LaporanHarianEdit extends Component
         }
 
         $file = $this->newLampiran[$index]['file'];
-        if (!$file) {
+        if (!$file || !is_object($file)) {
+            $this->notifyWarning('File tidak valid, silakan upload ulang.');
             return;
         }
 
@@ -422,7 +423,7 @@ class LaporanHarianEdit extends Component
 
             // Process new lampiran uploads
             foreach ($this->newLampiran as $lampiranData) {
-                if (isset($lampiranData['file']) && $lampiranData['file']) {
+                if (isset($lampiranData['file']) && $lampiranData['file'] && is_object($lampiranData['file'])) {
                     $file = $lampiranData['file'];
                     $tempPath = 'laporan-temp/' . uniqid() . '_' . $file->getClientOriginalName();
                     Storage::disk('local')->put($tempPath, file_get_contents($file->getRealPath()));
@@ -443,16 +444,13 @@ class LaporanHarianEdit extends Component
                 }
             }
 
-            $hasNewLampiran = collect($this->newLampiran)->filter(fn($l) => isset($l['file']) && $l['file'])->isNotEmpty();
+            $hasNewLampiran = collect($this->newLampiran)->filter(fn($l) => isset($l['file']) && $l['file'] && is_object($l['file']))->isNotEmpty();
             $message = 'Laporan Harian berhasil diupdate!';
             if ($hasNewLampiran) {
                 $message .= ' Lampiran baru sedang diproses di background.';
             }
 
-            session()->flash('notify', [
-                'type' => 'success',
-                'message' => $message,
-            ]);
+            $this->notifySuccess($message);
 
             $this->redirect(route('laporan-harian.index'), navigate: true);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {

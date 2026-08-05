@@ -155,7 +155,11 @@
                                                 <div class="flex items-start gap-3">
                                                     {{-- File Upload Area --}}
                                                     <div class="flex-1">
-                                                        @if(isset($lampiranItem['file']) && $lampiranItem['file'])
+                                                        @if(isset($lampiranItem['file']) && $lampiranItem['file'] && !is_object($lampiranItem['file']))
+                                                            <div class="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-600 dark:text-red-400">
+                                                                File gagal diproses, silakan upload ulang.
+                                                            </div>
+                                                        @elseif(isset($lampiranItem['file']) && $lampiranItem['file'])
                                                             {{-- File Selected --}}
                                                             <div class="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                                                                 <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -228,8 +232,8 @@
                                                         @error("lampiran.{$index}.{$lampiranIndex}.file") <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                                                     </div>
 
-                                                    {{-- Remove Button (if no file) --}}
-                                                    @if(!isset($lampiranItem['file']) || !$lampiranItem['file'])
+                                                    {{-- Remove Button (if no file or file corrupted) --}}
+                                                    @if(!isset($lampiranItem['file']) || !$lampiranItem['file'] || !is_object($lampiranItem['file']))
                                                         <button type="button"
                                                             wire:click="confirmRemoveLampiran({{ $index }}, {{ $lampiranIndex }})"
                                                             wire:loading.attr="disabled"

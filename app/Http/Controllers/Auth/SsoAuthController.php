@@ -23,6 +23,14 @@ class SsoAuthController extends Controller
             ]);
         }
 
+        // Logout any existing session so re-authentication works
+        // when SSO user changes (e.g. impersonation on SSO server)
+        if (Auth::check()) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
+
         $state = Str::random(40);
         $request->session()->put('sso_state', $state);
 
@@ -169,6 +177,8 @@ class SsoAuthController extends Controller
             $request->session()->regenerate();
 
             Log::info('SSO login successful', ['user_id' => $user->id, 'email' => $user->email]);
+
+            $request->session()->flash('sso_success', "Selamat datang, {$user->name}! Anda berhasil login melalui SSO.");
 
             return redirect()->intended(route('dashboard'));
 

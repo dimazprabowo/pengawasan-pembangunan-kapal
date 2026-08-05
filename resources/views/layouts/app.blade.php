@@ -4,14 +4,8 @@
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}"
-      x-data="{
-          darkMode: localStorage.getItem('darkMode') === 'true' || (localStorage.getItem('darkMode') === null && window.matchMedia('(prefers-color-scheme: dark)').matches),
-      }"
-      x-init="
-          $watch('darkMode', val => localStorage.setItem('darkMode', val));
-          if (localStorage.getItem('darkMode') === null) localStorage.setItem('darkMode', darkMode);
-      "
-      :class="{ 'dark': darkMode }">
+      x-data
+      :class="{ 'dark': $store.darkMode.dark }">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -19,17 +13,28 @@
 
         <title>{{ $title }} - {{ config('app.name', 'Laravel') }}</title>
 
+        <!-- Anti-FOUC: Apply dark mode instantly -->
+        <script>
+            (function() {
+                var d = localStorage.getItem('darkMode');
+                if (d === 'true' || (d === null && matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    document.documentElement.classList.add('dark');
+                }
+            })();
+        </script>
+
+        <!-- Favicon -->
+        <link rel="icon" type="image/webp" href="{{ asset('images/bki-main.webp') }}">
+        <link rel="apple-touch-icon" href="{{ asset('images/bki-main.webp') }}">
+
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
 
-        {{-- Cropper.js untuk image cropping --}}
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" />
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
-
-        {{-- Chart.js untuk Kurva S dan visualisasi data --}}
-        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+        {{-- Per-view CDN assets (Cropper.js, Chart.js, etc.) --}}
+        @stack('cdn-styles')
+        @stack('cdn-scripts')
 
         {{-- Alpine stores, dark mode sync, teleport cleanup loaded via Vite (alpine-stores.js) --}}
         <script>
@@ -114,5 +119,9 @@
         </div>
 
         <x-toast />
+
+        @if(session('sso_success'))
+            <div x-data x-init='$nextTick(() => $store.notification.add("success", @json(session("sso_success"))))' class="hidden"></div>
+        @endif
     </body>
 </html>

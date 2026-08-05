@@ -56,23 +56,45 @@ if (!function_exists('get_allowed_mimes_array')) {
 
 if (!function_exists('file_upload_validation_rule')) {
     /**
-     * Get complete file upload validation rule string for a specific field
-     * Example: "nullable|file|max:2048|mimes:jpg,jpeg,png,pdf"
-     * 
+     * Get complete file upload validation rule for a specific field.
+     * Returns an array of rules (string + closure) to handle degraded uploads.
+     *
+     * When Livewire's temporary file upload fails silently (e.g. Windows path
+     * length limits), the file property degrades from a TemporaryUploadedFile
+     * object to a plain string. The closure skips validation for such cases
+     * since the UI already shows "File gagal diproses" for non-object values.
+     *
      * @param string|null $fieldName Field name from config/file_upload.php (e.g., 'foto_kapal', 'sertifikat', 'lampiran')
      * @param bool $required Whether file is required
-     * @return string
+     * @return array
      */
-    function file_upload_validation_rule(?string $fieldName = null, bool $required = false): string
+    function file_upload_validation_rule(?string $fieldName = null, bool $required = false): array
     {
-        $rules = [];
-        
-        $rules[] = $required ? 'required' : 'nullable';
-        $rules[] = 'file';
-        $rules[] = 'max:' . get_max_upload_size($fieldName);
-        $rules[] = 'mimes:' . get_allowed_mimes($fieldName);
-        
-        return implode('|', $rules);
+        $maxSize = get_max_upload_size($fieldName);
+        $allowedMimes = get_allowed_mimes_array($fieldName);
+
+        return [
+            $required ? 'required' : 'nullable',
+            function ($attribute, $value, $fail) use ($maxSize, $allowedMimes) {
+                if ($value === null) {
+                    return;
+                }
+
+                if (!($value instanceof \Illuminate\Http\UploadedFile)) {
+                    return;
+                }
+
+                if ($value->getSize() / 1024 > $maxSize) {
+                    $fail('The :attribute must not be larger than ' . number_format($maxSize / 1024, 0) . ' MB.');
+                    return;
+                }
+
+                $ext = strtolower($value->getClientOriginalExtension());
+                if (!in_array($ext, $allowedMimes)) {
+                    $fail('The :attribute must be a file of type: ' . implode(', ', array_map('strtoupper', $allowedMimes)) . '.');
+                }
+            },
+        ];
     }
 }
 

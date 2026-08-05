@@ -705,10 +705,7 @@ class LaporanMingguanEdit extends Component
 
             $this->updateLaporanExternal();
 
-            session()->flash('notify', [
-                'type' => 'success',
-                'message' => 'Laporan mingguan berhasil diupdate!',
-            ]);
+            $this->notifySuccess('Laporan mingguan berhasil diupdate!');
 
             $this->redirect(route('laporan-mingguan.index'), navigate: true);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {

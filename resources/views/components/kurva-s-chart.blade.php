@@ -1,3 +1,7 @@
+@push('cdn-scripts')
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+@endpush
+
 @props([
     'chartData',          // array dari KurvaSService::getChartData()
     'jenisKapalNama' => null,

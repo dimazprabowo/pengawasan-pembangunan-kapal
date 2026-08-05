@@ -1,5 +1,13 @@
 @props(['show' => false, 'imageUrl', 'cropData' => []])
 
+@push('cdn-styles')
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" />
+@endpush
+
+@push('cdn-scripts')
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+@endpush
+
 @if($show && $imageUrl)
     <div class="fixed inset-0 z-50 overflow-y-auto"
          x-data="{

@@ -24,12 +24,10 @@ class ImpersonateService
     {
         $originalId = Session::get(self::SESSION_KEY);
 
-        if (!$originalId) {
-            abort(403, 'Tidak ada sesi impersonate yang aktif.');
+        if ($originalId) {
+            Auth::loginUsingId($originalId);
+            Session::forget(self::SESSION_KEY);
         }
-
-        Auth::loginUsingId($originalId);
-        Session::forget(self::SESSION_KEY);
     }
 
     public function isImpersonating(): bool

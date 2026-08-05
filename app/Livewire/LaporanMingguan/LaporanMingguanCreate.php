@@ -609,10 +609,7 @@ class LaporanMingguanCreate extends Component
 
             $this->saveLaporanExternal($laporan);
 
-            session()->flash('notify', [
-                'type' => 'success',
-                'message' => 'Laporan mingguan berhasil ditambahkan!',
-            ]);
+            $this->notifySuccess('Laporan mingguan berhasil ditambahkan!');
 
             $this->redirect(route('laporan-mingguan.index'), navigate: true);
         } catch (\Exception $e) {

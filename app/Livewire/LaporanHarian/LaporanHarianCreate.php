@@ -170,7 +170,8 @@ class LaporanHarianCreate extends Component
         }
 
         $file = $this->lampiran[$itemIndex][$lampiranIndex]['file'];
-        if (!$file) {
+        if (!$file || !is_object($file)) {
+            $this->notifyWarning('File tidak valid, silakan upload ulang.');
             return;
         }
 
@@ -215,7 +216,7 @@ class LaporanHarianCreate extends Component
         }
 
         $file = $this->lampiran[$itemIndex][$lampiranIndex]['file'];
-        if (!$file) {
+        if (!$file || !is_object($file)) {
             $this->notifyWarning('File tidak ditemukan.');
             return;
         }
@@ -549,7 +550,7 @@ class LaporanHarianCreate extends Component
                 // Process lampiran
                 if (isset($this->lampiran[$index]) && is_array($this->lampiran[$index])) {
                     foreach ($this->lampiran[$index] as $lampiranData) {
-                        if (isset($lampiranData['file']) && $lampiranData['file']) {
+                        if (isset($lampiranData['file']) && $lampiranData['file'] && is_object($lampiranData['file'])) {
                             $file = $lampiranData['file'];
                             $tempPath = 'laporan-temp/' . uniqid() . '_' . $file->getClientOriginalName();
                             Storage::disk('local')->put($tempPath, file_get_contents($file->getRealPath()));
@@ -579,10 +580,7 @@ class LaporanHarianCreate extends Component
                 $message .= ' Lampiran sedang diproses di background.';
             }
 
-            session()->flash('notify', [
-                'type' => 'success',
-                'message' => $message,
-            ]);
+            $this->notifySuccess($message);
 
             $this->redirect(route('laporan-harian.index'), navigate: true);
         } catch (\Exception $e) {
