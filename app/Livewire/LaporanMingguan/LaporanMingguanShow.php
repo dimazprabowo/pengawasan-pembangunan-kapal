@@ -3,7 +3,9 @@
 namespace App\Livewire\LaporanMingguan;
 
 use App\Jobs\GenerateLaporanMingguanJob;
+use App\Livewire\Traits\HasJenisKapalFilter;
 use App\Livewire\Traits\HasNotification;
+use App\Models\JenisKapal;
 use App\Models\LaporanLampiran;
 use App\Models\LaporanMingguan;
 use App\Services\KurvaSService;
@@ -17,15 +19,21 @@ use Livewire\Component;
 #[Layout('layouts.app', ['title' => 'Detail Laporan Mingguan'])]
 class LaporanMingguanShow extends Component
 {
-    use AuthorizesRequests, HasNotification;
+    use AuthorizesRequests, HasJenisKapalFilter, HasNotification;
 
     public LaporanMingguan $laporan;
 
+    public JenisKapal $jenisKapal;
+
     // Lampiran Harian Modal
     public bool $showLampiranModal = false;
+
     public array $lampiranHarianList = [];
+
     public bool $loadingLampiran = false;
+
     public bool $showPreviewModal = false;
+
     public ?int $previewLampiranId = null;
 
     // Available Laporan Harian
@@ -33,15 +41,21 @@ class LaporanMingguanShow extends Component
 
     // Word Document Status
     public bool $loadingDoc = false;
+
     public bool $showRegenerateConfirm = false;
+
     public bool $showDeleteDocConfirm = false;
 
     // Progress per group (for compatibility with progress history component)
     public array $progressPerGroup = [];
 
-    public function mount(LaporanMingguan $laporanMingguan): void
+    public function mount(JenisKapal $jenisKapal, LaporanMingguan $laporanMingguan): void
     {
         $this->authorize('view', $laporanMingguan);
+        $this->authorizeJenisKapalAccess($jenisKapal);
+        abort_unless($laporanMingguan->jenis_kapal_id === $jenisKapal->id, 404);
+
+        $this->jenisKapal = $jenisKapal;
         $this->loadLaporan($laporanMingguan);
     }
 
@@ -120,7 +134,7 @@ class LaporanMingguanShow extends Component
             return [
                 'id' => $item->id,
                 'file_name' => $item->file_name,
-                'file_size_formatted' => number_format($item->file_size / 1024, 1) . ' KB',
+                'file_size_formatted' => number_format($item->file_size / 1024, 1).' KB',
                 'keterangan' => $item->keterangan,
                 'extension' => $extension,
                 'is_image' => $isImage,
@@ -135,12 +149,12 @@ class LaporanMingguanShow extends Component
     public function getLampiranPreview(int $lampiranId): ?string
     {
         $lampiran = LaporanLampiran::find($lampiranId);
-        
-        if (!$lampiran || !$lampiran->file_path || !Storage::disk('local')->exists($lampiran->file_path)) {
+
+        if (! $lampiran || ! $lampiran->file_path || ! Storage::disk('local')->exists($lampiran->file_path)) {
             return null;
         }
 
-        if (!$lampiran->isImage()) {
+        if (! $lampiran->isImage()) {
             return null;
         }
 
@@ -149,20 +163,20 @@ class LaporanMingguanShow extends Component
 
     private function getLampiranImageDataUrl(LaporanLampiran $lampiran): ?string
     {
-        if (!$lampiran->file_path || !Storage::disk('local')->exists($lampiran->file_path)) {
+        if (! $lampiran->file_path || ! Storage::disk('local')->exists($lampiran->file_path)) {
             return null;
         }
 
         $extension = strtolower(pathinfo($lampiran->file_name, PATHINFO_EXTENSION));
         $mimeTypes = [
-            'png'  => 'image/png',
-            'jpg'  => 'image/jpeg',
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
             'jpeg' => 'image/jpeg',
-            'gif'  => 'image/gif',
+            'gif' => 'image/gif',
             'webp' => 'image/webp',
         ];
 
-        if (!isset($mimeTypes[$extension])) {
+        if (! isset($mimeTypes[$extension])) {
             return null;
         }
 
@@ -179,8 +193,9 @@ class LaporanMingguanShow extends Component
 
         $lampiran = LaporanLampiran::with('laporanHarian')->find($lampiranId);
 
-        if (!$lampiran) {
+        if (! $lampiran) {
             $this->notifyError('Lampiran tidak ditemukan.');
+
             return;
         }
 
@@ -188,8 +203,9 @@ class LaporanMingguanShow extends Component
         $belongsToUser = $lampiran->laporanHarian && $lampiran->laporanHarian->user_id === $this->laporan->user_id;
         $isLinkedToReport = $this->laporan->lampiran->contains('id', $lampiran->id);
 
-        if (!$belongsToUser && !$isLinkedToReport) {
+        if (! $belongsToUser && ! $isLinkedToReport) {
             $this->notifyError('Anda tidak memiliki akses ke lampiran ini.');
+
             return;
         }
 
@@ -205,15 +221,16 @@ class LaporanMingguanShow extends Component
 
     public function getPreviewLampiranProperty()
     {
-        if (!$this->previewLampiranId) {
+        if (! $this->previewLampiranId) {
             return null;
         }
+
         return LaporanLampiran::find($this->previewLampiranId);
     }
 
     public function getPreviewLampiranImageUrlProperty(): ?string
     {
-        if (!$this->previewLampiran) {
+        if (! $this->previewLampiran) {
             return null;
         }
 
@@ -226,8 +243,9 @@ class LaporanMingguanShow extends Component
 
         $lampiran = LaporanLampiran::with('laporanHarian')->find($lampiranId);
 
-        if (!$lampiran || !$lampiran->file_path || !Storage::disk('local')->exists($lampiran->file_path)) {
+        if (! $lampiran || ! $lampiran->file_path || ! Storage::disk('local')->exists($lampiran->file_path)) {
             $this->notifyError('File tidak ditemukan.');
+
             return;
         }
 
@@ -235,8 +253,9 @@ class LaporanMingguanShow extends Component
         $belongsToUser = $lampiran->laporanHarian && $lampiran->laporanHarian->user_id === $this->laporan->user_id;
         $isLinkedToReport = $this->laporan->lampiran->contains('id', $lampiran->id);
 
-        if (!$belongsToUser && !$isLinkedToReport) {
+        if (! $belongsToUser && ! $isLinkedToReport) {
             $this->notifyError('Anda tidak memiliki akses ke lampiran ini.');
+
             return;
         }
 
@@ -249,8 +268,9 @@ class LaporanMingguanShow extends Component
 
         $lampiran = LaporanLampiran::with('laporanHarian')->find($lampiranId);
 
-        if (!$lampiran || !$lampiran->file_path || !Storage::disk('local')->exists($lampiran->file_path)) {
+        if (! $lampiran || ! $lampiran->file_path || ! Storage::disk('local')->exists($lampiran->file_path)) {
             $this->notifyError('File tidak ditemukan.');
+
             return;
         }
 
@@ -258,22 +278,23 @@ class LaporanMingguanShow extends Component
         $belongsToUser = $lampiran->laporanHarian && $lampiran->laporanHarian->user_id === $this->laporan->user_id;
         $isLinkedToReport = $this->laporan->lampiran->contains('id', $lampiran->id);
 
-        if (!$belongsToUser && !$isLinkedToReport) {
+        if (! $belongsToUser && ! $isLinkedToReport) {
             $this->notifyError('Anda tidak memiliki akses ke lampiran ini.');
+
             return;
         }
 
         $extension = strtolower(pathinfo($lampiran->file_name, PATHINFO_EXTENSION));
         $mimeTypes = [
-            'pdf'  => 'application/pdf',
-            'doc'  => 'application/msword',
+            'pdf' => 'application/pdf',
+            'doc' => 'application/msword',
             'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'xls'  => 'application/vnd.ms-excel',
+            'xls' => 'application/vnd.ms-excel',
             'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'png'  => 'image/png',
-            'jpg'  => 'image/jpeg',
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
             'jpeg' => 'image/jpeg',
-            'gif'  => 'image/gif',
+            'gif' => 'image/gif',
             'webp' => 'image/webp',
         ];
 
@@ -281,7 +302,7 @@ class LaporanMingguanShow extends Component
 
         return response(Storage::disk('local')->get($lampiran->file_path))
             ->header('Content-Type', $mime)
-            ->header('Content-Disposition', 'inline; filename="' . $lampiran->file_name . '"');
+            ->header('Content-Disposition', 'inline; filename="'.$lampiran->file_name.'"');
     }
 
     public function confirmRegenerate(): void
@@ -290,6 +311,7 @@ class LaporanMingguanShow extends Component
 
         if ($this->laporan->isDocCompleted()) {
             $this->showRegenerateConfirm = true;
+
             return;
         }
 
@@ -308,13 +330,14 @@ class LaporanMingguanShow extends Component
 
         if ($this->laporan->isDocProcessing()) {
             $this->notifyWarning('Dokumen sedang dalam proses generate. Mohon tunggu.');
+
             return;
         }
 
         try {
             // Hapus file lama jika ada (untuk generate ulang)
             if ($this->laporan->doc_path) {
-                $oldPath = storage_path('app/' . $this->laporan->doc_path);
+                $oldPath = storage_path('app/'.$this->laporan->doc_path);
                 if (file_exists($oldPath)) {
                     @unlink($oldPath);
                 }
@@ -331,7 +354,7 @@ class LaporanMingguanShow extends Component
 
             $this->notifySuccess('Proses generate dokumen Word dimulai. Halaman akan otomatis diperbarui.');
         } catch (\Exception $e) {
-            $this->notifyError('Gagal memulai proses generate: ' . $e->getMessage());
+            $this->notifyError('Gagal memulai proses generate: '.$e->getMessage());
         }
     }
 
@@ -342,7 +365,7 @@ class LaporanMingguanShow extends Component
         if ($this->laporan->isDocCompleted()) {
             $this->notifySuccess('Dokumen Word berhasil digenerate! Silakan download.');
         } elseif ($this->laporan->isDocFailed()) {
-            $this->notifyError('Generate dokumen gagal: ' . ($this->laporan->doc_error ?? 'Unknown error'));
+            $this->notifyError('Generate dokumen gagal: '.($this->laporan->doc_error ?? 'Unknown error'));
         }
     }
 
@@ -364,18 +387,21 @@ class LaporanMingguanShow extends Component
 
         $external = $this->laporan->laporanExternal->find($externalId);
 
-        if (!$external) {
+        if (! $external) {
             $this->notifyError('File tidak ditemukan.');
+
             return;
         }
 
-        if (!$external->hasFile() || !$external->isFileCompleted()) {
+        if (! $external->hasFile() || ! $external->isFileCompleted()) {
             $this->notifyError('File tidak tersedia.');
+
             return;
         }
 
-        if (!Storage::disk('local')->exists($external->file_path)) {
+        if (! Storage::disk('local')->exists($external->file_path)) {
             $this->notifyError('File tidak ditemukan.');
+
             return;
         }
 
@@ -383,11 +409,11 @@ class LaporanMingguanShow extends Component
         $originalFileName = $external->file_name;
         $title = $external->judul ?? '';
 
-        if (!empty($title)) {
+        if (! empty($title)) {
             // Get the original file extension
             $extension = pathinfo($originalFileName, PATHINFO_EXTENSION);
             // Create new filename from title with original extension
-            $downloadFileName = $title . '.' . $extension;
+            $downloadFileName = $title.'.'.$extension;
         } else {
             // Use original filename if no title
             $downloadFileName = $originalFileName;
@@ -417,7 +443,7 @@ class LaporanMingguanShow extends Component
 
         try {
             if ($this->laporan->doc_path) {
-                $path = storage_path('app/' . $this->laporan->doc_path);
+                $path = storage_path('app/'.$this->laporan->doc_path);
                 if (file_exists($path)) {
                     @unlink($path);
                 }
@@ -434,7 +460,7 @@ class LaporanMingguanShow extends Component
             $this->laporan->refresh();
             $this->notifySuccess('Dokumen Word berhasil dihapus.');
         } catch (\Exception $e) {
-            $this->notifyError('Gagal menghapus dokumen: ' . $e->getMessage());
+            $this->notifyError('Gagal menghapus dokumen: '.$e->getMessage());
         }
     }
 
@@ -442,14 +468,16 @@ class LaporanMingguanShow extends Component
     {
         $this->authorize('downloadWord', $this->laporan);
 
-        if (!$this->laporan->hasDoc() || !$this->laporan->isDocCompleted()) {
+        if (! $this->laporan->hasDoc() || ! $this->laporan->isDocCompleted()) {
             $this->notifyError('Dokumen tidak tersedia.');
+
             return;
         }
 
-        $filePath = storage_path('app/' . $this->laporan->doc_path);
-        if (!file_exists($filePath)) {
+        $filePath = storage_path('app/'.$this->laporan->doc_path);
+        if (! file_exists($filePath)) {
             $this->notifyError('File tidak ditemukan.');
+
             return;
         }
 
@@ -467,15 +495,15 @@ class LaporanMingguanShow extends Component
 
     public function render(QueueStatusService $queueStatusService, KurvaSService $kurvaSService)
     {
-        $chartData       = [];
+        $chartData = [];
         $detailTableData = [];
-        $totalRencana    = null;
-        $totalAktual     = null;
+        $totalRencana = null;
+        $totalAktual = null;
         $progressHistory = [];
         $workGroupsForHistory = [];
 
         if ($this->laporan->jenisKapal) {
-            $chartData       = $kurvaSService->getChartData($this->laporan->jenisKapal);
+            $chartData = $kurvaSService->getChartData($this->laporan->jenisKapal);
             $detailTableData = $kurvaSService->getDetailTableData($this->laporan);
             $progressHistory = $kurvaSService->getProgressHistory($this->laporan->jenisKapal);
 
@@ -483,7 +511,7 @@ class LaporanMingguanShow extends Component
             $workGroupsForHistory = \App\Models\KurvaSWorkGroup::where('jenis_kapal_id', $this->laporan->jenis_kapal_id)
                 ->orderBy('sort_order')
                 ->get()
-                ->map(fn($wg) => [
+                ->map(fn ($wg) => [
                     'work_group_id' => $wg->id,
                     'nama' => $wg->nama,
                     'bobot' => $wg->bobot,
@@ -491,7 +519,7 @@ class LaporanMingguanShow extends Component
                 ->toArray();
 
             // Calculate totals from progress history using service
-            if (!empty($progressHistory)) {
+            if (! empty($progressHistory)) {
                 $workGroups = \App\Models\KurvaSWorkGroup::where('jenis_kapal_id', $this->laporan->jenis_kapal_id)
                     ->orderBy('sort_order')
                     ->get();
@@ -503,12 +531,12 @@ class LaporanMingguanShow extends Component
         }
 
         return view('livewire.laporan-mingguan.laporan-mingguan-show', [
-            'queueStatus'      => $queueStatusService->getQueueStatusMessage(),
-            'kurvaSChartData'  => $chartData,
-            'kurvaSDetail'     => $detailTableData,
-            'jenisKapalNama'   => $this->laporan->jenisKapal?->nama,
-            'totalRencana'    => $totalRencana,
-            'totalAktual'     => $totalAktual,
+            'queueStatus' => $queueStatusService->getQueueStatusMessage(),
+            'kurvaSChartData' => $chartData,
+            'kurvaSDetail' => $detailTableData,
+            'jenisKapalNama' => $this->laporan->jenisKapal?->nama,
+            'totalRencana' => $totalRencana,
+            'totalAktual' => $totalAktual,
             'progressHistory' => $progressHistory,
             'workGroupsForHistory' => $workGroupsForHistory,
         ]);

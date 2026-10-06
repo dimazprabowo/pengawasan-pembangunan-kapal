@@ -12,52 +12,72 @@ use App\Services\JenisKapalService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Component;
-use Livewire\WithPagination;
 use Livewire\WithFileUploads;
+use Livewire\WithPagination;
 use Maatwebsite\Excel\Facades\Excel;
 
 class JenisKapalManagement extends Component
 {
-    use WithPagination, AuthorizesRequests, HasNotification, WithFileUploads;
+    use AuthorizesRequests, HasNotification, WithFileUploads, WithPagination;
 
     protected $paginationTheme = 'tailwind';
 
     public $search = '';
+
     public $statusFilter = '';
+
     public $companyFilter = '';
+
     public $galanganFilter = '';
+
     public int $perPage = 10;
+
     public $showModal = false;
+
     public $editMode = false;
 
     public $jenisKapalId;
+
     public $company_id;
+
     public $galangan_id;
+
     public $nama;
+
     public $deskripsi;
+
     public $status = 'active';
-    
+
     public $showDeleteModal = false;
+
     public $deletingJenisKapalId;
+
     public $deletingJenisKapalNama;
 
     // Template upload modal states
     public $showTemplateUploadModal = false;
+
     public $uploadingJenisKapalId;
+
     public $uploadingTemplateTipe;
+
     public $template_file;
-    
+
     // Template download modal state
     public $showDownloadTemplateModal = false;
-    
+
     // Template delete modal states
     public $showDeleteTemplateModal = false;
+
     public $deletingTemplateJenisKapalId;
+
     public $deletingTemplateTipe;
 
     // Kurva S import/export modal states
     public $showKurvaSImportModal = false;
+
     public $kurvaSJenisKapalId;
+
     public $kurvaS_file;
 
     public function mount()
@@ -72,7 +92,7 @@ class JenisKapalManagement extends Component
             'galangan_id' => 'nullable|exists:galangan,id',
             'nama' => 'required|string|max:255',
             'deskripsi' => 'nullable|string',
-            'status' => ['required', 'string', 'in:' . implode(',', JenisKapalStatus::values())],
+            'status' => ['required', 'string', 'in:'.implode(',', JenisKapalStatus::values())],
         ];
     }
 
@@ -109,6 +129,12 @@ class JenisKapalManagement extends Component
 
     public function updatingPerPage()
     {
+        $this->resetPage();
+    }
+
+    public function resetFilters()
+    {
+        $this->reset(['search', 'companyFilter', 'galanganFilter', 'statusFilter', 'perPage']);
         $this->resetPage();
     }
 
@@ -176,7 +202,7 @@ class JenisKapalManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk melakukan aksi ini.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -200,7 +226,7 @@ class JenisKapalManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak dapat menghapus jenis kapal ini.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -217,7 +243,7 @@ class JenisKapalManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk mengubah status jenis kapal.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -248,7 +274,7 @@ class JenisKapalManagement extends Component
 
         return Excel::download(
             new JenisKapalExport($this->search, $this->statusFilter, $this->companyFilter),
-            'jenis-kapal-' . now()->format('Y-m-d-His') . '.xlsx'
+            'jenis-kapal-'.now()->format('Y-m-d-His').'.xlsx'
         );
     }
 
@@ -261,11 +287,11 @@ class JenisKapalManagement extends Component
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
                     $q->where('nama', 'like', "%{$this->search}%")
-                      ->orWhere('deskripsi', 'like', "%{$this->search}%")
-                      ->orWhereHas('company', function ($q) {
-                          $q->where('name', 'like', "%{$this->search}%")
-                            ->orWhere('code', 'like', "%{$this->search}%");
-                      });
+                        ->orWhere('deskripsi', 'like', "%{$this->search}%")
+                        ->orWhereHas('company', function ($q) {
+                            $q->where('name', 'like', "%{$this->search}%")
+                                ->orWhere('code', 'like', "%{$this->search}%");
+                        });
                 });
             })
             ->when($this->statusFilter !== null && $this->statusFilter !== '', function ($q) {
@@ -281,8 +307,8 @@ class JenisKapalManagement extends Component
         $pdf->setPaper('a4', 'landscape');
 
         return response()->streamDownload(
-            fn () => print($pdf->output()),
-            'jenis-kapal-' . now()->format('Y-m-d-His') . '.pdf'
+            fn () => print ($pdf->output()),
+            'jenis-kapal-'.now()->format('Y-m-d-His').'.pdf'
         );
     }
 
@@ -303,12 +329,13 @@ class JenisKapalManagement extends Component
 
         $templatePath = $service->downloadDefaultTemplate($tipe);
 
-        if (!$templatePath) {
-            $this->notifyError('Template laporan ' . $tipe . ' tidak ditemukan.');
+        if (! $templatePath) {
+            $this->notifyError('Template laporan '.$tipe.' tidak ditemukan.');
+
             return;
         }
 
-        return response()->download($templatePath, 'template-laporan-' . $tipe . '.docx');
+        return response()->download($templatePath, 'template-laporan-'.$tipe.'.docx');
     }
 
     public function openTemplateUploadModal($id, string $tipe)
@@ -334,7 +361,7 @@ class JenisKapalManagement extends Component
             $this->validate([
                 'template_file' => file_upload_validation_rule('template_laporan_jenis_kapal'),
             ], [
-                'template_file' => 'template laporan ' . $this->uploadingTemplateTipe,
+                'template_file' => 'template laporan '.$this->uploadingTemplateTipe,
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             $this->notifyValidationError($e);
@@ -347,14 +374,14 @@ class JenisKapalManagement extends Component
 
             if ($this->template_file) {
                 $service->uploadTemplate($jenisKapal, $this->template_file, $this->uploadingTemplateTipe);
-                $this->notifySuccess('Template laporan ' . $this->uploadingTemplateTipe . ' berhasil diupload!');
+                $this->notifySuccess('Template laporan '.$this->uploadingTemplateTipe.' berhasil diupload!');
             }
 
             $this->closeTemplateUploadModal();
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk upload template.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -363,8 +390,9 @@ class JenisKapalManagement extends Component
         $jenisKapal = JenisKapal::findOrFail($id);
         $this->authorize('uploadTemplate', $jenisKapal);
 
-        if (!$jenisKapal->hasTemplate($tipe)) {
-            $this->notifyWarning('Tidak ada template ' . $tipe . ' untuk dihapus.');
+        if (! $jenisKapal->hasTemplate($tipe)) {
+            $this->notifyWarning('Tidak ada template '.$tipe.' untuk dihapus.');
+
             return;
         }
 
@@ -380,12 +408,12 @@ class JenisKapalManagement extends Component
             $this->authorize('uploadTemplate', $jenisKapal);
 
             $service->deleteTemplate($jenisKapal, $this->deletingTemplateTipe);
-            $this->notifySuccess('Template laporan ' . $this->deletingTemplateTipe . ' berhasil dihapus!');
+            $this->notifySuccess('Template laporan '.$this->deletingTemplateTipe.' berhasil dihapus!');
             $this->showDeleteTemplateModal = false;
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk menghapus template.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -397,18 +425,19 @@ class JenisKapalManagement extends Component
 
             $templatePath = $service->downloadTemplate($jenisKapal, $tipe);
 
-            if (!$templatePath || !file_exists($templatePath)) {
+            if (! $templatePath || ! file_exists($templatePath)) {
                 $this->notifyError('Template tidak ditemukan.');
+
                 return;
             }
 
-            $filename = 'template-' . $tipe . '-' . \Str::slug($jenisKapal->nama) . '.docx';
+            $filename = 'template-'.$tipe.'-'.\Str::slug($jenisKapal->nama).'.docx';
 
             return response()->download($templatePath, $filename);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk mengunduh template.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -429,7 +458,7 @@ class JenisKapalManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk export template Kurva S.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -478,20 +507,20 @@ class JenisKapalManagement extends Component
             $result = $service->importKurvaSTemplate($jenisKapal, $this->kurvaS_file);
 
             if ($result['success']) {
-                $this->notifySuccess($result['message'] . ' Total work groups: ' . $result['work_groups_count']);
+                $this->notifySuccess($result['message'].' Total work groups: '.$result['work_groups_count']);
                 $this->closeKurvaSImportModal();
                 $this->dispatch('kurvas-imported');
             } else {
                 $errorMessage = 'Import gagal:';
                 foreach ($result['errors'] as $error) {
-                    $errorMessage .= "\n• " . $error;
+                    $errorMessage .= "\n• ".$error;
                 }
                 $this->notifyError($errorMessage);
             }
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk import template Kurva S.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -501,8 +530,8 @@ class JenisKapalManagement extends Component
             'jenisKapalList' => $service->getFiltered(
                 $this->search,
                 $this->statusFilter,
-                $this->companyFilter ? (int)$this->companyFilter : null,
-                $this->galanganFilter ? (int)$this->galanganFilter : null,
+                $this->companyFilter ? (int) $this->companyFilter : null,
+                $this->galanganFilter ? (int) $this->galanganFilter : null,
                 $this->perPage
             ),
             'statuses' => JenisKapalStatus::cases(),

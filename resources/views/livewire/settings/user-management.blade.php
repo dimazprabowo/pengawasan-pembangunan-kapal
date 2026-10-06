@@ -6,39 +6,27 @@
                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
         </div>
         
-        <!-- Filters -->
-        <div class="w-full lg:w-48">
-            <x-searchable-select
-                wire:model.live="roleFilter"
-                :options="$roles->map(fn($r) => ['value' => $r->name, 'label' => ucfirst($r->name)])->toArray()"
-                placeholder="Filter Role"
-                searchPlaceholder="Cari role..."
-            />
-        </div>
-        <div class="w-full lg:w-40">
-            <x-searchable-select
-                wire:model.live="statusFilter"
-                :options="[['value' => '1', 'label' => 'Aktif'], ['value' => '0', 'label' => 'Nonaktif']]"
-                placeholder="Filter Status"
-                searchPlaceholder="Cari status..."
-            />
-        </div>
+        <x-filter-popover :filters="['roleFilter', 'statusFilter']" :per-page="true">
+            <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Role</label>
+                <x-searchable-select
+                    wire:model.live="roleFilter"
+                    :options="$roles->map(fn($r) => ['value' => $r->name, 'label' => ucfirst($r->name)])->toArray()"
+                    placeholder="Semua Role"
+                    searchPlaceholder="Cari role..."
+                />
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Status</label>
+                <x-searchable-select
+                    wire:model.live="statusFilter"
+                    :options="[['value' => '1', 'label' => 'Aktif'], ['value' => '0', 'label' => 'Nonaktif']]"
+                    placeholder="Semua Status"
+                    searchPlaceholder="Cari status..."
+                />
+            </div>
+        </x-filter-popover>
 
-        <div class="w-full lg:w-32">
-            <x-searchable-select
-                wire:model.live="perPage"
-                :options="[
-                    ['value' => '10', 'label' => '10'],
-                    ['value' => '25', 'label' => '25'],
-                    ['value' => '50', 'label' => '50'],
-                    ['value' => '100', 'label' => '100']
-                ]"
-                placeholder="10"
-                searchPlaceholder="Pilih jumlah..."
-                :clearable="false"
-            />
-        </div>
-        
         <!-- Action Buttons -->
         <div class="flex items-center gap-2 flex-wrap">
             @can('users_export_excel')

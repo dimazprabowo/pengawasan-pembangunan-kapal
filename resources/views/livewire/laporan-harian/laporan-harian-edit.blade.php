@@ -6,7 +6,7 @@
     {{-- Header --}}
     <div class="mb-6">
         <div class="flex items-center gap-2">
-            <a href="{{ route('laporan-harian.index') }}" wire:navigate
+            <a href="{{ route('laporan-harian.index', $jenisKapal) }}" wire:navigate
                 x-data="{ loading: false }" x-on:click="loading = true"
                 x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                 class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
@@ -20,7 +20,7 @@
             </a>
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Edit Laporan Harian</h2>
         </div>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Perbarui data laporan di bawah ini</p>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ $jenisKapal->nama }}{{ $jenisKapal->company ? ' · ' . $jenisKapal->company->name : '' }} — Perbarui data laporan di bawah ini</p>
     </div>
 
     <form wire:submit="save">
@@ -38,16 +38,12 @@
             {{-- Card Body --}}
             <div class="p-5">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {{-- Jenis Kapal --}}
+                    {{-- Jenis Kapal (terkunci sesuai konteks halaman) --}}
                     <div class="md:col-span-2">
-                        <x-laporan.jenis-kapal-selector
-                            wireModel="jenis_kapal_id"
-                            :jenisKapalList="$jenisKapalList"
-                            variant="form"
-                            placeholder="Pilih jenis kapal"
-                            :error="$errors->has('jenis_kapal_id') ? $errors->first('jenis_kapal_id') : null"
-                            :selectedValue="$jenis_kapal_id"
-                        />
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Jenis Kapal</label>
+                        <div class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-sm text-gray-700 dark:text-gray-300">
+                            {{ $jenisKapal->nama }}{{ $jenisKapal->company ? ' — ' . $jenisKapal->company->name : '' }}
+                        </div>
                     </div>
 
                     {{-- Tanggal --}}
@@ -325,7 +321,7 @@
 
         {{-- Footer Actions --}}
         <div class="flex flex-col sm:flex-row items-center justify-end gap-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 px-5 py-4">
-            <a href="{{ route('laporan-harian.index') }}" wire:navigate
+            <a href="{{ route('laporan-harian.index', $jenisKapal) }}" wire:navigate
                 x-data="{ loading: false }" x-on:click="loading = true"
                 x-bind:class="loading ? 'opacity-75 pointer-events-none' : ''"
                 class="inline-flex items-center justify-center gap-1.5 font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 focus:ring-blue-500 px-4 py-2 text-sm w-full sm:w-auto">

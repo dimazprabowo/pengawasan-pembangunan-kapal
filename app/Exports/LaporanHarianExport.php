@@ -3,38 +3,45 @@
 namespace App\Exports;
 
 use App\Models\LaporanHarian;
-use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\Exportable;
+use Maatwebsite\Excel\Concerns\FromQuery;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class LaporanHarianExport implements FromQuery, WithHeadings, WithMapping, WithStyles, ShouldAutoSize
+class LaporanHarianExport implements FromQuery, ShouldAutoSize, WithHeadings, WithMapping, WithStyles
 {
     use Exportable;
 
     protected ?string $search;
 
-    public function __construct(?string $search = null)
+    protected ?int $jenisKapalId;
+
+    public function __construct(?string $search = null, ?int $jenisKapalId = null)
     {
         $this->search = $search;
+        $this->jenisKapalId = $jenisKapalId;
     }
 
     public function query()
     {
         $query = LaporanHarian::with(['user', 'jenisKapal.company', 'jenisKapal.galangan']);
 
+        if ($this->jenisKapalId) {
+            $query->where('jenis_kapal_id', $this->jenisKapalId);
+        }
+
         if ($this->search) {
             $query->where(function ($q) {
                 $q->where('judul', 'like', "%{$this->search}%")
-                  ->orWhereHas('user', function ($q) {
-                      $q->where('name', 'like', "%{$this->search}%");
-                  })
-                  ->orWhereHas('jenisKapal', function ($q) {
-                      $q->where('nama', 'like', "%{$this->search}%");
-                  });
+                    ->orWhereHas('user', function ($q) {
+                        $q->where('name', 'like', "%{$this->search}%");
+                    })
+                    ->orWhereHas('jenisKapal', function ($q) {
+                        $q->where('nama', 'like', "%{$this->search}%");
+                    });
             });
         }
 

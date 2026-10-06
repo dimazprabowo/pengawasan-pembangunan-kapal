@@ -3,15 +3,16 @@
 namespace App\Models;
 
 use App\Enums\JenisKapalStatus;
+use App\Traits\HasEncryptedRouteKey;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class JenisKapal extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasEncryptedRouteKey, HasFactory, SoftDeletes;
 
     protected $table = 'jenis_kapal';
 
@@ -48,6 +49,11 @@ class JenisKapal extends Model
         return $this->hasMany(LaporanHarian::class);
     }
 
+    public function laporanMingguan(): HasMany
+    {
+        return $this->hasMany(LaporanMingguan::class);
+    }
+
     public function kurvaSWorkGroups(): HasMany
     {
         return $this->hasMany(KurvaSWorkGroup::class)->orderBy('sort_order');
@@ -70,20 +76,21 @@ class JenisKapal extends Model
 
     public function hasTemplate(string $tipe): bool
     {
-        $column = 'template_path_' . $tipe;
-        $hasPath = !empty($this->$column);
+        $column = 'template_path_'.$tipe;
+        $hasPath = ! empty($this->$column);
         $fileExists = $hasPath ? \Storage::disk('local')->exists($this->$column) : false;
-        
+
         return $hasPath && $fileExists;
     }
 
     public function getTemplateFullPath(string $tipe): ?string
     {
-        if (!$this->hasTemplate($tipe)) {
+        if (! $this->hasTemplate($tipe)) {
             return null;
         }
 
-        $column = 'template_path_' . $tipe;
+        $column = 'template_path_'.$tipe;
+
         return \Storage::disk('local')->path($this->$column);
     }
 
@@ -99,6 +106,7 @@ class JenisKapal extends Model
         if ($tipe === 'harian') {
             return $this->laporan_harian_count ?? 0;
         }
+
         return 0;
     }
 }

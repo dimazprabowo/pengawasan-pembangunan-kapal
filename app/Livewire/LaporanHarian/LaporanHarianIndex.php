@@ -19,12 +19,14 @@ use Livewire\WithPagination;
 #[Layout('layouts.app', ['title' => 'Manajemen Laporan Harian'])]
 class LaporanHarianIndex extends Component
 {
-    use WithPagination, AuthorizesRequests, HasNotification, HasJenisKapalFilter;
+    use AuthorizesRequests, HasJenisKapalFilter, HasNotification, WithPagination;
 
     protected $paginationTheme = 'tailwind';
 
     #[Url(as: 'q')]
     public string $search = '';
+
+    public JenisKapal $jenisKapal;
 
     public ?int $jenisKapalId = null;
 
@@ -32,14 +34,18 @@ class LaporanHarianIndex extends Component
 
     // Delete Modal
     public bool $showDeleteModal = false;
+
     public ?int $deletingLaporanId = null;
+
     public ?string $deletingLaporanJudul = null;
 
-    public function mount(): void
+    public function mount(JenisKapal $jenisKapal): void
     {
         $this->authorize('viewAny', LaporanHarian::class);
+        $this->authorizeJenisKapalAccess($jenisKapal);
 
-        $this->jenisKapalId = $this->getSelectedJenisKapalId();
+        $this->jenisKapal = $jenisKapal;
+        $this->jenisKapalId = $jenisKapal->id;
 
         if (session()->has('notify')) {
             $notify = session('notify');
@@ -47,10 +53,9 @@ class LaporanHarianIndex extends Component
         }
     }
 
-    public function updatedJenisKapalId($value): void
+    public function gantiKapal()
     {
-        $this->setSelectedJenisKapalId($value);
-        $this->resetPage();
+        return $this->redirect(route('laporan.index'), navigate: true);
     }
 
     public function updatingSearch(): void
@@ -60,6 +65,12 @@ class LaporanHarianIndex extends Component
 
     public function updatingPerPage(): void
     {
+        $this->resetPage();
+    }
+
+    public function resetFilters(): void
+    {
+        $this->reset(['search', 'perPage']);
         $this->resetPage();
     }
 
@@ -85,7 +96,7 @@ class LaporanHarianIndex extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk menghapus laporan ini.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -93,9 +104,9 @@ class LaporanHarianIndex extends Component
     {
         $this->authorize('exportExcel', LaporanHarian::class);
 
-        $filename = 'laporan-harian-' . now()->format('Y-m-d-His') . '.xlsx';
+        $filename = 'laporan-harian-'.now()->format('Y-m-d-His').'.xlsx';
 
-        return (new LaporanHarianExport($this->search))
+        return (new LaporanHarianExport($this->search, $this->jenisKapalId))
             ->download($filename);
     }
 
@@ -104,12 +115,13 @@ class LaporanHarianIndex extends Component
         $this->authorize('exportPdf', LaporanHarian::class);
 
         $laporanList = LaporanHarian::with(['user', 'jenisKapal.company', 'jenisKapal.galangan'])
+            ->byJenisKapal($this->jenisKapalId)
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
                     $q->where('judul', 'like', "%{$this->search}%")
-                      ->orWhereHas('user', function ($q) {
-                          $q->where('name', 'like', "%{$this->search}%");
-                      });
+                        ->orWhereHas('user', function ($q) {
+                            $q->where('name', 'like', "%{$this->search}%");
+                        });
                 });
             })
             ->orderByDesc('tanggal_laporan')
@@ -122,10 +134,10 @@ class LaporanHarianIndex extends Component
         ]);
         $pdf->setPaper('a4', 'landscape');
 
-        $filename = 'laporan-harian-' . now()->format('Y-m-d-His') . '.pdf';
+        $filename = 'laporan-harian-'.now()->format('Y-m-d-His').'.pdf';
 
         return response()->streamDownload(
-            fn () => print($pdf->output()),
+            fn () => print ($pdf->output()),
             $filename
         );
     }
@@ -139,8 +151,7 @@ class LaporanHarianIndex extends Component
                 $this->perPage
             ),
             'queueStatus' => $queueStatusService->getQueueStatusMessage(),
-            'jenisKapalList' => $this->getJenisKapalList(),
-            'canViewAllJenisKapal' => $this->canViewAllJenisKapal(),
+            'jenisKapal' => $this->jenisKapal,
         ]);
     }
 }

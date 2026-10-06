@@ -1,53 +1,39 @@
 <div>
-    <div class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div class="w-full">
-            <x-searchable-select
-                wire:model.live="companyFilter"
-                :options="collect($companies)->map(fn($c) => ['value' => $c->id, 'label' => $c->name])->toArray()"
-                placeholder="Filter Perusahaan"
-                searchPlaceholder="Cari perusahaan..."
-            />
-        </div>
-
-        <div class="w-full">
-            <x-searchable-select
-                wire:model.live="galanganFilter"
-                :options="collect($galangans)->map(fn($g) => ['value' => $g->id, 'label' => $g->nama])->toArray()"
-                placeholder="Filter Galangan"
-                searchPlaceholder="Cari galangan..."
-            />
-        </div>
-
-        <div class="w-full">
-            <x-searchable-select
-                wire:model.live="statusFilter"
-                :options="collect($statuses)->map(fn($s) => ['value' => $s->value, 'label' => $s->label()])->toArray()"
-                placeholder="Filter Status"
-                searchPlaceholder="Cari status..."
-            />
-        </div>
-    </div>
-
     <div class="mb-6 flex flex-col lg:flex-row lg:items-center gap-3">
         <div class="flex-1">
             <input wire:model.live.debounce.300ms="search" type="text" placeholder="Cari jenis kapal..."
                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
         </div>
 
-        <div class="w-full lg:w-32">
-            <x-searchable-select
-                wire:model.live="perPage"
-                :options="[
-                    ['value' => '10', 'label' => '10'],
-                    ['value' => '25', 'label' => '25'],
-                    ['value' => '50', 'label' => '50'],
-                    ['value' => '100', 'label' => '100']
-                ]"
-                placeholder="10"
-                searchPlaceholder="Pilih jumlah..."
-                :clearable="false"
-            />
-        </div>
+        <x-filter-popover :filters="['companyFilter', 'galanganFilter', 'statusFilter']" :per-page="true">
+            <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Perusahaan</label>
+                <x-searchable-select
+                    wire:model.live="companyFilter"
+                    :options="collect($companies)->map(fn($c) => ['value' => $c->id, 'label' => $c->name])->toArray()"
+                    placeholder="Semua Perusahaan"
+                    searchPlaceholder="Cari perusahaan..."
+                />
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Galangan</label>
+                <x-searchable-select
+                    wire:model.live="galanganFilter"
+                    :options="collect($galangans)->map(fn($g) => ['value' => $g->id, 'label' => $g->nama])->toArray()"
+                    placeholder="Semua Galangan"
+                    searchPlaceholder="Cari galangan..."
+                />
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Status</label>
+                <x-searchable-select
+                    wire:model.live="statusFilter"
+                    :options="collect($statuses)->map(fn($s) => ['value' => $s->value, 'label' => $s->label()])->toArray()"
+                    placeholder="Semua Status"
+                    searchPlaceholder="Cari status..."
+                />
+            </div>
+        </x-filter-popover>
 
         <div class="flex items-center gap-2 flex-wrap">
             @can('jenis_kapal_download_template')

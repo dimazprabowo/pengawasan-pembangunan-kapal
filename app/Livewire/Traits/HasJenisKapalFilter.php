@@ -3,34 +3,36 @@
 namespace App\Livewire\Traits;
 
 use App\Models\JenisKapal;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
 trait HasJenisKapalFilter
 {
     /**
-     * Get filtered jenis kapal list based on user permissions.
-     * 
-     * @return Collection
+     * Base query for jenis kapal accessible by the current user.
      */
-    protected function getJenisKapalList(): Collection
+    protected function getJenisKapalQuery(): Builder
     {
-        $canViewAllJenisKapal = auth()->user()->can('laporan_view_all_jenis_kapal');
-
         return JenisKapal::with(['company', 'galangan'])
             ->active()
-            ->when(!$canViewAllJenisKapal, function ($q) {
+            ->when(! $this->canViewAllJenisKapal(), function ($q) {
                 $q->whereHas('company', function ($q) {
                     $q->where('id', auth()->user()->company_id);
                 });
             })
-            ->orderBy('nama')
-            ->get();
+            ->orderBy('nama');
+    }
+
+    /**
+     * Get filtered jenis kapal list based on user permissions.
+     */
+    protected function getJenisKapalList(): Collection
+    {
+        return $this->getJenisKapalQuery()->get();
     }
 
     /**
      * Check if user can view all jenis kapal.
-     * 
-     * @return bool
      */
     protected function canViewAllJenisKapal(): bool
     {
@@ -38,33 +40,22 @@ trait HasJenisKapalFilter
     }
 
     /**
-     * Get the session key for storing selected jenis kapal ID.
-     * 
-     * @return string
+     * Check if user may access a specific jenis kapal (company scope).
      */
-    protected function getJenisKapalSessionKey(): string
+    protected function canAccessJenisKapal(JenisKapal $jenisKapal): bool
     {
-        return 'laporan_jenis_kapal_id';
+        if ($this->canViewAllJenisKapal()) {
+            return true;
+        }
+
+        return $jenisKapal->company_id === auth()->user()->company_id;
     }
 
     /**
-     * Get the selected jenis kapal ID from session.
-     * 
-     * @return int|null
+     * Abort 403 unless user may access the given jenis kapal.
      */
-    protected function getSelectedJenisKapalId(): ?int
+    protected function authorizeJenisKapalAccess(JenisKapal $jenisKapal): void
     {
-        return session($this->getJenisKapalSessionKey());
-    }
-
-    /**
-     * Store the selected jenis kapal ID in session.
-     * 
-     * @param int|null $jenisKapalId
-     * @return void
-     */
-    protected function setSelectedJenisKapalId(?int $jenisKapalId): void
-    {
-        session([$this->getJenisKapalSessionKey() => $jenisKapalId]);
+        abort_unless($this->canAccessJenisKapal($jenisKapal), 403);
     }
 }

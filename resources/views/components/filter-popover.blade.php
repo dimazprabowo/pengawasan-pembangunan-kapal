@@ -1,5 +1,6 @@
 @props([
     'filters' => [],
+    'perPage' => false,
 ])
 
 <div class="relative w-full md:w-auto" x-data="{ filterOpen: false, dropUp: false,
@@ -41,6 +42,23 @@
         class="absolute right-0 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-20 p-4">
         <div class="space-y-3">
             {{ $slot }}
+            @if($perPage)
+                <div @class(['pt-3 border-t border-gray-200 dark:border-gray-700' => !$slot->isEmpty()])>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Tampilan per Halaman</label>
+                    <x-searchable-select
+                        wire:model.live="perPage"
+                        :options="[
+                            ['value' => '10', 'label' => '10'],
+                            ['value' => '25', 'label' => '25'],
+                            ['value' => '50', 'label' => '50'],
+                            ['value' => '100', 'label' => '100']
+                        ]"
+                        placeholder="10"
+                        searchPlaceholder="Pilih jumlah..."
+                        :clearable="false"
+                    />
+                </div>
+            @endif
         </div>
 
         <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">

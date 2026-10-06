@@ -4,8 +4,8 @@ namespace App\Livewire\MasterData;
 
 use App\Livewire\Traits\HasNotification;
 use App\Models\JenisKapal;
-use App\Services\KurvaSService;
 use App\Services\JenisKapalService;
+use App\Services\KurvaSService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -15,12 +15,15 @@ class KurvaSManagement extends Component
 {
     use AuthorizesRequests, HasNotification, WithFileUploads;
 
-    public bool $showModal  = false;
-    public ?int $jenisKapalId   = null;
+    public bool $showModal = false;
+
+    public ?int $jenisKapalId = null;
+
     public ?string $jenisKapalNama = null;
 
     // Import modal states
     public bool $showKurvaSImportModal = false;
+
     public $kurvaS_file;
 
     /**
@@ -48,7 +51,8 @@ class KurvaSManagement extends Component
 
     /** Konfirmasi hapus minggu */
     public ?int $confirmDeleteWeekGroupIdx = null;
-    public ?int $confirmDeleteWeekIdx      = null;
+
+    public ?int $confirmDeleteWeekIdx = null;
 
     #[On('open-kurvas-modal')]
     public function openModal(int $jenisKapalId): void
@@ -56,9 +60,9 @@ class KurvaSManagement extends Component
         $jenisKapal = JenisKapal::findOrFail($jenisKapalId);
         $this->authorize('managekurvaSRencana', $jenisKapal);
 
-        $this->jenisKapalId      = $jenisKapal->id;
-        $this->jenisKapalNama    = $jenisKapal->nama;
-        $this->expandedGroupIdx  = -1;
+        $this->jenisKapalId = $jenisKapal->id;
+        $this->jenisKapalNama = $jenisKapal->nama;
+        $this->expandedGroupIdx = -1;
         $this->loadData();
         $this->showModal = true;
     }
@@ -73,20 +77,20 @@ class KurvaSManagement extends Component
     private function loadData(): void
     {
         $jenisKapal = JenisKapal::findOrFail($this->jenisKapalId);
-        $groups     = $jenisKapal->kurvaSWorkGroups()->with('kurvaSRencana')->get();
+        $groups = $jenisKapal->kurvaSWorkGroups()->with('kurvaSRencana')->get();
 
-        $this->workGroups = $groups->map(fn($wg) => [
-            'id'    => $wg->id,
-            'nama'  => $wg->nama,
+        $this->workGroups = $groups->map(fn ($wg) => [
+            'id' => $wg->id,
+            'nama' => $wg->nama,
             'bobot' => number_format((float) $wg->bobot, 2, '.', ''),
-            'weeks' => $wg->kurvaSRencana->map(fn($r) => [
-                'minggu_ke'   => $r->minggu_ke,
+            'weeks' => $wg->kurvaSRencana->map(fn ($r) => [
+                'minggu_ke' => $r->minggu_ke,
                 'pct_rencana' => number_format((float) $r->pct_rencana, 2, '.', ''),
-                'keterangan'  => $r->keterangan ?? '',
+                'keterangan' => $r->keterangan ?? '',
             ])->toArray(),
         ])->toArray();
 
-        if (!empty($this->workGroups)) {
+        if (! empty($this->workGroups)) {
             $this->totalMinggu = max(1, count($this->workGroups[0]['weeks'] ?? []));
         }
     }
@@ -101,8 +105,8 @@ class KurvaSManagement extends Component
         }
 
         $this->workGroups[] = [
-            'id'    => null,
-            'nama'  => '',
+            'id' => null,
+            'nama' => '',
             'bobot' => '0.00',
             'weeks' => $weeks,
         ];
@@ -154,12 +158,14 @@ class KurvaSManagement extends Component
         if ($total < 1) {
             $this->addError('totalMinggu', 'Jumlah minggu minimal adalah 1 minggu.');
             $this->notifyWarning('Gagal menerapkan jumlah minggu. Silakan periksa input Anda.');
+
             return;
         }
 
         if ($total > 200) {
             $this->addError('totalMinggu', 'Jumlah minggu maksimal adalah 200 minggu.');
             $this->notifyWarning('Gagal menerapkan jumlah minggu. Silakan periksa input Anda.');
+
             return;
         }
 
@@ -169,6 +175,7 @@ class KurvaSManagement extends Component
 
         if ($count === 0) {
             $this->notifyWarning('Tidak ada work group. Tambahkan work group terlebih dahulu.');
+
             return;
         }
 
@@ -177,9 +184,9 @@ class KurvaSManagement extends Component
             if ($total > $current) {
                 for ($i = $current + 1; $i <= $total; $i++) {
                     $this->workGroups[$gi]['weeks'][] = [
-                        'minggu_ke'   => $i,
+                        'minggu_ke' => $i,
                         'pct_rencana' => '0.00',
-                        'keterangan'  => '',
+                        'keterangan' => '',
                     ];
                 }
             } elseif ($total < $current) {
@@ -194,22 +201,22 @@ class KurvaSManagement extends Component
     {
         $next = count($this->workGroups[$groupIdx]['weeks']) + 1;
         $this->workGroups[$groupIdx]['weeks'][] = [
-            'minggu_ke'   => $next,
+            'minggu_ke' => $next,
             'pct_rencana' => '0.00',
-            'keterangan'  => '',
+            'keterangan' => '',
         ];
     }
 
     public function requestDeleteWeek(int $groupIdx, int $weekIdx): void
     {
         $this->confirmDeleteWeekGroupIdx = $groupIdx;
-        $this->confirmDeleteWeekIdx      = $weekIdx;
+        $this->confirmDeleteWeekIdx = $weekIdx;
     }
 
     public function cancelDeleteWeek(): void
     {
         $this->confirmDeleteWeekGroupIdx = null;
-        $this->confirmDeleteWeekIdx      = null;
+        $this->confirmDeleteWeekIdx = null;
     }
 
     public function confirmDeleteWeek(): void
@@ -218,7 +225,7 @@ class KurvaSManagement extends Component
             $this->removeWeekFromGroup($this->confirmDeleteWeekGroupIdx, $this->confirmDeleteWeekIdx);
         }
         $this->confirmDeleteWeekGroupIdx = null;
-        $this->confirmDeleteWeekIdx      = null;
+        $this->confirmDeleteWeekIdx = null;
     }
 
     private function removeWeekFromGroup(int $groupIdx, int $weekIdx): void
@@ -233,7 +240,7 @@ class KurvaSManagement extends Component
 
     public function getTotalBobotProperty(): float
     {
-        return array_reduce($this->workGroups, fn($c, $wg) => $c + (float) ($wg['bobot'] ?? 0), 0.0);
+        return array_reduce($this->workGroups, fn ($c, $wg) => $c + (float) ($wg['bobot'] ?? 0), 0.0);
     }
 
     // ─── Validation ─────────────────────────────────────────────────────────
@@ -241,26 +248,26 @@ class KurvaSManagement extends Component
     protected function rules(): array
     {
         return [
-            'workGroups'                         => 'required|array|min:1',
-            'workGroups.*.nama'                  => 'required|string|max:255',
-            'workGroups.*.bobot'                 => 'required|numeric|min:0|max:100',
-            'workGroups.*.weeks'                 => 'array',
-            'workGroups.*.weeks.*.minggu_ke'     => 'required|integer|min:1',
-            'workGroups.*.weeks.*.pct_rencana'   => 'required|numeric|min:0|max:100',
-            'workGroups.*.weeks.*.keterangan'    => 'nullable|string|max:255',
+            'workGroups' => 'required|array|min:1',
+            'workGroups.*.nama' => 'required|string|max:255',
+            'workGroups.*.bobot' => 'required|numeric|min:0|max:100',
+            'workGroups.*.weeks' => 'array',
+            'workGroups.*.weeks.*.minggu_ke' => 'required|integer|min:1',
+            'workGroups.*.weeks.*.pct_rencana' => 'required|numeric|min:0|max:100',
+            'workGroups.*.weeks.*.keterangan' => 'nullable|string|max:255',
         ];
     }
 
     protected function messages(): array
     {
         return [
-            'workGroups.required'                      => 'Minimal harus ada 1 work group.',
-            'workGroups.min'                           => 'Minimal harus ada 1 work group.',
-            'workGroups.*.nama.required'               => 'Nama work group wajib diisi.',
-            'workGroups.*.bobot.required'              => 'Bobot wajib diisi.',
-            'workGroups.*.bobot.numeric'               => 'Bobot harus berupa angka.',
-            'workGroups.*.weeks.*.pct_rencana.required'=> 'Rencana % wajib diisi.',
-            'workGroups.*.weeks.*.pct_rencana.max'     => 'Rencana % per minggu maks 100%.',
+            'workGroups.required' => 'Minimal harus ada 1 work group.',
+            'workGroups.min' => 'Minimal harus ada 1 work group.',
+            'workGroups.*.nama.required' => 'Nama work group wajib diisi.',
+            'workGroups.*.bobot.required' => 'Bobot wajib diisi.',
+            'workGroups.*.bobot.numeric' => 'Bobot harus berupa angka.',
+            'workGroups.*.weeks.*.pct_rencana.required' => 'Rencana % wajib diisi.',
+            'workGroups.*.weeks.*.pct_rencana.max' => 'Rencana % per minggu maks 100%.',
         ];
     }
 
@@ -280,7 +287,8 @@ class KurvaSManagement extends Component
 
         $total = $this->totalBobot;
         if ($total > 100.01) {
-            $this->notifyError('Total bobot semua work group tidak boleh melebihi 100%. Saat ini: ' . number_format($total, 2) . '%');
+            $this->notifyError('Total bobot semua work group tidak boleh melebihi 100%. Saat ini: '.number_format($total, 2).'%');
+
             return;
         }
 
@@ -288,16 +296,16 @@ class KurvaSManagement extends Component
             $service->saveWorkGroups($jenisKapal, $this->workGroups);
 
             $warning = abs($total - 100.0) > 0.01
-                ? ' (Total bobot: ' . number_format($total, 2) . '% — belum 100%)'
+                ? ' (Total bobot: '.number_format($total, 2).'% — belum 100%)'
                 : '';
 
-            $this->notifySuccess('Kurva S berhasil disimpan!' . $warning);
+            $this->notifySuccess('Kurva S berhasil disimpan!'.$warning);
             $this->closeModal();
             $this->dispatch('kurvas-saved');
         } catch (\Illuminate\Auth\Access\AuthorizationException) {
             $this->notifyError('Anda tidak memiliki izin untuk mengatur Kurva S.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -313,7 +321,7 @@ class KurvaSManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk export template Kurva S.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -361,21 +369,21 @@ class KurvaSManagement extends Component
             $result = $service->importKurvaSTemplate($jenisKapal, $this->kurvaS_file);
 
             if ($result['success']) {
-                $this->notifySuccess($result['message'] . ' Total work groups: ' . $result['work_groups_count']);
+                $this->notifySuccess($result['message'].' Total work groups: '.$result['work_groups_count']);
                 $this->closeKurvaSImportModal();
                 $this->loadData(); // Reload data to show imported data
                 $this->dispatch('kurvas-imported');
             } else {
                 $errorMessage = 'Import gagal:';
                 foreach ($result['errors'] as $error) {
-                    $errorMessage .= "\n• " . $error;
+                    $errorMessage .= "\n• ".$error;
                 }
                 $this->notifyError($errorMessage);
             }
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk import template Kurva S.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 

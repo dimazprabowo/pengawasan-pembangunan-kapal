@@ -14,31 +14,46 @@ use Livewire\WithPagination;
 
 class CompanyManagement extends Component
 {
-    use WithPagination, AuthorizesRequests, HasNotification;
+    use AuthorizesRequests, HasNotification, WithPagination;
 
     protected $paginationTheme = 'tailwind';
 
     public $search = '';
+
     public $statusFilter = '';
+
     public int $perPage = 10;
+
     public $showModal = false;
+
     public $editMode = false;
 
     // Form fields
     public $companyId;
+
     public $code;
+
     public $name;
+
     public $email;
+
     public $phone;
+
     public $address;
+
     public $pic_name;
+
     public $pic_email;
+
     public $pic_phone;
+
     public $status = 'active';
-    
+
     // Delete Modal
     public $showDeleteModal = false;
+
     public $deletingCompanyId;
+
     public $deletingCompanyName;
 
     public function mount()
@@ -49,7 +64,7 @@ class CompanyManagement extends Component
     public function rules()
     {
         return [
-            'code' => ['required', 'string', 'max:50', $this->editMode ? 'unique:companies,code,' . $this->companyId : 'unique:companies,code'],
+            'code' => ['required', 'string', 'max:50', $this->editMode ? 'unique:companies,code,'.$this->companyId : 'unique:companies,code'],
             'name' => 'required|string|max:255',
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:20',
@@ -57,7 +72,7 @@ class CompanyManagement extends Component
             'pic_name' => 'nullable|string|max:255',
             'pic_email' => 'nullable|email|max:255',
             'pic_phone' => 'nullable|string|max:20',
-            'status' => ['required', 'string', 'in:' . implode(',', CompanyStatus::values())],
+            'status' => ['required', 'string', 'in:'.implode(',', CompanyStatus::values())],
         ];
     }
 
@@ -88,6 +103,12 @@ class CompanyManagement extends Component
 
     public function updatingPerPage()
     {
+        $this->resetPage();
+    }
+
+    public function resetFilters()
+    {
+        $this->reset(['search', 'statusFilter', 'perPage']);
         $this->resetPage();
     }
 
@@ -160,7 +181,7 @@ class CompanyManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk melakukan aksi ini.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -181,6 +202,7 @@ class CompanyManagement extends Component
             if ($company->users()->exists()) {
                 $this->notifyError('Perusahaan tidak dapat dihapus karena masih memiliki user terkait.');
                 $this->showDeleteModal = false;
+
                 return;
             }
 
@@ -190,7 +212,7 @@ class CompanyManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak dapat menghapus perusahaan ini.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -207,7 +229,7 @@ class CompanyManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk mengubah status perusahaan.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -241,7 +263,7 @@ class CompanyManagement extends Component
         $this->authorize('exportExcel', Company::class);
 
         return (new CompaniesExport($this->search, $this->statusFilter))
-            ->download('perusahaan-' . now()->format('Y-m-d-His') . '.xlsx');
+            ->download('perusahaan-'.now()->format('Y-m-d-His').'.xlsx');
     }
 
     public function exportPdf(CompanyService $service)
@@ -252,9 +274,9 @@ class CompanyManagement extends Component
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
                     $q->where('code', 'like', "%{$this->search}%")
-                      ->orWhere('name', 'like', "%{$this->search}%")
-                      ->orWhere('email', 'like', "%{$this->search}%")
-                      ->orWhere('pic_name', 'like', "%{$this->search}%");
+                        ->orWhere('name', 'like', "%{$this->search}%")
+                        ->orWhere('email', 'like', "%{$this->search}%")
+                        ->orWhere('pic_name', 'like', "%{$this->search}%");
                 });
             })
             ->when($this->statusFilter !== null && $this->statusFilter !== '', function ($q) {
@@ -267,8 +289,8 @@ class CompanyManagement extends Component
         $pdf->setPaper('a4', 'landscape');
 
         return response()->streamDownload(
-            fn () => print($pdf->output()),
-            'perusahaan-' . now()->format('Y-m-d-His') . '.pdf'
+            fn () => print ($pdf->output()),
+            'perusahaan-'.now()->format('Y-m-d-His').'.pdf'
         );
     }
 

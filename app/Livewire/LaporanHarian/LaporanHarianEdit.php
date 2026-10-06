@@ -9,7 +9,6 @@ use App\Models\Cuaca;
 use App\Models\JenisKapal;
 use App\Models\Kelembaban;
 use App\Models\LaporanHarian;
-use App\Models\LaporanLampiran;
 use App\Services\LaporanHarianService;
 use App\Services\QueueStatusService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -21,24 +20,38 @@ use Livewire\WithFileUploads;
 #[Layout('layouts.app', ['title' => 'Edit Laporan Harian'])]
 class LaporanHarianEdit extends Component
 {
-    use AuthorizesRequests, HasNotification, WithFileUploads, HasJenisKapalFilter;
+    use AuthorizesRequests, HasJenisKapalFilter, HasNotification, WithFileUploads;
 
     public LaporanHarian $laporan;
 
+    public JenisKapal $jenisKapal;
+
     public ?int $jenis_kapal_id = null;
+
     public string $judul = '';
+
     public string $tanggal_laporan = '';
+
     public ?float $suhu = null;
+
     public ?int $cuaca_pagi_id = null;
+
     public ?int $kelembaban_pagi_id = null;
+
     public ?int $cuaca_siang_id = null;
+
     public ?int $kelembaban_siang_id = null;
+
     public ?int $cuaca_sore_id = null;
+
     public ?int $kelembaban_sore_id = null;
 
     public array $personel = [];
+
     public array $peralatan = [];
+
     public array $consumable = [];
+
     public array $aktivitas = [];
 
     // Lampiran baru yang akan ditambahkan
@@ -49,42 +62,55 @@ class LaporanHarianEdit extends Component
 
     // Delete lampiran confirmation
     public bool $showDeleteLampiranModal = false;
+
     public ?int $deletingLampiranId = null;
 
     // Delete new (unsaved) lampiran confirmation
     public bool $showDeleteNewLampiranModal = false;
+
     public ?int $deletingNewLampiranIndex = null;
 
     // Delete personel confirmation
     public bool $showDeletePersonelModal = false;
+
     public ?int $deletingPersonelIndex = null;
 
     // Delete peralatan confirmation
     public bool $showDeletePeralatanModal = false;
+
     public ?int $deletingPeralatanIndex = null;
 
     // Delete consumable confirmation
     public bool $showDeleteConsumableModal = false;
+
     public ?int $deletingConsumableIndex = null;
 
     // Delete aktivitas confirmation
     public bool $showDeleteAktivitasModal = false;
+
     public ?int $deletingAktivitasIndex = null;
 
     // Image cropper modal
     public bool $showCropperModal = false;
+
     public ?int $croppingLampiranIndex = null;
+
     public ?string $croppingImageUrl = null;
+
     public array $cropData = [];
 
     // Lampiran preview modal
     public bool $showPreviewModal = false;
+
     public ?int $previewLampiranId = null;
 
-    public function mount(LaporanHarian $laporanHarian): void
+    public function mount(JenisKapal $jenisKapal, LaporanHarian $laporanHarian): void
     {
         $this->authorize('update', $laporanHarian);
+        $this->authorizeJenisKapalAccess($jenisKapal);
+        abort_unless($laporanHarian->jenis_kapal_id === $jenisKapal->id, 404);
 
+        $this->jenisKapal = $jenisKapal;
         $this->laporan = $laporanHarian;
         $this->jenis_kapal_id = $laporanHarian->jenis_kapal_id;
         $this->judul = $laporanHarian->judul;
@@ -102,7 +128,7 @@ class LaporanHarianEdit extends Component
                 'keterangan' => '',
                 'cropData' => null,
                 'is_cropped' => false,
-            ]
+            ],
         ];
 
         $this->suhu = $laporanHarian->suhu;
@@ -114,28 +140,28 @@ class LaporanHarianEdit extends Component
         $this->kelembaban_sore_id = $laporanHarian->kelembaban_sore_id;
 
         // Load existing dynamic data
-        $this->personel = $laporanHarian->personel->map(fn($p) => [
+        $this->personel = $laporanHarian->personel->map(fn ($p) => [
             'id' => $p->id,
             'jabatan' => $p->jabatan,
             'status' => $p->status,
             'keterangan' => $p->keterangan ?? '',
         ])->toArray();
 
-        $this->peralatan = $laporanHarian->peralatan->map(fn($p) => [
+        $this->peralatan = $laporanHarian->peralatan->map(fn ($p) => [
             'id' => $p->id,
             'jenis' => $p->jenis,
             'jumlah' => $p->jumlah,
             'keterangan' => $p->keterangan ?? '',
         ])->toArray();
 
-        $this->consumable = $laporanHarian->consumable->map(fn($c) => [
+        $this->consumable = $laporanHarian->consumable->map(fn ($c) => [
             'id' => $c->id,
             'jenis' => $c->jenis,
             'jumlah' => $c->jumlah,
             'keterangan' => $c->keterangan ?? '',
         ])->toArray();
 
-        $this->aktivitas = $laporanHarian->aktivitas->map(fn($a) => [
+        $this->aktivitas = $laporanHarian->aktivitas->map(fn ($a) => [
             'id' => $a->id,
             'kategori' => $a->kategori,
             'aktivitas' => $a->aktivitas,
@@ -221,7 +247,7 @@ class LaporanHarianEdit extends Component
             $this->deletingLampiranId = null;
             $this->notifySuccess('Lampiran berhasil dihapus.');
         } catch (\Exception $e) {
-            $this->notifyError('Gagal menghapus lampiran: ' . $e->getMessage());
+            $this->notifyError('Gagal menghapus lampiran: '.$e->getMessage());
         }
     }
 
@@ -260,20 +286,22 @@ class LaporanHarianEdit extends Component
 
     public function openCropper(int $index): void
     {
-        if (!isset($this->newLampiran[$index]['file'])) {
+        if (! isset($this->newLampiran[$index]['file'])) {
             return;
         }
 
         $file = $this->newLampiran[$index]['file'];
-        if (!$file || !is_object($file)) {
+        if (! $file || ! is_object($file)) {
             $this->notifyWarning('File tidak valid, silakan upload ulang.');
+
             return;
         }
 
         // Only allow crop for images
         $extension = strtolower($file->getClientOriginalExtension());
-        if (!in_array($extension, ['jpg', 'jpeg', 'png', 'webp'])) {
+        if (! in_array($extension, ['jpg', 'jpeg', 'png', 'webp'])) {
             $this->notifyWarning('Crop hanya tersedia untuk file gambar (JPG, PNG, WEBP).');
+
             return;
         }
 
@@ -294,7 +322,7 @@ class LaporanHarianEdit extends Component
 
     public function saveCrop(): void
     {
-        if ($this->croppingLampiranIndex !== null && !empty($this->cropData)) {
+        if ($this->croppingLampiranIndex !== null && ! empty($this->cropData)) {
             // Save crop data to the lampiran item to persist settings
             $this->newLampiran[$this->croppingLampiranIndex]['cropData'] = $this->cropData;
             $this->newLampiran[$this->croppingLampiranIndex]['is_cropped'] = true;
@@ -310,7 +338,7 @@ class LaporanHarianEdit extends Component
             $service->updateLampiranKeterangan($lampiran, $keterangan);
             $this->notifySuccess('Keterangan lampiran diperbarui.');
         } catch (\Exception $e) {
-            $this->notifyError('Gagal memperbarui keterangan: ' . $e->getMessage());
+            $this->notifyError('Gagal memperbarui keterangan: '.$e->getMessage());
         }
     }
 
@@ -329,7 +357,7 @@ class LaporanHarianEdit extends Component
     public function save(LaporanHarianService $service): void
     {
         $this->authorize('update', $this->laporan);
-        
+
         try {
             $this->validate();
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -355,69 +383,68 @@ class LaporanHarianEdit extends Component
             $service->update($this->laporan, $data);
 
             // Update dynamic inputs
-            {
-                // Sync personel - allow partial data (any field filled)
-                $this->laporan->personel()->delete();
-                foreach ($this->personel as $personelData) {
-                    $hasData = !empty($personelData['jabatan']) || 
-                              !empty($personelData['status']) || 
-                              !empty($personelData['keterangan']);
-                    
-                    if ($hasData) {
-                        $this->laporan->personel()->create([
-                            'jabatan' => $personelData['jabatan'] ?: null,
-                            'status' => $personelData['status'] ?: null,
-                            'keterangan' => $personelData['keterangan'] ?: null,
-                        ]);
-                    }
-                }
 
-                // Sync peralatan - allow partial data (any field filled)
-                $this->laporan->peralatan()->delete();
-                foreach ($this->peralatan as $peralatanData) {
-                    $hasData = !empty($peralatanData['jenis']) || 
-                              !empty($peralatanData['jumlah']) || 
-                              !empty($peralatanData['keterangan']);
-                    
-                    if ($hasData) {
-                        $this->laporan->peralatan()->create([
-                            'jenis' => $peralatanData['jenis'] ?: null,
-                            'jumlah' => $peralatanData['jumlah'] ?: null,
-                            'keterangan' => $peralatanData['keterangan'] ?: null,
-                        ]);
-                    }
-                }
+            // Sync personel - allow partial data (any field filled)
+            $this->laporan->personel()->delete();
+            foreach ($this->personel as $personelData) {
+                $hasData = ! empty($personelData['jabatan']) ||
+                          ! empty($personelData['status']) ||
+                          ! empty($personelData['keterangan']);
 
-                // Sync consumable - allow partial data (any field filled)
-                $this->laporan->consumable()->delete();
-                foreach ($this->consumable as $consumableData) {
-                    $hasData = !empty($consumableData['jenis']) || 
-                              !empty($consumableData['jumlah']) || 
-                              !empty($consumableData['keterangan']);
-                    
-                    if ($hasData) {
-                        $this->laporan->consumable()->create([
-                            'jenis' => $consumableData['jenis'] ?: null,
-                            'jumlah' => $consumableData['jumlah'] ?: null,
-                            'keterangan' => $consumableData['keterangan'] ?: null,
-                        ]);
-                    }
+                if ($hasData) {
+                    $this->laporan->personel()->create([
+                        'jabatan' => $personelData['jabatan'] ?: null,
+                        'status' => $personelData['status'] ?: null,
+                        'keterangan' => $personelData['keterangan'] ?: null,
+                    ]);
                 }
+            }
 
-                // Sync aktivitas - allow partial data (any field filled)
-                $this->laporan->aktivitas()->delete();
-                foreach ($this->aktivitas as $aktivitasData) {
-                    $hasData = !empty($aktivitasData['kategori']) || 
-                              !empty($aktivitasData['aktivitas']) || 
-                              !empty($aktivitasData['pic']);
-                    
-                    if ($hasData) {
-                        $this->laporan->aktivitas()->create([
-                            'kategori' => $aktivitasData['kategori'] ?: null,
-                            'aktivitas' => $aktivitasData['aktivitas'] ?: null,
-                            'pic' => $aktivitasData['pic'] ?: null,
-                        ]);
-                    }
+            // Sync peralatan - allow partial data (any field filled)
+            $this->laporan->peralatan()->delete();
+            foreach ($this->peralatan as $peralatanData) {
+                $hasData = ! empty($peralatanData['jenis']) ||
+                          ! empty($peralatanData['jumlah']) ||
+                          ! empty($peralatanData['keterangan']);
+
+                if ($hasData) {
+                    $this->laporan->peralatan()->create([
+                        'jenis' => $peralatanData['jenis'] ?: null,
+                        'jumlah' => $peralatanData['jumlah'] ?: null,
+                        'keterangan' => $peralatanData['keterangan'] ?: null,
+                    ]);
+                }
+            }
+
+            // Sync consumable - allow partial data (any field filled)
+            $this->laporan->consumable()->delete();
+            foreach ($this->consumable as $consumableData) {
+                $hasData = ! empty($consumableData['jenis']) ||
+                          ! empty($consumableData['jumlah']) ||
+                          ! empty($consumableData['keterangan']);
+
+                if ($hasData) {
+                    $this->laporan->consumable()->create([
+                        'jenis' => $consumableData['jenis'] ?: null,
+                        'jumlah' => $consumableData['jumlah'] ?: null,
+                        'keterangan' => $consumableData['keterangan'] ?: null,
+                    ]);
+                }
+            }
+
+            // Sync aktivitas - allow partial data (any field filled)
+            $this->laporan->aktivitas()->delete();
+            foreach ($this->aktivitas as $aktivitasData) {
+                $hasData = ! empty($aktivitasData['kategori']) ||
+                          ! empty($aktivitasData['aktivitas']) ||
+                          ! empty($aktivitasData['pic']);
+
+                if ($hasData) {
+                    $this->laporan->aktivitas()->create([
+                        'kategori' => $aktivitasData['kategori'] ?: null,
+                        'aktivitas' => $aktivitasData['aktivitas'] ?: null,
+                        'pic' => $aktivitasData['pic'] ?: null,
+                    ]);
                 }
             }
 
@@ -425,7 +452,7 @@ class LaporanHarianEdit extends Component
             foreach ($this->newLampiran as $lampiranData) {
                 if (isset($lampiranData['file']) && $lampiranData['file'] && is_object($lampiranData['file'])) {
                     $file = $lampiranData['file'];
-                    $tempPath = 'laporan-temp/' . uniqid() . '_' . $file->getClientOriginalName();
+                    $tempPath = 'laporan-temp/'.uniqid().'_'.$file->getClientOriginalName();
                     Storage::disk('local')->put($tempPath, file_get_contents($file->getRealPath()));
 
                     // Create lampiran record
@@ -444,7 +471,7 @@ class LaporanHarianEdit extends Component
                 }
             }
 
-            $hasNewLampiran = collect($this->newLampiran)->filter(fn($l) => isset($l['file']) && $l['file'] && is_object($l['file']))->isNotEmpty();
+            $hasNewLampiran = collect($this->newLampiran)->filter(fn ($l) => isset($l['file']) && $l['file'] && is_object($l['file']))->isNotEmpty();
             $message = 'Laporan Harian berhasil diupdate!';
             if ($hasNewLampiran) {
                 $message .= ' Lampiran baru sedang diproses di background.';
@@ -452,20 +479,21 @@ class LaporanHarianEdit extends Component
 
             $this->notifySuccess($message);
 
-            $this->redirect(route('laporan-harian.index'), navigate: true);
+            $this->redirect(route('laporan-harian.index', $this->jenisKapal), navigate: true);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk mengupdate laporan ini.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
     public function openLampiranPreview(int $lampiranId): void
     {
         $lampiran = $this->laporan->lampiran->find($lampiranId);
-        
-        if (!$lampiran || !$lampiran->hasFile() || !$lampiran->isFileCompleted()) {
+
+        if (! $lampiran || ! $lampiran->hasFile() || ! $lampiran->isFileCompleted()) {
             $this->notifyWarning('File lampiran tidak tersedia.');
+
             return;
         }
 
@@ -481,7 +509,7 @@ class LaporanHarianEdit extends Component
 
     public function getPreviewLampiranProperty()
     {
-        if (!$this->previewLampiranId) {
+        if (! $this->previewLampiranId) {
             return null;
         }
 
@@ -494,27 +522,29 @@ class LaporanHarianEdit extends Component
 
         $lampiran = $this->laporan->lampiran->find($lampiranId);
 
-        if (!$lampiran || $lampiran->laporan_harian_id !== $this->laporan->id) {
+        if (! $lampiran || $lampiran->laporan_harian_id !== $this->laporan->id) {
             $this->notifyError('Lampiran tidak ditemukan.');
+
             return;
         }
 
-        if (!$lampiran->file_path || !Storage::disk('local')->exists($lampiran->file_path)) {
+        if (! $lampiran->file_path || ! Storage::disk('local')->exists($lampiran->file_path)) {
             $this->notifyError('File tidak ditemukan.');
+
             return;
         }
 
         $extension = strtolower(pathinfo($lampiran->file_name, PATHINFO_EXTENSION));
         $mimeTypes = [
-            'pdf'  => 'application/pdf',
-            'doc'  => 'application/msword',
+            'pdf' => 'application/pdf',
+            'doc' => 'application/msword',
             'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'xls'  => 'application/vnd.ms-excel',
+            'xls' => 'application/vnd.ms-excel',
             'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'png'  => 'image/png',
-            'jpg'  => 'image/jpeg',
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
             'jpeg' => 'image/jpeg',
-            'gif'  => 'image/gif',
+            'gif' => 'image/gif',
             'webp' => 'image/webp',
         ];
 
@@ -522,31 +552,31 @@ class LaporanHarianEdit extends Component
 
         return response(Storage::disk('local')->get($lampiran->file_path))
             ->header('Content-Type', $mime)
-            ->header('Content-Disposition', 'inline; filename="' . $lampiran->file_name . '"');
+            ->header('Content-Disposition', 'inline; filename="'.$lampiran->file_name.'"');
     }
 
     public function getLampiranImageDataUrl(int $lampiranId): ?string
     {
         $lampiran = $this->laporan->lampiran->find($lampiranId);
 
-        if (!$lampiran || $lampiran->laporan_harian_id !== $this->laporan->id) {
+        if (! $lampiran || $lampiran->laporan_harian_id !== $this->laporan->id) {
             return null;
         }
 
-        if (!$lampiran->file_path || !Storage::disk('local')->exists($lampiran->file_path)) {
+        if (! $lampiran->file_path || ! Storage::disk('local')->exists($lampiran->file_path)) {
             return null;
         }
 
         $extension = strtolower(pathinfo($lampiran->file_name, PATHINFO_EXTENSION));
         $mimeTypes = [
-            'png'  => 'image/png',
-            'jpg'  => 'image/jpeg',
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
             'jpeg' => 'image/jpeg',
-            'gif'  => 'image/gif',
+            'gif' => 'image/gif',
             'webp' => 'image/webp',
         ];
 
-        if (!isset($mimeTypes[$extension])) {
+        if (! isset($mimeTypes[$extension])) {
             return null;
         }
 
@@ -559,7 +589,7 @@ class LaporanHarianEdit extends Component
 
     public function getPreviewLampiranImageUrlProperty(): ?string
     {
-        if (!$this->previewLampiran) {
+        if (! $this->previewLampiran) {
             return null;
         }
 
@@ -572,13 +602,15 @@ class LaporanHarianEdit extends Component
 
         $lampiran = $this->laporan->lampiran->find($lampiranId);
 
-        if (!$lampiran || $lampiran->laporan_harian_id !== $this->laporan->id) {
+        if (! $lampiran || $lampiran->laporan_harian_id !== $this->laporan->id) {
             $this->notifyError('Lampiran tidak ditemukan.');
+
             return;
         }
 
-        if (!$lampiran->file_path || !Storage::disk('local')->exists($lampiran->file_path)) {
+        if (! $lampiran->file_path || ! Storage::disk('local')->exists($lampiran->file_path)) {
             $this->notifyError('File tidak ditemukan.');
+
             return;
         }
 
@@ -587,14 +619,16 @@ class LaporanHarianEdit extends Component
 
     public function previewCroppedImage(int $index): void
     {
-        if (!isset($this->newLampiran[$index]['file'])) {
+        if (! isset($this->newLampiran[$index]['file'])) {
             $this->notifyWarning('File tidak ditemukan.');
+
             return;
         }
 
         $file = $this->newLampiran[$index]['file'];
-        if (!$file) {
+        if (! $file) {
             $this->notifyWarning('File tidak ditemukan.');
+
             return;
         }
 
@@ -611,7 +645,7 @@ class LaporanHarianEdit extends Component
         $this->personel[] = [
             'jabatan' => '',
             'status' => '',
-            'keterangan' => ''
+            'keterangan' => '',
         ];
     }
 
@@ -644,7 +678,7 @@ class LaporanHarianEdit extends Component
         $this->peralatan[] = [
             'jenis' => '',
             'jumlah' => '',
-            'keterangan' => ''
+            'keterangan' => '',
         ];
     }
 
@@ -677,7 +711,7 @@ class LaporanHarianEdit extends Component
         $this->consumable[] = [
             'jenis' => '',
             'jumlah' => '',
-            'keterangan' => ''
+            'keterangan' => '',
         ];
     }
 
@@ -710,7 +744,7 @@ class LaporanHarianEdit extends Component
         $this->aktivitas[] = [
             'kategori' => 'New Building',
             'aktivitas' => '',
-            'pic' => ''
+            'pic' => '',
         ];
     }
 
@@ -768,7 +802,7 @@ class LaporanHarianEdit extends Component
         $englishDayName = date('l', strtotime($tanggal));
         $indonesianDayName = $this->indonesianDayNames[$englishDayName] ?? $englishDayName;
 
-        return 'Laporan Hari ' . $indonesianDayName;
+        return 'Laporan Hari '.$indonesianDayName;
     }
 
     /**
@@ -783,7 +817,7 @@ class LaporanHarianEdit extends Component
         $newIndonesianDayName = $this->indonesianDayNames[$englishDayName] ?? $englishDayName;
 
         // Build regex pattern to find any Indonesian day name in the string
-        $pattern = '/(' . implode('|', $dayNames) . ')/i';
+        $pattern = '/('.implode('|', $dayNames).')/i';
 
         // Check if current judul contains any day name
         if (preg_match($pattern, $currentJudul, $matches)) {
@@ -815,7 +849,6 @@ class LaporanHarianEdit extends Component
 
         return view('livewire.laporan-harian.laporan-harian-edit', [
             'queueStatus' => $queueStatusService->getQueueStatusMessage(),
-            'jenisKapalList' => $this->getJenisKapalList(),
             'cuacaList' => $cuacaList,
             'kelembabanList' => $kelembabanList,
         ]);

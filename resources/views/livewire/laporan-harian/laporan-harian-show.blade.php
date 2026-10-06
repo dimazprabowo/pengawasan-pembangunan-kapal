@@ -10,7 +10,7 @@
     <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
             <div class="flex items-center gap-2">
-                <a href="{{ route('laporan-harian.index') }}" wire:navigate
+                <a href="{{ route('laporan-harian.index', $jenisKapal) }}" wire:navigate
                     x-data="{ loading: false }" x-on:click="loading = true"
                     x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                     class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
@@ -28,7 +28,7 @@
         </div>
         <div class="flex items-center gap-2">
             @can('update', $laporan)
-                <a href="{{ route('laporan-harian.edit', $laporan) }}" wire:navigate
+                <a href="{{ route('laporan-harian.edit', [$jenisKapal, $laporan]) }}" wire:navigate
                     x-data="{ loading: false }" x-on:click="loading = true"
                     x-bind:class="loading ? 'opacity-75 pointer-events-none' : ''"
                     class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800">
@@ -487,7 +487,7 @@
 
     {{-- Back button --}}
     <div class="flex items-center">
-        <a href="{{ route('laporan-harian.index') }}" wire:navigate
+        <a href="{{ route('laporan-harian.index', $jenisKapal) }}" wire:navigate
             x-data="{ loading: false }" x-on:click="loading = true"
             x-bind:class="loading ? 'opacity-75 pointer-events-none' : ''"
             class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">

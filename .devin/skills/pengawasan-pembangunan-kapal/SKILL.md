@@ -140,6 +140,7 @@ Jika butuh variant baru (mis. warna/size berbeda), EXTEND komponen yang ada via 
   - Icon: SELALU via `<x-slot:icon>` berisi inline SVG Heroicons (`w-4 h-4` untuk filled, `w-5 h-5` untuk tombol besar). TIDAK ada prop `icon` built-in di app ini.
   - Contoh: `<x-loading-button wire:click="exportExcel" target="exportExcel" variant="success" size="md" loadingText="Exporting..." title="Export Excel"><x-slot:icon><svg .../></x-slot:icon>Excel</x-loading-button>`.
   - Tombol navigasi (Tambah/View/Edit halaman) -> `wire:click` + redirect method di component: `return $this->redirect(route('...', $model), navigate: true);`. DILARANG raw `<a href>` ber-styling button (kecuali breadcrumb/text link).
+  - `<x-loading-button>` di dalam SEL tabel dengan `loadingText` WAJIB fixed width (mis. `class="w-24"`): swap teks->spinner mengubah lebar tombol; pada tabel `whitespace-nowrap` + `overflow-x-auto` itu memunculkan scrollbar horizontal (height card "melompat").
 - Tombol ICON di dalam tabel (edit/delete/view) memakai pola raw `<button>` yang sudah ada (belum ada komponen icon-button — ikuti pola ini, jangan buat komponen baru tanpa kebutuhan):
   ```blade
   <button wire:click="edit({{ $item->id }})"
@@ -164,6 +165,28 @@ Jika butuh variant baru (mis. warna/size berbeda), EXTEND komponen yang ada via 
 - String UI berbahasa Indonesia (boleh hardcode, app belum pakai lang files).
 - Breadcrumb WAJIB di full-page form (mis. Laporan Harian > Edit).
 - DILARANG menulis raw `<button wire:click>` dengan SVG spinner manual untuk tombol FILLED — pakai `<x-loading-button>`. (Pola raw button hanya untuk icon action di tabel & toggle.)
+
+## Toolbar Index & Filter (pola WAJIB untuk semua halaman index)
+Urutan toolbar: `[search flex-1] → [x-filter-popover] → [action buttons]`.
+- SEMUA filter data (`*Filter` props) + select `perPage` WAJIB masuk ke dalam `<x-filter-popover>` — JANGAN taruh inline di toolbar.
+  ```blade
+  <x-filter-popover :filters="['companyFilter', 'statusFilter']" :per-page="true">
+      <div>
+          <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Perusahaan</label>
+          <x-searchable-select wire:model.live="companyFilter" :options="..." placeholder="Semua Perusahaan" searchPlaceholder="Cari perusahaan..." />
+      </div>
+      {{-- filter lain, masing-masing dibungkus <div> + <label> kecil --}}
+  </x-filter-popover>
+  ```
+- Kontrak `x-filter-popover` (WAJIB dipenuhi component):
+  1. Prop `:filters` = array nama wire property — dipakai untuk badge jumlah filter aktif di tombol. JANGAN masukkan `perPage`/`search` ke sini.
+  2. Prop `:per-page="true"` = render select "Tampilan per Halaman" (10/25/50/100, `wire:model.live="perPage"`, clearable=false) otomatis di bawah slot — pakai di semua index yang punya `perPage`. Halaman tanpa filter data boleh pakai `<x-filter-popover :per-page="true" />` tanpa slot.
+  3. Method `resetFilters()` HARUS ada (tombol "Reset Filter" di-wired internal): `public function resetFilters() { $this->reset(['search', ...$filterProps, 'perPage']); $this->resetPage(); }` — ikut reset `search` dan `perPage` (bila `per-page` dipakai).
+  4. Setiap filter prop punya `updating{Prop}()` -> `$this->resetPage()` (termasuk `updatingPerPage`).
+  5. Tiap select di dalam popover dibungkus `<div>` + `<label class="block text-xs font-medium ...">` dan placeholder `"Semua {Nama}"` (bukan "Filter {Nama}").
+- `search` TETAP inline di toolbar (bukan di popover).
+- Pengecualian: filter 2-3 opsi mutually-exclusive yang sering diganti cepat (mis. Semua/Belum dibaca/Sudah dibaca di notifikasi) boleh pakai pill-tabs, bukan popover.
+- Filter select di dalam FORM/modal TIDAK masuk popover — aturan ini hanya untuk toolbar index.
 
 ## Livewire & Blade Gotchas (pelajaran dari bug fix — WAJIB dihindari)
 1. **`wire:loading.class` syntax**: pakai `wire:loading.class="hidden"` (tambah class saat loading) dan `wire:loading.class.remove="..."`. Jangan andalkan modifier `.add` — pola terbukti di tabel memakai `wire:loading.class="hidden"` pada SVG ikon.
@@ -308,6 +331,7 @@ JANGAN bocorkan pesan exception mentah ke user.
 - [ ] Form strategy tepat: modal untuk sederhana, full-page component class untuk kompleks (nested/repeater/upload)
 - [ ] Permission di PermissionSeeder + `can:` middleware di route + Policy terdaftar + grup di RolePermissionService + menu di HasMenuItems
 - [ ] Blade: pakai reusable components (cek inventaris), dark mode, TANPA logic (logic di Enum/Service)
+- [ ] Filter index + `perPage` di dalam `<x-filter-popover>` (`:filters` + `:per-page` + `resetFilters()` + `updating*` resetPage); `search` tetap inline
 - [ ] Responsive: mobile-first, tabel overflow-x-auto, grid form adaptif, action bar stack di mobile
 - [ ] Row & action button di loop punya wire:key/wire:target unik + loading state
 - [ ] File (jika ada): async via Job + status file + cleanup temp + markWorkerActive

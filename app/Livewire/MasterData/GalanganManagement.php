@@ -15,31 +15,48 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class GalanganManagement extends Component
 {
-    use WithPagination, AuthorizesRequests, HasNotification;
+    use AuthorizesRequests, HasNotification, WithPagination;
 
     protected $paginationTheme = 'tailwind';
 
     public $search = '';
+
     public $statusFilter = '';
+
     public int $perPage = 10;
+
     public $showModal = false;
+
     public $editMode = false;
 
     public $galanganId;
+
     public $kode;
+
     public $nama;
+
     public $alamat;
+
     public $kota;
+
     public $provinsi;
+
     public $telepon;
+
     public $email;
+
     public $pic_name;
+
     public $pic_phone;
+
     public $keterangan;
+
     public $status = 'active';
-    
+
     public $showDeleteModal = false;
+
     public $deletingGalanganId;
+
     public $deletingGalanganNama;
 
     public function mount()
@@ -50,9 +67,9 @@ class GalanganManagement extends Component
     public function rules()
     {
         $galanganId = $this->editMode ? $this->galanganId : null;
-        
+
         return [
-            'kode' => ['required', 'string', 'max:50', 'unique:galangan,kode,' . $galanganId],
+            'kode' => ['required', 'string', 'max:50', 'unique:galangan,kode,'.$galanganId],
             'nama' => 'required|string|max:255',
             'alamat' => 'nullable|string',
             'kota' => 'nullable|string|max:100',
@@ -62,7 +79,7 @@ class GalanganManagement extends Component
             'pic_name' => 'nullable|string|max:255',
             'pic_phone' => 'nullable|string|max:20',
             'keterangan' => 'nullable|string',
-            'status' => ['required', 'string', 'in:' . implode(',', GalanganStatus::values())],
+            'status' => ['required', 'string', 'in:'.implode(',', GalanganStatus::values())],
         ];
     }
 
@@ -95,6 +112,12 @@ class GalanganManagement extends Component
 
     public function updatingPerPage()
     {
+        $this->resetPage();
+    }
+
+    public function resetFilters()
+    {
+        $this->reset(['search', 'statusFilter', 'perPage']);
         $this->resetPage();
     }
 
@@ -171,7 +194,7 @@ class GalanganManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk melakukan aksi ini.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -195,7 +218,7 @@ class GalanganManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak dapat menghapus galangan ini.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -212,7 +235,7 @@ class GalanganManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk mengubah status galangan.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -249,7 +272,7 @@ class GalanganManagement extends Component
 
         return Excel::download(
             new GalanganExport($this->search, $this->statusFilter),
-            'galangan-' . now()->format('Y-m-d-His') . '.xlsx'
+            'galangan-'.now()->format('Y-m-d-His').'.xlsx'
         );
     }
 
@@ -262,10 +285,10 @@ class GalanganManagement extends Component
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
                     $q->where('nama', 'like', "%{$this->search}%")
-                      ->orWhere('kode', 'like', "%{$this->search}%")
-                      ->orWhere('kota', 'like', "%{$this->search}%")
-                      ->orWhere('provinsi', 'like', "%{$this->search}%")
-                      ->orWhere('pic_name', 'like', "%{$this->search}%");
+                        ->orWhere('kode', 'like', "%{$this->search}%")
+                        ->orWhere('kota', 'like', "%{$this->search}%")
+                        ->orWhere('provinsi', 'like', "%{$this->search}%")
+                        ->orWhere('pic_name', 'like', "%{$this->search}%");
                 });
             })
             ->when($this->statusFilter !== null && $this->statusFilter !== '', function ($q) {
@@ -278,8 +301,8 @@ class GalanganManagement extends Component
         $pdf->setPaper('a4', 'landscape');
 
         return response()->streamDownload(
-            fn () => print($pdf->output()),
-            'galangan-' . now()->format('Y-m-d-His') . '.pdf'
+            fn () => print ($pdf->output()),
+            'galangan-'.now()->format('Y-m-d-His').'.pdf'
         );
     }
 

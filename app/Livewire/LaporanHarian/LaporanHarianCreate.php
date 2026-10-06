@@ -19,7 +19,9 @@ use Livewire\WithFileUploads;
 #[Layout('layouts.app', ['title' => 'Tambah Laporan Harian'])]
 class LaporanHarianCreate extends Component
 {
-    use AuthorizesRequests, HasNotification, WithFileUploads, HasJenisKapalFilter;
+    use AuthorizesRequests, HasJenisKapalFilter, HasNotification, WithFileUploads;
+
+    public JenisKapal $jenisKapal;
 
     public ?int $jenis_kapal_id = null;
 
@@ -30,45 +32,62 @@ class LaporanHarianCreate extends Component
 
     // Delete card confirmation modal
     public bool $showDeleteCardModal = false;
+
     public ?int $deletingCardIndex = null;
 
     // Delete lampiran confirmation modal
     public bool $showDeleteLampiranModal = false;
+
     public ?int $deletingLampiranItemIndex = null;
+
     public ?int $deletingLampiranIndex = null;
 
     // Delete personel confirmation modal
     public bool $showDeletePersonelModal = false;
+
     public ?int $deletingPersonelItemIndex = null;
+
     public ?int $deletingPersonelIndex = null;
 
     // Delete peralatan confirmation modal
     public bool $showDeletePeralatanModal = false;
+
     public ?int $deletingPeralatanItemIndex = null;
+
     public ?int $deletingPeralatanIndex = null;
 
     // Delete consumable confirmation modal
     public bool $showDeleteConsumableModal = false;
+
     public ?int $deletingConsumableItemIndex = null;
+
     public ?int $deletingConsumableIndex = null;
 
     // Delete aktivitas confirmation modal
     public bool $showDeleteAktivitasModal = false;
+
     public ?int $deletingAktivitasItemIndex = null;
+
     public ?int $deletingAktivitasIndex = null;
 
     // Image cropper modal
     public bool $showCropperModal = false;
+
     public ?int $croppingItemIndex = null;
+
     public ?int $croppingLampiranIndex = null;
+
     public ?string $croppingImageUrl = null;
+
     public array $cropData = [];
 
-    public function mount(): void
+    public function mount(JenisKapal $jenisKapal): void
     {
         $this->authorize('create', LaporanHarian::class);
+        $this->authorizeJenisKapalAccess($jenisKapal);
 
-        $this->jenis_kapal_id = $this->getSelectedJenisKapalId();
+        $this->jenisKapal = $jenisKapal;
+        $this->jenis_kapal_id = $jenisKapal->id;
         $this->addItem();
     }
 
@@ -96,7 +115,7 @@ class LaporanHarianCreate extends Component
                 'keterangan' => '',
                 'cropData' => null,
                 'is_cropped' => false,
-            ]
+            ],
         ];
     }
 
@@ -104,6 +123,7 @@ class LaporanHarianCreate extends Component
     {
         if (count($this->items) <= 1) {
             $this->notifyWarning('Minimal harus ada 1 laporan.');
+
             return;
         }
 
@@ -165,20 +185,22 @@ class LaporanHarianCreate extends Component
 
     public function openCropper(int $itemIndex, int $lampiranIndex): void
     {
-        if (!isset($this->lampiran[$itemIndex][$lampiranIndex]['file'])) {
+        if (! isset($this->lampiran[$itemIndex][$lampiranIndex]['file'])) {
             return;
         }
 
         $file = $this->lampiran[$itemIndex][$lampiranIndex]['file'];
-        if (!$file || !is_object($file)) {
+        if (! $file || ! is_object($file)) {
             $this->notifyWarning('File tidak valid, silakan upload ulang.');
+
             return;
         }
 
         // Only allow crop for images
         $extension = strtolower($file->getClientOriginalExtension());
-        if (!in_array($extension, ['jpg', 'jpeg', 'png', 'webp'])) {
+        if (! in_array($extension, ['jpg', 'jpeg', 'png', 'webp'])) {
             $this->notifyWarning('Crop hanya tersedia untuk file gambar (JPG, PNG, WEBP).');
+
             return;
         }
 
@@ -200,7 +222,7 @@ class LaporanHarianCreate extends Component
 
     public function saveCrop(): void
     {
-        if ($this->croppingItemIndex !== null && $this->croppingLampiranIndex !== null && !empty($this->cropData)) {
+        if ($this->croppingItemIndex !== null && $this->croppingLampiranIndex !== null && ! empty($this->cropData)) {
             $this->lampiran[$this->croppingItemIndex][$this->croppingLampiranIndex]['cropData'] = $this->cropData;
             $this->lampiran[$this->croppingItemIndex][$this->croppingLampiranIndex]['is_cropped'] = true;
             $this->notifySuccess('Crop berhasil disimpan.');
@@ -210,14 +232,16 @@ class LaporanHarianCreate extends Component
 
     public function previewCroppedImage(int $itemIndex, int $lampiranIndex): void
     {
-        if (!isset($this->lampiran[$itemIndex][$lampiranIndex]['file'])) {
+        if (! isset($this->lampiran[$itemIndex][$lampiranIndex]['file'])) {
             $this->notifyWarning('File tidak ditemukan.');
+
             return;
         }
 
         $file = $this->lampiran[$itemIndex][$lampiranIndex]['file'];
-        if (!$file || !is_object($file)) {
+        if (! $file || ! is_object($file)) {
             $this->notifyWarning('File tidak ditemukan.');
+
             return;
         }
 
@@ -235,7 +259,7 @@ class LaporanHarianCreate extends Component
         $this->items[$itemIndex]['personel'][] = [
             'jabatan' => '',
             'status' => '',
-            'keterangan' => ''
+            'keterangan' => '',
         ];
     }
 
@@ -270,7 +294,7 @@ class LaporanHarianCreate extends Component
         $this->items[$itemIndex]['peralatan'][] = [
             'jenis' => '',
             'jumlah' => '',
-            'keterangan' => ''
+            'keterangan' => '',
         ];
     }
 
@@ -305,7 +329,7 @@ class LaporanHarianCreate extends Component
         $this->items[$itemIndex]['consumable'][] = [
             'jenis' => '',
             'jumlah' => '',
-            'keterangan' => ''
+            'keterangan' => '',
         ];
     }
 
@@ -340,7 +364,7 @@ class LaporanHarianCreate extends Component
         $this->items[$itemIndex]['aktivitas'][] = [
             'kategori' => 'New Building',
             'aktivitas' => '',
-            'pic' => ''
+            'pic' => '',
         ];
     }
 
@@ -382,28 +406,28 @@ class LaporanHarianCreate extends Component
         ];
 
         $rules['items.*.suhu'] = 'nullable|numeric|min:-50|max:100';
-            $rules['items.*.cuaca_pagi_id'] = 'nullable|exists:cuaca,id';
-            $rules['items.*.kelembaban_pagi_id'] = 'nullable|exists:kelembaban,id';
-            $rules['items.*.cuaca_siang_id'] = 'nullable|exists:cuaca,id';
-            $rules['items.*.kelembaban_siang_id'] = 'nullable|exists:kelembaban,id';
-            $rules['items.*.cuaca_sore_id'] = 'nullable|exists:cuaca,id';
-            $rules['items.*.kelembaban_sore_id'] = 'nullable|exists:kelembaban,id';
-            $rules['items.*.personel'] = 'nullable|array';
-            $rules['items.*.personel.*.jabatan'] = 'nullable|string|max:255';
-            $rules['items.*.personel.*.status'] = 'nullable|string|max:255';
-            $rules['items.*.personel.*.keterangan'] = 'nullable|string|max:1000';
-            $rules['items.*.peralatan'] = 'nullable|array';
-            $rules['items.*.peralatan.*.jenis'] = 'nullable|string|max:255';
-            $rules['items.*.peralatan.*.jumlah'] = 'nullable|integer|min:1';
-            $rules['items.*.peralatan.*.keterangan'] = 'nullable|string|max:1000';
-            $rules['items.*.consumable'] = 'nullable|array';
-            $rules['items.*.consumable.*.jenis'] = 'nullable|string|max:255';
-            $rules['items.*.consumable.*.jumlah'] = 'nullable|integer|min:1';
-            $rules['items.*.consumable.*.keterangan'] = 'nullable|string|max:1000';
-            $rules['items.*.aktivitas'] = 'nullable|array';
-            $rules['items.*.aktivitas.*.kategori'] = 'nullable|string|max:255';
-            $rules['items.*.aktivitas.*.aktivitas'] = 'nullable|string';
-            $rules['items.*.aktivitas.*.pic'] = 'nullable|string|max:255';
+        $rules['items.*.cuaca_pagi_id'] = 'nullable|exists:cuaca,id';
+        $rules['items.*.kelembaban_pagi_id'] = 'nullable|exists:kelembaban,id';
+        $rules['items.*.cuaca_siang_id'] = 'nullable|exists:cuaca,id';
+        $rules['items.*.kelembaban_siang_id'] = 'nullable|exists:kelembaban,id';
+        $rules['items.*.cuaca_sore_id'] = 'nullable|exists:cuaca,id';
+        $rules['items.*.kelembaban_sore_id'] = 'nullable|exists:kelembaban,id';
+        $rules['items.*.personel'] = 'nullable|array';
+        $rules['items.*.personel.*.jabatan'] = 'nullable|string|max:255';
+        $rules['items.*.personel.*.status'] = 'nullable|string|max:255';
+        $rules['items.*.personel.*.keterangan'] = 'nullable|string|max:1000';
+        $rules['items.*.peralatan'] = 'nullable|array';
+        $rules['items.*.peralatan.*.jenis'] = 'nullable|string|max:255';
+        $rules['items.*.peralatan.*.jumlah'] = 'nullable|integer|min:1';
+        $rules['items.*.peralatan.*.keterangan'] = 'nullable|string|max:1000';
+        $rules['items.*.consumable'] = 'nullable|array';
+        $rules['items.*.consumable.*.jenis'] = 'nullable|string|max:255';
+        $rules['items.*.consumable.*.jumlah'] = 'nullable|integer|min:1';
+        $rules['items.*.consumable.*.keterangan'] = 'nullable|string|max:1000';
+        $rules['items.*.aktivitas'] = 'nullable|array';
+        $rules['items.*.aktivitas.*.kategori'] = 'nullable|string|max:255';
+        $rules['items.*.aktivitas.*.aktivitas'] = 'nullable|string';
+        $rules['items.*.aktivitas.*.pic'] = 'nullable|string|max:255';
 
         return $rules;
     }
@@ -413,7 +437,7 @@ class LaporanHarianCreate extends Component
         $attributes = [
             'jenis_kapal_id' => 'jenis kapal',
         ];
-        
+
         foreach ($this->items as $index => $item) {
             $num = $index + 1;
             $attributes["items.{$index}.judul"] = "judul laporan #{$num}";
@@ -424,7 +448,7 @@ class LaporanHarianCreate extends Component
                 $attributes["lampiran.{$index}.{$lampIndex}.file"] = "file lampiran #{$lampNum} pada laporan #{$num}";
                 $attributes["lampiran.{$index}.{$lampIndex}.keterangan"] = "keterangan lampiran #{$lampNum} pada laporan #{$num}";
             }
-            
+
             $attributes["items.{$index}.suhu"] = "suhu laporan #{$num}";
             $attributes["items.{$index}.cuaca_pagi_id"] = "cuaca pagi laporan #{$num}";
             $attributes["items.{$index}.kelembaban_pagi_id"] = "kelembaban pagi laporan #{$num}";
@@ -433,13 +457,14 @@ class LaporanHarianCreate extends Component
             $attributes["items.{$index}.cuaca_sore_id"] = "cuaca sore laporan #{$num}";
             $attributes["items.{$index}.kelembaban_sore_id"] = "kelembaban sore laporan #{$num}";
         }
+
         return $attributes;
     }
 
     public function save(LaporanHarianService $service): void
     {
         $this->authorize('create', LaporanHarian::class);
-        
+
         try {
             $this->validate();
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -460,11 +485,11 @@ class LaporanHarianCreate extends Component
                 ];
 
                 $itemData['suhu'] = $item['suhu'] ?: null;
-                    $itemData['cuaca_pagi_id'] = $item['cuaca_pagi_id'] ?: null;
-                    $itemData['kelembaban_pagi_id'] = $item['kelembaban_pagi_id'] ?: null;
-                    $itemData['cuaca_siang_id'] = $item['cuaca_siang_id'] ?: null;
-                    $itemData['kelembaban_siang_id'] = $item['kelembaban_siang_id'] ?: null;
-                    $itemData['cuaca_sore_id'] = $item['cuaca_sore_id'] ?: null;
+                $itemData['cuaca_pagi_id'] = $item['cuaca_pagi_id'] ?: null;
+                $itemData['kelembaban_pagi_id'] = $item['kelembaban_pagi_id'] ?: null;
+                $itemData['cuaca_siang_id'] = $item['cuaca_siang_id'] ?: null;
+                $itemData['kelembaban_siang_id'] = $item['kelembaban_siang_id'] ?: null;
+                $itemData['cuaca_sore_id'] = $item['cuaca_sore_id'] ?: null;
                 $itemData['kelembaban_sore_id'] = $item['kelembaban_sore_id'] ?: null;
 
                 $dataItems[] = $itemData;
@@ -477,72 +502,71 @@ class LaporanHarianCreate extends Component
                 $item = $this->items[$index];
 
                 // Save dynamic inputs
-                {
-                    // Save personel - allow partial data (any field filled)
-                    if (isset($item['personel']) && is_array($item['personel'])) {
-                        foreach ($item['personel'] as $personelData) {
-                            $hasData = !empty($personelData['jabatan']) || 
-                                      !empty($personelData['status']) || 
-                                      !empty($personelData['keterangan']);
-                            
-                            if ($hasData) {
-                                $laporan->personel()->create([
-                                    'jabatan' => $personelData['jabatan'] ?: null,
-                                    'status' => $personelData['status'] ?: null,
-                                    'keterangan' => $personelData['keterangan'] ?: null,
-                                ]);
-                            }
+
+                // Save personel - allow partial data (any field filled)
+                if (isset($item['personel']) && is_array($item['personel'])) {
+                    foreach ($item['personel'] as $personelData) {
+                        $hasData = ! empty($personelData['jabatan']) ||
+                                  ! empty($personelData['status']) ||
+                                  ! empty($personelData['keterangan']);
+
+                        if ($hasData) {
+                            $laporan->personel()->create([
+                                'jabatan' => $personelData['jabatan'] ?: null,
+                                'status' => $personelData['status'] ?: null,
+                                'keterangan' => $personelData['keterangan'] ?: null,
+                            ]);
                         }
                     }
+                }
 
-                    // Save peralatan - allow partial data (any field filled)
-                    if (isset($item['peralatan']) && is_array($item['peralatan'])) {
-                        foreach ($item['peralatan'] as $peralatanData) {
-                            $hasData = !empty($peralatanData['jenis']) || 
-                                      !empty($peralatanData['jumlah']) || 
-                                      !empty($peralatanData['keterangan']);
-                            
-                            if ($hasData) {
-                                $laporan->peralatan()->create([
-                                    'jenis' => $peralatanData['jenis'] ?: null,
-                                    'jumlah' => $peralatanData['jumlah'] ?: null,
-                                    'keterangan' => $peralatanData['keterangan'] ?: null,
-                                ]);
-                            }
+                // Save peralatan - allow partial data (any field filled)
+                if (isset($item['peralatan']) && is_array($item['peralatan'])) {
+                    foreach ($item['peralatan'] as $peralatanData) {
+                        $hasData = ! empty($peralatanData['jenis']) ||
+                                  ! empty($peralatanData['jumlah']) ||
+                                  ! empty($peralatanData['keterangan']);
+
+                        if ($hasData) {
+                            $laporan->peralatan()->create([
+                                'jenis' => $peralatanData['jenis'] ?: null,
+                                'jumlah' => $peralatanData['jumlah'] ?: null,
+                                'keterangan' => $peralatanData['keterangan'] ?: null,
+                            ]);
                         }
                     }
+                }
 
-                    // Save consumable - allow partial data (any field filled)
-                    if (isset($item['consumable']) && is_array($item['consumable'])) {
-                        foreach ($item['consumable'] as $consumableData) {
-                            $hasData = !empty($consumableData['jenis']) || 
-                                      !empty($consumableData['jumlah']) || 
-                                      !empty($consumableData['keterangan']);
-                            
-                            if ($hasData) {
-                                $laporan->consumable()->create([
-                                    'jenis' => $consumableData['jenis'] ?: null,
-                                    'jumlah' => $consumableData['jumlah'] ?: null,
-                                    'keterangan' => $consumableData['keterangan'] ?: null,
-                                ]);
-                            }
+                // Save consumable - allow partial data (any field filled)
+                if (isset($item['consumable']) && is_array($item['consumable'])) {
+                    foreach ($item['consumable'] as $consumableData) {
+                        $hasData = ! empty($consumableData['jenis']) ||
+                                  ! empty($consumableData['jumlah']) ||
+                                  ! empty($consumableData['keterangan']);
+
+                        if ($hasData) {
+                            $laporan->consumable()->create([
+                                'jenis' => $consumableData['jenis'] ?: null,
+                                'jumlah' => $consumableData['jumlah'] ?: null,
+                                'keterangan' => $consumableData['keterangan'] ?: null,
+                            ]);
                         }
                     }
+                }
 
-                    // Save aktivitas - allow partial data (any field filled)
-                    if (isset($item['aktivitas']) && is_array($item['aktivitas'])) {
-                        foreach ($item['aktivitas'] as $aktivitasData) {
-                            $hasData = !empty($aktivitasData['kategori']) || 
-                                      !empty($aktivitasData['aktivitas']) || 
-                                      !empty($aktivitasData['pic']);
-                            
-                            if ($hasData) {
-                                $laporan->aktivitas()->create([
-                                    'kategori' => $aktivitasData['kategori'] ?: null,
-                                    'aktivitas' => $aktivitasData['aktivitas'] ?: null,
-                                    'pic' => $aktivitasData['pic'] ?: null,
-                                ]);
-                            }
+                // Save aktivitas - allow partial data (any field filled)
+                if (isset($item['aktivitas']) && is_array($item['aktivitas'])) {
+                    foreach ($item['aktivitas'] as $aktivitasData) {
+                        $hasData = ! empty($aktivitasData['kategori']) ||
+                                  ! empty($aktivitasData['aktivitas']) ||
+                                  ! empty($aktivitasData['pic']);
+
+                        if ($hasData) {
+                            $laporan->aktivitas()->create([
+                                'kategori' => $aktivitasData['kategori'] ?: null,
+                                'aktivitas' => $aktivitasData['aktivitas'] ?: null,
+                                'pic' => $aktivitasData['pic'] ?: null,
+                            ]);
                         }
                     }
                 }
@@ -552,7 +576,7 @@ class LaporanHarianCreate extends Component
                     foreach ($this->lampiran[$index] as $lampiranData) {
                         if (isset($lampiranData['file']) && $lampiranData['file'] && is_object($lampiranData['file'])) {
                             $file = $lampiranData['file'];
-                            $tempPath = 'laporan-temp/' . uniqid() . '_' . $file->getClientOriginalName();
+                            $tempPath = 'laporan-temp/'.uniqid().'_'.$file->getClientOriginalName();
                             Storage::disk('local')->put($tempPath, file_get_contents($file->getRealPath()));
 
                             // Create lampiran record
@@ -574,7 +598,7 @@ class LaporanHarianCreate extends Component
             }
 
             $count = count($dataItems);
-            $hasLampiran = collect($this->lampiran)->flatten(1)->filter(fn($l) => isset($l['file']) && $l['file'])->isNotEmpty();
+            $hasLampiran = collect($this->lampiran)->flatten(1)->filter(fn ($l) => isset($l['file']) && $l['file'])->isNotEmpty();
             $message = "{$count} laporan harian berhasil ditambahkan!";
             if ($hasLampiran) {
                 $message .= ' Lampiran sedang diproses di background.';
@@ -582,9 +606,9 @@ class LaporanHarianCreate extends Component
 
             $this->notifySuccess($message);
 
-            $this->redirect(route('laporan-harian.index'), navigate: true);
+            $this->redirect(route('laporan-harian.index', $this->jenisKapal), navigate: true);
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -618,7 +642,7 @@ class LaporanHarianCreate extends Component
         $englishDayName = date('l', strtotime($tanggal));
         $indonesianDayName = $this->indonesianDayNames[$englishDayName] ?? $englishDayName;
 
-        return 'Laporan Hari ' . $indonesianDayName;
+        return 'Laporan Hari '.$indonesianDayName;
     }
 
     /**
@@ -633,7 +657,7 @@ class LaporanHarianCreate extends Component
         $newIndonesianDayName = $this->indonesianDayNames[$englishDayName] ?? $englishDayName;
 
         // Build regex pattern to find any Indonesian day name in the string
-        $pattern = '/(' . implode('|', $dayNames) . ')/i';
+        $pattern = '/('.implode('|', $dayNames).')/i';
 
         // Check if current judul contains any day name
         if (preg_match($pattern, $currentJudul, $matches)) {
@@ -669,7 +693,6 @@ class LaporanHarianCreate extends Component
         $kelembabanList = Kelembaban::active()->orderBy('nama')->get();
 
         return view('livewire.laporan-harian.laporan-harian-create', [
-            'jenisKapalList' => $this->getJenisKapalList(),
             'cuacaList' => $cuacaList,
             'kelembabanList' => $kelembabanList,
         ]);

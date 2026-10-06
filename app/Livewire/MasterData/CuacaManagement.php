@@ -15,23 +15,32 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class CuacaManagement extends Component
 {
-    use WithPagination, AuthorizesRequests, HasNotification;
+    use AuthorizesRequests, HasNotification, WithPagination;
 
     protected $paginationTheme = 'tailwind';
 
     public $search = '';
+
     public $statusFilter = '';
+
     public int $perPage = 10;
+
     public $showModal = false;
+
     public $editMode = false;
 
     public $cuacaId;
+
     public $nama;
+
     public $keterangan;
+
     public $status = 'active';
-    
+
     public $showDeleteModal = false;
+
     public $deletingCuacaId;
+
     public $deletingCuacaNama;
 
     public function mount()
@@ -44,7 +53,7 @@ class CuacaManagement extends Component
         return [
             'nama' => 'required|string|max:255',
             'keterangan' => 'nullable|string',
-            'status' => ['required', 'string', 'in:' . implode(',', CuacaStatus::values())],
+            'status' => ['required', 'string', 'in:'.implode(',', CuacaStatus::values())],
         ];
     }
 
@@ -69,6 +78,12 @@ class CuacaManagement extends Component
 
     public function updatingPerPage()
     {
+        $this->resetPage();
+    }
+
+    public function resetFilters()
+    {
+        $this->reset(['search', 'statusFilter', 'perPage']);
         $this->resetPage();
     }
 
@@ -129,7 +144,7 @@ class CuacaManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk melakukan aksi ini.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -153,7 +168,7 @@ class CuacaManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak dapat menghapus cuaca ini.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -170,7 +185,7 @@ class CuacaManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk mengubah status cuaca.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -199,7 +214,7 @@ class CuacaManagement extends Component
 
         return Excel::download(
             new CuacaExport($this->search, $this->statusFilter),
-            'cuaca-' . now()->format('Y-m-d-His') . '.xlsx'
+            'cuaca-'.now()->format('Y-m-d-His').'.xlsx'
         );
     }
 
@@ -211,7 +226,7 @@ class CuacaManagement extends Component
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
                     $q->where('nama', 'like', "%{$this->search}%")
-                      ->orWhere('keterangan', 'like', "%{$this->search}%");
+                        ->orWhere('keterangan', 'like', "%{$this->search}%");
                 });
             })
             ->when($this->statusFilter !== null && $this->statusFilter !== '', function ($q) {
@@ -224,8 +239,8 @@ class CuacaManagement extends Component
         $pdf->setPaper('a4', 'landscape');
 
         return response()->streamDownload(
-            fn () => print($pdf->output()),
-            'cuaca-' . now()->format('Y-m-d-His') . '.pdf'
+            fn () => print ($pdf->output()),
+            'cuaca-'.now()->format('Y-m-d-His').'.pdf'
         );
     }
 

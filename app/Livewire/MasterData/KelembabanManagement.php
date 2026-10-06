@@ -15,24 +15,34 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class KelembabanManagement extends Component
 {
-    use WithPagination, AuthorizesRequests, HasNotification;
+    use AuthorizesRequests, HasNotification, WithPagination;
 
     protected $paginationTheme = 'tailwind';
 
     public $search = '';
+
     public $statusFilter = '';
+
     public int $perPage = 10;
+
     public $showModal = false;
+
     public $editMode = false;
 
     public $kelembabanId;
+
     public $nama;
+
     public $nilai;
+
     public $keterangan;
+
     public $status = 'active';
-    
+
     public $showDeleteModal = false;
+
     public $deletingKelembabanId;
+
     public $deletingKelembabanNama;
 
     public function mount()
@@ -46,7 +56,7 @@ class KelembabanManagement extends Component
             'nama' => 'required|string|max:255',
             'nilai' => 'nullable|string|max:255',
             'keterangan' => 'nullable|string',
-            'status' => ['required', 'string', 'in:' . implode(',', KelembabanStatus::values())],
+            'status' => ['required', 'string', 'in:'.implode(',', KelembabanStatus::values())],
         ];
     }
 
@@ -72,6 +82,12 @@ class KelembabanManagement extends Component
 
     public function updatingPerPage()
     {
+        $this->resetPage();
+    }
+
+    public function resetFilters()
+    {
+        $this->reset(['search', 'statusFilter', 'perPage']);
         $this->resetPage();
     }
 
@@ -134,7 +150,7 @@ class KelembabanManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk melakukan aksi ini.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -158,7 +174,7 @@ class KelembabanManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak dapat menghapus kelembaban ini.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -175,7 +191,7 @@ class KelembabanManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk mengubah status kelembaban.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -205,7 +221,7 @@ class KelembabanManagement extends Component
 
         return Excel::download(
             new KelembabanExport($this->search, $this->statusFilter),
-            'kelembaban-' . now()->format('Y-m-d-His') . '.xlsx'
+            'kelembaban-'.now()->format('Y-m-d-His').'.xlsx'
         );
     }
 
@@ -217,8 +233,8 @@ class KelembabanManagement extends Component
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
                     $q->where('nama', 'like', "%{$this->search}%")
-                      ->orWhere('nilai', 'like', "%{$this->search}%")
-                      ->orWhere('keterangan', 'like', "%{$this->search}%");
+                        ->orWhere('nilai', 'like', "%{$this->search}%")
+                        ->orWhere('keterangan', 'like', "%{$this->search}%");
                 });
             })
             ->when($this->statusFilter !== null && $this->statusFilter !== '', function ($q) {
@@ -231,8 +247,8 @@ class KelembabanManagement extends Component
         $pdf->setPaper('a4', 'landscape');
 
         return response()->streamDownload(
-            fn () => print($pdf->output()),
-            'kelembaban-' . now()->format('Y-m-d-His') . '.pdf'
+            fn () => print ($pdf->output()),
+            'kelembaban-'.now()->format('Y-m-d-His').'.pdf'
         );
     }
 

@@ -1,28 +1,33 @@
 <div>
-    {{-- Header --}}
-    <div class="mb-6">
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Manajemen Laporan Mingguan</h2>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Kelola laporan mingguan pengawasan pembangunan kapal</p>
-    </div>
-
-    {{-- Jenis Kapal Filter --}}
-    <div class="mb-6">
-        <x-laporan.jenis-kapal-selector
-            wireModel="jenisKapalId"
-            :jenisKapalList="$jenisKapalList"
-            variant="filter"
-            placeholder="Pilih jenis kapal untuk melihat laporan"
-            label="Pilih Jenis Kapal:"
-            :required="false"
-            :showEmptyWarning="true"
-            :selectedValue="$jenisKapalId"
-        />
+    {{-- Breadcrumb + Context Kapal --}}
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div class="min-w-0">
+            <div class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
+                <span>Manajemen Laporan</span>
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+                <span class="font-medium text-gray-700 dark:text-gray-300 truncate">{{ $jenisKapal->nama }}</span>
+            </div>
+            <h2 class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">Laporan Mingguan</h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {{ $jenisKapal->company?->name }}{{ $jenisKapal->company && $jenisKapal->galangan ? ' · ' : '' }}{{ $jenisKapal->galangan?->nama }}
+            </p>
+        </div>
+        <x-loading-button wire:click="gantiKapal" target="gantiKapal" variant="secondary" size="md" loadingText="Memuat..." title="Ganti jenis kapal">
+            <x-slot:icon>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                </svg>
+            </x-slot:icon>
+            Ganti Kapal
+        </x-loading-button>
     </div>
 
     {{-- Tabs --}}
     <div class="mb-6 border-b border-gray-200 dark:border-gray-700">
         <nav class="-mb-px flex space-x-6" aria-label="Tabs">
-            <a href="{{ route('laporan-harian.index') }}" wire:navigate
+            <a href="{{ route('laporan-harian.index', $jenisKapal) }}" wire:navigate
                 x-data="{ loading: false }" x-on:click="loading = true"
                 x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                 class="whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600 inline-flex items-center gap-2">
@@ -35,7 +40,7 @@
                     Memuat...
                 </span>
             </a>
-            <a href="{{ route('laporan-mingguan.index') }}" wire:navigate
+            <a href="{{ route('laporan-mingguan.index', $jenisKapal) }}" wire:navigate
                 x-data="{ loading: false }" x-on:click="loading = true"
                 x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                 class="whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium border-blue-500 text-blue-600 dark:text-blue-400 inline-flex items-center gap-2">
@@ -64,20 +69,7 @@
                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
         </div>
 
-        <div class="w-full lg:w-32">
-            <x-searchable-select
-                wire:model.live="perPage"
-                :options="[
-                    ['value' => '10', 'label' => '10'],
-                    ['value' => '25', 'label' => '25'],
-                    ['value' => '50', 'label' => '50'],
-                    ['value' => '100', 'label' => '100']
-                ]"
-                placeholder="10"
-                searchPlaceholder="Pilih jumlah..."
-                :clearable="false"
-            />
-        </div>
+        <x-filter-popover :per-page="true" />
 
         <div class="flex items-center gap-2 flex-wrap">
             @can('exportExcel', \App\Models\LaporanMingguan::class)
@@ -97,7 +89,7 @@
                 </x-loading-button>
             @endcan
             @can('create', \App\Models\LaporanMingguan::class)
-                <a href="{{ route('laporan-mingguan.create') }}" wire:navigate
+                <a href="{{ route('laporan-mingguan.create', $jenisKapal) }}" wire:navigate
                     x-data="{ loading: false }" x-on:click="loading = true"
                     x-bind:class="loading ? 'opacity-75 pointer-events-none' : ''"
                     class="inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500 px-3 py-2 text-sm gap-1.5 flex-1 lg:flex-none whitespace-nowrap">
@@ -110,7 +102,6 @@
                     <span x-show="loading" x-cloak>Memuat...</span>
                 </a>
             @endcan
-            @if($jenisKapalId)
             <div class="inline-flex items-center gap-2">
                 <label class="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" wire:model.live="showKurvaS" class="sr-only peer">
@@ -118,58 +109,29 @@
                     <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Kurva S</span>
                 </label>
             </div>
-            @endif
         </div>
     </div>
 
     {{-- Kurva S Chart Panel --}}
-    @if($showKurvaS && $jenisKapalId)
-    <div x-data="{ loading: false, previousId: @js($jenisKapalId) }"
-         x-init="
-            $watch('$wire.jenisKapalId', (newId) => {
-                if (newId !== previousId) {
-                    loading = true;
-                    previousId = newId;
-                    setTimeout(() => loading = false, 800);
-                }
-            });
-         ">
-        <div x-show="loading" x-transition.opacity.duration.200ms class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
-            <div class="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
-                <svg class="w-4 h-4 text-blue-500 flex-shrink-0 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Memuat Grafik Kurva S...</h3>
-            </div>
-            <div class="p-5 flex items-center justify-center" style="height: 280px">
-                <svg class="animate-spin w-8 h-8 text-blue-500" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-            </div>
-        </div>
+    @if($showKurvaS)
+        <x-kurva-s-chart-card
+            :chartData="$kurvaSChartData"
+            :jenisKapalNama="$jenisKapal?->nama"
+            :showStats="true"
+            :showMingguBadge="false"
+            :totalRencana="$totalRencana"
+            :totalAktual="$totalAktual"
+            height="280px"
+        />
 
-        <div x-show="!loading" x-transition.opacity.duration.200ms>
-            <x-kurva-s-chart-card
-                :chartData="$kurvaSChartData"
-                :jenisKapalNama="$selectedJenisKapal?->nama"
-                :showStats="true"
-                :showMingguBadge="false"
-                :totalRencana="$totalRencana"
-                :totalAktual="$totalAktual"
-                height="280px"
-            />
-
-            {{-- Riwayat Progress per Work Group --}}
-            <div x-show="!loading" x-transition.opacity.duration.200ms>
-            @if(count($workGroupsForHistory) > 0 && count($progressHistory) > 0)
+        {{-- Riwayat Progress per Work Group --}}
+        @if(count($workGroupsForHistory) > 0 && count($progressHistory) > 0)
             <x-laporan-mingguan.riwayat-progress-card
                 :workGroups="$workGroupsForHistory"
                 :progressHistory="$progressHistory"
                 class="mb-6"
             />
-            @else
+        @else
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
                 <div class="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
                     <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -187,27 +149,7 @@
                     </div>
                 </div>
             </div>
-            @endif
-            </div>
-
-            {{-- Loading state for Riwayat Progress --}}
-            <div x-show="loading" x-transition.opacity.duration.200ms class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
-                <div class="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-blue-500 flex-shrink-0 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Memuat Riwayat Progress...</h3>
-                </div>
-                <div class="p-5 flex items-center justify-center py-8">
-                    <svg class="animate-spin w-8 h-8 text-blue-500" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                </div>
-            </div>
-        </div>
-    </div>
+        @endif
     @endif
 
     {{-- Table --}}
@@ -219,7 +161,6 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Judul</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tanggal Laporan</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Jenis Kapal</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Pembuat</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dibuat</th>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
@@ -236,23 +177,6 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm text-gray-900 dark:text-white">{{ $laporan->tanggal_laporan->translatedFormat('d M Y') }}</div>
-                            </td>
-                            <td class="px-6 py-4">
-                                @if($laporan->jenisKapal)
-                                    <div class="text-sm font-medium text-gray-900 dark:text-white">{{ $laporan->jenisKapal->nama }}</div>
-                                    @if($laporan->jenisKapal->company)
-                                        <div class="text-xs text-gray-500 dark:text-gray-400">
-                                            <span class="font-medium">Perusahaan:</span> {{ $laporan->jenisKapal->company->name }}
-                                        </div>
-                                    @endif
-                                    @if($laporan->jenisKapal->galangan)
-                                        <div class="text-xs text-gray-500 dark:text-gray-400">
-                                            <span class="font-medium">Galangan:</span> {{ $laporan->jenisKapal->galangan->nama }}
-                                        </div>
-                                    @endif
-                                @else
-                                    <span class="text-sm text-gray-400 dark:text-gray-500">-</span>
-                                @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
@@ -272,7 +196,7 @@
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div class="flex items-center justify-end gap-2">
                                     @can('view', $laporan)
-                                        <a href="{{ route('laporan-mingguan.show', $laporan) }}" wire:navigate
+                                        <a href="{{ route('laporan-mingguan.show', [$jenisKapal, $laporan]) }}" wire:navigate
                                             x-data="{ loading: false }" x-on:click="loading = true"
                                             x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                                             class="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
@@ -288,7 +212,7 @@
                                         </a>
                                     @endcan
                                     @can('update', $laporan)
-                                        <a href="{{ route('laporan-mingguan.edit', $laporan) }}" wire:navigate
+                                        <a href="{{ route('laporan-mingguan.edit', [$jenisKapal, $laporan]) }}" wire:navigate
                                             x-data="{ loading: false }" x-on:click="loading = true"
                                             x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                                             class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
@@ -322,13 +246,13 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-6 py-12 text-center">
+                            <td colspan="6" class="px-6 py-12 text-center">
                                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                 </svg>
                                 <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Belum ada laporan mingguan</p>
                                 @can('create', \App\Models\LaporanMingguan::class)
-                                    <a href="{{ route('laporan-mingguan.create') }}" wire:navigate
+                                    <a href="{{ route('laporan-mingguan.create', $jenisKapal) }}" wire:navigate
                                         x-data="{ loading: false }" x-on:click="loading = true"
                                         x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                                         class="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300">

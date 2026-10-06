@@ -2,9 +2,9 @@
 
 namespace App\Livewire\LaporanMingguan;
 
+use App\Jobs\ProcessLaporanExternal;
 use App\Livewire\Traits\HasJenisKapalFilter;
 use App\Livewire\Traits\HasNotification;
-use App\Jobs\ProcessLaporanExternal;
 use App\Models\JenisKapal;
 use App\Models\LaporanExternal;
 use App\Models\LaporanHarian;
@@ -21,25 +21,41 @@ use Livewire\WithFileUploads;
 #[Layout('layouts.app', ['title' => 'Tambah Laporan Mingguan'])]
 class LaporanMingguanCreate extends Component
 {
-    use AuthorizesRequests, HasNotification, HasJenisKapalFilter, WithFileUploads;
+    use AuthorizesRequests, HasJenisKapalFilter, HasNotification, WithFileUploads;
+
+    public JenisKapal $jenisKapal;
 
     public ?int $jenis_kapal_id = null;
+
     public string $judul = '';
+
     public string $tanggal_laporan = '';
+
     public string $periode_mulai = '';
+
     public string $periode_selesai = '';
+
     public string $ringkasan = '';
+
     public array $laporan_harian_ids = [];
+
     public array $availableLaporanHarian = [];
+
     public array $lampiran_ids = [];
 
     // Kurva S
     public ?int $minggu_ke = null;
+
     public array $progressPerGroup = [];
+
     public array $workGroupsForInput = [];
+
     public array $mingguOptions = [];
+
     public bool $hasKurvaS = false;
+
     public array $progressHistory = [];
+
     public array $fullProgressHistory = [];
 
     // Track previous laporan_harian_ids for filtering lampiran
@@ -47,33 +63,32 @@ class LaporanMingguanCreate extends Component
 
     // Lampiran Harian Modal
     public bool $showLampiranModal = false;
+
     public array $lampiranHarianList = [];
+
     public bool $loadingLampiran = false;
+
     public bool $showPreviewModal = false;
+
     public ?int $previewLampiranId = null;
 
     // Laporan External
     public array $laporanExternal = [];
+
     public bool $showDeleteExternalModal = false;
+
     public ?string $externalToDelete = null;
+
     public ?string $deletingExternalId = null;
 
-    public function mount(): void
+    public function mount(JenisKapal $jenisKapal): void
     {
         $this->authorize('create', LaporanMingguan::class);
-        $this->jenis_kapal_id = $this->getSelectedJenisKapalId();
-        $this->tanggal_laporan = now()->format('Y-m-d');
-        $this->loadAvailableLaporanHarian();
-        $this->loadKurvaSOptions();
-        $this->fullProgressHistory = $this->buildFullProgressHistory();
-    }
+        $this->authorizeJenisKapalAccess($jenisKapal);
 
-    public function updatedJenisKapalId(): void
-    {
-        $this->laporan_harian_ids = [];
-        $this->lampiran_ids = [];
-        $this->minggu_ke = null;
-        $this->progressPerGroup = [];
+        $this->jenisKapal = $jenisKapal;
+        $this->jenis_kapal_id = $jenisKapal->id;
+        $this->tanggal_laporan = now()->format('Y-m-d');
         $this->loadAvailableLaporanHarian();
         $this->loadKurvaSOptions();
         $this->fullProgressHistory = $this->buildFullProgressHistory();
@@ -81,30 +96,31 @@ class LaporanMingguanCreate extends Component
 
     private function loadKurvaSOptions(): void
     {
-        if (!$this->jenis_kapal_id) {
-            $this->mingguOptions       = [];
-            $this->hasKurvaS           = false;
-            $this->workGroupsForInput  = [];
-            $this->progressPerGroup    = [];
+        if (! $this->jenis_kapal_id) {
+            $this->mingguOptions = [];
+            $this->hasKurvaS = false;
+            $this->workGroupsForInput = [];
+            $this->progressPerGroup = [];
+
             return;
         }
 
-        $jenisKapal = JenisKapal::find($this->jenis_kapal_id);
-        $service    = app(KurvaSService::class);
+        $jenisKapal = $this->jenisKapal;
+        $service = app(KurvaSService::class);
 
         $this->hasKurvaS = $jenisKapal && $service->hasRencana($jenisKapal);
 
         if ($jenisKapal && $this->hasKurvaS) {
-            $this->mingguOptions      = $service->getMingguOptions($jenisKapal, null);
+            $this->mingguOptions = $service->getMingguOptions($jenisKapal, null);
             $this->workGroupsForInput = $service->getProgressInputData(
                 new \App\Models\LaporanMingguan(['jenis_kapal_id' => $this->jenis_kapal_id])
             );
-            $this->progressPerGroup   = array_column($this->workGroupsForInput, 'pct_realisasi', 'work_group_id');
-            $this->progressHistory    = $service->getProgressHistory($jenisKapal);
+            $this->progressPerGroup = array_column($this->workGroupsForInput, 'pct_realisasi', 'work_group_id');
+            $this->progressHistory = $service->getProgressHistory($jenisKapal);
         } else {
-            $this->mingguOptions      = [];
+            $this->mingguOptions = [];
             $this->workGroupsForInput = [];
-            $this->progressPerGroup   = [];
+            $this->progressPerGroup = [];
         }
     }
 
@@ -122,12 +138,12 @@ class LaporanMingguanCreate extends Component
 
     private function dispatchRealtimeUpdates(): void
     {
-        if (!$this->jenis_kapal_id || !$this->hasKurvaS) {
+        if (! $this->jenis_kapal_id || ! $this->hasKurvaS) {
             return;
         }
 
-        $jenisKapal = JenisKapal::find($this->jenis_kapal_id);
-        if (!$jenisKapal) {
+        $jenisKapal = $this->jenisKapal;
+        if (! $jenisKapal) {
             return;
         }
 
@@ -159,16 +175,18 @@ class LaporanMingguanCreate extends Component
     private function loadAvailableLaporanHarian(): void
     {
         // Return empty if period is not selected
-        if (!$this->periode_mulai || !$this->periode_selesai) {
+        if (! $this->periode_mulai || ! $this->periode_selesai) {
             $this->availableLaporanHarian = [];
             $this->laporan_harian_ids = [];
+
             return;
         }
 
         // Return empty if jenis kapal is not selected
-        if (!$this->jenis_kapal_id) {
+        if (! $this->jenis_kapal_id) {
             $this->availableLaporanHarian = [];
             $this->laporan_harian_ids = [];
+
             return;
         }
 
@@ -221,42 +239,43 @@ class LaporanMingguanCreate extends Component
         // Reload lampiran list to update the UI
         $this->loadLampiranHarian();
     }
+
     protected function rules(): array
-{
-    return [
-        'jenis_kapal_id'      => 'required|exists:jenis_kapal,id',
-        'judul'               => 'required|string|max:255',
-        'tanggal_laporan'     => 'required|date',
-        'periode_mulai'       => 'required|date|before_or_equal:periode_selesai',
-        'periode_selesai'     => 'required|date|after_or_equal:periode_mulai',
-        'ringkasan'           => 'nullable|string',
-        'laporan_harian_ids'  => 'required|array|min:1',
-        'laporan_harian_ids.*'=> 'exists:laporan_harian,id',
-        'lampiran_ids'        => 'array',
-        'lampiran_ids.*'      => 'exists:laporan_lampiran,id',
-        'minggu_ke'              => 'nullable|integer|min:1',
-        'progressPerGroup'       => 'array',
-        'progressPerGroup.*'     => 'nullable|numeric|min:0|max:100',
-        'laporanExternal.*.judul'     => 'required|string|max:255',
-        'laporanExternal.*.deskripsi' => 'nullable|string|max:1000',
-        'laporanExternal.*.file'      => file_upload_validation_rule('laporan_external'),
-    ];
-}
+    {
+        return [
+            'jenis_kapal_id' => 'required|exists:jenis_kapal,id',
+            'judul' => 'required|string|max:255',
+            'tanggal_laporan' => 'required|date',
+            'periode_mulai' => 'required|date|before_or_equal:periode_selesai',
+            'periode_selesai' => 'required|date|after_or_equal:periode_mulai',
+            'ringkasan' => 'nullable|string',
+            'laporan_harian_ids' => 'required|array|min:1',
+            'laporan_harian_ids.*' => 'exists:laporan_harian,id',
+            'lampiran_ids' => 'array',
+            'lampiran_ids.*' => 'exists:laporan_lampiran,id',
+            'minggu_ke' => 'nullable|integer|min:1',
+            'progressPerGroup' => 'array',
+            'progressPerGroup.*' => 'nullable|numeric|min:0|max:100',
+            'laporanExternal.*.judul' => 'required|string|max:255',
+            'laporanExternal.*.deskripsi' => 'nullable|string|max:1000',
+            'laporanExternal.*.file' => file_upload_validation_rule('laporan_external'),
+        ];
+    }
 
     public function validationAttributes(): array
     {
         return [
-            'jenis_kapal_id'     => 'jenis kapal',
-            'judul'              => 'judul laporan',
-            'tanggal_laporan'    => 'tanggal laporan',
-            'periode_mulai'      => 'periode mulai',
-            'periode_selesai'    => 'periode selesai',
-            'ringkasan'          => 'ringkasan',
+            'jenis_kapal_id' => 'jenis kapal',
+            'judul' => 'judul laporan',
+            'tanggal_laporan' => 'tanggal laporan',
+            'periode_mulai' => 'periode mulai',
+            'periode_selesai' => 'periode selesai',
+            'ringkasan' => 'ringkasan',
             'laporan_harian_ids' => 'laporan harian',
-            'minggu_ke'          => 'minggu ke',
-            'laporanExternal.*.judul'     => 'judul laporan external',
+            'minggu_ke' => 'minggu ke',
+            'laporanExternal.*.judul' => 'judul laporan external',
             'laporanExternal.*.deskripsi' => 'deskripsi laporan external',
-            'laporanExternal.*.file'      => 'file laporan external',
+            'laporanExternal.*.file' => 'file laporan external',
         ];
     }
 
@@ -264,6 +283,7 @@ class LaporanMingguanCreate extends Component
     {
         if (count($this->laporan_harian_ids) === 0) {
             $this->notifyWarning('Silakan pilih laporan harian terlebih dahulu.');
+
             return;
         }
 
@@ -282,6 +302,7 @@ class LaporanMingguanCreate extends Component
         if (count($this->laporan_harian_ids) === 0) {
             $this->lampiranHarianList = [];
             $this->loadingLampiran = false;
+
             return;
         }
 
@@ -301,7 +322,7 @@ class LaporanMingguanCreate extends Component
             return [
                 'id' => $item->id,
                 'file_name' => $item->file_name,
-                'file_size_formatted' => number_format($item->file_size / 1024, 1) . ' KB',
+                'file_size_formatted' => number_format($item->file_size / 1024, 1).' KB',
                 'keterangan' => $item->keterangan,
                 'extension' => $extension,
                 'is_image' => $isImage,
@@ -316,12 +337,12 @@ class LaporanMingguanCreate extends Component
     public function getLampiranPreview(int $lampiranId): ?string
     {
         $lampiran = LaporanLampiran::find($lampiranId);
-        
-        if (!$lampiran || !$lampiran->file_path || !Storage::disk('local')->exists($lampiran->file_path)) {
+
+        if (! $lampiran || ! $lampiran->file_path || ! Storage::disk('local')->exists($lampiran->file_path)) {
             return null;
         }
 
-        if (!$lampiran->isImage()) {
+        if (! $lampiran->isImage()) {
             return null;
         }
 
@@ -330,20 +351,20 @@ class LaporanMingguanCreate extends Component
 
     private function getLampiranImageDataUrl(LaporanLampiran $lampiran): ?string
     {
-        if (!$lampiran->file_path || !Storage::disk('local')->exists($lampiran->file_path)) {
+        if (! $lampiran->file_path || ! Storage::disk('local')->exists($lampiran->file_path)) {
             return null;
         }
 
         $extension = strtolower(pathinfo($lampiran->file_name, PATHINFO_EXTENSION));
         $mimeTypes = [
-            'png'  => 'image/png',
-            'jpg'  => 'image/jpeg',
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
             'jpeg' => 'image/jpeg',
-            'gif'  => 'image/gif',
+            'gif' => 'image/gif',
             'webp' => 'image/webp',
         ];
 
-        if (!isset($mimeTypes[$extension])) {
+        if (! isset($mimeTypes[$extension])) {
             return null;
         }
 
@@ -351,6 +372,7 @@ class LaporanMingguanCreate extends Component
             $fileContent = Storage::disk('local')->get($lampiran->file_path);
             $base64 = base64_encode($fileContent);
             $mime = $mimeTypes[$extension];
+
             return "data:{$mime};base64,{$base64}";
         } catch (\Exception $e) {
             return null;
@@ -360,9 +382,10 @@ class LaporanMingguanCreate extends Component
     public function previewLampiranHarian(int $lampiranId): void
     {
         $lampiran = LaporanLampiran::find($lampiranId);
-        
-        if (!$lampiran) {
+
+        if (! $lampiran) {
             $this->notifyError('Lampiran tidak ditemukan.');
+
             return;
         }
 
@@ -390,17 +413,19 @@ class LaporanMingguanCreate extends Component
 
     public function getPreviewLampiranProperty()
     {
-        if (!$this->previewLampiranId) {
+        if (! $this->previewLampiranId) {
             return null;
         }
+
         return LaporanLampiran::find($this->previewLampiranId);
     }
 
     public function getPreviewLampiranImageUrlProperty(): ?string
     {
-        if (!$this->previewLampiran) {
+        if (! $this->previewLampiran) {
             return null;
         }
+
         return $this->getLampiranImageDataUrl($this->previewLampiran);
     }
 
@@ -410,19 +435,22 @@ class LaporanMingguanCreate extends Component
 
         $lampiran = LaporanLampiran::with('laporanHarian')->find($lampiranId);
 
-        if (!$lampiran) {
+        if (! $lampiran) {
             $this->notifyError('Lampiran tidak ditemukan.');
+
             return;
         }
 
         // Ownership check: lampiran must belong to user's laporan harian
-        if (!$lampiran->laporanHarian || $lampiran->laporanHarian->user_id !== auth()->id()) {
+        if (! $lampiran->laporanHarian || $lampiran->laporanHarian->user_id !== auth()->id()) {
             $this->notifyError('Anda tidak memiliki akses ke lampiran ini.');
+
             return;
         }
 
-        if (!$lampiran->file_path || !Storage::disk('local')->exists($lampiran->file_path)) {
+        if (! $lampiran->file_path || ! Storage::disk('local')->exists($lampiran->file_path)) {
             $this->notifyError('File tidak ditemukan.');
+
             return;
         }
 
@@ -438,29 +466,32 @@ class LaporanMingguanCreate extends Component
 
         $lampiran = LaporanLampiran::with('laporanHarian')->find($lampiranId);
 
-        if (!$lampiran) {
+        if (! $lampiran) {
             $this->notifyError('Lampiran tidak ditemukan.');
+
             return;
         }
 
         // Ownership check: lampiran must belong to user's laporan harian
-        if (!$lampiran->laporanHarian || $lampiran->laporanHarian->user_id !== auth()->id()) {
+        if (! $lampiran->laporanHarian || $lampiran->laporanHarian->user_id !== auth()->id()) {
             $this->notifyError('Anda tidak memiliki akses ke lampiran ini.');
+
             return;
         }
 
-        if (!$lampiran->file_path || !Storage::disk('local')->exists($lampiran->file_path)) {
+        if (! $lampiran->file_path || ! Storage::disk('local')->exists($lampiran->file_path)) {
             $this->notifyError('File tidak ditemukan.');
+
             return;
         }
 
         $extension = strtolower(pathinfo($lampiran->file_name, PATHINFO_EXTENSION));
         $mimeTypes = [
-            'pdf'  => 'application/pdf',
-            'png'  => 'image/png',
-            'jpg'  => 'image/jpeg',
+            'pdf' => 'application/pdf',
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
             'jpeg' => 'image/jpeg',
-            'gif'  => 'image/gif',
+            'gif' => 'image/gif',
             'webp' => 'image/webp',
         ];
 
@@ -468,14 +499,14 @@ class LaporanMingguanCreate extends Component
 
         return response(Storage::disk('local')->get($lampiran->file_path))
             ->header('Content-Type', $mime)
-            ->header('Content-Disposition', 'inline; filename="' . $lampiran->file_name . '"');
+            ->header('Content-Disposition', 'inline; filename="'.$lampiran->file_name.'"');
     }
 
     // Laporan External Methods
     public function addExternalReport(): void
     {
         $this->laporanExternal[] = [
-            'id' => 'temp_' . uniqid(),
+            'id' => 'temp_'.uniqid(),
             'judul' => '',
             'deskripsi' => '',
             'file' => null,
@@ -525,18 +556,21 @@ class LaporanMingguanCreate extends Component
     {
         $external = $this->laporanExternal[$index] ?? null;
 
-        if (!$external) {
+        if (! $external) {
             $this->notifyError('File tidak ditemukan.');
+
             return;
         }
 
-        if (!isset($external['existing_file_path']) || !$external['existing_file_path']) {
+        if (! isset($external['existing_file_path']) || ! $external['existing_file_path']) {
             $this->notifyError('File tidak ditemukan.');
+
             return;
         }
 
-        if (!Storage::disk('local')->exists($external['existing_file_path'])) {
+        if (! Storage::disk('local')->exists($external['existing_file_path'])) {
             $this->notifyError('File tidak ditemukan.');
+
             return;
         }
 
@@ -544,11 +578,11 @@ class LaporanMingguanCreate extends Component
         $originalFileName = $external['existing_file_name'];
         $title = $external['judul'] ?? '';
 
-        if (!empty($title)) {
+        if (! empty($title)) {
             // Get the original file extension
             $extension = pathinfo($originalFileName, PATHINFO_EXTENSION);
             // Create new filename from title with original extension
-            $downloadFileName = $title . '.' . $extension;
+            $downloadFileName = $title.'.'.$extension;
         } else {
             // Use original filename if no title
             $downloadFileName = $originalFileName;
@@ -583,27 +617,28 @@ class LaporanMingguanCreate extends Component
             $invalidIds = array_diff($this->lampiran_ids, $validLampiranIds);
             if (count($invalidIds) > 0) {
                 $this->notifyError('Beberapa lampiran tidak valid atau tidak termasuk dalam laporan harian yang dipilih.');
+
                 return;
             }
         }
 
         try {
             $data = [
-                'user_id'            => auth()->id(),
-                'jenis_kapal_id'     => $this->jenis_kapal_id,
-                'judul'              => $this->judul,
-                'tanggal_laporan'    => $this->tanggal_laporan,
-                'periode_mulai'      => $this->periode_mulai ?: null,
-                'periode_selesai'    => $this->periode_selesai ?: null,
-                'ringkasan'          => $this->ringkasan ?: null,
-                'minggu_ke'          => $this->minggu_ke ?: null,
+                'user_id' => auth()->id(),
+                'jenis_kapal_id' => $this->jenis_kapal_id,
+                'judul' => $this->judul,
+                'tanggal_laporan' => $this->tanggal_laporan,
+                'periode_mulai' => $this->periode_mulai ?: null,
+                'periode_selesai' => $this->periode_selesai ?: null,
+                'ringkasan' => $this->ringkasan ?: null,
+                'minggu_ke' => $this->minggu_ke ?: null,
                 'laporan_harian_ids' => $this->laporan_harian_ids,
-                'lampiran_ids'       => $this->lampiran_ids,
+                'lampiran_ids' => $this->lampiran_ids,
             ];
 
             $laporan = $service->create($data);
 
-            if ($this->hasKurvaS && !empty($this->progressPerGroup)) {
+            if ($this->hasKurvaS && ! empty($this->progressPerGroup)) {
                 app(KurvaSService::class)->saveProgress($laporan, $this->progressPerGroup);
             }
 
@@ -611,9 +646,9 @@ class LaporanMingguanCreate extends Component
 
             $this->notifySuccess('Laporan mingguan berhasil ditambahkan!');
 
-            $this->redirect(route('laporan-mingguan.index'), navigate: true);
+            $this->redirect(route('laporan-mingguan.index', $this->jenisKapal), navigate: true);
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -693,8 +728,8 @@ class LaporanMingguanCreate extends Component
     {
         // Calculate history totals (excluding current week) using service
         $historyTotals = app(KurvaSService::class)->calculateTotalKontribusiHistory(
-            $this->progressHistory, 
-            $this->workGroupsForInput, 
+            $this->progressHistory,
+            $this->workGroupsForInput,
             $this->minggu_ke
         );
 
@@ -718,6 +753,7 @@ class LaporanMingguanCreate extends Component
                 return true;
             }
         }
+
         return false;
     }
 
@@ -734,24 +770,24 @@ class LaporanMingguanCreate extends Component
     private function buildFullProgressHistory(): array
     {
         $fullHistory = $this->progressHistory;
-        
+
         // Add current week if minggu_ke is set
-        if ($this->minggu_ke && !empty($this->progressPerGroup)) {
+        if ($this->minggu_ke && ! empty($this->progressPerGroup)) {
             $currentWeekIndex = array_search($this->minggu_ke, array_column($fullHistory, 'minggu_ke'));
-            
+
             $currentProgress = [];
             foreach ($this->workGroupsForInput as $wg) {
                 $wgId = $wg['work_group_id'];
-                $currentProgress[$wgId] = (float)($this->progressPerGroup[$wgId] ?? 0);
+                $currentProgress[$wgId] = (float) ($this->progressPerGroup[$wgId] ?? 0);
             }
-            
+
             // Preserve plans from existing entry; for new weeks query KurvaSRencana directly
             $existingPlans = $currentWeekIndex !== false
                 ? ($fullHistory[$currentWeekIndex]['plans'] ?? [])
                 : [];
 
             if ($currentWeekIndex === false && $this->jenis_kapal_id) {
-                $jenisKapal = JenisKapal::find($this->jenis_kapal_id);
+                $jenisKapal = $this->jenisKapal;
                 if ($jenisKapal) {
                     $existingPlans = app(KurvaSService::class)->getWeekPlans($jenisKapal, $this->minggu_ke);
                 }
@@ -761,24 +797,24 @@ class LaporanMingguanCreate extends Component
                 'minggu_ke' => $this->minggu_ke,
                 'progress' => $currentProgress,
                 'plans' => $existingPlans,
-                'created_at' => now()->format('d M Y')
+                'created_at' => now()->format('d M Y'),
             ];
-            
+
             if ($currentWeekIndex !== false) {
                 $fullHistory[$currentWeekIndex] = $currentEntry;
             } else {
                 $fullHistory[] = $currentEntry;
             }
         }
-        
+
         // Sort by minggu_ke
-        usort($fullHistory, function($a, $b) {
+        usort($fullHistory, function ($a, $b) {
             return $a['minggu_ke'] <=> $b['minggu_ke'];
         });
-        
+
         // Add cumulative totals using the same logic as KurvaSService
-        if (!empty($fullHistory) && $this->jenis_kapal_id) {
-            $jenisKapal = JenisKapal::find($this->jenis_kapal_id);
+        if (! empty($fullHistory) && $this->jenis_kapal_id) {
+            $jenisKapal = $this->jenisKapal;
             if ($jenisKapal) {
                 $workGroups = \App\Models\KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
                     ->orderBy('sort_order')
@@ -786,10 +822,10 @@ class LaporanMingguanCreate extends Component
                 $fullHistory = $this->addCumulativeTotalsToHistory($fullHistory, $workGroups);
             }
         }
-        
+
         return $fullHistory;
     }
-    
+
     private function addCumulativeTotalsToHistory(array $history, $workGroups): array
     {
         $bobotMap = [];
@@ -799,7 +835,7 @@ class LaporanMingguanCreate extends Component
 
         $cumulativePlan = 0.0;
         $cumulativeActual = 0.0;
-        
+
         // Track total per work group across all weeks
         $totalPerWorkGroup = [];
         foreach ($bobotMap as $wgId => $bobot) {
@@ -822,10 +858,10 @@ class LaporanMingguanCreate extends Component
                 // TIDAK dibulatkan per work group, dijumlahkan dulu
                 $kontribusiPlan = ($plan * $bobot) / 100.0;
                 $kontribusiActual = ($actual * $bobot) / 100.0;
-                
+
                 $weekPlan += $kontribusiPlan;
                 $weekActual += $kontribusiActual;
-                
+
                 // Accumulate per work group
                 $totalPerWorkGroup[$wgId]['plan'] += $kontribusiPlan;
                 $totalPerWorkGroup[$wgId]['actual'] += $kontribusiActual;
@@ -839,15 +875,15 @@ class LaporanMingguanCreate extends Component
             $entry['cumulative_plan'] = round($cumulativePlan, 2);
             $entry['cumulative_actual'] = round($cumulativeActual, 2);
             $entry['cumulative_deviation'] = round($cumulativeActual - $cumulativePlan, 2);
-            
+
             // Also add weekly totals for consistency
             $entry['week_plan'] = round($weekPlan, 2);
             $entry['week_actual'] = round($weekActual, 2);
             $entry['week_deviation'] = round($weekActual - $weekPlan, 2);
         }
-        
+
         // Add total per work group to the last entry (for footer display)
-        if (!empty($history)) {
+        if (! empty($history)) {
             $totalPerWorkGroupRounded = [];
             foreach ($totalPerWorkGroup as $wgId => $totals) {
                 $totalPerWorkGroupRounded[$wgId] = [
@@ -865,11 +901,11 @@ class LaporanMingguanCreate extends Component
     public function render(KurvaSService $kurvaSService)
     {
         $kurvaSChartData = [];
-        $totalRencana    = null;
-        $totalAktual     = null;
+        $totalRencana = null;
+        $totalAktual = null;
 
         if ($this->jenis_kapal_id && $this->hasKurvaS) {
-            $jenisKapal = JenisKapal::find($this->jenis_kapal_id);
+            $jenisKapal = $this->jenisKapal;
             if ($jenisKapal) {
                 // Build chart data with current unsaved progress overlaid
                 $kurvaSChartData = $kurvaSService->getChartData(
@@ -880,27 +916,26 @@ class LaporanMingguanCreate extends Component
 
                 // Compute totals from full history (includes current week's unsaved data)
                 $fullHistory = $this->fullProgressHistory;
-                if (!empty($fullHistory) && !empty($this->workGroupsForInput)) {
+                if (! empty($fullHistory) && ! empty($this->workGroupsForInput)) {
                     $totalRencana = 0;
-                    $totalAktual  = 0;
+                    $totalAktual = 0;
                     foreach ($fullHistory as $hist) {
                         foreach ($this->workGroupsForInput as $wg) {
-                            $wgId          = $wg['work_group_id'];
-                            $totalRencana += (float) ($hist['plans'][$wgId]    ?? 0) * $wg['bobot'] / 100;
-                            $totalAktual  += (float) ($hist['progress'][$wgId] ?? 0) * $wg['bobot'] / 100;
+                            $wgId = $wg['work_group_id'];
+                            $totalRencana += (float) ($hist['plans'][$wgId] ?? 0) * $wg['bobot'] / 100;
+                            $totalAktual += (float) ($hist['progress'][$wgId] ?? 0) * $wg['bobot'] / 100;
                         }
                     }
                     $totalRencana = round($totalRencana, 2);
-                    $totalAktual  = round($totalAktual, 2);
+                    $totalAktual = round($totalAktual, 2);
                 }
             }
         }
 
         return view('livewire.laporan-mingguan.laporan-mingguan-create', [
-            'jenisKapalList'  => $this->getJenisKapalList(),
             'kurvaSChartData' => $kurvaSChartData,
-            'totalRencana'    => $totalRencana,
-            'totalAktual'     => $totalAktual,
+            'totalRencana' => $totalRencana,
+            'totalAktual' => $totalAktual,
         ]);
     }
 }

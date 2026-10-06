@@ -15,40 +15,59 @@ use Spatie\Permission\Models\Role;
 
 class UserManagement extends Component
 {
-    use WithPagination, AuthorizesRequests, HasNotification;
+    use AuthorizesRequests, HasNotification, WithPagination;
 
     protected $paginationTheme = 'tailwind';
 
     public $search = '';
+
     public $roleFilter = '';
+
     public $statusFilter = '';
+
     public int $perPage = 10;
+
     public $showModal = false;
+
     public $editMode = false;
 
     public bool $filterChanged = false;
-    
+
     // Form fields
     public $userId;
+
     public $name;
+
     public $email;
+
     public $password;
+
     public $password_confirmation;
+
     public $company_id;
+
     public $phone;
+
     public $position;
+
     public $is_active = true;
+
     public $selectedRoles = [];
-    
+
     // Reset Password Modal
     public $showResetPasswordModal = false;
+
     public $resetUserId;
+
     public $newPassword;
+
     public $newPasswordConfirmation;
-    
+
     // Delete Modal
     public $showDeleteModal = false;
+
     public $deletingUserId;
+
     public $deletingUserName;
 
     public function mount()
@@ -60,7 +79,7 @@ class UserManagement extends Component
     {
         $rules = [
             'name' => 'required|string|max:255',
-            'email' => ['required', 'email', $this->editMode ? 'unique:users,email,' . $this->userId : 'unique:users,email'],
+            'email' => ['required', 'email', $this->editMode ? 'unique:users,email,'.$this->userId : 'unique:users,email'],
             'company_id' => 'nullable|exists:companies,id',
             'phone' => 'nullable|string|max:20',
             'position' => 'nullable|string|max:100',
@@ -69,7 +88,7 @@ class UserManagement extends Component
             'selectedRoles.*' => 'exists:roles,name',
         ];
 
-        if (!$this->editMode) {
+        if (! $this->editMode) {
             $rules['password'] = 'required|string|min:8|confirmed';
         } elseif ($this->password) {
             $rules['password'] = 'string|min:8|confirmed';
@@ -104,7 +123,7 @@ class UserManagement extends Component
 
     public function resetFilters(): void
     {
-        $this->reset(['search', 'roleFilter', 'statusFilter']);
+        $this->reset(['search', 'roleFilter', 'statusFilter', 'perPage']);
         $this->resetPage();
         $this->filterChanged = true;
     }
@@ -130,7 +149,7 @@ class UserManagement extends Component
     {
         $user = User::with('roles')->findOrFail($id);
         $this->authorize('update', $user);
-        
+
         $this->userId = $user->id;
         $this->name = $user->name;
         $this->email = $user->email;
@@ -139,7 +158,7 @@ class UserManagement extends Component
         $this->position = $user->position;
         $this->is_active = $user->is_active;
         $this->selectedRoles = $user->getRoleNames()->toArray();
-        
+
         $this->editMode = true;
         $this->showModal = true;
     }
@@ -187,7 +206,7 @@ class UserManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk melakukan aksi ini.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -211,7 +230,7 @@ class UserManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak dapat menghapus akun ini.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -222,13 +241,13 @@ class UserManagement extends Component
             $this->authorize('toggleActive', $user);
 
             $service->toggleActive($user);
-            
+
             $status = $user->is_active ? 'diaktifkan' : 'dinonaktifkan';
             $this->notifySuccess("User berhasil {$status}!");
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak dapat mengubah status akun ini.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -257,13 +276,13 @@ class UserManagement extends Component
             $this->authorize('resetPassword', $user);
 
             $service->resetPassword($user, $this->newPassword);
-            
+
             $this->notifySuccess('Password berhasil direset!');
             $this->closeResetPasswordModal();
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk mereset password.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -293,7 +312,7 @@ class UserManagement extends Component
             'is_active',
             'selectedRoles',
         ]);
-        
+
         $this->is_active = true;
     }
 
@@ -302,7 +321,7 @@ class UserManagement extends Component
         $this->authorize('exportExcel', User::class);
 
         return (new UsersExport($this->search, $this->roleFilter, $this->statusFilter))
-            ->download('users-' . now()->format('Y-m-d-His') . '.xlsx');
+            ->download('users-'.now()->format('Y-m-d-His').'.xlsx');
     }
 
     public function exportPdf(UserService $service)
@@ -320,8 +339,8 @@ class UserManagement extends Component
         $pdf->setPaper('a4', 'landscape');
 
         return response()->streamDownload(
-            fn () => print($pdf->output()),
-            'users-' . now()->format('Y-m-d-His') . '.pdf'
+            fn () => print ($pdf->output()),
+            'users-'.now()->format('Y-m-d-His').'.pdf'
         );
     }
 

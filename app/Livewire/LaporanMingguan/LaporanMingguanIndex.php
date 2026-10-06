@@ -2,11 +2,11 @@
 
 namespace App\Livewire\LaporanMingguan;
 
+use App\Exports\LaporanMingguanExport;
 use App\Livewire\Traits\HasJenisKapalFilter;
 use App\Livewire\Traits\HasNotification;
 use App\Models\JenisKapal;
 use App\Models\LaporanMingguan;
-use App\Exports\LaporanMingguanExport;
 use App\Services\KurvaSService;
 use App\Services\LaporanMingguanService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -19,12 +19,14 @@ use Livewire\WithPagination;
 #[Layout('layouts.app', ['title' => 'Manajemen Laporan Mingguan'])]
 class LaporanMingguanIndex extends Component
 {
-    use WithPagination, AuthorizesRequests, HasNotification, HasJenisKapalFilter;
+    use AuthorizesRequests, HasJenisKapalFilter, HasNotification, WithPagination;
 
     protected $paginationTheme = 'tailwind';
 
     #[Url(as: 'q')]
     public string $search = '';
+
+    public JenisKapal $jenisKapal;
 
     public ?int $jenisKapalId = null;
 
@@ -35,14 +37,18 @@ class LaporanMingguanIndex extends Component
 
     // Delete Modal
     public bool $showDeleteModal = false;
+
     public ?int $deletingLaporanId = null;
+
     public ?string $deletingLaporanJudul = null;
 
-    public function mount(): void
+    public function mount(JenisKapal $jenisKapal): void
     {
         $this->authorize('viewAny', LaporanMingguan::class);
+        $this->authorizeJenisKapalAccess($jenisKapal);
 
-        $this->jenisKapalId = $this->getSelectedJenisKapalId();
+        $this->jenisKapal = $jenisKapal;
+        $this->jenisKapalId = $jenisKapal->id;
         $this->showKurvaS = session('laporan_mingguan_show_kurva_s', false);
 
         if (session()->has('notify')) {
@@ -51,13 +57,9 @@ class LaporanMingguanIndex extends Component
         }
     }
 
-    public function updatedJenisKapalId($value): void
+    public function gantiKapal()
     {
-        $this->setSelectedJenisKapalId($value);
-        $this->resetPage();
-
-        // Dispatch real-time update for the chart
-        $this->dispatchRealtimeUpdates();
+        return $this->redirect(route('laporan.index'), navigate: true);
     }
 
     public function updatedShowKurvaS($value): void
@@ -71,19 +73,8 @@ class LaporanMingguanIndex extends Component
 
     private function dispatchRealtimeUpdates(): void
     {
-        if (!$this->jenisKapalId) {
-            $this->dispatch('kurva-s-updated', chartData: []);
-            return;
-        }
-
-        $jenisKapal = JenisKapal::find($this->jenisKapalId);
-        if (!$jenisKapal) {
-            $this->dispatch('kurva-s-updated', chartData: []);
-            return;
-        }
-
-        $chartData = app(KurvaSService::class)->getChartData($jenisKapal);
-        $progressHistory = app(KurvaSService::class)->getProgressHistory($jenisKapal);
+        $chartData = app(KurvaSService::class)->getChartData($this->jenisKapal);
+        $progressHistory = app(KurvaSService::class)->getProgressHistory($this->jenisKapal);
 
         // Get work groups for history table
         $workGroupsForHistory = \App\Models\KurvaSWorkGroup::where('jenis_kapal_id', $this->jenisKapalId)
@@ -101,7 +92,7 @@ class LaporanMingguanIndex extends Component
         // Calculate totals from progress history using service
         $totalRencana = null;
         $totalAktual = null;
-        if (!empty($progressHistory) && !empty($workGroupsForHistory)) {
+        if (! empty($progressHistory) && ! empty($workGroupsForHistory)) {
             $totals = app(KurvaSService::class)->calculateTotalsFromHistory($progressHistory, $workGroupsForHistory);
             $totalRencana = $totals['total_rencana'];
             $totalAktual = $totals['total_aktual'];
@@ -120,6 +111,12 @@ class LaporanMingguanIndex extends Component
 
     public function updatingPerPage(): void
     {
+        $this->resetPage();
+    }
+
+    public function resetFilters(): void
+    {
+        $this->reset(['search', 'perPage']);
         $this->resetPage();
     }
 
@@ -145,7 +142,7 @@ class LaporanMingguanIndex extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk menghapus laporan ini.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -153,7 +150,7 @@ class LaporanMingguanIndex extends Component
     {
         $this->authorize('exportExcel', LaporanMingguan::class);
 
-        $filename = 'laporan-mingguan-' . now()->format('Y-m-d-His') . '.xlsx';
+        $filename = 'laporan-mingguan-'.now()->format('Y-m-d-His').'.xlsx';
 
         return (new LaporanMingguanExport($this->search, $this->jenisKapalId))
             ->download($filename);
@@ -167,9 +164,9 @@ class LaporanMingguanIndex extends Component
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
                     $q->where('judul', 'like', "%{$this->search}%")
-                      ->orWhereHas('user', function ($q) {
-                          $q->where('name', 'like', "%{$this->search}%");
-                      });
+                        ->orWhereHas('user', function ($q) {
+                            $q->where('name', 'like', "%{$this->search}%");
+                        });
                 });
             })
             ->when($this->jenisKapalId, function ($q) {
@@ -185,10 +182,10 @@ class LaporanMingguanIndex extends Component
         ]);
         $pdf->setPaper('a4', 'landscape');
 
-        $filename = 'laporan-mingguan-' . now()->format('Y-m-d-His') . '.pdf';
+        $filename = 'laporan-mingguan-'.now()->format('Y-m-d-His').'.pdf';
 
         return response()->streamDownload(
-            fn () => print($pdf->output()),
+            fn () => print ($pdf->output()),
             $filename
         );
     }
@@ -201,12 +198,12 @@ class LaporanMingguanIndex extends Component
         $totalRencana = null;
         $totalAktual = null;
 
-        if ($this->showKurvaS && $this->jenisKapalId) {
-            $jenisKapal = JenisKapal::find($this->jenisKapalId);
+        if ($this->showKurvaS) {
+            $jenisKapal = $this->jenisKapal;
             if ($jenisKapal) {
                 $chartData = $kurvaSService->getChartData($jenisKapal);
                 $progressHistory = $kurvaSService->getProgressHistory($jenisKapal);
-                
+
                 // Get work groups for history table
                 $workGroupsForHistory = \App\Models\KurvaSWorkGroup::where('jenis_kapal_id', $this->jenisKapalId)
                     ->orderBy('sort_order')
@@ -219,32 +216,32 @@ class LaporanMingguanIndex extends Component
                         ];
                     })
                     ->toArray();
-                
+
                 // Calculate totals from progress history
-                if (!empty($progressHistory) && !empty($workGroupsForHistory)) {
+                if (! empty($progressHistory) && ! empty($workGroupsForHistory)) {
                     $totalRencana = 0;
                     $totalAktual = 0;
-                    
+
                     foreach ($progressHistory as $hist) {
                         // Calculate total rencana for this week
-                        if (!empty($hist['plans'])) {
+                        if (! empty($hist['plans'])) {
                             foreach ($workGroupsForHistory as $wg) {
                                 $wgId = $wg['work_group_id'];
                                 $plan = $hist['plans'][$wgId] ?? 0;
-                                $totalRencana += (float)$plan * (float)$wg['bobot'] / 100;
+                                $totalRencana += (float) $plan * (float) $wg['bobot'] / 100;
                             }
                         }
-                        
+
                         // Calculate total aktual for this week
-                        if (!empty($hist['progress'])) {
+                        if (! empty($hist['progress'])) {
                             foreach ($workGroupsForHistory as $wg) {
                                 $wgId = $wg['work_group_id'];
                                 $actual = $hist['progress'][$wgId] ?? 0;
-                                $totalAktual += (float)$actual * (float)$wg['bobot'] / 100;
+                                $totalAktual += (float) $actual * (float) $wg['bobot'] / 100;
                             }
                         }
                     }
-                    
+
                     $totalRencana = round($totalRencana, 2);
                     $totalAktual = round($totalAktual, 2);
                 }
@@ -257,13 +254,12 @@ class LaporanMingguanIndex extends Component
                 $this->jenisKapalId,
                 $this->perPage
             ),
-            'jenisKapalList' => $this->getJenisKapalList(),
-            'kurvaSChartData'  => $chartData,
+            'jenisKapal' => $this->jenisKapal,
+            'kurvaSChartData' => $chartData,
             'progressHistory' => $progressHistory,
             'workGroupsForHistory' => $workGroupsForHistory,
-            'totalRencana'    => $totalRencana,
-            'totalAktual'     => $totalAktual,
-            'selectedJenisKapal' => $this->jenisKapalId ? JenisKapal::find($this->jenisKapalId) : null,
+            'totalRencana' => $totalRencana,
+            'totalAktual' => $totalAktual,
         ]);
     }
 }
