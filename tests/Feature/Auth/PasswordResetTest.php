@@ -2,11 +2,13 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Livewire\Pages\Auth\ForgotPassword;
+use App\Livewire\Pages\Auth\ResetPassword as ResetPasswordPage;
 use App\Models\User;
-use Illuminate\Auth\Notifications\ResetPassword;
+use App\Notifications\CustomResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
-use Livewire\Volt\Volt;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class PasswordResetTest extends TestCase
@@ -18,7 +20,7 @@ class PasswordResetTest extends TestCase
         $response = $this->get('/forgot-password');
 
         $response
-            ->assertSeeVolt('pages.auth.forgot-password')
+            ->assertSeeLivewire(ForgotPassword::class)
             ->assertStatus(200);
     }
 
@@ -28,11 +30,11 @@ class PasswordResetTest extends TestCase
 
         $user = User::factory()->create();
 
-        Volt::test('pages.auth.forgot-password')
+        Livewire::test(ForgotPassword::class)
             ->set('email', $user->email)
-            ->call('sendPasswordResetLink');
+            ->call('sendResetLink');
 
-        Notification::assertSentTo($user, ResetPassword::class);
+        Notification::assertSentOnDemand(CustomResetPassword::class);
     }
 
     public function test_reset_password_screen_can_be_rendered(): void
@@ -41,15 +43,15 @@ class PasswordResetTest extends TestCase
 
         $user = User::factory()->create();
 
-        Volt::test('pages.auth.forgot-password')
+        Livewire::test(ForgotPassword::class)
             ->set('email', $user->email)
-            ->call('sendPasswordResetLink');
+            ->call('sendResetLink');
 
-        Notification::assertSentTo($user, ResetPassword::class, function ($notification) {
+        Notification::assertSentOnDemand(CustomResetPassword::class, function ($notification) {
             $response = $this->get('/reset-password/'.$notification->token);
 
             $response
-                ->assertSeeVolt('pages.auth.reset-password')
+                ->assertSeeLivewire(ResetPasswordPage::class)
                 ->assertStatus(200);
 
             return true;
@@ -62,13 +64,13 @@ class PasswordResetTest extends TestCase
 
         $user = User::factory()->create();
 
-        Volt::test('pages.auth.forgot-password')
+        Livewire::test(ForgotPassword::class)
             ->set('email', $user->email)
-            ->call('sendPasswordResetLink');
+            ->call('sendResetLink');
 
-        Notification::assertSentTo($user, ResetPassword::class, function ($notification) use ($user) {
-            $component = Volt::test('pages.auth.reset-password', ['token' => $notification->token])
-                ->set('email', $user->email)
+        Notification::assertSentOnDemand(CustomResetPassword::class, function ($notification) use ($user) {
+            $component = Livewire::withQueryParams(['email' => $user->email])
+                ->test(ResetPasswordPage::class, ['token' => $notification->token])
                 ->set('password', 'password')
                 ->set('password_confirmation', 'password');
 
