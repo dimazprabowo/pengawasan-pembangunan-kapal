@@ -48,7 +48,7 @@ class CustomResetPassword extends ResetPasswordNotification
         ], false));
 
         return (new MailMessage)
-            ->subject('Reset Password - ' . config('app.name', 'Boilerplate'))
+            ->subject('Reset Password - ' . config('app.name', 'SIMPRO'))
             ->view('emails.reset-password', [
                 'resetUrl' => $resetUrl,
                 'userName' => $user->name,

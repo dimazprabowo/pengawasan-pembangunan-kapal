@@ -29,7 +29,7 @@ class CustomVerifyEmail extends VerifyEmailBase
         $verificationUrl = $this->verificationUrl($user);
 
         return (new MailMessage)
-            ->subject('Verifikasi Alamat Email - ' . config('app.name', 'Boilerplate'))
+            ->subject('Verifikasi Alamat Email - ' . config('app.name', 'SIMPRO'))
             ->view('emails.verify-email', [
                 'verificationUrl' => $verificationUrl,
                 'userName' => $user->name,

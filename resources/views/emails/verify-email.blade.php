@@ -245,7 +245,7 @@
                 <img src="{{ email_logo_url() }}" alt="BKI Logo" style="width: 100%; height: 100%; object-fit: contain;">
             </div>
             <h1>Verifikasi Email Anda</h1>
-            <p>{{ config('app.name', 'Boilerplate') }}</p>
+            <p>{{ config('app.name', 'SIMPRO') }}</p>
         </div>
         
         <!-- Content -->
@@ -255,7 +255,7 @@
             </div>
             
             <div class="message">
-                Terima kasih telah mendaftar di <strong>{{ config('app.name', 'Boilerplate') }}</strong>! 
+                Terima kasih telah mendaftar di <strong>{{ config('app.name', 'SIMPRO') }}</strong>! 
                 Untuk melanjutkan, kami perlu memverifikasi alamat email Anda. 
                 Silakan klik tombol di bawah untuk mengkonfirmasi bahwa alamat email ini milik Anda.
             </div>
@@ -287,14 +287,14 @@
             
             <div class="message" style="margin-top: 30px; padding-top: 25px; border-top: 1px solid #e5e7eb;">
                 <p style="font-size: 13px; color: #6b7280;">
-                    Jika Anda tidak membuat akun di {{ config('app.name', 'Boilerplate') }}, abaikan email ini.
+                    Jika Anda tidak membuat akun di {{ config('app.name', 'SIMPRO') }}, abaikan email ini.
                 </p>
             </div>
         </div>
         
         <!-- Footer -->
         <div class="footer">
-            <p><strong>{{ config('app.name', 'Boilerplate') }}</strong></p>
+            <p><strong>{{ config('app.name', 'SIMPRO') }}</strong></p>
             <p style="margin-top: 15px; font-size: 12px;">
                 Email ini dikirim secara otomatis, mohon tidak membalas email ini.
             </p>
@@ -304,7 +304,7 @@
                 <a href="#">Hubungi Kami</a>
             </div>
             <p style="margin-top: 20px; font-size: 12px; color: #9ca3af;">
-                © {{ date('Y') }} {{ config('app.name', 'Boilerplate') }}. All rights reserved.
+                © {{ date('Y') }} {{ config('app.name', 'SIMPRO') }}. All rights reserved.
             </p>
         </div>
     </div>

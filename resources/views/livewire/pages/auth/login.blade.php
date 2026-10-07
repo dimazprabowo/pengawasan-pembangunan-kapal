@@ -18,6 +18,15 @@
         <div class="absolute inset-0 opacity-10">
             <div class="absolute top-0 right-0 w-96 h-96 bg-white rounded-full -translate-y-1/2 translate-x-1/2"></div>
             <div class="absolute bottom-0 left-0 w-96 h-96 bg-white rounded-full translate-y-1/2 -translate-x-1/2"></div>
+            <svg class="absolute bottom-12 right-4 w-56 h-56 xl:w-72 xl:h-72 text-white" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <path d="M3.5 14.5h17l-1.8 5H5.3l-1.8-5z"/>
+                <path d="M15 14.5V9h3.5v5.5"/>
+                <path d="M15 11.75h3.5"/>
+                <path d="M16.25 9V7.5h1.5V9"/>
+                <path d="M5.5 14.5v-2h4v2"/>
+                <path d="M8.5 12.5V9.5M8.5 9.5h2.5"/>
+                <path d="M2.5 21.5h19"/>
+            </svg>
         </div>
         
         <div class="relative z-10">
@@ -26,56 +35,60 @@
                     <img src="{{ email_logo_url() }}" alt="BKI Logo" class="w-full h-full object-contain rounded-lg">
                 </div>
                 <div class="text-white">
-                    <h1 class="text-2xl lg:text-3xl font-bold">{{ config('app.name', 'Boilerplate') }}</h1>
+                    <h1 class="text-2xl lg:text-3xl font-bold">{{ config('app.name', 'SIMPRO') }}</h1>
                     <p class="text-sm text-blue-100">PT. Biro Klasifikasi Indonesia</p>
                 </div>
             </div>
             <div class="space-y-6 max-w-lg">
                 <h2 class="text-3xl lg:text-4xl xl:text-5xl font-bold text-white leading-tight">
-                    {{ config('app.name', 'Boilerplate') }}
+                    {{ config('app.name', 'SIMPRO') }}
                 </h2>
                 <p class="text-lg lg:text-xl text-blue-100 leading-relaxed">
-                    Laravel boilerplate application with authentication, role-based access control, and user management.
+                    Sistem informasi pengawasan pembangunan kapal — pantau progres konstruksi di galangan melalui laporan berkala dan Kurva-S.
                 </p>
                 <div class="space-y-4 pt-8">
                     <div class="flex items-start space-x-4 text-blue-50">
                         <div class="flex-shrink-0 w-8 h-8 bg-blue-500/30 rounded-lg flex items-center justify-center">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
                             </svg>
                         </div>
                         <div>
-                            <h3 class="font-semibold text-white mb-1">Authentication & Authorization</h3>
-                            <p class="text-sm text-blue-200">Login, register, email verification, password reset</p>
+                            <h3 class="font-semibold text-white mb-1">Laporan Harian & Mingguan</h3>
+                            <p class="text-sm text-blue-200">Pencatatan progres pembangunan dengan lampiran foto & dokumen</p>
                         </div>
                     </div>
                     <div class="flex items-start space-x-4 text-blue-50">
                         <div class="flex-shrink-0 w-8 h-8 bg-blue-500/30 rounded-lg flex items-center justify-center">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v15a3 3 0 003 3h15M7 15l4-6 3 3 5-8"/>
                             </svg>
                         </div>
                         <div>
-                            <h3 class="font-semibold text-white mb-1">Role-Based Access Control</h3>
-                            <p class="text-sm text-blue-200">Flexible roles & permissions management</p>
+                            <h3 class="font-semibold text-white mb-1">Kurva-S Progress</h3>
+                            <p class="text-sm text-blue-200">Perbandingan rencana vs realisasi pembangunan per minggu</p>
                         </div>
                     </div>
                     <div class="flex items-start space-x-4 text-blue-50">
                         <div class="flex-shrink-0 w-8 h-8 bg-blue-500/30 rounded-lg flex items-center justify-center">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3.5 14.5h17l-1.8 5H5.3l-1.8-5z"/>
+                                <path d="M15 14.5V9.5h3.5v5"/>
+                                <path d="M16.25 9.5V8h1.5v1.5"/>
+                                <path d="M5.5 14.5v-2h4v2"/>
+                                <path d="M2.5 21.5h19"/>
                             </svg>
                         </div>
                         <div>
-                            <h3 class="font-semibold text-white mb-1">User & System Management</h3>
-                            <p class="text-sm text-blue-200">Complete user CRUD and system configuration</p>
+                            <h3 class="font-semibold text-white mb-1">Kapal, Galangan & Perusahaan</h3>
+                            <p class="text-sm text-blue-200">Master data jenis kapal dan lokasi pembangunan terpusat</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="relative z-10 text-blue-100 text-sm">
-            <p>&copy; {{ date('Y') }} {{ config('app.name', 'Boilerplate') }}. All rights reserved.</p>
+            <p>&copy; {{ date('Y') }} {{ config('app.name', 'SIMPRO') }}. All rights reserved.</p>
         </div>
     </div>
 
@@ -89,7 +102,7 @@
                         <img src="{{ email_logo_url() }}" alt="BKI Logo" class="w-full h-full object-contain rounded-lg">
                     </div>
                     <div>
-                        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ config('app.name', 'Boilerplate') }}</h1>
+                        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ config('app.name', 'SIMPRO') }}</h1>
                         <p class="text-sm text-gray-600 dark:text-gray-400">PT. Biro Klasifikasi Indonesia</p>
                     </div>
                 </div>

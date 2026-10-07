@@ -27,12 +27,12 @@
                     <img src="{{ email_logo_url() }}" alt="BKI Logo" class="w-full h-full object-contain rounded-lg">
                 </div>
                 <div>
-                    <h1 class="text-2xl font-bold text-white">{{ config('app.name', 'Boilerplate') }}</h1>
+                    <h1 class="text-2xl font-bold text-white">{{ config('app.name', 'SIMPRO') }}</h1>
                     <p class="text-blue-100 text-sm">PT. Biro Klasifikasi Indonesia</p>
                 </div>
             </div>
 
-            <h2 class="text-4xl font-bold text-white mb-4">{{ config('app.name', 'Boilerplate') }}</h2>
+            <h2 class="text-4xl font-bold text-white mb-4">{{ config('app.name', 'SIMPRO') }}</h2>
             <p class="text-blue-100 text-lg leading-relaxed">
                 Laravel boilerplate application with authentication, role-based access control, and user management.
             </p>
@@ -79,7 +79,7 @@
 
         <!-- Footer -->
         <div class="relative z-10 text-blue-100 text-sm">
-            © {{ date('Y') }} {{ config('app.name', 'Boilerplate') }}. All rights reserved.
+            © {{ date('Y') }} {{ config('app.name', 'SIMPRO') }}. All rights reserved.
         </div>
     </div>
 

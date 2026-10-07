@@ -26,7 +26,7 @@
                     <img src="{{ email_logo_url() }}" alt="BKI Logo" class="w-full h-full object-contain rounded-lg">
                 </div>
                 <div class="text-white">
-                    <h1 class="text-2xl lg:text-3xl font-bold">{{ config('app.name', 'Boilerplate') }}</h1>
+                    <h1 class="text-2xl lg:text-3xl font-bold">{{ config('app.name', 'SIMPRO') }}</h1>
                     <p class="text-sm text-blue-100">PT. Biro Klasifikasi Indonesia</p>
                 </div>
             </div>
@@ -75,7 +75,7 @@
             </div>
         </div>
         <div class="relative z-10 text-blue-100 text-sm">
-            <p>&copy; {{ date('Y') }} {{ config('app.name', 'Boilerplate') }}. All rights reserved.</p>
+            <p>&copy; {{ date('Y') }} {{ config('app.name', 'SIMPRO') }}. All rights reserved.</p>
         </div>
     </div>
 
@@ -89,7 +89,7 @@
                         <img src="{{ email_logo_url() }}" alt="BKI Logo" class="w-full h-full object-contain rounded-lg">
                     </div>
                     <div>
-                        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ config('app.name', 'Boilerplate') }}</h1>
+                        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ config('app.name', 'SIMPRO') }}</h1>
                         <p class="text-sm text-gray-600 dark:text-gray-400">PT. Biro Klasifikasi Indonesia</p>
                     </div>
                 </div>
@@ -231,7 +231,7 @@
 
             <!-- Mobile Footer -->
             <p class="lg:hidden text-center text-gray-400 dark:text-gray-500 text-xs mt-8">
-                &copy; {{ date('Y') }} {{ config('app.name', 'Boilerplate') }}. All rights reserved.
+                &copy; {{ date('Y') }} {{ config('app.name', 'SIMPRO') }}. All rights reserved.
             </p>
         </div>
     </div>
