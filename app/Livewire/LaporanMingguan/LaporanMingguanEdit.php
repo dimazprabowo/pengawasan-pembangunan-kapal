@@ -883,6 +883,8 @@ class LaporanMingguanEdit extends Component
                 'progress' => $currentProgress,
                 'plans' => $existingPlans,
                 'created_at' => now()->format('d M Y'),
+                'periode_mulai' => $this->periode_mulai ? \Carbon\Carbon::parse($this->periode_mulai)->format('d M Y') : null,
+                'periode_selesai' => $this->periode_selesai ? \Carbon\Carbon::parse($this->periode_selesai)->format('d M Y') : null,
             ];
 
             if ($currentWeekIndex !== false) {

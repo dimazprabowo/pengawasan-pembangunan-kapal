@@ -65,14 +65,15 @@
                 </div>
                 @endif
 
+                @php $weekLabel = $minggu_ke ? 'Mgg. ' . $minggu_ke : 'Minggu Ini'; @endphp
                 <table class="min-w-full text-sm">
                     <thead>
                         <tr class="bg-blue-100/60 dark:bg-blue-900/30">
-                            <th class="px-3 py-2 text-left text-xs font-medium text-blue-700 dark:text-blue-300 uppercase">Work Group</th>
-                            <th class="px-3 py-2 text-center text-xs font-medium text-blue-700 dark:text-blue-300 uppercase w-24">Bobot (%)</th>
-                            <th class="px-3 py-2 text-left text-xs font-medium text-blue-700 dark:text-blue-300 uppercase w-44">Realisasi Group (%)</th>
-                            <th class="px-3 py-2 text-right text-xs font-medium text-blue-700 dark:text-blue-300 uppercase w-36">Kontribusi Proyek</th>
-                            <th class="px-3 py-2 text-right text-xs font-medium text-blue-700 dark:text-blue-300 uppercase w-36">Total Kontribusi</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-blue-700 dark:text-blue-300 uppercase whitespace-nowrap">Work Group</th>
+                            <th class="px-3 py-2 text-center text-xs font-medium text-blue-700 dark:text-blue-300 uppercase whitespace-nowrap w-24">Bobot (%)</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-blue-700 dark:text-blue-300 uppercase whitespace-nowrap w-44">Realisasi {{ $weekLabel }} (%)</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium text-blue-700 dark:text-blue-300 uppercase whitespace-nowrap w-36">Kontribusi {{ $weekLabel }} (%)</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium text-blue-700 dark:text-blue-300 uppercase whitespace-nowrap w-36">Total s/d {{ $weekLabel }} (%)</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-blue-100 dark:divide-blue-900/30">
@@ -153,7 +154,7 @@
             </div>
 
             <p class="text-xs text-blue-500 dark:text-blue-400 mt-2">
-                Masukkan % kumulatif realisasi masing-masing work group hingga periode laporan ini.
+                Masukkan % realisasi pekerjaan masing-masing work group pada minggu ini.
             </p>
             @endif
         @endif
