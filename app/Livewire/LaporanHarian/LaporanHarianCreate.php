@@ -11,6 +11,7 @@ use App\Models\Kelembaban;
 use App\Models\LaporanHarian;
 use App\Services\LaporanHarianService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -81,6 +82,17 @@ class LaporanHarianCreate extends Component
 
     public array $cropData = [];
 
+    // Preferensi autosave draft per user (persisten via cache)
+    public bool $autoSave = true;
+
+    // Tab hari aktif — server-side single source of truth (entangled ke Alpine)
+    public int $activeTab = 0;
+
+    public function updatedActiveTab(int $value): void
+    {
+        $this->activeTab = max(0, min($value, count($this->items) - 1));
+    }
+
     public function mount(JenisKapal $jenisKapal): void
     {
         $this->authorize('create', LaporanHarian::class);
@@ -88,12 +100,24 @@ class LaporanHarianCreate extends Component
 
         $this->jenisKapal = $jenisKapal;
         $this->jenis_kapal_id = $jenisKapal->id;
+        $this->autoSave = Cache::get('lh_draft_autosave:'.auth()->id(), true);
         $this->addItem();
+    }
+
+    public function toggleAutoSave(): void
+    {
+        $this->autoSave = ! $this->autoSave;
+        Cache::forever('lh_draft_autosave:'.auth()->id(), $this->autoSave);
     }
 
     public function addItem(): void
     {
-        $tanggalLaporan = now()->format('Y-m-d');
+        // Auto-increment: hari ke-N mengikuti tanggal laporan terakhir + 1 hari
+        $lastTanggal = $this->items[count($this->items) - 1]['tanggal_laporan'] ?? null;
+        $tanggalLaporan = $lastTanggal
+            ? \Carbon\Carbon::parse($lastTanggal)->addDay()->format('Y-m-d')
+            : now()->format('Y-m-d');
+
         $this->items[] = [
             'judul' => $this->generateDefaultJudul($tanggalLaporan),
             'tanggal_laporan' => $tanggalLaporan,
@@ -117,6 +141,9 @@ class LaporanHarianCreate extends Component
                 'is_cropped' => false,
             ],
         ];
+
+        $this->activeTab = count($this->items) - 1;
+        $this->dispatch('laporan-item-added', index: $this->activeTab);
     }
 
     public function confirmRemoveItem(int $index): void
@@ -143,6 +170,13 @@ class LaporanHarianCreate extends Component
         unset($this->lampiran[$index]);
         $this->items = array_values($this->items);
         $this->lampiran = array_values($this->lampiran);
+
+        if ($this->activeTab > $index) {
+            $this->activeTab--;
+        }
+        $this->activeTab = min($this->activeTab, max(0, count($this->items) - 1));
+
+        $this->dispatch('laporan-item-removed', index: $index, count: count($this->items));
 
         $this->showDeleteCardModal = false;
         $this->deletingCardIndex = null;
@@ -469,6 +503,11 @@ class LaporanHarianCreate extends Component
             $this->validate();
         } catch (\Illuminate\Validation\ValidationException $e) {
             $this->notifyValidationError($e);
+            $firstKey = collect($e->validator->errors()->keys())
+                ->first(fn ($k) => str_starts_with($k, 'items.') || str_starts_with($k, 'lampiran.'));
+            if ($firstKey && preg_match('/^(items|lampiran)\.(\d+)/', $firstKey, $m)) {
+                $this->activeTab = (int) $m[2];
+            }
             throw $e;
         }
 
@@ -610,6 +649,14 @@ class LaporanHarianCreate extends Component
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
+    }
+
+    public function cancel()
+    {
+        // Beri tahu Alpine untuk menghapus draft lokal sebelum navigate
+        $this->dispatch('lh-clear-draft');
+
+        return $this->redirect(route('laporan-harian.index', $this->jenisKapal), navigate: true);
     }
 
     /**

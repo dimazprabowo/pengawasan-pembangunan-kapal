@@ -12,6 +12,7 @@ use App\Models\LaporanHarian;
 use App\Services\LaporanHarianService;
 use App\Services\QueueStatusService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -59,6 +60,9 @@ class LaporanHarianEdit extends Component
 
     // Keterangan untuk existing lampiran yang diedit
     public array $lampiranKeterangan = [];
+
+    // Preferensi autosave draft per user (persisten via cache)
+    public bool $autoSave = true;
 
     // Delete lampiran confirmation
     public bool $showDeleteLampiranModal = false;
@@ -113,6 +117,7 @@ class LaporanHarianEdit extends Component
         $this->jenisKapal = $jenisKapal;
         $this->laporan = $laporanHarian;
         $this->jenis_kapal_id = $laporanHarian->jenis_kapal_id;
+        $this->autoSave = Cache::get('lh_draft_autosave:'.auth()->id(), true);
         $this->judul = $laporanHarian->judul;
         $this->tanggal_laporan = $laporanHarian->tanggal_laporan->format('Y-m-d');
 
@@ -167,6 +172,12 @@ class LaporanHarianEdit extends Component
             'aktivitas' => $a->aktivitas,
             'pic' => $a->pic,
         ])->toArray();
+    }
+
+    public function toggleAutoSave(): void
+    {
+        $this->autoSave = ! $this->autoSave;
+        Cache::forever('lh_draft_autosave:'.auth()->id(), $this->autoSave);
     }
 
     public function rules(): array
@@ -485,6 +496,14 @@ class LaporanHarianEdit extends Component
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
+    }
+
+    public function cancel()
+    {
+        // Beri tahu Alpine untuk menghapus draft lokal sebelum navigate
+        $this->dispatch('lh-clear-draft');
+
+        return $this->redirect(route('laporan-harian.index', $this->jenisKapal), navigate: true);
     }
 
     public function openLampiranPreview(int $lampiranId): void

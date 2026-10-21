@@ -64,8 +64,14 @@
                 </div>
                 <div class="mt-5 flex justify-end gap-2">
                     <button type="button" wire:click="cancelDeleteGroup"
-                        class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                        Batal
+                        wire:loading.attr="disabled" wire:target="cancelDeleteGroup"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                        <svg wire:loading wire:target="cancelDeleteGroup" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                        </svg>
+                        <span wire:loading.remove wire:target="cancelDeleteGroup">Batal</span>
+                        <span wire:loading wire:target="cancelDeleteGroup">Menutup...</span>
                     </button>
                     <button type="button" wire:click="confirmDeleteGroup"
                         wire:loading.attr="disabled" wire:target="confirmDeleteGroup"
@@ -102,8 +108,14 @@
                 </div>
                 <div class="mt-5 flex justify-end gap-2">
                     <button type="button" wire:click="cancelDeleteWeek"
-                        class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                        Batal
+                        wire:loading.attr="disabled" wire:target="cancelDeleteWeek"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                        <svg wire:loading wire:target="cancelDeleteWeek" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                        </svg>
+                        <span wire:loading.remove wire:target="cancelDeleteWeek">Batal</span>
+                        <span wire:loading wire:target="cancelDeleteWeek">Menutup...</span>
                     </button>
                     <button type="button" wire:click="confirmDeleteWeek"
                         wire:loading.attr="disabled" wire:target="confirmDeleteWeek"
@@ -127,9 +139,14 @@
                         <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{{ $jenisKapalNama }}</p>
                     </div>
                     <button type="button" wire:click="closeModal"
-                        class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 rounded">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        wire:loading.attr="disabled" wire:target="closeModal"
+                        class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 rounded disabled:opacity-50">
+                        <svg wire:loading.class="hidden" wire:target="closeModal" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                        <svg wire:loading wire:target="closeModal" class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                         </svg>
                     </button>
                 </div>
@@ -263,14 +280,19 @@
                                 </div>
 
                                 <button type="button" wire:click="toggleGroup({{ $gi }})"
-                                    class="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md transition-colors
+                                    wire:loading.attr="disabled" wire:target="toggleGroup({{ $gi }})"
+                                    class="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md transition-colors disabled:opacity-60
                                         {{ $expandedGroupIdx === $gi
                                             ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
                                             : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600' }}"
                                     title="Edit rencana mingguan">
-                                    <svg class="w-3.5 h-3.5 transition-transform {{ $expandedGroupIdx === $gi ? 'rotate-180' : '' }}"
+                                    <svg wire:loading.class="hidden" wire:target="toggleGroup({{ $gi }})" class="w-3.5 h-3.5 transition-transform {{ $expandedGroupIdx === $gi ? 'rotate-180' : '' }}"
                                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                    </svg>
+                                    <svg wire:loading wire:target="toggleGroup({{ $gi }})" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                                     </svg>
                                     {{ count($wg['weeks']) }} minggu
                                 </button>
@@ -399,8 +421,14 @@
                 </span>
                 <div class="flex items-center gap-3">
                     <button type="button" wire:click="closeModal"
-                        class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                        Batal
+                        wire:loading.attr="disabled" wire:target="closeModal"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                        <svg wire:loading wire:target="closeModal" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                        </svg>
+                        <span wire:loading.remove wire:target="closeModal">Batal</span>
+                        <span wire:loading wire:target="closeModal">Menutup...</span>
                     </button>
                     <x-loading-button wire:click="save" target="save" variant="primary" size="md" loadingText="Menyimpan...">
                         <x-slot:icon>
