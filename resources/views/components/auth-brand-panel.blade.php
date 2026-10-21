@@ -9,7 +9,7 @@
                 <img src="{{ email_logo_url() }}" alt="BKI Logo" class="w-full h-full object-contain rounded-lg">
             </div>
             <div class="text-white">
-                <h1 class="text-2xl lg:text-3xl font-bold">{{ config('app.name', 'SIMPRO') }}</h1>
+                <h1 class="text-2xl lg:text-3xl font-bold">{{ app_name() }}</h1>
                 <p class="text-sm text-blue-100">PT. Biro Klasifikasi Indonesia</p>
             </div>
         </div>
@@ -65,6 +65,6 @@
     </div>
 
     <div class="relative z-10 order-4 mt-8 pt-4 border-t border-white/10 text-slate-400 text-xs">
-        <p>&copy; {{ date('Y') }} {{ config('app.name', 'SIMPRO') }}. Hak cipta dilindungi undang-undang.</p>
+        <p>&copy; {{ date('Y') }} {{ app_name() }}. Hak cipta dilindungi undang-undang.</p>
     </div>
 </div>

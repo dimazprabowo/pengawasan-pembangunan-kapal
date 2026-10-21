@@ -169,7 +169,7 @@
 
         {{-- Options List --}}
         <ul 
-            class="max-h-60 overflow-auto py-1 text-sm focus:outline-none"
+            class="max-h-60 overflow-auto custom-scrollbar py-1 text-sm focus:outline-none"
             role="listbox"
         >
             {{-- Clear/Empty Option --}}

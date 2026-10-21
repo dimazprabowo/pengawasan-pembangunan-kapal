@@ -31,16 +31,15 @@ class CustomResetPassword extends ResetPasswordNotification
      * Get the mail representation of the notification.
      *
      * @param  mixed  $notifiable
-     * @return \Illuminate\Notifications\Messages\MailMessage
      */
     public function toMail($notifiable): MailMessage
     {
         // Use the user passed in constructor, or the notifiable
         $user = $this->user ?? $notifiable;
-        
+
         // Use pending_email if exists, otherwise use current email
         $email = $user->pending_email ?? $user->email;
-        
+
         // Generate reset URL with the appropriate email
         $resetUrl = url(route('password.reset', [
             'token' => $this->token,
@@ -48,29 +47,28 @@ class CustomResetPassword extends ResetPasswordNotification
         ], false));
 
         return (new MailMessage)
-            ->subject('Reset Password - ' . config('app.name', 'SIMPRO'))
+            ->from(config('mail.from.address'), app_name())
+            ->subject('Reset Password - '.app_name())
             ->view('emails.reset-password', [
                 'resetUrl' => $resetUrl,
                 'userName' => $user->name,
             ]);
     }
-    
+
     /**
      * Get the notification's delivery channels.
      *
      * @param  mixed  $notifiable
-     * @return array
      */
     public function via($notifiable): array
     {
         return ['mail'];
     }
-    
+
     /**
      * Get the array representation of the notification.
      *
      * @param  mixed  $notifiable
-     * @return array
      */
     public function toArray($notifiable): array
     {

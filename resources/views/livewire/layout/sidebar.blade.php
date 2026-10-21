@@ -31,7 +31,7 @@
                     </div>
                     {{-- App name: always visible on mobile, hidden on desktop when collapsed --}}
                     <div class="leading-tight" :class="Alpine.store('sidebar').collapsed && 'lg:hidden'">
-                        <div class="text-sm font-bold text-gray-900 dark:text-white">{{ config('app.name', 'SIMPRO') }}</div>
+                        <div class="text-sm font-bold text-gray-900 dark:text-white">{{ app_name() }}</div>
                         <div class="text-xs text-gray-500 dark:text-gray-400">PT. Biro Klasifikasi Indonesia</div>
                     </div>
                 </a>
@@ -45,7 +45,7 @@
         </div>
 
         {{-- Navigation --}}
-        <nav class="flex-1 py-4 space-y-1 overflow-y-auto overflow-x-hidden sidebar-scroll"
+        <nav class="flex-1 py-4 space-y-1 overflow-y-auto overflow-x-hidden custom-scrollbar"
              :class="Alpine.store('sidebar').collapsed ? 'lg:px-2 px-3' : 'px-3'">
             @foreach($menuItems as $item)
                 @if(isset($item['children']))

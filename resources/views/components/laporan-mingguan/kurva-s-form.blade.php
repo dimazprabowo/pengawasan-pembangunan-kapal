@@ -50,7 +50,7 @@
 
             {{-- Per Work Group Progress Table --}}
             @if(count($workGroupsForInput) > 0)
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto custom-scrollbar">
 
                 {{-- Warning banner when kontribusi exceeds bobot --}}
                 @if($this->anyExceedsBobot)

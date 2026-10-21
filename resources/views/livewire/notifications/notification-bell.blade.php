@@ -37,7 +37,7 @@
         </div>
 
         {{-- Notification List --}}
-        <div class="max-h-80 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
+        <div class="max-h-80 overflow-y-auto custom-scrollbar divide-y divide-gray-100 dark:divide-gray-700">
             @forelse($notifications as $notification)
                 <div wire:key="notif-{{ $notification->id }}"
                      class="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer {{ is_null($notification->read_at) ? 'bg-blue-50/50 dark:bg-blue-900/10' : '' }}"

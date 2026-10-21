@@ -66,6 +66,38 @@ class AppServiceProvider extends ServiceProvider
 
         // Override Laravel config with database system configurations
         $this->applySystemConfigurations();
+
+        // TEMP DEBUG: capture Livewire checksum failures for diagnosis (remove after fix)
+        if (config('app.debug')) {
+            \Livewire\on('checksum.generate', function ($checksum, $snapshot) {
+                try {
+                    cache()->store('array')->put("lw-cksum:$checksum", $snapshot, 3600);
+                    \Illuminate\Support\Facades\File::append(
+                        storage_path('logs/lw-checksums.jsonl'),
+                        json_encode(['checksum' => $checksum, 'snapshot' => $snapshot])."\n"
+                    );
+                } catch (\Throwable $e) {
+                    // ignore
+                }
+            });
+            \Livewire\on('checksum.fail', function ($checksum, $comparitor, $snapshot) {
+                try {
+                    \Illuminate\Support\Facades\Log::warning('Livewire checksum fail', [
+                        'component' => $snapshot['memo']['name'] ?? '?',
+                        'id' => $snapshot['memo']['id'] ?? '?',
+                        'json_error' => json_last_error_msg(),
+                        'expected' => $checksum,
+                        'actual' => $comparitor,
+                    ]);
+                    \Illuminate\Support\Facades\File::append(
+                        storage_path('logs/lw-checksum-fail.json'),
+                        json_encode(['sent_checksum' => $checksum, 'snapshot' => $snapshot])."\n"
+                    );
+                } catch (\Throwable $e) {
+                    // ignore
+                }
+            });
+        }
     }
 
     /**
@@ -74,7 +106,7 @@ class AppServiceProvider extends ServiceProvider
     private function applySystemConfigurations(): void
     {
         try {
-            if (!Schema::hasTable('system_configurations')) {
+            if (! Schema::hasTable('system_configurations')) {
                 return;
             }
 
@@ -89,6 +121,12 @@ class AppServiceProvider extends ServiceProvider
                 if ($value !== null) {
                     config([$laravelKey => $value]);
                 }
+            }
+
+            // Nama pengirim email mengikuti nama aplikasi (konvensi template
+            // MAIL_FROM_NAME="${APP_NAME}") — nilai env lama tidak boleh bocor.
+            if (config('mail.from.name') === env('APP_NAME')) {
+                config(['mail.from.name' => config('app.name')]);
             }
 
             // Apply timezone if set

@@ -41,7 +41,7 @@
                                class="w-full text-sm rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500">
 
                         @if($searchResults->count() > 0)
-                            <div class="mt-2 max-h-48 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
+                            <div class="mt-2 max-h-48 overflow-y-auto custom-scrollbar divide-y divide-gray-100 dark:divide-gray-700">
                                 @foreach($searchResults as $user)
                                     <button wire:key="search-user-{{ $user->id }}" wire:click="startDirectChat({{ $user->id }})"
                                             @click="showNew = false; showMobileList = false"
@@ -76,7 +76,7 @@
         </div>
 
         {{-- Chat List --}}
-        <div class="flex-1 overflow-y-auto">
+        <div class="flex-1 overflow-y-auto custom-scrollbar">
             @forelse($chats as $chat)
                 @php
                     $unread = $unreadCounts[$chat->id] ?? 0;
@@ -198,7 +198,7 @@
             </div>
 
             {{-- Messages --}}
-            <div class="flex-1 overflow-y-auto px-4 py-4 space-y-3"
+            <div class="flex-1 overflow-y-auto custom-scrollbar px-4 py-4 space-y-3"
                  id="chat-messages"
                  x-ref="chatMessages"
                  x-init="$nextTick(() => $el.scrollTop = $el.scrollHeight)">
@@ -445,7 +445,7 @@
                               @input="resize()"
                               placeholder="Ketik pesan... (Ctrl+Enter untuk kirim)"
                               rows="1"
-                              class="flex-1 text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500 resize-none py-2.5 px-4"
+                              class="flex-1 text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500 resize-none py-2.5 px-4 custom-scrollbar"
                               style="min-height: 40px; max-height: 120px; overflow-y: auto;"></textarea>
                     <button type="submit"
                             class="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors disabled:opacity-50"

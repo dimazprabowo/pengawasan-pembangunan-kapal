@@ -6,7 +6,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ $title ? $title . ' - ' . config('app.name', 'Laravel') : config('app.name', 'Laravel') }}</title>
+        <title>{{ $title ? $title . ' - ' . app_name() : app_name() }}</title>
 
         <!-- Favicon -->
         <link rel="icon" type="image/webp" href="{{ asset('images/bki-main.webp') }}">
@@ -53,7 +53,7 @@
                                 <img src="{{ email_logo_url() }}" alt="BKI Logo" class="w-full h-full object-contain rounded-lg">
                             </div>
                             <div>
-                                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ config('app.name', 'SIMPRO') }}</h1>
+                                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ app_name() }}</h1>
                                 <p class="text-sm text-gray-600 dark:text-gray-400">PT. Biro Klasifikasi Indonesia</p>
                             </div>
                         </div>

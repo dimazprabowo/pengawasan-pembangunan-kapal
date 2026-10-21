@@ -135,6 +135,6 @@
 
             <!-- Mobile Footer -->
             <p class="lg:hidden text-center text-gray-400 dark:text-gray-500 text-xs mt-8">
-                &copy; {{ date('Y') }} {{ config('app.name', 'SIMPRO') }}. All rights reserved.
+                &copy; {{ date('Y') }} {{ app_name() }}. All rights reserved.
             </p>
 </div>

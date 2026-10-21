@@ -4,8 +4,8 @@ namespace App\Notifications;
 
 use Illuminate\Auth\Notifications\VerifyEmail as VerifyEmailBase;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\URL;
 
 class CustomVerifyEmail extends VerifyEmailBase
 {
@@ -29,13 +29,14 @@ class CustomVerifyEmail extends VerifyEmailBase
         $verificationUrl = $this->verificationUrl($user);
 
         return (new MailMessage)
-            ->subject('Verifikasi Alamat Email - ' . config('app.name', 'SIMPRO'))
+            ->from(config('mail.from.address'), app_name())
+            ->subject('Verifikasi Alamat Email - '.app_name())
             ->view('emails.verify-email', [
                 'verificationUrl' => $verificationUrl,
                 'userName' => $user->name,
             ]);
     }
-    
+
     /**
      * Get the notification's delivery channels.
      */
@@ -43,7 +44,7 @@ class CustomVerifyEmail extends VerifyEmailBase
     {
         return ['mail'];
     }
-    
+
     /**
      * Get the array representation of the notification.
      */
@@ -51,7 +52,7 @@ class CustomVerifyEmail extends VerifyEmailBase
     {
         return [];
     }
-    
+
     /**
      * Get the mail representation of the notification.
      * Override to send to pending_email if exists.
