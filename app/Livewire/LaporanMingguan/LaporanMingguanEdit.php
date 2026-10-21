@@ -5,6 +5,7 @@ namespace App\Livewire\LaporanMingguan;
 use App\Jobs\ProcessLaporanExternal;
 use App\Livewire\Traits\HasJenisKapalFilter;
 use App\Livewire\Traits\HasNotification;
+use App\Livewire\Traits\StabilizesSnapshot;
 use App\Models\JenisKapal;
 use App\Models\LaporanExternal;
 use App\Models\LaporanHarian;
@@ -21,7 +22,7 @@ use Livewire\WithFileUploads;
 #[Layout('layouts.app', ['title' => 'Edit Laporan Mingguan'])]
 class LaporanMingguanEdit extends Component
 {
-    use AuthorizesRequests, HasJenisKapalFilter, HasNotification, WithFileUploads;
+    use AuthorizesRequests, HasJenisKapalFilter, HasNotification, StabilizesSnapshot, WithFileUploads;
 
     public LaporanMingguan $laporan;
 
