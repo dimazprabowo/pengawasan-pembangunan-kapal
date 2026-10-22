@@ -76,19 +76,11 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 @can('cuaca_update')
-                                    <button wire:click="toggleStatus({{ $cuaca->id }})"
-                                        wire:loading.attr="disabled"
-                                        wire:target="toggleStatus({{ $cuaca->id }})"
-                                        class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-wait
-                                            {{ $cuaca->status->value === 'active' ? 'bg-orange-600' : 'bg-gray-200 dark:bg-gray-700' }}">
-                                        <span class="inline-flex items-center justify-center h-4 w-4 transform rounded-full bg-white transition-transform
-                                            {{ $cuaca->status->value === 'active' ? 'translate-x-6' : 'translate-x-1' }}">
-                                            <svg wire:loading wire:target="toggleStatus({{ $cuaca->id }})" class="animate-spin h-3 w-3 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                        </span>
-                                    </button>
+                                    <x-toggle-switch wire:click="toggleStatus({{ $cuaca->id }})"
+                                        :active="$cuaca->status->value === 'active'"
+                                        target="toggleStatus({{ $cuaca->id }})"
+                                        activeColor="orange"
+                                        title="Aktifkan/Nonaktifkan" />
                                 @else
                                     @php
                                         $statusColors = [

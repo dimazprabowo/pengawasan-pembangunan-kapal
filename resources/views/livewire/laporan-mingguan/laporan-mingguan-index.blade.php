@@ -103,14 +103,45 @@
                 </a>
             @endcan
             <div class="inline-flex items-center gap-2">
-                <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" wire:model.live="showKurvaS" class="sr-only peer">
-                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                    <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Kurva S</span>
-                </label>
+                <x-toggle-switch wire:click="toggleKurvaS" :active="$showKurvaS" target="toggleKurvaS" activeColor="blue" title="Tampilkan/sembunyikan Grafik Kurva S" />
+                <span class="text-sm font-medium text-gray-900 dark:text-gray-300">Kurva S</span>
             </div>
         </div>
     </div>
+
+    {{-- Kurva S Loading Skeleton (tampil saat request toggle sedang berjalan) --}}
+    @if(!$showKurvaS)
+        <div wire:loading wire:target="toggleKurvaS" class="mb-6 w-full">
+            <div class="w-full bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div class="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
+                    <svg class="animate-spin w-4 h-4 text-blue-600 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Memuat Kurva S</h3>
+                    <span class="ms-auto flex items-center gap-1" aria-hidden="true">
+                        <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce" style="animation-delay: 0ms"></span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce" style="animation-delay: 150ms"></span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce" style="animation-delay: 300ms"></span>
+                    </span>
+                </div>
+                <div class="px-5 pt-6 pb-5">
+                    <div class="flex items-end gap-2 sm:gap-3 h-44" aria-hidden="true">
+                        @foreach([38, 52, 45, 63, 58, 74, 68, 86, 79, 92, 71, 84] as $h)
+                            <div class="flex-1 rounded-t-lg bg-gradient-to-t from-blue-200/80 to-blue-100/40 dark:from-blue-800/40 dark:to-blue-900/20 animate-pulse"
+                                style="height: {{ $h }}%; animation-delay: {{ $loop->index * 90 }}ms"></div>
+                        @endforeach
+                    </div>
+                    <div class="mt-3 flex justify-between gap-2" aria-hidden="true">
+                        @foreach(range(1, 6) as $i)
+                            <span class="h-2 w-8 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" style="animation-delay: {{ $i * 100 }}ms"></span>
+                        @endforeach
+                    </div>
+                    <p class="mt-5 text-center text-sm text-gray-500 dark:text-gray-400">Sedang mengambil data progres pembangunan...</p>
+                </div>
+            </div>
+        </div>
+    @endif
 
     {{-- Kurva S Chart Panel --}}
     @if($showKurvaS)
@@ -161,6 +192,7 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Judul</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tanggal Laporan</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tanggal Harian</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Pembuat</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dibuat</th>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
@@ -177,6 +209,20 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm text-gray-900 dark:text-white">{{ $laporan->tanggal_laporan->translatedFormat('d M Y') }}</div>
+                            </td>
+                            <td class="px-6 py-4">
+                                @if($laporan->laporanHarian->isEmpty())
+                                    <span class="text-sm text-gray-400 dark:text-gray-500">-</span>
+                                @else
+                                    <div class="flex flex-wrap gap-1">
+                                        @foreach($laporan->laporanHarian as $harian)
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                                                title="{{ $harian->judul }}">
+                                                {{ $harian->tanggal_laporan->translatedFormat('d M') }}
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
@@ -246,7 +292,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-6 py-12 text-center">
+                            <td colspan="7" class="px-6 py-12 text-center">
                                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                 </svg>

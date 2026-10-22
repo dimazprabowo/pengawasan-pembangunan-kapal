@@ -62,6 +62,12 @@ class LaporanMingguanIndex extends Component
         return $this->redirect(route('laporan.index'), navigate: true);
     }
 
+    public function toggleKurvaS(): void
+    {
+        $this->showKurvaS = ! $this->showKurvaS;
+        $this->updatedShowKurvaS($this->showKurvaS);
+    }
+
     public function updatedShowKurvaS($value): void
     {
         session(['laporan_mingguan_show_kurva_s' => $value]);

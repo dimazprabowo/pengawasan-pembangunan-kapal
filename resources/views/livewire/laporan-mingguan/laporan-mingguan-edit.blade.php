@@ -106,7 +106,7 @@
                             <div class="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
                                 <div class="space-y-2 max-h-60 overflow-y-auto">
                                     @foreach($availableLaporanHarian as $laporan)
-                                        <label class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors">
+                                        <label wire:key="harian-option-{{ $laporan['id'] }}" class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors">
                                             <input type="checkbox"
                                                 value="{{ $laporan['id'] }}"
                                                 wire:model.live="laporan_harian_ids"
@@ -115,6 +115,12 @@
                                                 <div class="font-medium text-gray-900 dark:text-white text-sm">{{ $laporan['judul'] }}</div>
                                                 <div class="text-xs text-gray-500 dark:text-gray-400">{{ $laporan['tanggal'] }}</div>
                                             </div>
+                                            @if(!empty($laporan['claimed_label']))
+                                                <span class="flex-shrink-0 px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300"
+                                                    title="Hari ini sudah tercatat di {{ $laporan['claimed_label'] }} — akan dipindahkan saat disimpan">
+                                                    {{ $laporan['claimed_label'] }}
+                                                </span>
+                                            @endif
                                         </label>
                                     @endforeach
                                 </div>
@@ -276,6 +282,14 @@
         title="Hapus Laporan External"
         message="Apakah Anda yakin ingin menghapus laporan external ini?"
         confirmMethod="deleteExternalReport"
+    />
+
+    {{-- Konfirmasi Pemindahan Hari dari Mingguan Lain --}}
+    <x-laporan-mingguan.harian-reassign-modal
+        :show="$showReassignModal"
+        wire:model="showReassignModal"
+        :groups="$harianConflicts"
+        confirmMethod="saveWithReassign"
     />
 
 <script>

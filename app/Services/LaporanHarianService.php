@@ -21,15 +21,53 @@ class LaporanHarianService
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('judul', 'like', "%{$search}%")
-                  ->orWhereHas('user', function ($q) use ($search) {
-                      $q->where('name', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('user', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%");
+                    });
             });
         }
 
-        return $query->orderByDesc('tanggal_laporan')
+        $paginator = $query->orderByDesc('tanggal_laporan')
             ->orderByDesc('created_at')
             ->paginate($perPage);
+
+        $this->flagDuplicateTanggal($paginator, $jenisKapalId);
+
+        return $paginator;
+    }
+
+    /**
+     * Tandai laporan pada halaman ini yang tanggal_laporan-nya juga dipakai
+     * laporan harian lain pada kapal yang sama (data duplikat legacy).
+     */
+    private function flagDuplicateTanggal(LengthAwarePaginator $paginator, ?int $jenisKapalId): void
+    {
+        $items = $paginator->getCollection();
+        $dates = $items->map(fn ($l) => $l->tanggal_laporan->format('Y-m-d'))->unique();
+
+        if (! $jenisKapalId || $dates->isEmpty()) {
+            $items->each(function ($l) {
+                $l->tanggal_duplikat = false;
+            });
+
+            return;
+        }
+
+        $dupeDates = LaporanHarian::where('jenis_kapal_id', $jenisKapalId)
+            ->where(function ($q) use ($dates) {
+                foreach ($dates as $d) {
+                    $q->orWhereDate('tanggal_laporan', $d);
+                }
+            })
+            ->get(['id', 'tanggal_laporan'])
+            ->groupBy(fn ($l) => $l->tanggal_laporan->format('Y-m-d'))
+            ->filter(fn ($group) => $group->count() > 1)
+            ->keys();
+
+        // NB: gunakan closure biasa — `each` berhenti iterasi jika callback mengembalikan false
+        $items->each(function ($l) use ($dupeDates) {
+            $l->tanggal_duplikat = $dupeDates->contains($l->tanggal_laporan->format('Y-m-d'));
+        });
     }
 
     public function create(array $data): LaporanHarian
@@ -53,6 +91,7 @@ class LaporanHarianService
     public function update(LaporanHarian $laporanHarian, array $data): LaporanHarian
     {
         $laporanHarian->update($data);
+
         return $laporanHarian;
     }
 
@@ -107,11 +146,11 @@ class LaporanHarianService
     {
         $this->deleteDocFile($laporanHarian);
         $laporanHarian->update([
-            'doc_path'         => null,
-            'doc_name'         => null,
-            'doc_status'       => null,
+            'doc_path' => null,
+            'doc_name' => null,
+            'doc_status' => null,
             'doc_generated_at' => null,
-            'doc_error'        => null,
+            'doc_error' => null,
         ]);
     }
 
@@ -125,7 +164,7 @@ class LaporanHarianService
     private function deleteDocFile(LaporanHarian $laporanHarian): void
     {
         if ($laporanHarian->doc_path) {
-            $path = storage_path('app/' . $laporanHarian->doc_path);
+            $path = storage_path('app/'.$laporanHarian->doc_path);
             if (file_exists($path)) {
                 @unlink($path);
             }

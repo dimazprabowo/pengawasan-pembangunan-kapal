@@ -91,11 +91,7 @@
             <div class="ml-auto flex flex-col items-end gap-1.5 flex-shrink-0">
                 <div class="flex items-center gap-2" title="Aktifkan/nonaktifkan penyimpanan draft otomatis di browser">
                     <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Auto Save</span>
-                    <button type="button" wire:click="toggleAutoSave"
-                        wire:loading.attr="disabled" wire:target="toggleAutoSave"
-                        class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 {{ $autoSave ? 'bg-emerald-500' : 'bg-gray-200 dark:bg-gray-700' }}">
-                        <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {{ $autoSave ? 'translate-x-6' : 'translate-x-1' }}"></span>
-                    </button>
+                    <x-toggle-switch wire:click="toggleAutoSave" :active="$autoSave" target="toggleAutoSave" activeColor="emerald" />
                 </div>
                 <div class="h-6 flex items-center justify-end">
                 <span x-show="draftState === 'saving'" x-cloak
@@ -158,8 +154,9 @@
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Tanggal Laporan <span class="text-red-500">*</span>
                         </label>
-                        <input wire:model.live="tanggal_laporan" type="date" required
-                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                        <x-tanggal-picker wire:model.live="tanggal_laporan"
+                            :disabled-dates="$usedDates"
+                            max-date="today" />
                         @error('tanggal_laporan') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                     </div>
 

@@ -110,13 +110,52 @@ class LaporanHarianCreate extends Component
         Cache::forever('lh_draft_autosave:'.auth()->id(), $this->autoSave);
     }
 
+    /**
+     * Daftar tanggal yang sudah memiliki laporan harian untuk kapal ini (format Y-m-d).
+     */
+    protected function usedTanggalLaporan(): array
+    {
+        return LaporanHarian::where('jenis_kapal_id', $this->jenis_kapal_id)
+            ->pluck('tanggal_laporan')
+            ->map(fn ($d) => \Carbon\Carbon::parse($d)->format('Y-m-d'))
+            ->all();
+    }
+
+    /**
+     * Tanggal yang sudah terpakai di DB maupun di tab lain pada form ini.
+     */
+    protected function takenTanggalLaporan(?int $excludeIndex = null): array
+    {
+        $fromForm = collect($this->items)
+            ->except($excludeIndex)
+            ->pluck('tanggal_laporan')
+            ->filter()
+            ->all();
+
+        return array_merge($this->usedTanggalLaporan(), $fromForm);
+    }
+
     public function addItem(): void
     {
-        // Auto-increment: hari ke-N mengikuti tanggal laporan terakhir + 1 hari
+        // Auto-increment: hari ke-N mengikuti tanggal laporan terakhir + 1 hari,
+        // lewati tanggal yang sudah dipakai (di DB maupun di tab lain).
+        // Tanggal tidak boleh melebihi hari ini — bila hari esok sudah lewat,
+        // cari tanggal kosong dengan mundur dari hari ini.
         $lastTanggal = $this->items[count($this->items) - 1]['tanggal_laporan'] ?? null;
-        $tanggalLaporan = $lastTanggal
-            ? \Carbon\Carbon::parse($lastTanggal)->addDay()->format('Y-m-d')
-            : now()->format('Y-m-d');
+        $taken = $this->takenTanggalLaporan();
+        $today = now()->startOfDay();
+
+        $candidate = $lastTanggal
+            ? \Carbon\Carbon::parse($lastTanggal)->addDay()
+            : $today->copy();
+        if ($candidate->gt($today)) {
+            $candidate = $today->copy();
+        }
+        $guard = 0;
+        while (in_array($candidate->format('Y-m-d'), $taken) && $guard++ < 3660) {
+            $candidate->subDay();
+        }
+        $tanggalLaporan = $candidate->format('Y-m-d');
 
         $this->items[] = [
             'judul' => $this->generateDefaultJudul($tanggalLaporan),
@@ -434,7 +473,20 @@ class LaporanHarianCreate extends Component
             'jenis_kapal_id' => 'required|exists:jenis_kapal,id',
             'items' => 'required|array|min:1',
             'items.*.judul' => 'required|string|max:255',
-            'items.*.tanggal_laporan' => 'required|date',
+            'items.*.tanggal_laporan' => [
+                'required',
+                'date',
+                'before_or_equal:today',
+                'distinct',
+                // whereDate (bukan Rule::unique) agar perbandingan tanggal konsisten lintas driver DB
+                function ($attribute, $value, $fail) {
+                    if ($value && LaporanHarian::where('jenis_kapal_id', $this->jenis_kapal_id)
+                        ->whereDate('tanggal_laporan', $value)
+                        ->exists()) {
+                        $fail('Tanggal pada :attribute sudah memiliki laporan untuk kapal ini.');
+                    }
+                },
+            ],
             'lampiran.*.*.file' => file_upload_validation_rule('foto_kapal'),
             'lampiran.*.*.keterangan' => 'nullable|string|max:1000',
         ];
@@ -464,6 +516,14 @@ class LaporanHarianCreate extends Component
         $rules['items.*.aktivitas.*.pic'] = 'nullable|string|max:255';
 
         return $rules;
+    }
+
+    protected function messages(): array
+    {
+        return [
+            'items.*.tanggal_laporan.before_or_equal' => 'Tanggal pada :attribute tidak boleh melebihi hari ini.',
+            'items.*.tanggal_laporan.distinct' => 'Tanggal pada :attribute sama dengan tanggal di laporan lain pada form ini.',
+        ];
     }
 
     public function validationAttributes(): array
@@ -729,6 +789,16 @@ class LaporanHarianCreate extends Component
             $newTanggal = $value;
             $currentJudul = $this->items[$index]['judul'] ?? '';
 
+            // Peringatan dini jika tanggal di masa depan / sudah terpakai
+            // (mis. dari draft autosave basi yang melewati picker)
+            if (\Carbon\Carbon::parse($newTanggal)->isFuture()) {
+                $this->notifyWarning('Tanggal laporan tidak boleh melebihi hari ini.');
+            } elseif (in_array($newTanggal, $this->usedTanggalLaporan())) {
+                $this->notifyWarning('Tanggal '.\Carbon\Carbon::parse($newTanggal)->translatedFormat('d M Y').' sudah memiliki laporan untuk kapal ini.');
+            } elseif (in_array($newTanggal, $this->takenTanggalLaporan((int) $index))) {
+                $this->notifyWarning('Tanggal '.\Carbon\Carbon::parse($newTanggal)->translatedFormat('d M Y').' sama dengan tanggal di tab lain.');
+            }
+
             // Update judul: find and replace day name, or generate default if empty/no day name found
             $this->items[$index]['judul'] = $this->updateJudulWithNewDay($currentJudul, $newTanggal);
         }
@@ -742,6 +812,7 @@ class LaporanHarianCreate extends Component
         return view('livewire.laporan-harian.laporan-harian-create', [
             'cuacaList' => $cuacaList,
             'kelembabanList' => $kelembabanList,
+            'usedDates' => $this->usedTanggalLaporan(),
         ]);
     }
 }

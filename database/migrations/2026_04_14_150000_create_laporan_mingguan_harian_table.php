@@ -14,9 +14,8 @@ return new class extends Migration
             $table->foreignId('laporan_harian_id')->constrained('laporan_harian')->cascadeOnDelete();
             $table->timestamps();
 
-            $table->unique(['laporan_mingguan_id', 'laporan_harian_id']);
+            $table->unique('laporan_harian_id');
             $table->index('laporan_mingguan_id');
-            $table->index('laporan_harian_id');
         });
     }
 

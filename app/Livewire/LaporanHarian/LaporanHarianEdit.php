@@ -180,12 +180,37 @@ class LaporanHarianEdit extends Component
         Cache::forever('lh_draft_autosave:'.auth()->id(), $this->autoSave);
     }
 
+    /**
+     * Daftar tanggal yang sudah memiliki laporan harian lain untuk kapal ini (format Y-m-d).
+     */
+    protected function usedTanggalLaporan(): array
+    {
+        return LaporanHarian::where('jenis_kapal_id', $this->jenis_kapal_id)
+            ->where('id', '!=', $this->laporan->id)
+            ->pluck('tanggal_laporan')
+            ->map(fn ($d) => \Carbon\Carbon::parse($d)->format('Y-m-d'))
+            ->all();
+    }
+
     public function rules(): array
     {
         $rules = [
             'jenis_kapal_id' => 'required|exists:jenis_kapal,id',
             'judul' => 'required|string|max:255',
-            'tanggal_laporan' => 'required|date',
+            'tanggal_laporan' => [
+                'required',
+                'date',
+                'before_or_equal:today',
+                // whereDate (bukan Rule::unique) agar perbandingan tanggal konsisten lintas driver DB
+                function ($attribute, $value, $fail) {
+                    if ($value && LaporanHarian::where('jenis_kapal_id', $this->jenis_kapal_id)
+                        ->where('id', '!=', $this->laporan->id)
+                        ->whereDate('tanggal_laporan', $value)
+                        ->exists()) {
+                        $fail('Tanggal ini sudah memiliki laporan lain untuk kapal ini.');
+                    }
+                },
+            ],
             'newLampiran.*.file' => file_upload_validation_rule('foto_kapal'),
             'newLampiran.*.keterangan' => 'nullable|string|max:1000',
             'lampiranKeterangan.*' => 'nullable|string|max:1000',
@@ -216,6 +241,13 @@ class LaporanHarianEdit extends Component
         $rules['aktivitas.*.pic'] = 'nullable|string|max:255';
 
         return $rules;
+    }
+
+    protected function messages(): array
+    {
+        return [
+            'tanggal_laporan.before_or_equal' => 'Tanggal laporan tidak boleh melebihi hari ini.',
+        ];
     }
 
     public function validationAttributes(): array
@@ -857,6 +889,14 @@ class LaporanHarianEdit extends Component
     {
         $currentJudul = $this->judul ?? '';
 
+        // Peringatan dini jika tanggal di masa depan / sudah dipakai laporan lain
+        // (mis. dari draft autosave basi yang melewati picker)
+        if ($value && \Carbon\Carbon::parse($value)->isFuture()) {
+            $this->notifyWarning('Tanggal laporan tidak boleh melebihi hari ini.');
+        } elseif ($value && in_array($value, $this->usedTanggalLaporan())) {
+            $this->notifyWarning('Tanggal '.\Carbon\Carbon::parse($value)->translatedFormat('d M Y').' sudah memiliki laporan lain untuk kapal ini.');
+        }
+
         // Update judul: find and replace day name, or generate default if empty/no day name found
         $this->judul = $this->updateJudulWithNewDay($currentJudul, $value);
     }
@@ -870,6 +910,7 @@ class LaporanHarianEdit extends Component
             'queueStatus' => $queueStatusService->getQueueStatusMessage(),
             'cuacaList' => $cuacaList,
             'kelembabanList' => $kelembabanList,
+            'usedDates' => $this->usedTanggalLaporan(),
         ]);
     }
 }

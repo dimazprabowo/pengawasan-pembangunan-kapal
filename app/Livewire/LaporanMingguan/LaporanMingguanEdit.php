@@ -8,7 +8,6 @@ use App\Livewire\Traits\HasNotification;
 use App\Livewire\Traits\StabilizesSnapshot;
 use App\Models\JenisKapal;
 use App\Models\LaporanExternal;
-use App\Models\LaporanHarian;
 use App\Models\LaporanLampiran;
 use App\Models\LaporanMingguan;
 use App\Services\KurvaSService;
@@ -83,6 +82,13 @@ class LaporanMingguanEdit extends Component
     public ?string $externalToDelete = null;
 
     public ?string $deletingExternalId = null;
+
+    // Konfirmasi pemindahan hari yang sudah diklaim laporan mingguan lain
+    public bool $showReassignModal = false;
+
+    public array $harianConflicts = [];
+
+    protected bool $reassignConfirmed = false;
 
     public function mount(JenisKapal $jenisKapal, LaporanMingguan $laporanMingguan): void
     {
@@ -222,21 +228,13 @@ class LaporanMingguanEdit extends Component
             return;
         }
 
-        $query = LaporanHarian::with(['user', 'jenisKapal'])
-            ->orderByDesc('tanggal_laporan');
-
-        $query->where('jenis_kapal_id', $this->jenis_kapal_id);
-
-        // Filter by period
-        $query->whereBetween('tanggal_laporan', [$this->periode_mulai, $this->periode_selesai]);
-
-        $this->availableLaporanHarian = $query->get()->map(function ($item) {
-            return [
-                'id' => $item->id,
-                'judul' => $item->judul,
-                'tanggal' => $item->tanggal_laporan->format('d M Y'),
-            ];
-        })->toArray();
+        $this->availableLaporanHarian = app(LaporanMingguanService::class)
+            ->getAvailableHarianForPeriode(
+                $this->jenis_kapal_id,
+                $this->periode_mulai,
+                $this->periode_selesai,
+                $this->laporan->id
+            );
 
         // Only auto-select if laporan_harian_ids is empty (for Create)
         // For Edit, preserve the originally selected laporan harian
@@ -704,6 +702,17 @@ class LaporanMingguanEdit extends Component
             throw $e;
         }
 
+        // Hari yang sudah diklaim mingguan lain butuh konfirmasi pemindahan dulu
+        if (! $this->reassignConfirmed) {
+            $conflicts = $service->findHarianConflicts($this->laporan_harian_ids, $this->laporan->id);
+            if ($conflicts->isNotEmpty()) {
+                $this->harianConflicts = $conflicts->all();
+                $this->showReassignModal = true;
+
+                return;
+            }
+        }
+
         // Server-side validation for lampiran_ids ownership
         if (count($this->lampiran_ids) > 0) {
             $validLampiranIds = LaporanLampiran::whereHas('laporanHarian', function ($q) {
@@ -750,6 +759,16 @@ class LaporanMingguanEdit extends Component
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
+    }
+
+    /**
+     * Lanjutkan simpan setelah user mengonfirmasi pemindahan hari dari mingguan lain.
+     */
+    public function saveWithReassign(LaporanMingguanService $service): void
+    {
+        $this->reassignConfirmed = true;
+        $this->showReassignModal = false;
+        $this->save($service);
     }
 
     protected function updateLaporanExternal(): void
