@@ -18,7 +18,7 @@ class KurvaSWorkGroup extends Model
     ];
 
     protected $casts = [
-        'bobot'      => 'float',
+        'bobot' => 'float',
         'sort_order' => 'integer',
     ];
 
@@ -29,7 +29,7 @@ class KurvaSWorkGroup extends Model
 
     public function kurvaSRencana(): HasMany
     {
-        return $this->hasMany(KurvaSRencana::class, 'work_group_id')->orderBy('minggu_ke');
+        return $this->hasMany(KurvaSRencana::class, 'work_group_id')->orderBy('bulan_ke');
     }
 
     public function laporanProgress(): HasMany

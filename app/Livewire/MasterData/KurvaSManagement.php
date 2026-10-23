@@ -5,6 +5,7 @@ namespace App\Livewire\MasterData;
 use App\Livewire\Traits\HasNotification;
 use App\Models\JenisKapal;
 use App\Services\JenisKapalService;
+use App\Services\KontrakPeriodeService;
 use App\Services\KurvaSService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Attributes\On;
@@ -33,26 +34,37 @@ class KurvaSManagement extends Component
      *     'id'    => null|int,
      *     'nama'  => 'Engineering & Design',
      *     'bobot' => '5.00',
-     *     'weeks' => [['minggu_ke' => 1, 'pct_rencana' => '3.00', 'keterangan' => ''], ...]
+     *     'months' => [['bulan_ke' => 1, 'pct_rencana' => '3.00', 'keterangan' => ''], ...]
      *   ],
      *   ...
      * ]
      */
     public array $workGroups = [];
 
-    /** Index work group yang sedang di-expand untuk edit minggu (-1 = none) */
+    /** Index work group yang sedang di-expand untuk edit bulan (-1 = none) */
     public int $expandedGroupIdx = -1;
 
-    /** Total minggu untuk quick-set semua group */
-    public int $totalMinggu = 12;
+    /** Jumlah bulan bawaan untuk work group baru (dari kontrak → group existing → default) */
+    public int $totalBulan = 4;
+
+    /** Periode kontrak (hari kalender) — disimpan di jenis_kapal */
+    public ?string $tanggal_mulai_kontrak = null;
+
+    public ?int $durasi_kontrak_hari = null;
 
     /** Konfirmasi hapus work group */
     public ?int $confirmDeleteGroupIdx = null;
 
-    /** Konfirmasi hapus minggu */
-    public ?int $confirmDeleteWeekGroupIdx = null;
+    /** Konfirmasi reset nilai rencana bulan (slot bulan tidak dihapus) */
+    public ?int $confirmResetMonthGroupIdx = null;
 
-    public ?int $confirmDeleteWeekIdx = null;
+    public ?int $confirmResetMonthIdx = null;
+
+    /** Konfirmasi terapkan bulan kontrak ke semua work group */
+    public bool $confirmApplyMonths = false;
+
+    /** Render lazy detail periode — tabel baru digenerate saat user membuka panel. */
+    public bool $showPeriodeDetail = false;
 
     #[On('open-kurvas-modal')]
     public function openModal(int $jenisKapalId): void
@@ -70,7 +82,7 @@ class KurvaSManagement extends Component
     public function closeModal(): void
     {
         $this->showModal = false;
-        $this->reset(['jenisKapalId', 'jenisKapalNama', 'workGroups', 'expandedGroupIdx', 'totalMinggu']);
+        $this->reset(['jenisKapalId', 'jenisKapalNama', 'workGroups', 'expandedGroupIdx', 'totalBulan', 'tanggal_mulai_kontrak', 'durasi_kontrak_hari', 'confirmApplyMonths', 'showPeriodeDetail']);
         $this->resetValidation();
     }
 
@@ -83,32 +95,171 @@ class KurvaSManagement extends Component
             'id' => $wg->id,
             'nama' => $wg->nama,
             'bobot' => number_format((float) $wg->bobot, 2, '.', ''),
-            'weeks' => $wg->kurvaSRencana->map(fn ($r) => [
-                'minggu_ke' => $r->minggu_ke,
+            'months' => $wg->kurvaSRencana->map(fn ($r) => [
+                'bulan_ke' => $r->bulan_ke,
                 'pct_rencana' => number_format((float) $r->pct_rencana, 2, '.', ''),
                 'keterangan' => $r->keterangan ?? '',
             ])->toArray(),
         ])->toArray();
 
-        if (! empty($this->workGroups)) {
-            $this->totalMinggu = max(1, count($this->workGroups[0]['weeks'] ?? []));
+        $this->tanggal_mulai_kontrak = $jenisKapal->tanggal_mulai_kontrak?->format('Y-m-d');
+        $this->durasi_kontrak_hari = $jenisKapal->durasi_kontrak_hari;
+
+        $totalBulanKontrak = $this->totalBulanKontrak();
+        if ($totalBulanKontrak > 0) {
+            $this->totalBulan = $totalBulanKontrak;
+        } elseif (! empty($this->workGroups)) {
+            $this->totalBulan = max(1, count($this->workGroups[0]['months'] ?? []));
         }
+    }
+
+    /**
+     * Total bulan periode dari input kontrak di form (belum tentu tersimpan).
+     * Bulan = pengelompokan minggu berdasarkan mayoritas tanggal
+     * (lihat KontrakPeriodeService::getBulanList).
+     */
+    private function totalBulanKontrak(): int
+    {
+        if (! $this->tanggal_mulai_kontrak || ! $this->durasi_kontrak_hari) {
+            return 0;
+        }
+
+        return app(KontrakPeriodeService::class)->getTotalBulan($this->kontrakDraft());
+    }
+
+    /**
+     * Instance JenisKapal sementara berisi input kontrak form (untuk kalkulasi service).
+     */
+    private function kontrakDraft(): JenisKapal
+    {
+        return new JenisKapal([
+            'tanggal_mulai_kontrak' => $this->tanggal_mulai_kontrak ?: null,
+            'durasi_kontrak_hari' => $this->durasi_kontrak_hari ?: null,
+        ]);
+    }
+
+    public function updatedTanggalMulaiKontrak(): void
+    {
+        $this->syncTotalBulanDariKontrak();
+    }
+
+    public function updatedDurasiKontrakHari(): void
+    {
+        $this->syncTotalBulanDariKontrak();
+    }
+
+    /**
+     * Saat kontrak terisi lengkap, jumlah bulan bawaan mengikuti periode kontrak.
+     */
+    private function syncTotalBulanDariKontrak(): void
+    {
+        $total = $this->totalBulanKontrak();
+        if ($total > 0) {
+            $this->totalBulan = $total;
+        }
+    }
+
+    /**
+     * Minta konfirmasi sebelum menerapkan bulan kontrak — penyesuaian dapat
+     * memangkas bulan beserta nilai rencana yang sudah diisi.
+     */
+    public function requestApplyContractMonths(): void
+    {
+        if ($this->totalBulanKontrak() <= 0) {
+            $this->notifyWarning('Isi tanggal mulai & durasi kontrak terlebih dahulu.');
+
+            return;
+        }
+
+        if (count($this->workGroups) === 0) {
+            $this->notifyWarning('Tidak ada work group. Tambahkan work group terlebih dahulu.');
+
+            return;
+        }
+
+        $this->confirmApplyMonths = true;
+    }
+
+    /**
+     * Toggle panel detail periode — konten tabel baru digenerate saat panel
+     * dibuka agar tidak ikut ter-render pada setiap update input kontrak.
+     */
+    public function togglePeriodeDetail(): void
+    {
+        $this->showPeriodeDetail = ! $this->showPeriodeDetail;
+    }
+
+    public function cancelApplyContractMonths(): void
+    {
+        $this->confirmApplyMonths = false;
+    }
+
+    public function confirmApplyContractMonths(): void
+    {
+        $this->applyContractMonths();
+        $this->confirmApplyMonths = false;
+    }
+
+    /**
+     * Sesuaikan jumlah bulan SEMUA work group ke total bulan kontrak.
+     * Dipicu manual via tombol di card kontrak — kontrak boleh belum tersimpan.
+     */
+    public function applyContractMonths(): void
+    {
+        $total = $this->totalBulanKontrak();
+
+        if ($total <= 0) {
+            $this->notifyWarning('Isi tanggal mulai & durasi kontrak terlebih dahulu.');
+
+            return;
+        }
+
+        if (count($this->workGroups) === 0) {
+            $this->notifyWarning('Tidak ada work group. Tambahkan work group terlebih dahulu.');
+
+            return;
+        }
+
+        foreach ($this->workGroups as $gi => $wg) {
+            $current = count($wg['months']);
+            if ($total > $current) {
+                for ($i = $current + 1; $i <= $total; $i++) {
+                    $this->workGroups[$gi]['months'][] = [
+                        'bulan_ke' => $i,
+                        'pct_rencana' => '0.00',
+                        'keterangan' => '',
+                    ];
+                }
+            } elseif ($total < $current) {
+                $this->workGroups[$gi]['months'] = array_slice($wg['months'], 0, $total);
+            }
+        }
+
+        $this->totalBulan = $total;
+
+        $this->notifyInfo(count($this->workGroups)." work group disesuaikan ke {$total} bulan sesuai kontrak.");
     }
 
     // ─── Work Group Actions ──────────────────────────────────────────────────
 
     public function addWorkGroup(): void
     {
-        $weeks = [];
-        for ($i = 1; $i <= max(1, $this->totalMinggu); $i++) {
-            $weeks[] = ['minggu_ke' => $i, 'pct_rencana' => '0.00', 'keterangan' => ''];
+        if ($this->totalBulanKontrak() <= 0) {
+            $this->notifyWarning('Isi tanggal mulai & durasi kontrak terlebih dahulu — periode bulan rencana diturunkan dari kontrak.');
+
+            return;
+        }
+
+        $months = [];
+        for ($i = 1; $i <= max(1, $this->totalBulan); $i++) {
+            $months[] = ['bulan_ke' => $i, 'pct_rencana' => '0.00', 'keterangan' => ''];
         }
 
         $this->workGroups[] = [
             'id' => null,
             'nama' => '',
             'bobot' => '0.00',
-            'weeks' => $weeks,
+            'months' => $months,
         ];
 
         $this->expandedGroupIdx = count($this->workGroups) - 1;
@@ -147,93 +298,44 @@ class KurvaSManagement extends Component
         $this->expandedGroupIdx = $this->expandedGroupIdx === $idx ? -1 : $idx;
     }
 
-    // ─── Week Actions ────────────────────────────────────────────────────────
-
-    public function setTotalMinggu(int $total): void
+    /**
+     * Sinkronisasi nilai input workGroups ke server TANPA render ulang.
+     * Dipanggil via debounce saat mengetik (bobot/pct_rencana): pembaruan
+     * properti ikut terkirim pada payload commit; skipRender menghindari
+     * render Blade + morph penuh sehingga respons tetap ringan.
+     */
+    public function syncDraft(): void
     {
-        // Reset error
-        $this->resetValidation('totalMinggu');
-
-        // Validasi range
-        if ($total < 1) {
-            $this->addError('totalMinggu', 'Jumlah minggu minimal adalah 1 minggu.');
-            $this->notifyWarning('Gagal menerapkan jumlah minggu. Silakan periksa input Anda.');
-
-            return;
-        }
-
-        if ($total > 200) {
-            $this->addError('totalMinggu', 'Jumlah minggu maksimal adalah 200 minggu.');
-            $this->notifyWarning('Gagal menerapkan jumlah minggu. Silakan periksa input Anda.');
-
-            return;
-        }
-
-        $this->totalMinggu = $total;
-
-        $count = count($this->workGroups);
-
-        if ($count === 0) {
-            $this->notifyWarning('Tidak ada work group. Tambahkan work group terlebih dahulu.');
-
-            return;
-        }
-
-        foreach ($this->workGroups as $gi => $wg) {
-            $current = count($wg['weeks']);
-            if ($total > $current) {
-                for ($i = $current + 1; $i <= $total; $i++) {
-                    $this->workGroups[$gi]['weeks'][] = [
-                        'minggu_ke' => $i,
-                        'pct_rencana' => '0.00',
-                        'keterangan' => '',
-                    ];
-                }
-            } elseif ($total < $current) {
-                $this->workGroups[$gi]['weeks'] = array_slice($wg['weeks'], 0, $total);
-            }
-        }
-
-        $this->notifyInfo("{$count} work group berhasil diperbarui ke {$total} minggu.");
+        $this->skipRender();
     }
 
-    public function addWeekToGroup(int $groupIdx): void
+    // ─── Month Actions ───────────────────────────────────────────────────────
+
+    public function requestResetMonth(int $groupIdx, int $monthIdx): void
     {
-        $next = count($this->workGroups[$groupIdx]['weeks']) + 1;
-        $this->workGroups[$groupIdx]['weeks'][] = [
-            'minggu_ke' => $next,
-            'pct_rencana' => '0.00',
-            'keterangan' => '',
-        ];
+        $this->confirmResetMonthGroupIdx = $groupIdx;
+        $this->confirmResetMonthIdx = $monthIdx;
     }
 
-    public function requestDeleteWeek(int $groupIdx, int $weekIdx): void
+    public function cancelResetMonth(): void
     {
-        $this->confirmDeleteWeekGroupIdx = $groupIdx;
-        $this->confirmDeleteWeekIdx = $weekIdx;
+        $this->confirmResetMonthGroupIdx = null;
+        $this->confirmResetMonthIdx = null;
     }
 
-    public function cancelDeleteWeek(): void
+    public function confirmResetMonth(): void
     {
-        $this->confirmDeleteWeekGroupIdx = null;
-        $this->confirmDeleteWeekIdx = null;
-    }
-
-    public function confirmDeleteWeek(): void
-    {
-        if ($this->confirmDeleteWeekGroupIdx !== null && $this->confirmDeleteWeekIdx !== null) {
-            $this->removeWeekFromGroup($this->confirmDeleteWeekGroupIdx, $this->confirmDeleteWeekIdx);
+        if ($this->confirmResetMonthGroupIdx !== null && $this->confirmResetMonthIdx !== null) {
+            $this->resetMonthInGroup($this->confirmResetMonthGroupIdx, $this->confirmResetMonthIdx);
         }
-        $this->confirmDeleteWeekGroupIdx = null;
-        $this->confirmDeleteWeekIdx = null;
+        $this->confirmResetMonthGroupIdx = null;
+        $this->confirmResetMonthIdx = null;
     }
 
-    private function removeWeekFromGroup(int $groupIdx, int $weekIdx): void
+    private function resetMonthInGroup(int $groupIdx, int $monthIdx): void
     {
-        array_splice($this->workGroups[$groupIdx]['weeks'], $weekIdx, 1);
-        foreach ($this->workGroups[$groupIdx]['weeks'] as $i => &$w) {
-            $w['minggu_ke'] = $i + 1;
-        }
+        $this->workGroups[$groupIdx]['months'][$monthIdx]['pct_rencana'] = '0.00';
+        $this->workGroups[$groupIdx]['months'][$monthIdx]['keterangan'] = '';
     }
 
     // ─── Computed ────────────────────────────────────────────────────────────
@@ -243,31 +345,117 @@ class KurvaSManagement extends Component
         return array_reduce($this->workGroups, fn ($c, $wg) => $c + (float) ($wg['bobot'] ?? 0), 0.0);
     }
 
+    /**
+     * Ringkasan periode kontrak dari input form (untuk preview live di modal).
+     */
+    public function getKontrakSummaryProperty(): ?array
+    {
+        $draft = $this->kontrakDraft();
+        if (! $draft->hasKontrak()) {
+            return null;
+        }
+
+        $service = app(KontrakPeriodeService::class);
+
+        return [
+            'selesai' => $draft->tanggal_selesai_kontrak->translatedFormat('d M Y'),
+            'total_minggu' => $service->getTotalMinggu($draft),
+            'total_bulan' => $service->getTotalBulan($draft),
+        ];
+    }
+
+    /**
+     * Preview detail periodisasi hasil generate sistem (untuk verifikasi user):
+     * tiap minggu proyek → rentang tanggal; tiap bulan kalender → rentang minggu + tanggal.
+     */
+    public function getPeriodePreviewProperty(): ?array
+    {
+        $draft = $this->kontrakDraft();
+        if (! $draft->hasKontrak()) {
+            return null;
+        }
+
+        $service = app(KontrakPeriodeService::class);
+        $mingguBulanMap = $service->getMingguBulanMap($draft);
+
+        return [
+            'minggu' => collect($service->getMingguList($draft))
+                ->map(fn ($m) => [
+                    'minggu_ke' => $m['minggu_ke'],
+                    'bulan_ke' => $mingguBulanMap[$m['minggu_ke']] ?? null,
+                    'periode' => $m['label'],
+                    'total_hari' => $m['total_hari'],
+                ])
+                ->all(),
+            'bulan' => collect($service->getBulanList($draft))
+                ->map(fn ($b) => [
+                    'bulan_ke' => $b['bulan_ke'],
+                    'nama' => $b['label'],
+                    'minggu_dari' => $b['minggu_dari'],
+                    'minggu_sampai' => $b['minggu_sampai'],
+                    'total_minggu' => $b['total_minggu'],
+                    'periode' => $service->formatRange($b['mulai'], $b['selesai']),
+                    'total_hari' => $b['total_hari'],
+                ])
+                ->all(),
+        ];
+    }
+
+    /**
+     * Meta tiap bulan periode (label nama bulan + cakupan minggu) untuk
+     * ditampilkan di kolom input rencana bulanan. Key = bulan_ke.
+     */
+    public function getBulanMetaProperty(): array
+    {
+        $draft = $this->kontrakDraft();
+        if (! $draft->hasKontrak()) {
+            return [];
+        }
+
+        return collect(app(KontrakPeriodeService::class)->getBulanList($draft))
+            ->mapWithKeys(fn ($b) => [$b['bulan_ke'] => [
+                'nama' => $b['label'],
+                'cakupan' => $b['minggu_dari'] === $b['minggu_sampai']
+                    ? 'Mgg '.$b['minggu_dari']
+                    : 'Mgg '.$b['minggu_dari'].'–'.$b['minggu_sampai'],
+            ]])
+            ->all();
+    }
+
     // ─── Validation ─────────────────────────────────────────────────────────
 
     protected function rules(): array
     {
+        $maxBulan = $this->totalBulanKontrak();
+        $bulanKeRule = 'required|integer|min:1'.($maxBulan > 0 ? '|max:'.$maxBulan : '');
+
         return [
+            'tanggal_mulai_kontrak' => 'nullable|date|required_with:durasi_kontrak_hari',
+            'durasi_kontrak_hari' => 'nullable|integer|min:1|max:7300|required_with:tanggal_mulai_kontrak',
             'workGroups' => 'required|array|min:1',
             'workGroups.*.nama' => 'required|string|max:255',
             'workGroups.*.bobot' => 'required|numeric|min:0|max:100',
-            'workGroups.*.weeks' => 'array',
-            'workGroups.*.weeks.*.minggu_ke' => 'required|integer|min:1',
-            'workGroups.*.weeks.*.pct_rencana' => 'required|numeric|min:0|max:100',
-            'workGroups.*.weeks.*.keterangan' => 'nullable|string|max:255',
+            'workGroups.*.months' => 'array',
+            'workGroups.*.months.*.bulan_ke' => $bulanKeRule,
+            'workGroups.*.months.*.pct_rencana' => 'required|numeric|min:0|max:100',
+            'workGroups.*.months.*.keterangan' => 'nullable|string|max:255',
         ];
     }
 
     protected function messages(): array
     {
         return [
+            'tanggal_mulai_kontrak.required_with' => 'Tanggal mulai kontrak wajib diisi jika durasi diisi.',
+            'durasi_kontrak_hari.required_with' => 'Durasi kontrak wajib diisi jika tanggal mulai diisi.',
+            'durasi_kontrak_hari.min' => 'Durasi kontrak minimal 1 hari.',
             'workGroups.required' => 'Minimal harus ada 1 work group.',
             'workGroups.min' => 'Minimal harus ada 1 work group.',
             'workGroups.*.nama.required' => 'Nama work group wajib diisi.',
             'workGroups.*.bobot.required' => 'Bobot wajib diisi.',
             'workGroups.*.bobot.numeric' => 'Bobot harus berupa angka.',
-            'workGroups.*.weeks.*.pct_rencana.required' => 'Rencana % wajib diisi.',
-            'workGroups.*.weeks.*.pct_rencana.max' => 'Rencana % per minggu maks 100%.',
+            'workGroups.*.months.*.bulan_ke.max' => 'Nomor bulan melebihi total bulan kontrak.',
+            'workGroups.*.months.*.pct_rencana.required' => 'Rencana % wajib diisi.',
+            'workGroups.*.months.*.pct_rencana.max' => 'Rencana % per bulan maksimal 100%.',
         ];
     }
 
@@ -285,6 +473,14 @@ class KurvaSManagement extends Component
             throw $e;
         }
 
+        // Rencana bulanan memerlukan kontrak — periode bulan diturunkan dari kontrak
+        $hasMonths = collect($this->workGroups)->contains(fn ($wg) => count($wg['months'] ?? []) > 0);
+        if ($hasMonths && $this->totalBulanKontrak() <= 0) {
+            $this->notifyError('Isi tanggal mulai & durasi kontrak terlebih dahulu — periode bulan rencana diturunkan dari kontrak.');
+
+            return;
+        }
+
         $total = $this->totalBobot;
         if ($total > 100.01) {
             $this->notifyError('Total bobot semua work group tidak boleh melebihi 100%. Saat ini: '.number_format($total, 2).'%');
@@ -292,12 +488,39 @@ class KurvaSManagement extends Component
             return;
         }
 
+        // Total rencana (poin % proyek) per work group tidak boleh melebihi bobotnya
+        $kurang = [];
+        foreach ($this->workGroups as $wg) {
+            $bobot = (float) ($wg['bobot'] ?? 0);
+            $sum = array_reduce($wg['months'] ?? [], fn ($c, $m) => $c + (float) ($m['pct_rencana'] ?? 0), 0.0);
+            $nama = trim($wg['nama'] ?? '') ?: 'Tanpa Nama';
+
+            if ($sum > $bobot + 0.01) {
+                $this->notifyError('Total rencana work group "'.$nama.'" ('.number_format($sum, 2).'%) melebihi bobotnya ('.number_format($bobot, 2).'%).');
+
+                return;
+            }
+            if ($sum < $bobot - 0.01) {
+                $kurang[] = '"'.$nama.'" '.number_format($sum, 2).'/'.number_format($bobot, 2).'%';
+            }
+        }
+
         try {
+            app(KontrakPeriodeService::class)->saveKontrak(
+                $jenisKapal,
+                $this->tanggal_mulai_kontrak,
+                $this->durasi_kontrak_hari !== null ? (int) $this->durasi_kontrak_hari : null
+            );
             $service->saveWorkGroups($jenisKapal, $this->workGroups);
 
-            $warning = abs($total - 100.0) > 0.01
-                ? ' (Total bobot: '.number_format($total, 2).'% — belum 100%)'
-                : '';
+            $warnings = [];
+            if (abs($total - 100.0) > 0.01) {
+                $warnings[] = 'Total bobot: '.number_format($total, 2).'% — belum 100%';
+            }
+            if (! empty($kurang)) {
+                $warnings[] = 'Rencana belum penuh: '.implode(', ', $kurang);
+            }
+            $warning = $warnings ? ' ('.implode('; ', $warnings).')' : '';
 
             $this->notifySuccess('Kurva S berhasil disimpan!'.$warning);
             $this->closeModal();
@@ -321,7 +544,8 @@ class KurvaSManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk export template Kurva S.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
+            \Log::error('Export Kurva S gagal', ['jenis_kapal_id' => $this->jenisKapalId, 'error' => $e->getMessage()]);
+            $this->notifyError('Terjadi kesalahan sistem saat export. Silakan coba lagi.');
         }
     }
 
@@ -383,7 +607,8 @@ class KurvaSManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk import template Kurva S.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
+            \Log::error('Import Kurva S gagal', ['jenis_kapal_id' => $this->jenisKapalId, 'error' => $e->getMessage()]);
+            $this->notifyError('Terjadi kesalahan sistem saat import. Silakan coba lagi.');
         }
     }
 

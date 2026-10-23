@@ -3,32 +3,58 @@
 namespace App\Exports;
 
 use App\Models\JenisKapal;
+use App\Models\KurvaSRencana;
+use App\Services\KontrakPeriodeService;
 use Maatwebsite\Excel\Concerns\FromArray;
-use Maatwebsite\Excel\Concerns\WithTitle;
+use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\WithColumnWidths;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
+use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class KurvaSRencanaSheet implements FromArray, WithTitle, WithHeadings, WithStyles, WithColumnWidths
+class KurvaSRencanaSheet implements FromArray, WithColumnWidths, WithHeadings, WithStyles, WithTitle
 {
     protected JenisKapal $jenisKapal;
+
     protected bool $withData;
 
-    public function __construct(JenisKapal $jenisKapal, bool $withData = true)
+    protected int $months;
+
+    public function __construct(JenisKapal $jenisKapal, bool $withData = true, ?int $months = null)
     {
         $this->jenisKapal = $jenisKapal;
         $this->withData = $withData;
+        $this->months = $months ?? static::resolveMonths($jenisKapal);
+    }
+
+    /**
+     * Jumlah kolom bulan pada file: ikut total bulan kontrak bila ada,
+     * fallback ke bulan terbesar di data, default 24.
+     */
+    public static function resolveMonths(JenisKapal $jenisKapal): int
+    {
+        $kontrak = $jenisKapal->hasKontrak()
+            ? app(KontrakPeriodeService::class)->getTotalBulan($jenisKapal)
+            : 0;
+
+        $dbMax = (int) (KurvaSRencana::whereHas(
+            'workGroup',
+            fn ($q) => $q->where('jenis_kapal_id', $jenisKapal->id)
+        )->max('bulan_ke') ?? 0);
+
+        $months = max($kontrak, $dbMax);
+
+        return $months > 0 ? $months : 24;
     }
 
     public function array(): array
     {
         // Jika user minta template kosong, langsung return default template
-        if (!$this->withData) {
+        if (! $this->withData) {
             return $this->getDefaultTemplate();
         }
 
@@ -43,22 +69,19 @@ class KurvaSRencanaSheet implements FromArray, WithTitle, WithHeadings, WithStyl
             return $this->getDefaultTemplate();
         }
 
-        // Hitung jumlah minggu maksimal dari data aktual
-        $maxWeeks = $this->getMaxWeeks($workGroups);
-
         // Export dengan data yang ada
         $data = [];
         foreach ($workGroups as $index => $wg) {
-            $rencanaData = $wg->kurvaSRencana->keyBy('minggu_ke');
-            
+            $rencanaData = $wg->kurvaSRencana->keyBy('bulan_ke');
+
             $row = [
                 $index + 1,
                 $wg->nama,
                 (float) $wg->bobot,
             ];
-            
-            for ($minggu = 1; $minggu <= $maxWeeks; $minggu++) {
-                $rencana = $rencanaData->get($minggu);
+
+            for ($bulan = 1; $bulan <= $this->months; $bulan++) {
+                $rencana = $rencanaData->get($bulan);
                 $row[] = $rencana ? (float) $rencana->pct_rencana : 0.00;
                 $row[] = $rencana?->keterangan ?? '';
             }
@@ -80,9 +103,6 @@ class KurvaSRencanaSheet implements FromArray, WithTitle, WithHeadings, WithStyl
             ['nama' => 'Uji Coba & Komisioning', 'bobot' => 5.00],
         ];
 
-        // Gunakan jumlah minggu dari data aktual jika ada, fallback ke 100
-        $maxWeeks = $this->getMaxWeeksFromDb();
-
         $data = [];
         foreach ($defaultWorkGroups as $index => $wg) {
             $row = [
@@ -90,8 +110,8 @@ class KurvaSRencanaSheet implements FromArray, WithTitle, WithHeadings, WithStyl
                 $wg['nama'],
                 $wg['bobot'],
             ];
-            
-            for ($minggu = 1; $minggu <= $maxWeeks; $minggu++) {
+
+            for ($bulan = 1; $bulan <= $this->months; $bulan++) {
                 $row[] = 0.00;
                 $row[] = '';
             }
@@ -101,37 +121,6 @@ class KurvaSRencanaSheet implements FromArray, WithTitle, WithHeadings, WithStyl
         return $data;
     }
 
-    /**
-     * Get maximum weeks from work groups collection
-     */
-    protected function getMaxWeeks($workGroups): int
-    {
-        $maxWeeks = 0;
-        foreach ($workGroups as $wg) {
-            $weekCount = $wg->kurvaSRencana->max('minggu_ke') ?? 0;
-            if ($weekCount > $maxWeeks) {
-                $maxWeeks = $weekCount;
-            }
-        }
-        return max(1, $maxWeeks);
-    }
-
-    /**
-     * Get maximum weeks from database
-     */
-    protected function getMaxWeeksFromDb(): int
-    {
-        $workGroups = $this->jenisKapal->kurvaSWorkGroups()
-            ->with('kurvaSRencana')
-            ->get();
-
-        if ($workGroups->isEmpty()) {
-            return 100;
-        }
-
-        return $this->getMaxWeeks($workGroups);
-    }
-
     public function headings(): array
     {
         $headings = [
@@ -139,17 +128,17 @@ class KurvaSRencanaSheet implements FromArray, WithTitle, WithHeadings, WithStyl
             'Work Group',
             'Bobot (%)',
             'Kumulatif Rencana (%)',
-            'Kumulatif Aktual (%)',
+            'Sisa Bobot (%)',
         ];
-        
-        // Selalu gunakan jumlah minggu dari database (baik data maupun template kosong)
-        $maxWeeks = $this->getMaxWeeksFromDb();
-        
-        for ($minggu = 1; $minggu <= $maxWeeks; $minggu++) {
-            $headings[] = "W{$minggu} - Rencana (%)";
-            $headings[] = "W{$minggu} - Keterangan";
+
+        // Jumlah kolom bulan mengikuti kontrak (fallback data/24)
+        $maxMonths = $this->months;
+
+        for ($bulan = 1; $bulan <= $maxMonths; $bulan++) {
+            $headings[] = "B{$bulan} - Rencana (%)";
+            $headings[] = "B{$bulan} - Keterangan";
         }
-        
+
         return $headings;
     }
 
@@ -167,33 +156,33 @@ class KurvaSRencanaSheet implements FromArray, WithTitle, WithHeadings, WithStyl
             'D' => 18,
             'E' => 18,
         ];
-        
-        // Selalu gunakan jumlah minggu dari database
-        $maxWeeks = $this->getMaxWeeksFromDb();
-        
+
+        // Jumlah kolom bulan mengikuti kontrak (fallback data/24)
+        $maxMonths = $this->months;
+
         $colIndex = 6;
-        for ($minggu = 1; $minggu <= $maxWeeks; $minggu++) {
+        for ($bulan = 1; $bulan <= $maxMonths; $bulan++) {
             $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex);
             $widths[$colLetter] = 10;
             $colIndex++;
-            
+
             $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex);
             $widths[$colLetter] = 25;
             $colIndex++;
         }
-        
+
         return $widths;
     }
 
     public function styles(Worksheet $sheet)
     {
-        // Selalu gunakan jumlah minggu dari database
-        $maxWeeks = $this->getMaxWeeksFromDb();
-        $lastColIndex = 5 + ($maxWeeks * 2);
+        // Jumlah kolom bulan mengikuti kontrak (fallback data/24)
+        $maxMonths = $this->months;
+        $lastColIndex = 5 + ($maxMonths * 2);
         $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($lastColIndex);
         $dataRows = count($this->array());
         $lastDataRow = $dataRows + 1;
-        
+
         $sheet->getStyle("A1:{$lastCol}1")->applyFromArray([
             'font' => [
                 'bold' => true,
@@ -240,25 +229,26 @@ class KurvaSRencanaSheet implements FromArray, WithTitle, WithHeadings, WithStyl
                     'startColor' => ['rgb' => $bgColor],
                 ],
             ]);
-            
+
             $rencanaColStart = 6;
             $rencanaFormulaParts = [];
-            for ($minggu = 1; $minggu <= $maxWeeks; $minggu++) {
+            for ($bulan = 1; $bulan <= $maxMonths; $bulan++) {
                 $rencanaCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($rencanaColStart);
                 $rencanaFormulaParts[] = "{$rencanaCol}{$row}";
-                
+
                 $sheet->getStyle("{$rencanaCol}{$row}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER_00);
                 $sheet->getStyle("{$rencanaCol}{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-                
+
                 $rencanaColStart += 2;
             }
-            
-            $kumulatifRencanaFormula = '=SUM(' . implode(',', $rencanaFormulaParts) . ')';
+
+            $kumulatifRencanaFormula = '=SUM('.implode(',', $rencanaFormulaParts).')';
             $sheet->setCellValue("D{$row}", $kumulatifRencanaFormula);
-            
-            $kumulatifAktualFormula = "=(C{$row}*D{$row})/100";
-            $sheet->setCellValue("E{$row}", $kumulatifAktualFormula);
-            
+
+            // Sisa bobot = Bobot - Kumulatif Rencana (0 berarti rencana sudah penuh)
+            $sisaBobotFormula = "=C{$row}-D{$row}";
+            $sheet->setCellValue("E{$row}", $sisaBobotFormula);
+
             $sheet->getStyle("E{$row}")->applyFromArray([
                 'fill' => [
                     'fillType' => Fill::FILL_SOLID,
@@ -273,7 +263,7 @@ class KurvaSRencanaSheet implements FromArray, WithTitle, WithHeadings, WithStyl
         $sheet->setCellValue("C{$totalRow}", "=SUM(C2:C{$lastDataRow})");
         $sheet->setCellValue("D{$totalRow}", '');
         $sheet->setCellValue("E{$totalRow}", '');
-        
+
         $sheet->getStyle("A{$totalRow}:E{$totalRow}")->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
             'fill' => [
@@ -293,7 +283,7 @@ class KurvaSRencanaSheet implements FromArray, WithTitle, WithHeadings, WithStyl
         $sheet->getStyle("C{$totalRow}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER_00);
 
         $noteRow = $totalRow + 2;
-        $sheet->setCellValue("A{$noteRow}", "⚠ PENTING:\n• Total BOBOT harus = 100.00%\n• Kumulatif Rencana per work group harus = 100.00%\n• Kumulatif Aktual = (Bobot × Kumulatif Rencana) / 100 (AUTO-CALCULATED)\n• Isi Rencana (%) dan Keterangan untuk setiap minggu (W1-W100)");
+        $sheet->setCellValue("A{$noteRow}", "⚠ PENTING:\n• Total BOBOT semua work group harus = 100.00%\n• Rencana (%) diisi dalam satuan % PROYEK per BULAN — Kumulatif Rencana per work group tidak boleh melebihi Bobot-nya (target = Bobot)\n• Sisa Bobot = Bobot − Kumulatif Rencana (AUTO-CALCULATED; 0.00 berarti rencana group sudah penuh)\n• Isi Rencana (%) dan Keterangan untuk setiap bulan");
         $sheet->mergeCells("A{$noteRow}:E{$noteRow}");
         $sheet->getStyle("A{$noteRow}")->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'DC2626'], 'size' => 10],

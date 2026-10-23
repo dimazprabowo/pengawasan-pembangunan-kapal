@@ -33,9 +33,21 @@
                 <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
                     Minggu Ke- <span class="text-red-500">*</span>
                 </label>
-                <input type="number" wire:model.live="minggu_ke" min="1" max="255" step="1"
-                    placeholder="Masukkan nomor minggu"
-                    class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white {{ $errors->has('minggu_ke') ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600' }}">
+                @if(count($mingguOptions) > 0)
+                    <x-searchable-select
+                        wire:model.live="minggu_ke"
+                        :options="$mingguOptions"
+                        placeholder="— Pilih minggu —"
+                        searchPlaceholder="Cari minggu..."
+                        :clearable="false"
+                        :error="$errors->has('minggu_ke')"
+                        class="text-sm"
+                    />
+                @else
+                    <input type="number" wire:model.live="minggu_ke" min="1" max="1000" step="1"
+                        placeholder="Masukkan nomor minggu"
+                        class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white {{ $errors->has('minggu_ke') ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600' }}">
+                @endif
                 @error('minggu_ke')
                     <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span>
                 @enderror
@@ -58,7 +70,7 @@
                     />
                 @else
                     {{-- Semua minggu rencana sudah terlaporkan — input manual tetap wajib --}}
-                    <input type="number" wire:model.live="minggu_ke" min="1" max="255" step="1"
+                    <input type="number" wire:model.live="minggu_ke" min="1" max="1000" step="1"
                         placeholder="Masukkan nomor minggu"
                         class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white {{ $errors->has('minggu_ke') ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600' }}">
                 @endif
@@ -71,15 +83,15 @@
             @if(count($workGroupsForInput) > 0)
             <div class="overflow-x-auto custom-scrollbar">
 
-                {{-- Warning banner when kontribusi exceeds bobot --}}
+                {{-- Warning banner when realisasi kumulatif exceeds bobot --}}
                 @if($this->anyExceedsBobot)
                 <div class="mb-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-3 flex items-start gap-2">
                     <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                     </svg>
                     <div>
-                        <p class="text-sm font-medium text-red-700 dark:text-red-400">Kontribusi Proyek melebihi Bobot</p>
-                        <p class="text-xs text-red-600 dark:text-red-300 mt-0.5">Kontribusi proyek tidak boleh melebihi bobot work group. Silakan kurangi nilai realisasi group.</p>
+                        <p class="text-sm font-medium text-red-700 dark:text-red-400">Realisasi melebihi Bobot</p>
+                        <p class="text-xs text-red-600 dark:text-red-300 mt-0.5">Total realisasi work group tidak boleh melebihi bobotnya. Silakan kurangi nilai realisasi minggu ini.</p>
                     </div>
                 </div>
                 @endif
@@ -91,7 +103,6 @@
                             <th class="px-3 py-2 text-left text-xs font-medium text-blue-700 dark:text-blue-300 uppercase whitespace-nowrap">Work Group</th>
                             <th class="px-3 py-2 text-center text-xs font-medium text-blue-700 dark:text-blue-300 uppercase whitespace-nowrap w-24">Bobot (%)</th>
                             <th class="px-3 py-2 text-left text-xs font-medium text-blue-700 dark:text-blue-300 uppercase whitespace-nowrap w-44">Realisasi {{ $weekLabel }} (%)</th>
-                            <th class="px-3 py-2 text-right text-xs font-medium text-blue-700 dark:text-blue-300 uppercase whitespace-nowrap w-36">Kontribusi {{ $weekLabel }} (%)</th>
                             <th class="px-3 py-2 text-right text-xs font-medium text-blue-700 dark:text-blue-300 uppercase whitespace-nowrap w-36">Total s/d {{ $weekLabel }} (%)</th>
                         </tr>
                     </thead>
@@ -102,7 +113,7 @@
                             <td class="px-3 py-2 text-center text-gray-600 dark:text-gray-400">{{ number_format($wg['bobot'], 2) }}</td>
                             <td class="px-3 py-2">
                                 <div class="relative">
-                                    <input type="number" step="0.01" min="0" max="100"
+                                    <input type="number" step="0.01" min="0" max="{{ number_format((float) $wg['bobot'], 2, '.', '') }}"
                                         wire:model.live="progressPerGroup.{{ $wg['work_group_id'] }}"
                                         class="w-full pr-6 pl-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-right
                                             @error('progressPerGroup.'.$wg['work_group_id']) border-red-500 @enderror"
@@ -113,22 +124,10 @@
                                     <span class="text-red-500 text-xs">{{ $message }}</span>
                                 @enderror
                             </td>
-                            <td class="px-3 py-2 text-right tabular-nums
-                                @php
-                                    $totalKontribusiHistory = $this->totalKontribusiHistory;
-                                    $kontribusi = $this->kontribusiPerGroup[$wg['work_group_id']] ?? 0;
-                                    $totalKontribusi = $totalKontribusiHistory[$wg['work_group_id']] ?? 0;
-                                    $exceedsBobot = $totalKontribusi > $wg['bobot'];
-                                @endphp
-                                {{ $exceedsBobot ? 'text-red-600 dark:text-red-400 font-bold' : 'text-gray-600 dark:text-gray-300' }}">
-                                <span wire:loading.remove wire:target="progressPerGroup.{{ $wg['work_group_id'] }}">
-                                    {{ number_format($kontribusi, 2) }}%
-                                </span>
-                                <svg wire:loading wire:target="progressPerGroup.{{ $wg['work_group_id'] }}" class="animate-spin w-4 h-4 text-blue-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                            </td>
+                            @php
+                                $totalKontribusi = $this->totalKontribusiHistory[$wg['work_group_id']] ?? 0;
+                                $exceedsBobot = $totalKontribusi > $wg['bobot'];
+                            @endphp
                             <td class="px-3 py-2 text-right tabular-nums font-medium
                                 {{ $exceedsBobot ? 'text-red-600 dark:text-red-400 font-bold' : 'text-gray-700 dark:text-gray-300' }}">
                                 <span wire:loading.remove wire:target="progressPerGroup.{{ $wg['work_group_id'] }}">
@@ -148,7 +147,6 @@
                             <td class="px-3 py-2 text-center text-xs text-blue-700 dark:text-blue-300">
                                 {{ number_format(collect($workGroupsForInput)->sum('bobot'), 2) }}%
                             </td>
-                            <td class="px-3 py-2"></td>
                             <td class="px-3 py-2 text-right text-xs text-blue-700 dark:text-blue-300 tabular-nums">
                                 <span wire:loading.remove wire:target="progressPerGroup">
                                     {{ number_format($this->totalKontribusi, 2) }}%
@@ -173,7 +171,7 @@
             </div>
 
             <p class="text-xs text-blue-500 dark:text-blue-400 mt-2">
-                Masukkan % realisasi pekerjaan masing-masing work group pada minggu ini.
+                Masukkan kontribusi realisasi masing-masing work group minggu ini dalam satuan % proyek (bukan % group). Total kumulatif per group tidak boleh melebihi bobotnya.
             </p>
             @endif
         @endif

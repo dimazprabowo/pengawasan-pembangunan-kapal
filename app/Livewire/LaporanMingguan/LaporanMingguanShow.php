@@ -496,7 +496,6 @@ class LaporanMingguanShow extends Component
     public function render(QueueStatusService $queueStatusService, KurvaSService $kurvaSService)
     {
         $chartData = [];
-        $detailTableData = [];
         $totalRencana = null;
         $totalAktual = null;
         $progressHistory = [];
@@ -504,7 +503,6 @@ class LaporanMingguanShow extends Component
 
         if ($this->laporan->jenisKapal) {
             $chartData = $kurvaSService->getChartData($this->laporan->jenisKapal);
-            $detailTableData = $kurvaSService->getDetailTableData($this->laporan);
             $progressHistory = $kurvaSService->getProgressHistory($this->laporan->jenisKapal);
 
             // Get work groups for history table
@@ -533,7 +531,6 @@ class LaporanMingguanShow extends Component
         return view('livewire.laporan-mingguan.laporan-mingguan-show', [
             'queueStatus' => $queueStatusService->getQueueStatusMessage(),
             'kurvaSChartData' => $chartData,
-            'kurvaSDetail' => $detailTableData,
             'jenisKapalNama' => $this->laporan->jenisKapal?->nama,
             'totalRencana' => $totalRencana,
             'totalAktual' => $totalAktual,

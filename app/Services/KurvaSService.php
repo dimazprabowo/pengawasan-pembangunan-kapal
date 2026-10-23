@@ -12,22 +12,26 @@ use Illuminate\Support\Collection;
 class KurvaSService
 {
     /**
-     * Ambil semua work groups beserta rencana per minggu untuk satu jenis kapal.
+     * Ambil semua work groups beserta rencana per bulan untuk satu jenis kapal.
      */
     public function getWorkGroups(JenisKapal $jenisKapal): Collection
     {
         return KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
-            ->with(['kurvaSRencana' => fn ($q) => $q->orderBy('minggu_ke')])
+            ->with(['kurvaSRencana' => fn ($q) => $q->orderBy('bulan_ke')])
             ->orderBy('sort_order')
             ->get();
     }
 
     /**
-     * Simpan semua work groups dan rencana per minggu (replace total).
+     * Simpan semua work groups dan rencana per bulan (replace total).
+     * pct_rencana dinyatakan dalam poin persen proyek (bukan % group):
+     * total rencana per group tidak boleh melebihi bobot group tersebut.
+     * Rencana per minggu diturunkan otomatis: pct bulan dibagi rata ke
+     * jumlah minggu di bulan tersebut.
      * Format $workGroups:
      * [
      *   ['id' => null, 'nama' => 'Engineering', 'bobot' => '5.00',
-     *    'weeks' => [['minggu_ke' => 1, 'pct_rencana' => '3.00', 'keterangan' => ''], ...]],
+     *    'months' => [['bulan_ke' => 1, 'pct_rencana' => '3.00', 'keterangan' => ''], ...]],
      *   ...
      * ]
      */
@@ -42,6 +46,7 @@ class KurvaSService
 
         foreach ($workGroups as $sortOrder => $wgData) {
             $id = isset($wgData['id']) && $wgData['id'] ? (int) $wgData['id'] : null;
+            $bobot = (float) ($wgData['bobot'] ?? 0);
 
             if ($id && in_array($id, $existingIds)) {
                 $wg = KurvaSWorkGroup::find($id);
@@ -52,23 +57,23 @@ class KurvaSService
             $wg->fill([
                 'jenis_kapal_id' => $jenisKapal->id,
                 'nama' => trim($wgData['nama'] ?? ''),
-                'bobot' => (float) ($wgData['bobot'] ?? 0),
+                'bobot' => $bobot,
                 'sort_order' => $sortOrder,
             ])->save();
 
             KurvaSRencana::where('work_group_id', $wg->id)->delete();
 
             $insert = [];
-            foreach ((array) ($wgData['weeks'] ?? []) as $w) {
-                $minggu = (int) ($w['minggu_ke'] ?? 0);
-                if ($minggu <= 0) {
+            foreach ((array) ($wgData['months'] ?? []) as $m) {
+                $bulan = (int) ($m['bulan_ke'] ?? 0);
+                if ($bulan <= 0) {
                     continue;
                 }
                 $insert[] = [
                     'work_group_id' => $wg->id,
-                    'minggu_ke' => $minggu,
-                    'pct_rencana' => max(0, min(100, (float) ($w['pct_rencana'] ?? 0))),
-                    'keterangan' => $w['keterangan'] ?? null,
+                    'bulan_ke' => $bulan,
+                    'pct_rencana' => max(0, min($bobot, (float) ($m['pct_rencana'] ?? 0))),
+                    'keterangan' => $m['keterangan'] ?? null,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ];
@@ -88,22 +93,28 @@ class KurvaSService
 
     /**
      * Simpan realisasi per work group untuk satu laporan mingguan.
+     * pct_realisasi dinyatakan dalam poin persen proyek (kontribusi langsung),
+     * di-clamp ke bobot group sebagai batas atas.
      * Format $progressData: [work_group_id => pct_realisasi, ...]
      */
     public function saveProgress(LaporanMingguan $laporan, array $progressData): void
     {
+        $bobotMap = KurvaSWorkGroup::whereIn('id', array_keys($progressData))
+            ->pluck('bobot', 'id');
+
         $now = now();
         foreach ($progressData as $workGroupId => $pct) {
             if (! $workGroupId) {
                 continue;
             }
+            $maxPct = (float) ($bobotMap[$workGroupId] ?? 100);
             LaporanMingguanProgress::updateOrCreate(
                 [
                     'laporan_mingguan_id' => $laporan->id,
                     'work_group_id' => (int) $workGroupId,
                 ],
                 [
-                    'pct_realisasi' => max(0, min(100, (float) $pct)),
+                    'pct_realisasi' => max(0, min($maxPct, (float) $pct)),
                     'updated_at' => $now,
                 ]
             );
@@ -120,37 +131,54 @@ class KurvaSService
 
     /**
      * Ambil daftar minggu yang tersedia untuk dropdown di laporan mingguan.
-     * Minggu diambil dari union semua minggu yang direncanakan oleh work groups.
+     * Minggu diambil dari periode kontrak (label rentang tanggal);
+     * tanpa kontrak tidak ada definisi minggu/bulan → daftar kosong.
      * Minggu yang sudah memiliki laporan mingguan akan dikecualikan.
      */
     public function getMingguOptions(JenisKapal $jenisKapal, ?int $excludeCurrentWeek = null): array
     {
-        $workGroupIds = KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)->pluck('id');
+        if (! $jenisKapal->hasKontrak()) {
+            return [];
+        }
 
-        // Get all planned weeks
-        $plannedWeeks = KurvaSRencana::whereIn('work_group_id', $workGroupIds)
-            ->select('minggu_ke')
-            ->distinct()
-            ->orderBy('minggu_ke')
-            ->pluck('minggu_ke')
-            ->toArray();
+        return app(KontrakPeriodeService::class)->getMingguOptions($jenisKapal, $excludeCurrentWeek);
+    }
 
-        // Get weeks that already have laporan mingguan
-        $usedWeeks = LaporanMingguan::where('jenis_kapal_id', $jenisKapal->id)
-            ->whereNotNull('minggu_ke')
-            ->when($excludeCurrentWeek, fn ($q) => $q->where('minggu_ke', '!=', $excludeCurrentWeek))
-            ->pluck('minggu_ke')
-            ->toArray();
+    /**
+     * Turunkan rencana bulanan menjadi rencana per minggu:
+     * pct_rencana bulan dibagi rata ke jumlah minggu di bulan tersebut.
+     * Mengikuti pengelompokan bulan KontrakPeriodeService (mayoritas + min 4
+     * minggu untuk bulan tengah). Kosong bila kontrak belum diatur.
+     *
+     * @return array<int, array<int, float>> [work_group_id => [minggu_ke => pct]]
+     */
+    private function getWeeklyPlanMap(JenisKapal $jenisKapal, ?Collection $workGroups = null): array
+    {
+        $bulanList = collect(app(KontrakPeriodeService::class)->getBulanList($jenisKapal))
+            ->keyBy('bulan_ke');
+        if ($bulanList->isEmpty()) {
+            return [];
+        }
 
-        // Exclude used weeks from planned weeks
-        $availableWeeks = array_diff($plannedWeeks, $usedWeeks);
+        $workGroups ??= KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
+            ->with('kurvaSRencana')
+            ->get();
 
-        return collect($availableWeeks)
-            ->sort()
-            ->values()
-            ->map(fn ($m) => ['value' => $m, 'label' => 'Minggu ke-'.$m])
-            ->values()
-            ->toArray();
+        $map = [];
+        foreach ($workGroups as $wg) {
+            foreach ($wg->kurvaSRencana as $r) {
+                $bulan = $bulanList->get($r->bulan_ke);
+                if (! $bulan || $bulan['total_minggu'] <= 0) {
+                    continue;
+                }
+                $perMinggu = (float) $r->pct_rencana / $bulan['total_minggu'];
+                for ($m = $bulan['minggu_dari']; $m <= $bulan['minggu_sampai']; $m++) {
+                    $map[$wg->id][$m] = round(($map[$wg->id][$m] ?? 0) + $perMinggu, 4);
+                }
+            }
+        }
+
+        return $map;
     }
 
     /**
@@ -181,8 +209,8 @@ class KurvaSService
     /**
      * Bangun data lengkap untuk Chart Kurva S.
      *
-     * pct_rencana  = incremental % progress group per minggu
-     * pct_realisasi = cumulative % progress group as of this report
+     * pct_rencana  = kontribusi rencana proyek per minggu (poin %, incremental)
+     * pct_realisasi = kontribusi realisasi proyek pada laporan tsb (poin %, incremental)
      *
      * Returns array dengan keys:
      *   labels, rencana (kumulatif proyek), aktual (kumulatif proyek),
@@ -200,7 +228,7 @@ class KurvaSService
         ?int $excludeLaporanId = null
     ): array {
         $workGroups = KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
-            ->with(['kurvaSRencana' => fn ($q) => $q->orderBy('minggu_ke')])
+            ->with(['kurvaSRencana' => fn ($q) => $q->orderBy('bulan_ke')])
             ->orderBy('sort_order')
             ->get();
 
@@ -219,29 +247,10 @@ class KurvaSService
             ];
         }
 
-        $allWeeks = $workGroups
-            ->flatMap(fn ($wg) => $wg->kurvaSRencana->pluck('minggu_ke'))
-            ->unique()
-            ->sort()
-            ->values()
-            ->toArray();
-
-        if (empty($allWeeks)) {
-            return [
-                'labels' => [],
-                'rencana' => [],
-                'aktual' => [],
-                'has_rencana' => false,
-                'has_aktual' => false,
-                'total_minggu' => 0,
-                'total_bobot' => round($workGroups->sum('bobot'), 2),
-                'progress_terkini' => null,
-                'deviasi' => null,
-                'work_groups' => $workGroups->map(fn ($wg) => ['id' => $wg->id, 'nama' => $wg->nama, 'bobot' => $wg->bobot])->toArray(),
-            ];
-        }
-
         $workGroupIds = $workGroups->pluck('id')->toArray();
+
+        // Rencana per minggu diturunkan dari rencana bulanan (dibagi rata)
+        $weeklyPlan = $this->getWeeklyPlanMap($jenisKapal, $workGroups);
 
         // Ambil laporan mingguan dengan progress untuk jenis kapal ini
         $laporanList = LaporanMingguan::where('jenis_kapal_id', $jenisKapal->id)
@@ -281,6 +290,29 @@ class KurvaSService
             }
         }
 
+        // Minggu kurva = seluruh minggu kontrak ∪ minggu yang sudah ada laporannya
+        $totalMingguKontrak = app(KontrakPeriodeService::class)->getTotalMinggu($jenisKapal);
+        $allWeeks = array_unique(array_merge(
+            $totalMingguKontrak > 0 ? range(1, $totalMingguKontrak) : [],
+            array_keys($aktualByWeek)
+        ));
+        sort($allWeeks);
+
+        if (empty($allWeeks)) {
+            return [
+                'labels' => [],
+                'rencana' => [],
+                'aktual' => [],
+                'has_rencana' => false,
+                'has_aktual' => false,
+                'total_minggu' => 0,
+                'total_bobot' => round($workGroups->sum('bobot'), 2),
+                'progress_terkini' => null,
+                'deviasi' => null,
+                'work_groups' => $workGroups->map(fn ($wg) => ['id' => $wg->id, 'nama' => $wg->nama, 'bobot' => $wg->bobot])->toArray(),
+            ];
+        }
+
         // Build cumulative project plan and project actual per week
         $labels = [];
         $rencanaKum = [];
@@ -292,25 +324,22 @@ class KurvaSService
         foreach ($allWeeks as $week) {
             $labels[] = 'Minggu '.$week;
 
-            // Project plan for this week = Σ(pct_rencana[group, week] × bobot / 100)
+            // Project plan for this week = Σ rencana mingguan (dari bagi rata bulanan)
             $weekPlan = 0.0;
             foreach ($workGroups as $wg) {
-                $rencana = $wg->kurvaSRencana->firstWhere('minggu_ke', $week);
-                if ($rencana) {
-                    $weekPlan += (float) $rencana->pct_rencana * (float) $wg->bobot / 100.0;
-                }
+                $weekPlan += (float) ($weeklyPlan[$wg->id][$week] ?? 0);
             }
             $cumPlan += $weekPlan;
             $rencanaKum[] = round($cumPlan, 2);
 
-            // Project actual for this week = Σ(pct_realisasi[group] × bobot / 100)
+            // Project actual for this week = Σ pct_realisasi[group] (sudah dalam poin % proyek)
             // Cumulative: add to running total
             if (isset($aktualByWeek[$week])) {
                 $weekActual = 0.0;
                 foreach ($workGroups as $wg) {
                     $pct = $aktualByWeek[$week][$wg->id] ?? null;
                     if ($pct !== null) {
-                        $weekActual += (float) $pct * (float) $wg->bobot / 100.0;
+                        $weekActual += (float) $pct;
                     }
                 }
                 $cumAktual += $weekActual;
@@ -356,17 +385,19 @@ class KurvaSService
 
         // Get all work groups for this jenis kapal
         $workGroups = KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
-            ->with(['kurvaSRencana' => fn ($q) => $q->orderBy('minggu_ke')])
+            ->with(['kurvaSRencana' => fn ($q) => $q->orderBy('bulan_ke')])
             ->orderBy('sort_order')
             ->get();
 
-        // Build plan map: minggu_ke -> work_group_id -> cumulative plan
+        // Plan per minggu diturunkan dari rencana bulanan (dibagi rata ke minggunya)
+        $weeklyPlan = $this->getWeeklyPlanMap($jenisKapal, $workGroups);
+
         // Get all weeks from laporan to ensure we have plans for all reported weeks
         $allWeeks = $laporanList->pluck('minggu_ke')->unique()->sort()->values()->toArray();
 
         // Also get all weeks from rencana to include weeks that might not have laporan yet
-        $allRencanaWeeks = $workGroups
-            ->flatMap(fn ($wg) => $wg->kurvaSRencana->pluck('minggu_ke'))
+        $allRencanaWeeks = collect($weeklyPlan)
+            ->flatMap(fn ($weeks) => array_keys($weeks))
             ->unique()
             ->sort()
             ->values()
@@ -378,15 +409,9 @@ class KurvaSService
 
         $planMap = [];
         foreach ($workGroups as $wg) {
-            // Sort rencana by minggu_ke
-            $rencanaList = $wg->kurvaSRencana->sortBy('minggu_ke');
-
             foreach ($allWeeks as $week) {
                 // Get plan for this specific week (not cumulative)
-                $weeklyPlan = $rencanaList
-                    ->where('minggu_ke', $week)
-                    ->sum('pct_rencana');
-                $planMap[$week][$wg->id] = round($weeklyPlan, 2);
+                $planMap[$week][$wg->id] = round((float) ($weeklyPlan[$wg->id][$week] ?? 0), 2);
             }
         }
 
@@ -419,13 +444,14 @@ class KurvaSService
 
     /**
      * Tambahkan total kumulatif ke setiap entry dalam progress history.
+     * plans/progress sudah dalam poin persen proyek — dijumlahkan langsung.
      * Menghitung total rencana, aktual, dan deviasi kumulatif sampai minggu tersebut.
      */
-    private function addCumulativeTotalsToHistory(array $history, $workGroups): array
+    public function addCumulativeTotalsToHistory(array $history, $workGroups): array
     {
-        $bobotMap = [];
+        $workGroupIds = [];
         foreach ($workGroups as $wg) {
-            $bobotMap[$wg->id] = (float) $wg->bobot;
+            $workGroupIds[] = $wg->id;
         }
 
         $cumulativePlan = 0.0;
@@ -433,7 +459,7 @@ class KurvaSService
 
         // Track total per work group across all weeks
         $totalPerWorkGroup = [];
-        foreach ($bobotMap as $wgId => $bobot) {
+        foreach ($workGroupIds as $wgId) {
             $totalPerWorkGroup[$wgId] = [
                 'plan' => 0.0,
                 'actual' => 0.0,
@@ -445,14 +471,9 @@ class KurvaSService
             $weekPlan = 0.0;
             $weekActual = 0.0;
 
-            foreach ($bobotMap as $wgId => $bobot) {
-                $plan = $entry['plans'][$wgId] ?? 0;
-                $actual = $entry['progress'][$wgId] ?? 0;
-
-                // Kontribusi = (pct * bobot) / 100
-                // TIDAK dibulatkan per work group, dijumlahkan dulu
-                $kontribusiPlan = ($plan * $bobot) / 100.0;
-                $kontribusiActual = ($actual * $bobot) / 100.0;
+            foreach ($workGroupIds as $wgId) {
+                $kontribusiPlan = (float) ($entry['plans'][$wgId] ?? 0);
+                $kontribusiActual = (float) ($entry['progress'][$wgId] ?? 0);
 
                 $weekPlan += $kontribusiPlan;
                 $weekActual += $kontribusiActual;
@@ -494,17 +515,16 @@ class KurvaSService
     }
 
     /**
-     * Ambil rencana (pct_rencana) per work group untuk satu minggu tertentu.
+     * Ambil rencana (pct_rencana mingguan) per work group untuk satu minggu
+     * tertentu — diturunkan dari rencana bulanan dibagi rata ke minggunya.
      * Returns: [work_group_id => pct_rencana, ...]
      */
     public function getWeekPlans(JenisKapal $jenisKapal, int $mingguKe): array
     {
-        $workGroupIds = KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)->pluck('id');
-
-        return KurvaSRencana::whereIn('work_group_id', $workGroupIds)
-            ->where('minggu_ke', $mingguKe)
-            ->pluck('pct_rencana', 'work_group_id')
-            ->map(fn ($v) => round((float) $v, 2))
+        return collect($this->getWeeklyPlanMap($jenisKapal))
+            ->mapWithKeys(fn ($weeks, $workGroupId) => [
+                $workGroupId => round((float) ($weeks[$mingguKe] ?? 0), 2),
+            ])
             ->toArray();
     }
 
@@ -534,6 +554,7 @@ class KurvaSService
 
     /**
      * Hitung kontribusi per work group untuk minggu tertentu.
+     * pct_realisasi sudah dalam poin persen proyek — kontribusi = nilai itu sendiri.
      * Returns: [work_group_id => kontribusi_value]
      */
     public function calculateKontribusiPerGroup(array $progressPerGroup, $workGroups): array
@@ -541,9 +562,7 @@ class KurvaSService
         $kontribusi = [];
         foreach ($workGroups as $wg) {
             $wgId = is_array($wg) ? $wg['work_group_id'] : $wg->id;
-            $bobot = is_array($wg) ? (float) $wg['bobot'] : (float) $wg->bobot;
-            $pct = (float) ($progressPerGroup[$wgId] ?? 0);
-            $kontribusi[$wgId] = round($pct * $bobot / 100.0, 2);
+            $kontribusi[$wgId] = round((float) ($progressPerGroup[$wgId] ?? 0), 2);
         }
 
         return $kontribusi;
@@ -559,7 +578,6 @@ class KurvaSService
 
         foreach ($workGroups as $wg) {
             $wgId = is_array($wg) ? $wg['work_group_id'] : $wg->id;
-            $bobot = is_array($wg) ? (float) $wg['bobot'] : (float) $wg->bobot;
             $total = 0.0;
 
             foreach ($progressHistory as $hist) {
@@ -567,7 +585,7 @@ class KurvaSService
                     continue;
                 }
                 if (isset($hist['progress'][$wgId])) {
-                    $total += (float) $hist['progress'][$wgId] * $bobot / 100.0;
+                    $total += (float) $hist['progress'][$wgId];
                 }
             }
 
@@ -575,74 +593,5 @@ class KurvaSService
         }
 
         return $totalKontribusi;
-    }
-
-    /**
-     * Bangun data detail tabel untuk satu laporan (untuk halaman show).
-     * Returns per-group breakdown: group plan, project plan, group realization, project realization, deviasi
-     */
-    public function getDetailTableData(LaporanMingguan $laporan): array
-    {
-        if (! $laporan->jenis_kapal_id || ! $laporan->minggu_ke) {
-            return [];
-        }
-
-        $workGroups = KurvaSWorkGroup::where('jenis_kapal_id', $laporan->jenis_kapal_id)
-            ->with(['kurvaSRencana' => fn ($q) => $q->orderBy('minggu_ke')])
-            ->orderBy('sort_order')
-            ->get();
-
-        if ($workGroups->isEmpty()) {
-            return [];
-        }
-
-        $progressMap = LaporanMingguanProgress::where('laporan_mingguan_id', $laporan->id)
-            ->pluck('pct_realisasi', 'work_group_id');
-
-        $rows = [];
-        $totalBobot = 0.0;
-        $totalPlanGroup = 0.0;
-        $totalPlanProj = 0.0;
-        $totalRealGroup = 0.0;
-        $totalRealProj = 0.0;
-
-        foreach ($workGroups as $wg) {
-            // Cumulative group plan until minggu_ke
-            $groupPlan = $wg->kurvaSRencana
-                ->where('minggu_ke', '<=', $laporan->minggu_ke)
-                ->sum('pct_rencana');
-
-            $projectPlan = round($groupPlan * $wg->bobot / 100, 2);
-            $groupReal = (float) ($progressMap[$wg->id] ?? 0);
-            $projectReal = round($groupReal * $wg->bobot / 100, 2);
-
-            $rows[] = [
-                'nama' => $wg->nama,
-                'bobot' => $wg->bobot,
-                'group_plan' => round($groupPlan, 2),
-                'project_plan' => $projectPlan,
-                'group_real' => round($groupReal, 2),
-                'project_real' => $projectReal,
-                'dev_group' => round($groupReal - $groupPlan, 2),
-                'dev_project' => round($projectReal - $projectPlan, 2),
-            ];
-
-            $totalBobot += $wg->bobot;
-            $totalPlanGroup += $groupPlan;
-            $totalPlanProj += $projectPlan;
-            $totalRealGroup += $groupReal;
-            $totalRealProj += $projectReal;
-        }
-
-        return [
-            'minggu_ke' => $laporan->minggu_ke,
-            'rows' => $rows,
-            'totals' => [
-                'bobot' => round($totalBobot, 2),
-                'project_plan' => round($totalPlanProj, 2),
-                'project_real' => round($totalRealProj, 2),
-                'dev_project' => round($totalRealProj - $totalPlanProj, 2),
-            ],
-        ];
     }
 }

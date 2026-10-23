@@ -21,6 +21,8 @@ class JenisKapal extends Model
         'galangan_id',
         'nama',
         'deskripsi',
+        'tanggal_mulai_kontrak',
+        'durasi_kontrak_hari',
         'template_path_harian',
         'template_path_mingguan',
         'template_path_bulanan',
@@ -29,6 +31,8 @@ class JenisKapal extends Model
 
     protected $casts = [
         'status' => JenisKapalStatus::class,
+        'tanggal_mulai_kontrak' => 'date',
+        'durasi_kontrak_hari' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
@@ -72,6 +76,26 @@ class JenisKapal extends Model
     public function getIsActiveAttribute(): bool
     {
         return $this->status === JenisKapalStatus::Active;
+    }
+
+    /**
+     * Kontrak dianggap terisi lengkap jika tanggal mulai & durasi hari ada.
+     */
+    public function hasKontrak(): bool
+    {
+        return ! empty($this->tanggal_mulai_kontrak) && ! empty($this->durasi_kontrak_hari);
+    }
+
+    /**
+     * Tanggal selesai kontrak = tanggal mulai + durasi hari - 1 (hari kalender, inklusif).
+     */
+    public function getTanggalSelesaiKontrakAttribute(): ?\Carbon\Carbon
+    {
+        if (! $this->hasKontrak()) {
+            return null;
+        }
+
+        return $this->tanggal_mulai_kontrak->copy()->addDays($this->durasi_kontrak_hari - 1);
     }
 
     public function hasTemplate(string $tipe): bool

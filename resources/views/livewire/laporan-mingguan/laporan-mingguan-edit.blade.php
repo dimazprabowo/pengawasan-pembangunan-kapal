@@ -149,6 +149,20 @@
                             <div class="w-full h-[42px] px-3 py-2 bg-gray-100 dark:bg-gray-600/50 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 text-sm flex items-center cursor-not-allowed">
                                 Pilih jenis kapal terlebih dahulu
                             </div>
+                        @elseif($hasKontrak)
+                            <div class="w-full min-h-[42px] px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border rounded-lg text-sm flex items-center gap-2 cursor-not-allowed {{ $errors->has('periode_mulai') || $errors->has('periode_selesai') ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600' }}">
+                                @if($periode_mulai && $periode_selesai)
+                                    <svg class="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                    </svg>
+                                    <span class="font-medium text-gray-900 dark:text-white">
+                                        {{ \Illuminate\Support\Carbon::parse($periode_mulai)->translatedFormat('d M Y') }} – {{ \Illuminate\Support\Carbon::parse($periode_selesai)->translatedFormat('d M Y') }}
+                                    </span>
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">(otomatis dari kontrak)</span>
+                                @else
+                                    <span class="text-gray-500 dark:text-gray-400">Pilih minggu ke- terlebih dahulu — periode terisi otomatis dari kontrak</span>
+                                @endif
+                            </div>
                         @else
                             <input id="period-range-picker-edit" type="text" placeholder="Pilih rentang tanggal periode"
                                 :class="hasError ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600'"
@@ -181,7 +195,7 @@
                         </span>
                     </label>
 
-                    <div wire:loading wire:target="periode_mulai,periode_selesai" class="w-full bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                    <div wire:loading wire:target="periode_mulai,periode_selesai,minggu_ke" class="w-full bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
                         <div class="flex flex-col items-center justify-center gap-2">
                             <svg class="animate-spin w-6 h-6 text-blue-600 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -191,7 +205,7 @@
                         </div>
                     </div>
 
-                    <div wire:loading.remove wire:target="periode_mulai,periode_selesai">
+                    <div wire:loading.remove wire:target="periode_mulai,periode_selesai,minggu_ke">
                         @if(count($availableLaporanHarian) > 0)
                             <div class="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
                                 <div class="space-y-2 max-h-60 overflow-y-auto">
@@ -376,6 +390,7 @@
         confirmMethod="saveWithReassign"
     />
 
+@if(!$hasKontrak)
 <script>
 let pickerInstanceEdit = null;
 
@@ -419,4 +434,5 @@ window.initFlatpickrEdit = function() {
 document.addEventListener('DOMContentLoaded', window.initFlatpickrEdit);
 document.addEventListener('livewire:navigated', window.initFlatpickrEdit);
 </script>
+@endif
 </div>

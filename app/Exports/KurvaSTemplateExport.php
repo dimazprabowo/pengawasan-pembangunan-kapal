@@ -8,6 +8,7 @@ use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 class KurvaSTemplateExport implements WithMultipleSheets
 {
     protected JenisKapal $jenisKapal;
+
     protected bool $withData;
 
     public function __construct(JenisKapal $jenisKapal, bool $withData = true)
@@ -18,9 +19,11 @@ class KurvaSTemplateExport implements WithMultipleSheets
 
     public function sheets(): array
     {
+        $months = KurvaSRencanaSheet::resolveMonths($this->jenisKapal);
+
         return [
-            new KurvaSInstructionsSheet($this->jenisKapal),
-            new KurvaSRencanaSheet($this->jenisKapal, $this->withData),
+            new KurvaSInstructionsSheet($this->jenisKapal, $months),
+            new KurvaSRencanaSheet($this->jenisKapal, $this->withData, $months),
         ];
     }
 }

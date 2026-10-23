@@ -4,21 +4,28 @@ namespace App\Exports;
 
 use App\Models\JenisKapal;
 use Maatwebsite\Excel\Concerns\FromArray;
-use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
+use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
-use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class KurvaSInstructionsSheet implements FromArray, WithTitle, WithStyles, WithColumnWidths
+class KurvaSInstructionsSheet implements FromArray, WithColumnWidths, WithStyles, WithTitle
 {
     protected JenisKapal $jenisKapal;
 
-    public function __construct(JenisKapal $jenisKapal)
+    protected ?int $months;
+
+    public function __construct(JenisKapal $jenisKapal, ?int $months = null)
     {
         $this->jenisKapal = $jenisKapal;
+        $this->months = $months;
+    }
+
+    protected function monthsLabel(): string
+    {
+        return $this->months ? "B1-B{$this->months}" : 'B1-B…';
     }
 
     public function array(): array
@@ -37,33 +44,34 @@ class KurvaSInstructionsSheet implements FromArray, WithTitle, WithStyles, WithC
             ['STRUKTUR TEMPLATE'],
             ['Template ini terdiri dari 2 sheet:'],
             ['  1. Petunjuk (sheet ini) - Panduan penggunaan'],
-            ['  2. Rencana - Data work groups dan rencana mingguan (W1-W100)'],
+            ['  2. Rencana - Data work groups dan rencana bulanan ('.$this->monthsLabel().', mengikuti durasi kontrak)'],
             [''],
             ['KOLOM UTAMA (Sheet Rencana)'],
             ['  • No - Nomor urut work group (1, 2, 3, ...)'],
             ['  • Work Group - Nama kelompok pekerjaan (Engineering, Konstruksi, dll)'],
-            ['  • Bobot (%) - Bobot work group terhadap total proyek'],
-            ['  • Kumulatif Rencana (%) - Total rencana W1-W100 (AUTO-CALCULATED)'],
-            ['  • Kumulatif Aktual (%) - Kontribusi terhadap proyek (AUTO-CALCULATED)'],
-            ['  • W1-W100 Rencana (%) - Persentase rencana per minggu'],
-            ['  • W1-W100 Keterangan - Catatan untuk setiap minggu (opsional)'],
+            ['  • Bobot (%) - Porsi maksimal work group terhadap total proyek'],
+            ['  • Kumulatif Rencana (%) - Total rencana semua bulan (AUTO-CALCULATED)'],
+            ['  • Sisa Bobot (%) - Bobot dikurangi Kumulatif Rencana (AUTO-CALCULATED)'],
+            ['  • '.$this->monthsLabel().' Rencana (%) - Kontribusi rencana per bulan dalam % proyek'],
+            ['  • '.$this->monthsLabel().' Keterangan - Catatan untuk setiap bulan (opsional)'],
             [''],
             ['CARA MENGISI'],
             ['  1. Isi kolom Work Group dengan nama kelompok pekerjaan'],
             ['  2. Isi kolom Bobot (%) - Total semua work group HARUS = 100%'],
-            ['  3. Isi W1-W100 Rencana (%) - Total per work group HARUS = 100%'],
-            ['  4. Tambahkan Keterangan jika diperlukan (max 500 karakter)'],
-            ['  5. Kumulatif Rencana dan Kumulatif Aktual otomatis terhitung'],
+            ['  3. Isi '.$this->monthsLabel().' Rencana (%) dalam satuan % PROYEK per BULAN - Total per work group TIDAK BOLEH melebihi Bobot-nya (target = Bobot)'],
+            ['  4. Rencana bulanan dibagi rata ke minggu-minggu di bulan tsb oleh sistem; realisasi tetap diisi per minggu di laporan mingguan'],
+            ['  5. Tambahkan Keterangan jika diperlukan (max 500 karakter)'],
+            ['  6. Kumulatif Rencana dan Sisa Bobot otomatis terhitung'],
             [''],
             ['FORMULA AUTO-CALCULATED'],
-            ['  • Kumulatif Rencana = SUM(W1 + W2 + ... + W100)'],
-            ['  • Kumulatif Aktual = (Bobot × Kumulatif Rencana) / 100'],
+            ['  • Kumulatif Rencana = SUM(B1 + B2 + ... + B'.($this->months ?? '…').')'],
+            ['  • Sisa Bobot = Bobot - Kumulatif Rencana'],
             [''],
             ['VALIDASI WAJIB'],
             ['  ✓ Total Bobot semua work groups = 100.00%'],
-            ['  ✓ Total Rencana per work group (W1-W100) = 100.00%'],
+            ['  ✓ Total Rencana per work group tidak boleh melebihi Bobot-nya'],
             ['  ✓ Bobot: 0.01 - 100.00'],
-            ['  ✓ Rencana: 0.00 - 100.00'],
+            ['  ✓ Rencana: 0.00 - maksimal Bobot work group'],
             ['  ✓ Minimal 1 work group, maksimal 20 work groups'],
             [''],
             ['CARA IMPORT'],
@@ -76,7 +84,7 @@ class KurvaSInstructionsSheet implements FromArray, WithTitle, WithStyles, WithC
             [''],
             ['⚠️ PERINGATAN PENTING'],
             ['  • JANGAN ubah nama sheet atau struktur kolom'],
-            ['  • JANGAN hapus formula di kolom Kumulatif Rencana & Aktual'],
+            ['  • JANGAN hapus formula di kolom Kumulatif Rencana & Sisa Bobot'],
             ['  • Gunakan titik (.) untuk desimal, bukan koma (,)'],
             ['  • Backup data lama sebelum import'],
             ['  • Pastikan total validasi terpenuhi sebelum import'],
@@ -143,7 +151,7 @@ class KurvaSInstructionsSheet implements FromArray, WithTitle, WithStyles, WithC
         $sheet->getRowDimension(9)->setRowHeight(25);
 
         // Section Headers (Gray)
-        $sectionHeaders = [11, 16, 25, 32, 37, 43, 51];
+        $sectionHeaders = [11, 16, 25, 33, 37, 44, 52];
         foreach ($sectionHeaders as $row) {
             $sheet->getStyle("A{$row}:B{$row}")->applyFromArray([
                 'font' => ['bold' => true, 'size' => 11, 'color' => ['rgb' => '1F2937']],
@@ -156,29 +164,29 @@ class KurvaSInstructionsSheet implements FromArray, WithTitle, WithStyles, WithC
         }
 
         // Warning Section
-        $sheet->getStyle('A57:B57')->applyFromArray([
+        $sheet->getStyle('A52:B52')->applyFromArray([
             'font' => ['bold' => true, 'size' => 12, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
                 'startColor' => ['rgb' => 'DC2626'],
             ],
         ]);
-        $sheet->mergeCells('A57:B57');
+        $sheet->mergeCells('A52:B52');
 
         // Merge all instruction content rows (A:B) except info rows (4-7)
         $mergeRows = [
             12, 13, 14, 17, 18, 19, 20, 21, 22, 23,
-            26, 27, 28, 29, 30, 33, 34, 38, 39, 40, 41, 42,
-            44, 45, 46, 47, 48, 52, 53, 54, 55, 56, 58, 59, 60, 61, 62
+            26, 27, 28, 29, 30, 31, 34, 35, 38, 39, 40, 41, 42,
+            45, 46, 47, 48, 49, 50, 53, 54, 55, 56, 57,
         ];
-        
+
         foreach ($mergeRows as $row) {
             $sheet->mergeCells("A{$row}:B{$row}");
         }
 
         // Wrap text for all cells
-        $sheet->getStyle('A1:B62')->getAlignment()->setWrapText(true);
-        $sheet->getStyle('A1:B62')->getAlignment()->setVertical(Alignment::VERTICAL_TOP);
+        $sheet->getStyle('A1:B57')->getAlignment()->setWrapText(true);
+        $sheet->getStyle('A1:B57')->getAlignment()->setVertical(Alignment::VERTICAL_TOP);
 
         return [];
     }

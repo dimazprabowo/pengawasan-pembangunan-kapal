@@ -458,7 +458,8 @@ class JenisKapalManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk export template Kurva S.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
+            \Log::error('Export Kurva S gagal', ['jenis_kapal_id' => $id, 'error' => $e->getMessage()]);
+            $this->notifyError('Terjadi kesalahan sistem saat export. Silakan coba lagi.');
         }
     }
 
@@ -520,7 +521,8 @@ class JenisKapalManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk import template Kurva S.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
+            \Log::error('Import Kurva S gagal', ['jenis_kapal_id' => $this->kurvaSJenisKapalId, 'error' => $e->getMessage()]);
+            $this->notifyError('Terjadi kesalahan sistem saat import. Silakan coba lagi.');
         }
     }
 

@@ -10,6 +10,7 @@ use App\Models\JenisKapal;
 use App\Models\LaporanExternal;
 use App\Models\LaporanLampiran;
 use App\Models\LaporanMingguan;
+use App\Services\KontrakPeriodeService;
 use App\Services\KurvaSService;
 use App\Services\LaporanMingguanService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -54,6 +55,9 @@ class LaporanMingguanEdit extends Component
     public array $mingguOptions = [];
 
     public bool $hasKurvaS = false;
+
+    /** Kontrak jenis kapal terisi → periode mingguan auto-generate & terkunci */
+    public bool $hasKontrak = false;
 
     public array $progressHistory = [];
 
@@ -101,6 +105,7 @@ class LaporanMingguanEdit extends Component
         $this->jenisKapal = $jenisKapal;
         $this->laporan = $laporanMingguan;
         $this->jenis_kapal_id = $laporanMingguan->jenis_kapal_id;
+        $this->hasKontrak = $jenisKapal->hasKontrak();
         $this->autoSave = Cache::get('lm_draft_autosave:'.auth()->id(), true);
         $this->tanggal_laporan = $laporanMingguan->tanggal_laporan?->format('Y-m-d') ?? '';
         $this->periode_mulai = $laporanMingguan->periode_mulai?->format('Y-m-d') ?? '';
@@ -156,14 +161,13 @@ class LaporanMingguanEdit extends Component
         $service = app(KurvaSService::class);
 
         $this->hasKurvaS = $jenisKapal && $service->hasRencana($jenisKapal);
+        $this->mingguOptions = $jenisKapal ? $service->getMingguOptions($jenisKapal, $this->minggu_ke) : [];
 
         if ($jenisKapal && $this->hasKurvaS) {
-            $this->mingguOptions = $service->getMingguOptions($jenisKapal, $this->minggu_ke);
             $this->workGroupsForInput = $service->getProgressInputData($this->laporan);
             $this->progressPerGroup = array_column($this->workGroupsForInput, 'pct_realisasi', 'work_group_id');
             $this->progressHistory = $service->getProgressHistory($jenisKapal);
         } else {
-            $this->mingguOptions = [];
             $this->workGroupsForInput = [];
             $this->progressPerGroup = [];
         }
@@ -177,6 +181,18 @@ class LaporanMingguanEdit extends Component
 
     public function updatedMingguKe(): void
     {
+        if ($this->hasKontrak) {
+            $periode = $this->minggu_ke
+                ? app(KontrakPeriodeService::class)->getMingguPeriode($this->jenisKapal, (int) $this->minggu_ke)
+                : null;
+
+            $this->periode_mulai = $periode ? $periode['mulai']->format('Y-m-d') : '';
+            $this->periode_selesai = $periode ? $periode['selesai']->format('Y-m-d') : '';
+            $this->laporan_harian_ids = [];
+            $this->lampiran_ids = [];
+            $this->loadAvailableLaporanHarian();
+        }
+
         $this->fullProgressHistory = $this->buildFullProgressHistory();
         $this->dispatchRealtimeUpdates();
     }
@@ -279,6 +295,10 @@ class LaporanMingguanEdit extends Component
 
     protected function rules(): array
     {
+        $maxMinggu = $this->hasKontrak
+            ? app(KontrakPeriodeService::class)->getTotalMinggu($this->jenisKapal)
+            : 1000;
+
         return [
             'jenis_kapal_id' => 'required|exists:jenis_kapal,id',
             'tanggal_laporan' => 'required|date',
@@ -289,7 +309,7 @@ class LaporanMingguanEdit extends Component
             'laporan_harian_ids.*' => 'exists:laporan_harian,id',
             'lampiran_ids' => 'array',
             'lampiran_ids.*' => 'exists:laporan_lampiran,id',
-            'minggu_ke' => 'required|integer|min:1|max:255',
+            'minggu_ke' => 'required|integer|min:1|max:'.$maxMinggu,
             'progressPerGroup' => 'array',
             'progressPerGroup.*' => 'nullable|numeric|min:0|max:100',
             'laporanExternal.*.judul' => 'required|string|max:255',
@@ -708,6 +728,13 @@ class LaporanMingguanEdit extends Component
             throw $e;
         }
 
+        // Kumulatif realisasi suatu work group tidak boleh melebihi bobotnya
+        if ($this->hasKurvaS && $this->anyExceedsBobot) {
+            $this->notifyError('Total realisasi salah satu work group melebihi bobotnya. Silakan kurangi nilai realisasi.');
+
+            return;
+        }
+
         // Hari yang sudah diklaim mingguan lain butuh konfirmasi pemindahan dulu
         if (! $this->reassignConfirmed) {
             $conflicts = $service->findHarianConflicts($this->laporan_harian_ids, $this->laporan->id);
@@ -939,83 +966,11 @@ class LaporanMingguanEdit extends Component
                 $workGroups = \App\Models\KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
                     ->orderBy('sort_order')
                     ->get();
-                $fullHistory = $this->addCumulativeTotalsToHistory($fullHistory, $workGroups);
+                $fullHistory = app(KurvaSService::class)->addCumulativeTotalsToHistory($fullHistory, $workGroups);
             }
         }
 
         return $fullHistory;
-    }
-
-    private function addCumulativeTotalsToHistory(array $history, $workGroups): array
-    {
-        $bobotMap = [];
-        foreach ($workGroups as $wg) {
-            $bobotMap[$wg->id] = (float) $wg->bobot;
-        }
-
-        $cumulativePlan = 0.0;
-        $cumulativeActual = 0.0;
-
-        // Track total per work group across all weeks
-        $totalPerWorkGroup = [];
-        foreach ($bobotMap as $wgId => $bobot) {
-            $totalPerWorkGroup[$wgId] = [
-                'plan' => 0.0,
-                'actual' => 0.0,
-            ];
-        }
-
-        foreach ($history as $index => &$entry) {
-            // Calculate weekly totals
-            $weekPlan = 0.0;
-            $weekActual = 0.0;
-
-            foreach ($bobotMap as $wgId => $bobot) {
-                $plan = $entry['plans'][$wgId] ?? 0;
-                $actual = $entry['progress'][$wgId] ?? 0;
-
-                // Kontribusi = (pct * bobot) / 100
-                // TIDAK dibulatkan per work group, dijumlahkan dulu
-                $kontribusiPlan = ($plan * $bobot) / 100.0;
-                $kontribusiActual = ($actual * $bobot) / 100.0;
-
-                $weekPlan += $kontribusiPlan;
-                $weekActual += $kontribusiActual;
-
-                // Accumulate per work group
-                $totalPerWorkGroup[$wgId]['plan'] += $kontribusiPlan;
-                $totalPerWorkGroup[$wgId]['actual'] += $kontribusiActual;
-            }
-
-            // Add to cumulative (juga tidak dibulatkan dulu)
-            $cumulativePlan += $weekPlan;
-            $cumulativeActual += $weekActual;
-
-            // Bulatkan hanya pada hasil akhir
-            $entry['cumulative_plan'] = round($cumulativePlan, 2);
-            $entry['cumulative_actual'] = round($cumulativeActual, 2);
-            $entry['cumulative_deviation'] = round($cumulativeActual - $cumulativePlan, 2);
-
-            // Also add weekly totals for consistency
-            $entry['week_plan'] = round($weekPlan, 2);
-            $entry['week_actual'] = round($weekActual, 2);
-            $entry['week_deviation'] = round($weekActual - $weekPlan, 2);
-        }
-
-        // Add total per work group to the last entry (for footer display)
-        if (! empty($history)) {
-            $totalPerWorkGroupRounded = [];
-            foreach ($totalPerWorkGroup as $wgId => $totals) {
-                $totalPerWorkGroupRounded[$wgId] = [
-                    'plan' => round($totals['plan'], 2),
-                    'actual' => round($totals['actual'], 2),
-                    'deviation' => round($totals['actual'] - $totals['plan'], 2),
-                ];
-            }
-            $history[count($history) - 1]['total_per_work_group'] = $totalPerWorkGroupRounded;
-        }
-
-        return $history;
     }
 
     public function render(KurvaSService $kurvaSService)
@@ -1043,8 +998,8 @@ class LaporanMingguanEdit extends Component
                     foreach ($fullHistory as $hist) {
                         foreach ($this->workGroupsForInput as $wg) {
                             $wgId = $wg['work_group_id'];
-                            $totalRencana += (float) ($hist['plans'][$wgId] ?? 0) * $wg['bobot'] / 100;
-                            $totalAktual += (float) ($hist['progress'][$wgId] ?? 0) * $wg['bobot'] / 100;
+                            $totalRencana += (float) ($hist['plans'][$wgId] ?? 0);
+                            $totalAktual += (float) ($hist['progress'][$wgId] ?? 0);
                         }
                     }
                     $totalRencana = round($totalRencana, 2);

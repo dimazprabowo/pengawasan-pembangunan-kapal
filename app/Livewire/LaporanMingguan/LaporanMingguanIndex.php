@@ -233,21 +233,16 @@ class LaporanMingguanIndex extends Component
                     $totalAktual = 0;
 
                     foreach ($progressHistory as $hist) {
-                        // Calculate total rencana for this week
+                        // plans/progress sudah dalam poin % proyek — jumlahkan langsung
                         if (! empty($hist['plans'])) {
                             foreach ($workGroupsForHistory as $wg) {
-                                $wgId = $wg['work_group_id'];
-                                $plan = $hist['plans'][$wgId] ?? 0;
-                                $totalRencana += (float) $plan * (float) $wg['bobot'] / 100;
+                                $totalRencana += (float) ($hist['plans'][$wg['work_group_id']] ?? 0);
                             }
                         }
 
-                        // Calculate total aktual for this week
                         if (! empty($hist['progress'])) {
                             foreach ($workGroupsForHistory as $wg) {
-                                $wgId = $wg['work_group_id'];
-                                $actual = $hist['progress'][$wgId] ?? 0;
-                                $totalAktual += (float) $actual * (float) $wg['bobot'] / 100;
+                                $totalAktual += (float) ($hist['progress'][$wg['work_group_id']] ?? 0);
                             }
                         }
                     }

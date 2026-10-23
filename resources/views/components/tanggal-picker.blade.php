@@ -6,20 +6,35 @@
     'placeholder' => 'Pilih tanggal',
     'required' => false,
     'maxDate' => null,
+    'displayFormat' => null,
 ])
 
 @php
     $tanggalModelPath = $attributes->wire('model')->value();
 @endphp
 
-<div class="relative" x-data
+<div class="relative" @if($displayFormat) wire:ignore @endif x-data
     x-init="
         (function () {
             var picker = flatpickr($refs.input, {
                 dateFormat: 'Y-m-d',
                 disableMobile: true,
                 allowInput: false,
-                locale: { firstDayOfWeek: 1 },
+                @if($displayFormat)
+                altInput: true,
+                altFormat: @js($displayFormat),
+                @endif
+                locale: {
+                    firstDayOfWeek: 1,
+                    months: {
+                        shorthand: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'],
+                        longhand: ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'],
+                    },
+                    weekdays: {
+                        shorthand: ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'],
+                        longhand: ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'],
+                    },
+                },
                 defaultDate: $wire.get(@js($tanggalModelPath)) || null,
                 @if($maxDate)
                 maxDate: @js($maxDate),

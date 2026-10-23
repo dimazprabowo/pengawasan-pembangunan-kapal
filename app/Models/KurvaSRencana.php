@@ -11,13 +11,13 @@ class KurvaSRencana extends Model
 
     protected $fillable = [
         'work_group_id',
-        'minggu_ke',
+        'bulan_ke',
         'pct_rencana',
         'keterangan',
     ];
 
     protected $casts = [
-        'minggu_ke'   => 'integer',
+        'bulan_ke' => 'integer',
         'pct_rencana' => 'float',
     ];
 

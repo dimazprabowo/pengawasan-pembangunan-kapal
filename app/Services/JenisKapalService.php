@@ -4,12 +4,11 @@ namespace App\Services;
 
 use App\Enums\JenisKapalStatus;
 use App\Exports\KurvaSTemplateExport;
-use App\Imports\KurvaSTemplateImport;
-use App\Imports\KurvaSWorkGroupsImport;
 use App\Imports\KurvaSRencanaImport;
+use App\Imports\KurvaSTemplateImport;
 use App\Models\JenisKapal;
-use App\Models\KurvaSWorkGroup;
 use App\Models\KurvaSRencana;
+use App\Models\KurvaSWorkGroup;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -30,11 +29,11 @@ class JenisKapalService
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($q) use ($search) {
                     $q->where('nama', 'like', "%{$search}%")
-                      ->orWhere('deskripsi', 'like', "%{$search}%")
-                      ->orWhereHas('company', function ($q) use ($search) {
-                          $q->where('name', 'like', "%{$search}%")
-                            ->orWhere('code', 'like', "%{$search}%");
-                      });
+                        ->orWhere('deskripsi', 'like', "%{$search}%")
+                        ->orWhereHas('company', function ($q) use ($search) {
+                            $q->where('name', 'like', "%{$search}%")
+                                ->orWhere('code', 'like', "%{$search}%");
+                        });
                 });
             })
             ->when($statusFilter !== null && $statusFilter !== '', function ($q) use ($statusFilter) {
@@ -76,16 +75,16 @@ class JenisKapalService
 
     public function uploadTemplate(JenisKapal $jenisKapal, TemporaryUploadedFile $file, string $tipe = 'harian'): bool
     {
-        $column = 'template_path_' . $tipe;
-        
+        $column = 'template_path_'.$tipe;
+
         // Delete old template if exists
         if ($jenisKapal->$column && Storage::disk('local')->exists($jenisKapal->$column)) {
             Storage::disk('local')->delete($jenisKapal->$column);
         }
 
         // Store new template in specific folder based on tipe
-        $folder = 'templates/laporan-' . $tipe;
-        $filename = 'template-' . $jenisKapal->id . '-' . time() . '.' . $file->getClientOriginalExtension();
+        $folder = 'templates/laporan-'.$tipe;
+        $filename = 'template-'.$jenisKapal->id.'-'.time().'.'.$file->getClientOriginalExtension();
         $path = $file->storeAs($folder, $filename, 'local');
 
         return $jenisKapal->update([$column => $path]);
@@ -93,7 +92,7 @@ class JenisKapalService
 
     public function deleteTemplate(JenisKapal $jenisKapal, string $tipe): bool
     {
-        $column = 'template_path_' . $tipe;
+        $column = 'template_path_'.$tipe;
         if ($jenisKapal->$column && Storage::disk('local')->exists($jenisKapal->$column)) {
             Storage::disk('local')->delete($jenisKapal->$column);
         }
@@ -103,7 +102,7 @@ class JenisKapalService
 
     public function downloadTemplate(JenisKapal $jenisKapal, string $tipe): ?string
     {
-        if (!$jenisKapal->hasTemplate($tipe)) {
+        if (! $jenisKapal->hasTemplate($tipe)) {
             return null;
         }
 
@@ -112,9 +111,9 @@ class JenisKapalService
 
     public function downloadDefaultTemplate(string $tipe = 'harian'): ?string
     {
-        $templatePath = storage_path('app/templates/laporan-' . $tipe . '/template-laporan-' . $tipe . '.docx');
+        $templatePath = storage_path('app/templates/laporan-'.$tipe.'/template-laporan-'.$tipe.'.docx');
 
-        if (!file_exists($templatePath)) {
+        if (! file_exists($templatePath)) {
             return null;
         }
 
@@ -124,8 +123,8 @@ class JenisKapalService
     public function exportKurvaSTemplate(JenisKapal $jenisKapal, bool $withData = true)
     {
         $prefix = $withData ? 'kurva-s-data' : 'kurva-s-template-kosong';
-        $filename = $prefix . '-' . \Str::slug($jenisKapal->nama) . '-' . now()->format('Y-m-d-His') . '.xlsx';
-        
+        $filename = $prefix.'-'.\Str::slug($jenisKapal->nama).'-'.now()->format('Y-m-d-His').'.xlsx';
+
         return Excel::download(
             new KurvaSTemplateExport($jenisKapal, $withData),
             $filename
@@ -142,6 +141,7 @@ class JenisKapalService
 
             if ($import->hasErrors()) {
                 DB::rollBack();
+
                 return [
                     'success' => false,
                     'errors' => $import->getErrors(),
@@ -150,8 +150,9 @@ class JenisKapalService
 
             $rencanaImport = $import->sheets()['Rencana'];
 
-            if (!($rencanaImport instanceof KurvaSRencanaImport)) {
+            if (! ($rencanaImport instanceof KurvaSRencanaImport)) {
                 DB::rollBack();
+
                 return [
                     'success' => false,
                     'errors' => ['Format file tidak valid. Pastikan menggunakan template yang benar.'],
@@ -162,16 +163,36 @@ class JenisKapalService
 
             if (empty($workGroupsData)) {
                 DB::rollBack();
+
                 return [
                     'success' => false,
                     'errors' => ['Tidak ada data work group yang valid untuk diimport.'],
                 ];
             }
 
+            // Guard: rencana tidak boleh melebihi total bulan kontrak
+            if ($jenisKapal->hasKontrak()) {
+                $totalBulanKontrak = app(KontrakPeriodeService::class)->getTotalBulan($jenisKapal);
+                $maxBulanImport = 0;
+                foreach ($workGroupsData as $wgData) {
+                    foreach ($wgData['monthly_data'] ?? [] as $rencana) {
+                        $maxBulanImport = max($maxBulanImport, (int) ($rencana['bulan_ke'] ?? 0));
+                    }
+                }
+                if ($maxBulanImport > $totalBulanKontrak) {
+                    DB::rollBack();
+
+                    return [
+                        'success' => false,
+                        'errors' => ["Import ditolak: template berisi hingga bulan ke-{$maxBulanImport}, melebihi total {$totalBulanKontrak} bulan kontrak."],
+                    ];
+                }
+            }
+
             KurvaSRencana::whereHas('workGroup', function ($q) use ($jenisKapal) {
                 $q->where('jenis_kapal_id', $jenisKapal->id);
             })->delete();
-            
+
             KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)->delete();
 
             $now = now();
@@ -183,20 +204,20 @@ class JenisKapalService
                     'sort_order' => $wgData['sort_order'],
                 ]);
 
-                if (isset($wgData['weekly_data'])) {
+                if (isset($wgData['monthly_data'])) {
                     $rencanaInsert = [];
-                    foreach ($wgData['weekly_data'] as $rencana) {
+                    foreach ($wgData['monthly_data'] as $rencana) {
                         $rencanaInsert[] = [
                             'work_group_id' => $workGroup->id,
-                            'minggu_ke' => $rencana['minggu_ke'],
+                            'bulan_ke' => $rencana['bulan_ke'],
                             'pct_rencana' => $rencana['pct_rencana'],
                             'keterangan' => $rencana['keterangan'],
                             'created_at' => $now,
                             'updated_at' => $now,
                         ];
                     }
-                    
-                    if (!empty($rencanaInsert)) {
+
+                    if (! empty($rencanaInsert)) {
                         KurvaSRencana::insert($rencanaInsert);
                     }
                 }
@@ -206,16 +227,16 @@ class JenisKapalService
 
             return [
                 'success' => true,
-                'message' => 'Data Kurva S berhasil diimport! Total work groups: ' . count($workGroupsData),
+                'message' => 'Data Kurva S berhasil diimport! Total work groups: '.count($workGroupsData),
                 'work_groups_count' => count($workGroupsData),
             ];
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return [
                 'success' => false,
-                'errors' => ['Terjadi kesalahan saat import: ' . $e->getMessage()],
+                'errors' => ['Terjadi kesalahan saat import: '.$e->getMessage()],
             ];
         }
     }

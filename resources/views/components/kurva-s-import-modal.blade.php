@@ -45,7 +45,7 @@
                                     <li>Maksimal ukuran file: <strong>5MB</strong></li>
                                     <li>Gunakan template yang sudah di-export untuk memastikan format benar</li>
                                     <li>Total bobot work groups harus = <strong>100%</strong></li>
-                                    <li>Total pct_rencana per work group harus = <strong>100%</strong></li>
+                                    <li>Rencana (%) diisi dalam satuan <strong>% proyek</strong> — total rencana per work group tidak boleh melebihi <strong>bobot</strong> group tersebut</li>
                                     <li><strong class="text-red-600 dark:text-red-400">⚠ Data lama akan dihapus dan diganti dengan data baru</strong></li>
                                 </ul>
                             </div>

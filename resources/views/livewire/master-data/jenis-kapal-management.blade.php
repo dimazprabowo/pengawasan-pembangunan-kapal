@@ -97,6 +97,13 @@
                                     </div>
                                     <div class="ml-4">
                                         <div class="text-sm font-medium text-gray-900 dark:text-white">{{ $jenisKapal->nama }}</div>
+                                        @if($jenisKapal->hasKontrak())
+                                            <div class="text-xs text-gray-500 dark:text-gray-400"
+                                                title="Periode kontrak {{ $jenisKapal->durasi_kontrak_hari }} hari kalender">
+                                                {{ $jenisKapal->tanggal_mulai_kontrak->translatedFormat('d M Y') }} – {{ $jenisKapal->tanggal_selesai_kontrak->translatedFormat('d M Y') }}
+                                                <span class="text-gray-400 dark:text-gray-500">({{ $jenisKapal->durasi_kontrak_hari }} hari)</span>
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
                             </td>

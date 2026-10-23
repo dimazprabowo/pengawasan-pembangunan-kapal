@@ -8,6 +8,7 @@ use App\Models\LaporanExternal;
 use App\Models\LaporanMingguan;
 use App\Models\LaporanMingguanProgress;
 use App\Models\User;
+use App\Services\KontrakPeriodeService;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 
@@ -32,14 +33,17 @@ class LaporanMingguanSeeder extends Seeder
 
         // Pick ONE jenis kapal for all laporan to show consistent progress across weeks
         $jenisKapal = $jenisKapals->first();
+        $kontrakService = app(KontrakPeriodeService::class);
 
         // Create 10 consecutive laporan for the same jenis kapal (weeks 1-10)
+        // Periode diambil dari kontrak jika tersedia, fallback ke tanggal relatif.
         $laporanData = [];
         for ($i = 1; $i <= 10; $i++) {
+            $periode = $kontrakService->getMingguPeriode($jenisKapal, $i);
             $laporanData[] = [
                 'minggu_ke' => $i,
-                'periode_mulai' => Carbon::now()->subDays($i * 7),
-                'periode_selesai' => Carbon::now()->subDays(($i - 1) * 7),
+                'periode_mulai' => $periode ? $periode['mulai'] : Carbon::now()->subDays($i * 7),
+                'periode_selesai' => $periode ? $periode['selesai'] : Carbon::now()->subDays(($i - 1) * 7),
                 'ringkasan' => 'Progress minggu ke-'.$i.' sesuai rencana.',
             ];
         }
@@ -61,37 +65,16 @@ class LaporanMingguanSeeder extends Seeder
             );
 
             // Create progress records for each work group
-            $workGroups = KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
-                ->with(['kurvaSRencana' => fn ($q) => $q->orderBy('minggu_ke')])
-                ->get();
+            $workGroups = KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)->get();
+
+            // Rencana minggu ini diturunkan dari rencana bulanan (dibagi rata ke minggunya)
+            $rencanaMinggu = app(\App\Services\KurvaSService::class)->getWeekPlans($jenisKapal, $data['minggu_ke']);
 
             foreach ($workGroups as $wg) {
-                // Get the rencana for this work group to determine active weeks
-                $rencanas = $wg->kurvaSRencana;
-                if ($rencanas->isEmpty()) {
-                    continue;
-                }
-
-                $minWeek = $rencanas->min('minggu_ke');
-                $maxWeek = $rencanas->max('minggu_ke');
-                $currentWeek = $data['minggu_ke'];
-
-                // If current week is before the work group starts, progress is 0
-                if ($currentWeek < $minWeek) {
-                    $progress = 0;
-                }
-                // If current week is after the work group ends, progress is 100%
-                elseif ($currentWeek > $maxWeek) {
-                    $progress = 100;
-                }
-                // Otherwise, calculate progress based on position within the active range
-                else {
-                    $totalWeeks = $maxWeek - $minWeek + 1;
-                    $weekInRange = $currentWeek - $minWeek + 1;
-                    $baseProgress = ($weekInRange / $totalWeeks) * 100;
-                    // Add some random variation (±5%)
-                    $progress = max(0, min(100, $baseProgress + rand(-5, 5)));
-                }
+                // Realisasi minggu ini dalam poin % proyek — mengikuti rencana minggu tsb
+                // dengan variasi ±15% agar kurva aktual sedikit menyimpang dari rencana.
+                $pctRencana = (float) ($rencanaMinggu[$wg->id] ?? 0);
+                $progress = round(max(0, min((float) $wg->bobot, $pctRencana * (rand(80, 115) / 100))), 2);
 
                 LaporanMingguanProgress::updateOrCreate(
                     [

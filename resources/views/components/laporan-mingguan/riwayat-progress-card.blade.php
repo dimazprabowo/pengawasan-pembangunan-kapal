@@ -49,16 +49,13 @@
              historyKontribusi(wgId, weekIndex) {
                  const hist = this.progressHistory[weekIndex];
                  if (!hist || !hist.progress) return 0;
-                 const p = hist.progress[String(wgId)];
-                 // TIDAK dibulatkan, return nilai mentah untuk dijumlahkan
-                 return p ? p * this.bobots[String(wgId)] / 100 : 0;
+                 // progress/plans sudah dalam poin % proyek — langsung dipakai
+                 return hist.progress[String(wgId)] || 0;
              },
              historyPlanKontribusi(wgId, weekIndex) {
                 const hist = this.progressHistory[weekIndex];
                  if (!hist || !hist.plans) return 0;
-                 const plan = hist.plans[String(wgId)];
-                 // TIDAK dibulatkan, return nilai mentah untuk dijumlahkan
-                 return plan ? plan * this.bobots[String(wgId)] / 100 : 0;
+                 return hist.plans[String(wgId)] || 0;
             },
             historyDeviation(wgId, weekIndex) {
                 return Math.round((this.historyKontribusi(wgId, weekIndex) - this.historyPlanKontribusi(wgId, weekIndex)) * 100) / 100;
