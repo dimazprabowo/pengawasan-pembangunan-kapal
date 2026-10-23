@@ -5,21 +5,20 @@ namespace App\Models;
 use App\Traits\HasEncryptedRouteKey;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class LaporanHarian extends Model
 {
-    use HasFactory, SoftDeletes, HasEncryptedRouteKey;
+    use HasEncryptedRouteKey, HasFactory, SoftDeletes;
 
     protected $table = 'laporan_harian';
 
     protected $fillable = [
         'user_id',
         'jenis_kapal_id',
-        'judul',
         'tanggal_laporan',
         'file_path',
         'file_name',
@@ -51,6 +50,30 @@ class LaporanHarian extends Model
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
     ];
+
+    /**
+     * Judul digenerate dari tanggal laporan — tidak disimpan di database.
+     */
+    public function getJudulAttribute(): string
+    {
+        return self::generateJudul($this->tanggal_laporan);
+    }
+
+    /**
+     * Generate judul dari tanggal (Carbon|string|null) — dipakai accessor & form.
+     */
+    public static function generateJudul($tanggal): string
+    {
+        try {
+            $tanggal = $tanggal ? \Carbon\Carbon::parse($tanggal) : null;
+        } catch (\Throwable) {
+            $tanggal = null;
+        }
+
+        return $tanggal
+            ? 'Laporan Harian '.$tanggal->locale('id')->isoFormat('dddd, D MMMM Y')
+            : 'Laporan Harian';
+    }
 
     // Relationships
     public function user(): BelongsTo
@@ -133,6 +156,7 @@ class LaporanHarian extends Model
         if ($jenisKapalId) {
             return $query->where('jenis_kapal_id', $jenisKapalId);
         }
+
         return $query;
     }
 
@@ -154,7 +178,7 @@ class LaporanHarian extends Model
 
     public function hasFile(): bool
     {
-        return !empty($this->file_path) && !empty($this->file_name);
+        return ! empty($this->file_path) && ! empty($this->file_name);
     }
 
     // Doc (Generated Word) Status Helpers
@@ -175,6 +199,6 @@ class LaporanHarian extends Model
 
     public function hasDoc(): bool
     {
-        return !empty($this->doc_path) && !empty($this->doc_name);
+        return ! empty($this->doc_path) && ! empty($this->doc_name);
     }
 }

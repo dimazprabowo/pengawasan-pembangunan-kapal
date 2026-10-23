@@ -5,21 +5,20 @@ namespace App\Models;
 use App\Traits\HasEncryptedRouteKey;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class LaporanMingguan extends Model
 {
-    use HasFactory, SoftDeletes, HasEncryptedRouteKey;
+    use HasEncryptedRouteKey, HasFactory, SoftDeletes;
 
     protected $table = 'laporan_mingguan';
 
     protected $fillable = [
         'user_id',
         'jenis_kapal_id',
-        'judul',
         'tanggal_laporan',
         'periode_mulai',
         'periode_selesai',
@@ -36,12 +35,22 @@ class LaporanMingguan extends Model
         'tanggal_laporan' => 'date',
         'periode_mulai' => 'date',
         'periode_selesai' => 'date',
-        'minggu_ke'        => 'integer',
+        'minggu_ke' => 'integer',
         'doc_generated_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
     ];
+
+    /**
+     * Judul digenerate dari minggu ke- — tidak disimpan di database.
+     */
+    public function getJudulAttribute(): string
+    {
+        return $this->minggu_ke
+            ? 'Laporan Mingguan Minggu ke-'.$this->minggu_ke
+            : 'Laporan Mingguan';
+    }
 
     public function user(): BelongsTo
     {
@@ -86,6 +95,7 @@ class LaporanMingguan extends Model
         if ($jenisKapalId) {
             return $query->where('jenis_kapal_id', $jenisKapalId);
         }
+
         return $query;
     }
 
@@ -127,6 +137,6 @@ class LaporanMingguan extends Model
 
     public function hasDoc(): bool
     {
-        return !empty($this->doc_path) && !empty($this->doc_name);
+        return ! empty($this->doc_path) && ! empty($this->doc_name);
     }
 }

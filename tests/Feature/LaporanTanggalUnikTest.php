@@ -113,7 +113,6 @@ class LaporanTanggalUnikTest extends TestCase
             $laporans = collect([$base, LaporanHarian::create([
                 'user_id' => $base->user_id,
                 'jenis_kapal_id' => $base->jenis_kapal_id,
-                'judul' => 'Laporan Tambahan',
                 'tanggal_laporan' => $base->tanggal_laporan->copy()->addDay(),
             ])]);
         }
@@ -144,12 +143,12 @@ class LaporanTanggalUnikTest extends TestCase
         LaporanHarian::create([
             'user_id' => $base->user_id,
             'jenis_kapal_id' => $jenisKapal->id,
-            'judul' => 'Duplikat Legacy',
             'tanggal_laporan' => $base->tanggal_laporan,
         ]);
 
         Livewire::actingAs($this->admin())
             ->test(\App\Livewire\LaporanHarian\LaporanHarianIndex::class, ['jenisKapal' => $jenisKapal])
+            ->set('search', $base->tanggal_laporan->format('Y-m-d'))
             ->assertSee('Ganda');
     }
 
@@ -162,7 +161,7 @@ class LaporanTanggalUnikTest extends TestCase
         $mingguanLama = LaporanMingguan::create([
             'user_id' => $harian->user_id,
             'jenis_kapal_id' => $jenisKapal->id,
-            'judul' => 'Mingguan Lama',
+            'minggu_ke' => 91,
             'tanggal_laporan' => $harian->tanggal_laporan,
             'periode_mulai' => $harian->tanggal_laporan,
             'periode_selesai' => $harian->tanggal_laporan,
@@ -171,7 +170,7 @@ class LaporanTanggalUnikTest extends TestCase
 
         $component = Livewire::actingAs($this->admin())
             ->test(LaporanMingguanCreate::class, ['jenisKapal' => $jenisKapal])
-            ->set('judul', 'Mingguan Baru')
+            ->set('minggu_ke', 92)
             ->set('tanggal_laporan', now()->format('Y-m-d'))
             ->set('periode_mulai', $harian->tanggal_laporan->format('Y-m-d'))
             ->set('periode_selesai', $harian->tanggal_laporan->format('Y-m-d'))
@@ -180,12 +179,12 @@ class LaporanTanggalUnikTest extends TestCase
             ->assertSet('showReassignModal', true);
 
         // Belum ada laporan mingguan baru yang dibuat
-        $this->assertDatabaseMissing('laporan_mingguan', ['judul' => 'Mingguan Baru']);
+        $this->assertDatabaseMissing('laporan_mingguan', ['minggu_ke' => 92]);
 
         // Konfirmasi -> hari dipindahkan ke mingguan baru
         $component->call('saveWithReassign');
 
-        $mingguanBaru = LaporanMingguan::where('judul', 'Mingguan Baru')->firstOrFail();
+        $mingguanBaru = LaporanMingguan::where('minggu_ke', 92)->firstOrFail();
 
         $this->assertDatabaseHas('laporan_mingguan_harian', [
             'laporan_mingguan_id' => $mingguanBaru->id,
@@ -207,7 +206,7 @@ class LaporanTanggalUnikTest extends TestCase
 
         Livewire::actingAs($this->admin())
             ->test(LaporanMingguanCreate::class, ['jenisKapal' => $jenisKapal])
-            ->set('judul', 'Mingguan Bebas')
+            ->set('minggu_ke', 93)
             ->set('tanggal_laporan', now()->format('Y-m-d'))
             ->set('periode_mulai', $harian->tanggal_laporan->format('Y-m-d'))
             ->set('periode_selesai', $harian->tanggal_laporan->format('Y-m-d'))
@@ -215,7 +214,7 @@ class LaporanTanggalUnikTest extends TestCase
             ->call('save')
             ->assertSet('showReassignModal', false);
 
-        $this->assertDatabaseHas('laporan_mingguan', ['judul' => 'Mingguan Bebas']);
+        $this->assertDatabaseHas('laporan_mingguan', ['minggu_ke' => 93]);
     }
 
     public function test_index_mingguan_menampilkan_tanggal_harian_tercakup(): void
@@ -226,7 +225,7 @@ class LaporanTanggalUnikTest extends TestCase
         $mingguan = LaporanMingguan::create([
             'user_id' => $harian->user_id,
             'jenis_kapal_id' => $jenisKapal->id,
-            'judul' => 'Mingguan Dengan Hari',
+            'minggu_ke' => 94,
             'tanggal_laporan' => $harian->tanggal_laporan,
         ]);
         $mingguan->laporanHarian()->attach($harian->id);
@@ -245,7 +244,7 @@ class LaporanTanggalUnikTest extends TestCase
         $mingguan = LaporanMingguan::create([
             'user_id' => $harian->user_id,
             'jenis_kapal_id' => $jenisKapal->id,
-            'judul' => 'Mingguan Klaim',
+            'minggu_ke' => 95,
             'tanggal_laporan' => $harian->tanggal_laporan,
         ]);
         $mingguan->laporanHarian()->attach($harian->id);

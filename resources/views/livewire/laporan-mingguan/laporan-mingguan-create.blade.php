@@ -1,8 +1,77 @@
-<div
+<div x-data="{
+        draftState: 'idle',
+        draftSavedAt: '',
+        draftKey: 'lm-draft:{{ auth()->id() }}:create:{{ $jenisKapal->id }}',
+        dirty: false,
+        flashField(el) {
+            if (! this.$wire.autoSave || ! el || ! el.matches('input, textarea, select')) return;
+            el.classList.remove('autosave-glow');
+            void el.offsetWidth; // restart animasi
+            el.classList.add('autosave-glow');
+        },
+        requestCancel() {
+            if (! this.dirty) {
+                this.$wire.cancel();
+                return;
+            }
+            this.$dispatch('confirm-modal', {
+                title: 'Buang Perubahan?',
+                message: 'Ada perubahan yang belum disimpan. Jika dibatalkan, semua isian form akan dibuang.',
+                confirmText: 'Ya, Buang',
+                cancelText: 'Kembali',
+                type: 'warning',
+                action: 'cancel',
+            });
+        }
+    }"
+    x-on:input="flashField($event.target)"
+    x-on:change="flashField($event.target)"
+    x-on:lm-clear-draft.window="localStorage.removeItem(draftKey)"
     @if($this->hasProcessingExternalFiles())
         wire:poll.4s="refreshExternalFileStatus"
     @endif
->
+    x-init="
+        (function () {
+            let props = ['tanggal_laporan', 'periode_mulai', 'periode_selesai', 'ringkasan', 'minggu_ke', 'progressPerGroup', 'laporan_harian_ids', 'lampiran_ids'];
+            let raw = localStorage.getItem(draftKey);
+            if (raw && $wire.autoSave) {
+                try {
+                    let d = JSON.parse(raw);
+                    props.forEach(function (p) { if (d[p] !== undefined) { $wire.set(p, d[p]); dirty = true; } });
+                    if (d.laporanExternal) { $wire.set('laporanExternal', d.laporanExternal); dirty = true; }
+                    if (d.periode_mulai && d.periode_selesai) {
+                        let tries = 0;
+                        let syncPicker = function () {
+                            let el = document.getElementById('period-range-picker');
+                            if (el && el._flatpickr) { el._flatpickr.setDate([d.periode_mulai, d.periode_selesai], false); }
+                            else if (tries++ < 50) { setTimeout(syncPicker, 100); }
+                        };
+                        syncPicker();
+                    }
+                } catch (e) {}
+            }
+            let t;
+            let save = function () {
+                clearTimeout(t);
+                dirty = true;
+                if (! $wire.autoSave) { draftState = 'idle'; return; }
+                draftState = 'saving';
+                t = setTimeout(function () {
+                    try {
+                        let payload = { ts: Date.now() };
+                        props.forEach(function (p) { payload[p] = $wire.get(p); });
+                        payload.laporanExternal = ($wire.get('laporanExternal') || []).map(function (l) { let c = Object.assign({}, l); c.file = null; return c; });
+                        localStorage.setItem(draftKey, JSON.stringify(payload));
+                        draftSavedAt = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                        draftState = 'saved';
+                    } catch (e) { draftState = 'idle'; }
+                }, 1200);
+            };
+            props.forEach(function (p) { $wire.$watch(p, save); });
+            $wire.$watch('laporanExternal', save);
+            $wire.$watch('autoSave', function (v) { if (! v) { localStorage.removeItem(draftKey); draftState = 'idle'; } });
+        })();
+    ">
     {{-- Header --}}
     <div class="mb-6">
         <div class="flex items-center gap-2">
@@ -18,12 +87,39 @@
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
             </a>
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Tambah Laporan Mingguan</h2>
+            <div class="min-w-0">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Tambah Laporan Mingguan</h2>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 truncate">{{ $jenisKapal->nama }}{{ $jenisKapal->company ? ' · ' . $jenisKapal->company->name : '' }} — Isi form di bawah untuk membuat laporan mingguan baru</p>
+            </div>
+            {{-- Auto Save toggle + draft indicator (pojok kanan, indikator di bawah toggle) --}}
+            <div class="ml-auto flex flex-col items-end gap-1.5 flex-shrink-0">
+                <div class="flex items-center gap-2" title="Aktifkan/nonaktifkan penyimpanan draft otomatis di browser">
+                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Auto Save</span>
+                    <x-toggle-switch wire:click="toggleAutoSave" :active="$autoSave" target="toggleAutoSave" activeColor="emerald" />
+                </div>
+                <div class="h-6 flex items-center justify-end">
+                <span x-show="draftState === 'saving'" x-cloak
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-xs font-medium">
+                    <svg class="animate-spin w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Menyimpan draf...
+                </span>
+                <span x-show="draftState === 'saved'" x-cloak
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-xs font-medium"
+                    title="Draf form tersimpan otomatis di browser ini">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Draf tersimpan <span x-text="draftSavedAt"></span>
+                </span>
+                </div>
+            </div>
         </div>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ $jenisKapal->nama }}{{ $jenisKapal->company ? ' · ' . $jenisKapal->company->name : '' }} — Isi form di bawah untuk membuat laporan mingguan baru</p>
     </div>
 
-    <form wire:submit="save">
+    <form wire:submit="save" x-on:submit="localStorage.removeItem(draftKey)">
         {{-- Form Card --}}
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
             <div class="p-6">
@@ -36,17 +132,6 @@
                         <input wire:model="tanggal_laporan" type="date" required
                             class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
                         @error('tanggal_laporan') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                    </div>
-
-                    {{-- Judul --}}
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Judul <span class="text-red-500">*</span>
-                        </label>
-                        <input wire:model="judul" type="text"
-                            placeholder="Masukkan judul laporan"
-                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
-                        @error('judul') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                     </div>
 
                     {{-- Periode --}}
@@ -243,23 +328,17 @@
 
         {{-- Footer Actions --}}
         <div class="mt-6 flex flex-col sm:flex-row items-center justify-end gap-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 px-5 py-4">
-            <a href="{{ route('laporan-mingguan.index', $jenisKapal) }}" wire:navigate
-                x-data="{ loading: false }" x-on:click="loading = true"
-                x-bind:class="loading ? 'opacity-75 pointer-events-none' : ''"
-                class="inline-flex items-center justify-center gap-1.5 font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 focus:ring-blue-500 px-4 py-2 text-sm w-full sm:w-auto">
-                <svg x-show="loading" x-cloak class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span x-show="!loading">Batal</span>
-                <span x-show="loading" x-cloak>Memuat...</span>
-            </a>
+            <x-cancel-button x-on:click="requestCancel()" target="cancel"
+                wire:loading.attr="disabled" wire:target="cancel" class="w-full sm:w-auto" />
             <x-loading-button type="submit" target="save" variant="primary" size="lg"
                 loadingText="Menyimpan..." class="w-full sm:w-auto">
                 Simpan
             </x-loading-button>
         </div>
     </form>
+
+    {{-- Konfirmasi buang perubahan saat Batal --}}
+    <x-confirm-modal />
 
     {{-- Lampiran Harian Modal --}}
     <x-laporan-mingguan.lampiran-harian-modal

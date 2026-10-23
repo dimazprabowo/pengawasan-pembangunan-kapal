@@ -15,12 +15,11 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('jenis_kapal_id')->nullable()->constrained('jenis_kapal')->nullOnDelete();
-            $table->string('judul');
             $table->date('tanggal_laporan');
             $table->date('periode_mulai')->nullable();
             $table->date('periode_selesai')->nullable();
             $table->text('ringkasan')->nullable();
-            $table->tinyInteger('minggu_ke')->unsigned()->nullable()
+            $table->tinyInteger('minggu_ke')->unsigned()
                 ->comment('Nomor minggu konstruksi (referensi ke kurva_s_rencana)');
 
             // Generated Word document

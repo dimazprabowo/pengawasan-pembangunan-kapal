@@ -13,6 +13,7 @@ use App\Models\LaporanMingguan;
 use App\Services\KurvaSService;
 use App\Services\LaporanMingguanService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -28,8 +29,6 @@ class LaporanMingguanEdit extends Component
     public JenisKapal $jenisKapal;
 
     public ?int $jenis_kapal_id = null;
-
-    public string $judul = '';
 
     public string $tanggal_laporan = '';
 
@@ -90,6 +89,9 @@ class LaporanMingguanEdit extends Component
 
     protected bool $reassignConfirmed = false;
 
+    // Preferensi autosave draft per user (persisten via cache)
+    public bool $autoSave = true;
+
     public function mount(JenisKapal $jenisKapal, LaporanMingguan $laporanMingguan): void
     {
         $this->authorize('update', $laporanMingguan);
@@ -99,7 +101,7 @@ class LaporanMingguanEdit extends Component
         $this->jenisKapal = $jenisKapal;
         $this->laporan = $laporanMingguan;
         $this->jenis_kapal_id = $laporanMingguan->jenis_kapal_id;
-        $this->judul = $laporanMingguan->judul;
+        $this->autoSave = Cache::get('lm_draft_autosave:'.auth()->id(), true);
         $this->tanggal_laporan = $laporanMingguan->tanggal_laporan?->format('Y-m-d') ?? '';
         $this->periode_mulai = $laporanMingguan->periode_mulai?->format('Y-m-d') ?? '';
         $this->periode_selesai = $laporanMingguan->periode_selesai?->format('Y-m-d') ?? '';
@@ -131,6 +133,12 @@ class LaporanMingguanEdit extends Component
         if (count($this->laporan_harian_ids) > 0) {
             $this->loadLampiranHarian();
         }
+    }
+
+    public function toggleAutoSave(): void
+    {
+        $this->autoSave = ! $this->autoSave;
+        Cache::forever('lm_draft_autosave:'.auth()->id(), $this->autoSave);
     }
 
     private function loadKurvaSOptions(): void
@@ -273,7 +281,6 @@ class LaporanMingguanEdit extends Component
     {
         return [
             'jenis_kapal_id' => 'required|exists:jenis_kapal,id',
-            'judul' => 'required|string|max:255',
             'tanggal_laporan' => 'required|date',
             'periode_mulai' => 'required|date|before_or_equal:periode_selesai',
             'periode_selesai' => 'required|date|after_or_equal:periode_mulai',
@@ -282,7 +289,7 @@ class LaporanMingguanEdit extends Component
             'laporan_harian_ids.*' => 'exists:laporan_harian,id',
             'lampiran_ids' => 'array',
             'lampiran_ids.*' => 'exists:laporan_lampiran,id',
-            'minggu_ke' => 'nullable|integer|min:1',
+            'minggu_ke' => 'required|integer|min:1|max:255',
             'progressPerGroup' => 'array',
             'progressPerGroup.*' => 'nullable|numeric|min:0|max:100',
             'laporanExternal.*.judul' => 'required|string|max:255',
@@ -295,7 +302,6 @@ class LaporanMingguanEdit extends Component
     {
         return [
             'jenis_kapal_id' => 'jenis kapal',
-            'judul' => 'judul laporan',
             'tanggal_laporan' => 'tanggal laporan',
             'periode_mulai' => 'periode mulai',
             'periode_selesai' => 'periode selesai',
@@ -733,7 +739,6 @@ class LaporanMingguanEdit extends Component
         try {
             $data = [
                 'jenis_kapal_id' => $this->jenis_kapal_id,
-                'judul' => $this->judul,
                 'tanggal_laporan' => $this->tanggal_laporan,
                 'periode_mulai' => $this->periode_mulai ?: null,
                 'periode_selesai' => $this->periode_selesai ?: null,
@@ -769,6 +774,14 @@ class LaporanMingguanEdit extends Component
         $this->reassignConfirmed = true;
         $this->showReassignModal = false;
         $this->save($service);
+    }
+
+    public function cancel()
+    {
+        // Beri tahu Alpine untuk menghapus draft lokal sebelum navigate
+        $this->dispatch('lm-clear-draft');
+
+        return $this->redirect(route('laporan-mingguan.index', $this->jenisKapal), navigate: true);
     }
 
     protected function updateLaporanExternal(): void

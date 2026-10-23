@@ -169,10 +169,14 @@ class LaporanMingguanIndex extends Component
         $laporanList = LaporanMingguan::with(['user', 'jenisKapal'])
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
-                    $q->where('judul', 'like', "%{$this->search}%")
+                    $q->where('ringkasan', 'like', "%{$this->search}%")
                         ->orWhereHas('user', function ($q) {
                             $q->where('name', 'like', "%{$this->search}%");
                         });
+
+                    if (is_numeric($this->search)) {
+                        $q->orWhere('minggu_ke', (int) $this->search);
+                    }
                 });
             })
             ->when($this->jenisKapalId, function ($q) {

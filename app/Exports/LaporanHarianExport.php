@@ -35,7 +35,7 @@ class LaporanHarianExport implements FromQuery, ShouldAutoSize, WithHeadings, Wi
 
         if ($this->search) {
             $query->where(function ($q) {
-                $q->where('judul', 'like', "%{$this->search}%")
+                $q->where('tanggal_laporan', 'like', "%{$this->search}%")
                     ->orWhereHas('user', function ($q) {
                         $q->where('name', 'like', "%{$this->search}%");
                     })

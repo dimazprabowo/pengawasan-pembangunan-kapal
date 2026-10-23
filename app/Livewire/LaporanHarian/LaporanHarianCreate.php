@@ -158,7 +158,6 @@ class LaporanHarianCreate extends Component
         $tanggalLaporan = $candidate->format('Y-m-d');
 
         $this->items[] = [
-            'judul' => $this->generateDefaultJudul($tanggalLaporan),
             'tanggal_laporan' => $tanggalLaporan,
             'suhu' => '',
             'cuaca_pagi_id' => null,
@@ -472,7 +471,6 @@ class LaporanHarianCreate extends Component
         $rules = [
             'jenis_kapal_id' => 'required|exists:jenis_kapal,id',
             'items' => 'required|array|min:1',
-            'items.*.judul' => 'required|string|max:255',
             'items.*.tanggal_laporan' => [
                 'required',
                 'date',
@@ -534,7 +532,6 @@ class LaporanHarianCreate extends Component
 
         foreach ($this->items as $index => $item) {
             $num = $index + 1;
-            $attributes["items.{$index}.judul"] = "judul laporan #{$num}";
             $attributes["items.{$index}.tanggal_laporan"] = "tanggal laporan #{$num}";
 
             foreach ($this->lampiran[$index] as $lampIndex => $lamp) {
@@ -579,7 +576,6 @@ class LaporanHarianCreate extends Component
                 $itemData = [
                     'user_id' => $userId,
                     'jenis_kapal_id' => $this->jenis_kapal_id,
-                    'judul' => $item['judul'],
                     'tanggal_laporan' => $item['tanggal_laporan'],
                 ];
 
@@ -720,64 +716,6 @@ class LaporanHarianCreate extends Component
     }
 
     /**
-     * Daftar nama hari dalam bahasa Indonesia (key = English, value = Indonesian)
-     */
-    protected array $indonesianDayNames = [
-        'Sunday' => 'Minggu',
-        'Monday' => 'Senin',
-        'Tuesday' => 'Selasa',
-        'Wednesday' => 'Rabu',
-        'Thursday' => 'Kamis',
-        'Friday' => 'Jumat',
-        'Saturday' => 'Sabtu',
-    ];
-
-    /**
-     * Get list of Indonesian day names for regex matching
-     */
-    protected function getIndonesianDayNameList(): array
-    {
-        return array_values($this->indonesianDayNames);
-    }
-
-    /**
-     * Generate default judul based on tanggal_laporan
-     * Format: "Laporan Hari [NamaHari]"
-     */
-    protected function generateDefaultJudul(string $tanggal): string
-    {
-        $englishDayName = date('l', strtotime($tanggal));
-        $indonesianDayName = $this->indonesianDayNames[$englishDayName] ?? $englishDayName;
-
-        return 'Laporan Hari '.$indonesianDayName;
-    }
-
-    /**
-     * Find and replace day name in existing judul
-     * If current judul contains any Indonesian day name, replace it with new day name
-     * If not, generate default format
-     */
-    protected function updateJudulWithNewDay(string $currentJudul, string $newTanggal): string
-    {
-        $dayNames = $this->getIndonesianDayNameList();
-        $englishDayName = date('l', strtotime($newTanggal));
-        $newIndonesianDayName = $this->indonesianDayNames[$englishDayName] ?? $englishDayName;
-
-        // Build regex pattern to find any Indonesian day name in the string
-        $pattern = '/('.implode('|', $dayNames).')/i';
-
-        // Check if current judul contains any day name
-        if (preg_match($pattern, $currentJudul, $matches)) {
-            // Replace the found day name with the new one
-            return preg_replace($pattern, $newIndonesianDayName, $currentJudul, 1);
-        }
-
-        // If no day name found in current judul, return default format
-        // return $this->generateDefaultJudul($newTanggal);
-        return $currentJudul;
-    }
-
-    /**
      * Listen for changes in items array (specifically tanggal_laporan)
      * Triggered when tanggal_laporan changes (with .live modifier)
      */
@@ -787,7 +725,6 @@ class LaporanHarianCreate extends Component
         if (str_ends_with($key, '.tanggal_laporan')) {
             $index = explode('.', $key)[0];
             $newTanggal = $value;
-            $currentJudul = $this->items[$index]['judul'] ?? '';
 
             // Peringatan dini jika tanggal di masa depan / sudah terpakai
             // (mis. dari draft autosave basi yang melewati picker)
@@ -798,9 +735,6 @@ class LaporanHarianCreate extends Component
             } elseif (in_array($newTanggal, $this->takenTanggalLaporan((int) $index))) {
                 $this->notifyWarning('Tanggal '.\Carbon\Carbon::parse($newTanggal)->translatedFormat('d M Y').' sama dengan tanggal di tab lain.');
             }
-
-            // Update judul: find and replace day name, or generate default if empty/no day name found
-            $this->items[$index]['judul'] = $this->updateJudulWithNewDay($currentJudul, $newTanggal);
         }
     }
 

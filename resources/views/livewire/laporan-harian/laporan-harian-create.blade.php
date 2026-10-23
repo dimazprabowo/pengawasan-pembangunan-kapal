@@ -174,7 +174,7 @@
                     wire:loading.attr="disabled"
                     wire:target="addItem"
                     class="flex items-center gap-2 px-3.5 py-2 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 text-xs font-medium text-gray-500 dark:text-gray-400 hover:border-blue-400 hover:text-blue-500 dark:hover:border-blue-500 dark:hover:text-blue-400 transition-colors whitespace-nowrap disabled:opacity-50"
-                    title="Tambah laporan hari berikutnya">
+                    title="Tambah laporan — otomatis mengisi tanggal kosong terdekat">
                     <span class="flex items-center justify-center w-6 h-6 rounded-lg border border-dashed border-current">
                         <svg wire:loading.class="hidden" wire:target="addItem" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -186,7 +186,7 @@
                     </span>
                     <span class="flex flex-col leading-tight text-left">
                         <span class="font-semibold">Tambah Hari</span>
-                        <span class="text-[10px] opacity-75">+1 dari tanggal terakhir</span>
+                        <span class="text-[10px] opacity-75">-1 hari dari tanggal terakhir</span>
                     </span>
                 </button>
             </div>
@@ -225,23 +225,13 @@
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                     Tanggal Laporan <span class="text-red-500">*</span>
+                                    <span class="text-xs font-normal text-blue-600 dark:text-blue-400">— {{ \App\Models\LaporanHarian::generateJudul($item['tanggal_laporan'] ?? null) }}</span>
                                 </label>
                                 <x-tanggal-picker wire:model.live="items.{{ $index }}.tanggal_laporan"
                                     :disabled-dates="$usedDates"
                                     :exclude-index="$index"
                                     max-date="today" />
                                 @error("items.{$index}.tanggal_laporan") <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                            </div>
-
-                            {{-- Judul --}}
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Judul <span class="text-red-500">*</span>
-                                </label>
-                                <input wire:model="items.{{ $index }}.judul" type="text" required
-                                    placeholder="Masukkan judul laporan"
-                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
-                                @error("items.{$index}.judul") <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                             </div>
 
                             {{-- Section Sub-Tabs --}}

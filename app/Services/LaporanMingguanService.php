@@ -20,10 +20,14 @@ class LaporanMingguanService
 
         if ($search) {
             $query->where(function ($q) use ($search) {
-                $q->where('judul', 'like', "%{$search}%")
+                $q->where('ringkasan', 'like', "%{$search}%")
                     ->orWhereHas('user', function ($q) use ($search) {
                         $q->where('name', 'like', "%{$search}%");
                     });
+
+                if (is_numeric($search)) {
+                    $q->orWhere('minggu_ke', (int) $search);
+                }
             });
         }
 
@@ -105,11 +109,11 @@ class LaporanMingguanService
             ->join('laporan_mingguan', 'laporan_mingguan.id', '=', 'laporan_mingguan_harian.laporan_mingguan_id')
             ->where('laporan_mingguan.jenis_kapal_id', $jenisKapalId)
             ->when($exceptMingguanId, fn ($q) => $q->where('laporan_mingguan.id', '!=', $exceptMingguanId))
-            ->select('laporan_mingguan_harian.laporan_harian_id', 'laporan_mingguan.judul', 'laporan_mingguan.minggu_ke')
+            ->select('laporan_mingguan_harian.laporan_harian_id', 'laporan_mingguan.minggu_ke')
             ->get()
             ->groupBy('laporan_harian_id')
             ->map(fn ($rows) => $rows
-                ->map(fn ($r) => $r->minggu_ke ? 'Minggu ke-'.$r->minggu_ke : $r->judul)
+                ->map(fn ($r) => 'Minggu ke-'.$r->minggu_ke)
                 ->unique()
                 ->implode(', '))
             ->all();

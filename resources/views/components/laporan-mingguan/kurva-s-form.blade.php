@@ -14,7 +14,6 @@
                 d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
         </svg>
         <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Kurva S Progress</h3>
-        <span class="ml-auto text-xs text-gray-400 dark:text-gray-500 font-normal">Opsional</span>
     </div>
 
     <div class="p-5">
@@ -28,21 +27,41 @@
                     Atur jadwal Kurva S terlebih dahulu di menu <strong>Master Data → Jenis Kapal</strong>.
                 </p>
             </div>
+
+            {{-- Minggu ke- (tetap wajib karena dipakai sebagai identitas laporan) --}}
+            <div class="mt-4 max-w-xs">
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+                    Minggu Ke- <span class="text-red-500">*</span>
+                </label>
+                <input type="number" wire:model.live="minggu_ke" min="1" max="255" step="1"
+                    placeholder="Masukkan nomor minggu"
+                    class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white {{ $errors->has('minggu_ke') ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600' }}">
+                @error('minggu_ke')
+                    <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span>
+                @enderror
+            </div>
         @else
             {{-- Minggu ke- --}}
             <div class="mb-4 max-w-xs">
                 <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-                    Minggu Ke- <span class="text-gray-400">(opsional)</span>
+                    Minggu Ke- <span class="text-red-500">*</span>
                 </label>
-                <x-searchable-select
-                    wire:model.live="minggu_ke"
-                    :options="$mingguOptions"
-                    placeholder="— Pilih minggu —"
-                    searchPlaceholder="Cari minggu..."
-                    :clearable="true"
-                    :error="$errors->has('minggu_ke')"
-                    class="text-sm"
-                />
+                @if(count($mingguOptions) > 0)
+                    <x-searchable-select
+                        wire:model.live="minggu_ke"
+                        :options="$mingguOptions"
+                        placeholder="— Pilih minggu —"
+                        searchPlaceholder="Cari minggu..."
+                        :clearable="false"
+                        :error="$errors->has('minggu_ke')"
+                        class="text-sm"
+                    />
+                @else
+                    {{-- Semua minggu rencana sudah terlaporkan — input manual tetap wajib --}}
+                    <input type="number" wire:model.live="minggu_ke" min="1" max="255" step="1"
+                        placeholder="Masukkan nomor minggu"
+                        class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white {{ $errors->has('minggu_ke') ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600' }}">
+                @endif
                 @error('minggu_ke')
                     <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span>
                 @enderror

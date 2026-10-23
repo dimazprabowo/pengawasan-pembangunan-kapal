@@ -118,7 +118,7 @@ class LaporanHarianIndex extends Component
             ->byJenisKapal($this->jenisKapalId)
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
-                    $q->where('judul', 'like', "%{$this->search}%")
+                    $q->where('tanggal_laporan', 'like', "%{$this->search}%")
                         ->orWhereHas('user', function ($q) {
                             $q->where('name', 'like', "%{$this->search}%");
                         });

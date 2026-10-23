@@ -12,7 +12,6 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('jenis_kapal_id')->nullable()->constrained('jenis_kapal')->nullOnDelete();
-            $table->string('judul');
             $table->date('tanggal_laporan');
             $table->string('file_path')->nullable();
             $table->string('file_name')->nullable();

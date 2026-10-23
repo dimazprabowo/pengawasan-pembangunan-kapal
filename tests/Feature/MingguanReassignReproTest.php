@@ -38,7 +38,6 @@ class MingguanReassignReproTest extends TestCase
             $ids[$d] = LaporanHarian::create([
                 'user_id' => $this->admin->id,
                 'jenis_kapal_id' => $this->jenisKapal->id,
-                'judul' => 'Harian '.$d,
                 'tanggal_laporan' => $this->base->copy()->day($d)->format('Y-m-d'),
             ])->id;
         }
@@ -76,19 +75,19 @@ class MingguanReassignReproTest extends TestCase
         // Mingguan 1: periode 1..10
         Livewire::actingAs($this->admin)
             ->test(LaporanMingguanCreate::class, ['jenisKapal' => $this->jenisKapal])
-            ->set('judul', 'Mingguan 1')
+            ->set('minggu_ke', 81)
             ->set('tanggal_laporan', $this->base->copy()->day(10)->format('Y-m-d'))
             ->set('periode_mulai', $this->base->copy()->day(1)->format('Y-m-d'))
             ->set('periode_selesai', $this->base->copy()->day(10)->format('Y-m-d'))
             ->call('save');
 
-        $mingguan1 = LaporanMingguan::where('judul', 'Mingguan 1')->firstOrFail();
+        $mingguan1 = LaporanMingguan::where('minggu_ke', 81)->firstOrFail();
         $this->assertCount(10, $mingguan1->laporanHarian);
 
         // Mingguan 2: periode 2..9 -> konflik -> konfirmasi pemindahan
         $component = Livewire::actingAs($this->admin)
             ->test(LaporanMingguanCreate::class, ['jenisKapal' => $this->jenisKapal])
-            ->set('judul', 'Mingguan 2')
+            ->set('minggu_ke', 82)
             ->set('tanggal_laporan', $this->base->copy()->day(9)->format('Y-m-d'))
             ->set('periode_mulai', $this->base->copy()->day(2)->format('Y-m-d'))
             ->set('periode_selesai', $this->base->copy()->day(9)->format('Y-m-d'))
@@ -97,7 +96,7 @@ class MingguanReassignReproTest extends TestCase
 
         $component->call('saveWithReassign');
 
-        $mingguan2 = LaporanMingguan::where('judul', 'Mingguan 2')->firstOrFail();
+        $mingguan2 = LaporanMingguan::where('minggu_ke', 82)->firstOrFail();
 
         $this->assertSame(['01', '10'], $this->tanggalMingguan($mingguan1));
         $this->assertSame(

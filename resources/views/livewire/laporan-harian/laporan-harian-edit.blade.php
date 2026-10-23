@@ -29,7 +29,7 @@
     x-on:lh-clear-draft.window="localStorage.removeItem(draftKey)"
     x-init="
         (function () {
-            let props = ['judul', 'tanggal_laporan', 'suhu', 'cuaca_pagi_id', 'kelembaban_pagi_id', 'cuaca_siang_id', 'kelembaban_siang_id', 'cuaca_sore_id', 'kelembaban_sore_id', 'personel', 'peralatan', 'consumable', 'aktivitas', 'lampiranKeterangan'];
+            let props = ['tanggal_laporan', 'suhu', 'cuaca_pagi_id', 'kelembaban_pagi_id', 'cuaca_siang_id', 'kelembaban_siang_id', 'cuaca_sore_id', 'kelembaban_sore_id', 'personel', 'peralatan', 'consumable', 'aktivitas', 'lampiranKeterangan'];
             let raw = localStorage.getItem(draftKey);
             if (raw && $wire.autoSave) {
                 try {
@@ -153,22 +153,12 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Tanggal Laporan <span class="text-red-500">*</span>
+                            <span class="text-xs font-normal text-blue-600 dark:text-blue-400">— {{ \App\Models\LaporanHarian::generateJudul($tanggal_laporan) }}</span>
                         </label>
                         <x-tanggal-picker wire:model.live="tanggal_laporan"
                             :disabled-dates="$usedDates"
                             max-date="today" />
                         @error('tanggal_laporan') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                    </div>
-
-                    {{-- Judul --}}
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Judul <span class="text-red-500">*</span>
-                        </label>
-                        <input wire:model="judul" type="text" required
-                            placeholder="Masukkan judul laporan"
-                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
-                        @error('judul') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                     </div>
 
                     {{-- Section Sub-Tabs --}}
