@@ -32,6 +32,11 @@ class KurvaSWorkGroup extends Model
         return $this->hasMany(KurvaSRencana::class, 'work_group_id')->orderBy('bulan_ke');
     }
 
+    public function kurvaSRencanaMingguan(): HasMany
+    {
+        return $this->hasMany(KurvaSRencanaMingguan::class, 'work_group_id')->orderBy('minggu_ke');
+    }
+
     public function laporanProgress(): HasMany
     {
         return $this->hasMany(LaporanMingguanProgress::class, 'work_group_id');

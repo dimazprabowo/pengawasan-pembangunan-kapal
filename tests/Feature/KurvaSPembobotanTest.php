@@ -9,6 +9,7 @@ use App\Livewire\LaporanMingguan\LaporanMingguanCreate;
 use App\Livewire\MasterData\KurvaSManagement;
 use App\Models\JenisKapal;
 use App\Models\KurvaSRencana;
+use App\Models\KurvaSRencanaMingguan;
 use App\Models\KurvaSWorkGroup;
 use App\Models\LaporanMingguan;
 use App\Models\User;
@@ -20,7 +21,9 @@ use Tests\TestCase;
 /**
  * pct_rencana & pct_realisasi dinyatakan dalam poin % PROYEK (kontribusi langsung).
  * Rencana disimpan PER BULAN (bulan_ke); nilai rencana mingguan diturunkan
- * sistem dengan membagi rata pct bulan ke jumlah minggu bulan tsb.
+ * sistem dengan membagi rata pct bulan ke jumlah minggu bulan tsb (truncate
+ * 3 desimal, sisa ke minggu terakhir) — atau dari override mingguan di
+ * kurva_s_rencana_mingguan bila ada ("mingguan menang").
  * Total distribusi per work group tidak boleh melebihi bobot-nya.
  */
 class KurvaSPembobotanTest extends TestCase
@@ -465,5 +468,171 @@ class KurvaSPembobotanTest extends TestCase
         // Tanpa kontrak, data hingga bulan 5 → ikut data
         $this->seedWorkGroup($jk, 100.0, [5 => 1.0]);
         $this->assertSame(5, KurvaSRencanaSheet::resolveMonths($jk));
+    }
+
+    public function test_split_to_weeks_truncate_3_digit_dan_sisa_ke_minggu_terakhir(): void
+    {
+        $service = $this->service();
+
+        // 10 / 3 = 3.3333… → cut 3.333, sisa 0.001 ke minggu terakhir
+        $split = $service->splitToWeeks(10.0, 3);
+        $this->assertSame([3.333, 3.333, 3.334], $split);
+        $this->assertEqualsWithDelta(10.0, array_sum($split), 0.0001);
+
+        // Pembagian bulat tetap tepat
+        $this->assertSame([1.5, 1.5, 1.5, 1.5], $service->splitToWeeks(6.0, 4));
+
+        // 1 / 6 = 0.1666… → cut 0.166, minggu terakhir menyerap sisa
+        $split = $service->splitToWeeks(1.0, 6);
+        $this->assertSame([0.166, 0.166, 0.166, 0.166, 0.166, 0.17], $split);
+        $this->assertEqualsWithDelta(1.0, array_sum($split), 0.0001);
+    }
+
+    public function test_get_week_plans_menggunakan_override_mingguan_tersimpan(): void
+    {
+        $jk = $this->jenisKapalKontrak();
+        $wg = $this->seedWorkGroup($jk, 10.0, [1 => 4.0, 3 => 6.0]);
+
+        // Bulan 3 (mgg 9-12): override manual — bukan bagi rata 6/4 = 1.5
+        foreach ([9 => 2.0, 10 => 2.0, 11 => 1.0, 12 => 1.0] as $minggu => $pct) {
+            KurvaSRencanaMingguan::create([
+                'work_group_id' => $wg->id,
+                'minggu_ke' => $minggu,
+                'pct_rencana' => $pct,
+            ]);
+        }
+
+        // Mingguan menang: pakai nilai tersimpan
+        $this->assertEqualsWithDelta(2.0, (float) $this->service()->getWeekPlans($jk, 9)[$wg->id], 0.0001);
+        $this->assertEqualsWithDelta(1.0, (float) $this->service()->getWeekPlans($jk, 12)[$wg->id], 0.0001);
+
+        // Bulan 1 (mgg 1-4) tanpa override → fallback bagi rata 4/4 = 1.0
+        $this->assertEqualsWithDelta(1.0, (float) $this->service()->getWeekPlans($jk, 2)[$wg->id], 0.0001);
+    }
+
+    public function test_get_week_plans_bagi_rata_hasil_3_digit(): void
+    {
+        $jk = $this->jenisKapalKontrak();
+        $wg = $this->seedWorkGroup($jk, 10.0, [3 => 5.0]); // bulan 3 = mgg 9-12 → 1.25/mgg
+
+        $plans = $this->service()->getWeekPlans($jk, 9);
+        $this->assertEqualsWithDelta(1.25, (float) $plans[$wg->id], 0.0001);
+
+        // Nilai tidak habis dibagi: 5 / 3 mgg (bulan 1 = mgg 1-4? gunakan 3 mgg lewat bulan 5: mgg 18-20)
+        $jk2 = $this->jenisKapalKontrak();
+        $wg2 = $this->seedWorkGroup($jk2, 10.0, [5 => 5.0]); // bulan 5 = mgg 18-20 (3 mgg)
+        $plans2 = $this->service()->getWeekPlans($jk2, 18);
+        $this->assertEqualsWithDelta(1.666, (float) $plans2[$wg2->id], 0.0001);
+        // Minggu terakhir menyerap sisa → total = 5.0
+        $total = 0.0;
+        foreach ([18, 19, 20] as $m) {
+            $total += (float) $this->service()->getWeekPlans($jk2, $m)[$wg2->id];
+        }
+        $this->assertEqualsWithDelta(5.0, $total, 0.0001);
+    }
+
+    public function test_save_work_groups_menyimpan_dan_menghapus_override_mingguan(): void
+    {
+        $jk = $this->jenisKapalKontrak();
+
+        $this->service()->saveWorkGroups($jk, [[
+            'nama' => 'Engineering',
+            'bobot' => '10.00',
+            'months' => [
+                [
+                    'bulan_ke' => 3,
+                    'pct_rencana' => '6.00',
+                    'keterangan' => '',
+                    'weeks' => [
+                        ['minggu_ke' => 9, 'pct_rencana' => '2.500'],
+                        ['minggu_ke' => 10, 'pct_rencana' => '2.000'],
+                        ['minggu_ke' => 11, 'pct_rencana' => '1.000'],
+                        ['minggu_ke' => 12, 'pct_rencana' => '0.500'],
+                    ],
+                ],
+            ],
+        ]]);
+
+        $this->assertSame(4, KurvaSRencanaMingguan::count());
+        $this->assertDatabaseHas('kurva_s_rencana_mingguan', [
+            'minggu_ke' => 9,
+            'pct_rencana' => 2.5,
+        ]);
+
+        // Simpan ulang tanpa 'weeks' → override mingguan terhapus (fallback bagi rata)
+        $this->service()->saveWorkGroups($jk, [[
+            'nama' => 'Engineering',
+            'bobot' => '10.00',
+            'months' => [
+                ['bulan_ke' => 3, 'pct_rencana' => '6.00', 'keterangan' => ''],
+            ],
+        ]]);
+
+        $this->assertSame(0, KurvaSRencanaMingguan::count());
+    }
+
+    public function test_management_bagi_rata_mengisi_mingguan_dari_bulanan(): void
+    {
+        $this->seed();
+        $admin = User::firstOrFail();
+        $jk = $this->jenisKapal();
+
+        Livewire::actingAs($admin)
+            ->test(KurvaSManagement::class)
+            ->call('openModal', $jk->id)
+            ->set('tanggal_mulai_kontrak', '2026-01-05')
+            ->set('durasi_kontrak_hari', 140)
+            ->set('workGroups', [[
+                'id' => null,
+                'nama' => 'Engineering',
+                'bobot' => '10.00',
+                'months' => [
+                    ['bulan_ke' => 1, 'pct_rencana' => '10.00', 'keterangan' => ''], // mgg 1-4 → 2.5/mgg
+                    ['bulan_ke' => 2, 'pct_rencana' => '0.00', 'keterangan' => ''],
+                ],
+            ]])
+            ->call('bagiRata', 0, 0)
+            ->assertSet('expandedWeeksKey', '0-0')
+            ->assertSet('workGroups.0.months.0.weeks', function ($weeks) {
+                return count($weeks) === 4
+                    && collect($weeks)->sum(fn ($w) => (float) $w['pct_rencana']) == 10.0
+                    && $weeks[0]['minggu_ke'] === 1;
+            });
+    }
+
+    public function test_management_save_ditolak_bila_total_mingguan_melebihi_bobot(): void
+    {
+        $this->seed();
+        $admin = User::firstOrFail();
+        $jk = $this->jenisKapal();
+
+        // Bulanan 8% ≤ bobot 10 — tapi mingguan di-override hingga total 20% → tolak
+        Livewire::actingAs($admin)
+            ->test(KurvaSManagement::class)
+            ->call('openModal', $jk->id)
+            ->set('tanggal_mulai_kontrak', '2026-01-05')
+            ->set('durasi_kontrak_hari', 140)
+            ->set('workGroups', [[
+                'id' => null,
+                'nama' => 'Engineering',
+                'bobot' => '10.00',
+                'months' => [
+                    [
+                        'bulan_ke' => 1,
+                        'pct_rencana' => '8.00',
+                        'keterangan' => '',
+                        'weeks' => [
+                            ['minggu_ke' => 1, 'pct_rencana' => '5.00'],
+                            ['minggu_ke' => 2, 'pct_rencana' => '5.00'],
+                            ['minggu_ke' => 3, 'pct_rencana' => '5.00'],
+                            ['minggu_ke' => 4, 'pct_rencana' => '5.00'],
+                        ],
+                    ],
+                ],
+            ]])
+            ->call('save')
+            ->assertSet('showModal', true);
+
+        $this->assertSame(0, KurvaSWorkGroup::where('jenis_kapal_id', $jk->id)->count());
     }
 }

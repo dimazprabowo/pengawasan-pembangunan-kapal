@@ -113,7 +113,7 @@ class LaporanIndex extends Component
     private function filteredQuery(): Builder
     {
         return $this->getJenisKapalQuery()
-            ->withCount(['laporanHarian', 'laporanMingguan'])
+            ->withCount(['laporanHarian', 'laporanMingguan', 'laporanBulanan'])
             ->withMax('laporanHarian', 'tanggal_laporan')
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {

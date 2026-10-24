@@ -92,6 +92,19 @@ Route::middleware(['auth', 'verified', 'active'])->group(function () {
                 ->middleware('can:laporan_update')
                 ->name('edit');
         });
+
+        Route::prefix('bulanan')->name('laporan-bulanan.')->group(function () {
+            Route::get('/', App\Livewire\LaporanBulanan\LaporanBulananIndex::class)->name('index');
+            Route::get('/create', App\Livewire\LaporanBulanan\LaporanBulananCreate::class)
+                ->middleware('can:laporan_create')
+                ->name('create');
+            Route::get('/{laporanBulanan}', App\Livewire\LaporanBulanan\LaporanBulananShow::class)
+                ->middleware('can:laporan_show')
+                ->name('show');
+            Route::get('/{laporanBulanan}/edit', App\Livewire\LaporanBulanan\LaporanBulananEdit::class)
+                ->middleware('can:laporan_update')
+                ->name('edit');
+        });
     });
 
     // Settings Routes - each route checks its own permission

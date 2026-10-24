@@ -34,15 +34,21 @@ class KurvaSManagement extends Component
      *     'id'    => null|int,
      *     'nama'  => 'Engineering & Design',
      *     'bobot' => '5.00',
-     *     'months' => [['bulan_ke' => 1, 'pct_rencana' => '3.00', 'keterangan' => ''], ...]
+     *     'months' => [['bulan_ke' => 1, 'pct_rencana' => '3.00', 'keterangan' => '',
+     *                   'weeks' => [['minggu_ke' => 1, 'pct_rencana' => '0.750'], ...]], ...]
      *   ],
      *   ...
      * ]
+     * 'weeks' hanya ada pada bulan yang dibagi manual (Bagi Rata / edit
+     * mingguan); bulan tanpa 'weeks' memakai bagi-rata otomatis di sistem.
      */
     public array $workGroups = [];
 
     /** Index work group yang sedang di-expand untuk edit bulan (-1 = none) */
     public int $expandedGroupIdx = -1;
+
+    /** Key "{gi}-{mi}" bulan yang panel pembagian minggunya sedang dibuka */
+    public ?string $expandedWeeksKey = null;
 
     /** Jumlah bulan bawaan untuk work group baru (dari kontrak → group existing → default) */
     public int $totalBulan = 4;
@@ -82,25 +88,56 @@ class KurvaSManagement extends Component
     public function closeModal(): void
     {
         $this->showModal = false;
-        $this->reset(['jenisKapalId', 'jenisKapalNama', 'workGroups', 'expandedGroupIdx', 'totalBulan', 'tanggal_mulai_kontrak', 'durasi_kontrak_hari', 'confirmApplyMonths', 'showPeriodeDetail']);
+        $this->reset(['jenisKapalId', 'jenisKapalNama', 'workGroups', 'expandedGroupIdx', 'expandedWeeksKey', 'totalBulan', 'tanggal_mulai_kontrak', 'durasi_kontrak_hari', 'confirmApplyMonths', 'showPeriodeDetail']);
         $this->resetValidation();
     }
 
     private function loadData(): void
     {
         $jenisKapal = JenisKapal::findOrFail($this->jenisKapalId);
-        $groups = $jenisKapal->kurvaSWorkGroups()->with('kurvaSRencana')->get();
+        $groups = $jenisKapal->kurvaSWorkGroups()
+            ->with(['kurvaSRencana', 'kurvaSRencanaMingguan'])
+            ->get();
 
-        $this->workGroups = $groups->map(fn ($wg) => [
-            'id' => $wg->id,
-            'nama' => $wg->nama,
-            'bobot' => number_format((float) $wg->bobot, 2, '.', ''),
-            'months' => $wg->kurvaSRencana->map(fn ($r) => [
-                'bulan_ke' => $r->bulan_ke,
-                'pct_rencana' => number_format((float) $r->pct_rencana, 2, '.', ''),
-                'keterangan' => $r->keterangan ?? '',
-            ])->toArray(),
-        ])->toArray();
+        // Range minggu per bulan berdasarkan kontrak TERSIMPAN — untuk memetakan
+        // rencana mingguan tersimpan ke slot bulan yang sesuai.
+        $bulanRanges = $jenisKapal->hasKontrak()
+            ? collect(app(KontrakPeriodeService::class)->getBulanList($jenisKapal))->keyBy('bulan_ke')
+            : collect();
+
+        $this->workGroups = $groups->map(function ($wg) use ($bulanRanges) {
+            $storedMinggu = $wg->kurvaSRencanaMingguan->pluck('pct_rencana', 'minggu_ke');
+
+            return [
+                'id' => $wg->id,
+                'nama' => $wg->nama,
+                'bobot' => number_format((float) $wg->bobot, 2, '.', ''),
+                'months' => $wg->kurvaSRencana->map(function ($r) use ($storedMinggu, $bulanRanges) {
+                    $month = [
+                        'bulan_ke' => $r->bulan_ke,
+                        'pct_rencana' => number_format((float) $r->pct_rencana, 2, '.', ''),
+                        'keterangan' => $r->keterangan ?? '',
+                    ];
+
+                    // Lampirkan 'weeks' hanya bila bulan ini punya override
+                    // mingguan tersimpan — seluruh minggu bulan ditampilkan,
+                    // yang tidak tersimpan diisi 0.
+                    $bulan = $bulanRanges->get($r->bulan_ke);
+                    if ($bulan) {
+                        $mingguRange = range($bulan['minggu_dari'], $bulan['minggu_sampai']);
+                        if (collect($mingguRange)->contains(fn ($m) => $storedMinggu->has($m))) {
+                            $month['weeks'] = collect($mingguRange)
+                                ->map(fn ($m) => [
+                                    'minggu_ke' => $m,
+                                    'pct_rencana' => number_format((float) ($storedMinggu[$m] ?? 0), 3, '.', ''),
+                                ])->values()->all();
+                        }
+                    }
+
+                    return $month;
+                })->toArray(),
+            ];
+        })->toArray();
 
         $this->tanggal_mulai_kontrak = $jenisKapal->tanggal_mulai_kontrak?->format('Y-m-d');
         $this->durasi_kontrak_hari = $jenisKapal->durasi_kontrak_hari;
@@ -150,6 +187,8 @@ class KurvaSManagement extends Component
 
     /**
      * Saat kontrak terisi lengkap, jumlah bulan bawaan mengikuti periode kontrak.
+     * Perubahan kontrak menggeser cakupan minggu per bulan → override mingguan
+     * di form dikosongkan (data tersimpan tetap aman sampai user save).
      */
     private function syncTotalBulanDariKontrak(): void
     {
@@ -157,6 +196,21 @@ class KurvaSManagement extends Component
         if ($total > 0) {
             $this->totalBulan = $total;
         }
+        $this->clearAllWeeks();
+    }
+
+    /**
+     * Hapus semua data 'weeks' di form — minggu kembali memakai bagi-rata
+     * bulanan sampai user mengisi ulang via Bagi Rata / panel mingguan.
+     */
+    private function clearAllWeeks(): void
+    {
+        foreach ($this->workGroups as $gi => $wg) {
+            foreach ($wg['months'] ?? [] as $mi => $m) {
+                unset($this->workGroups[$gi]['months'][$mi]['weeks']);
+            }
+        }
+        $this->expandedWeeksKey = null;
     }
 
     /**
@@ -236,6 +290,7 @@ class KurvaSManagement extends Component
         }
 
         $this->totalBulan = $total;
+        $this->expandedWeeksKey = null;
 
         $this->notifyInfo(count($this->workGroups)." work group disesuaikan ke {$total} bulan sesuai kontrak.");
     }
@@ -286,6 +341,7 @@ class KurvaSManagement extends Component
     private function removeWorkGroup(int $idx): void
     {
         array_splice($this->workGroups, $idx, 1);
+        $this->expandedWeeksKey = null;
         if ($this->expandedGroupIdx === $idx) {
             $this->expandedGroupIdx = -1;
         } elseif ($this->expandedGroupIdx > $idx) {
@@ -296,6 +352,7 @@ class KurvaSManagement extends Component
     public function toggleGroup(int $idx): void
     {
         $this->expandedGroupIdx = $this->expandedGroupIdx === $idx ? -1 : $idx;
+        $this->expandedWeeksKey = null;
     }
 
     /**
@@ -336,6 +393,94 @@ class KurvaSManagement extends Component
     {
         $this->workGroups[$groupIdx]['months'][$monthIdx]['pct_rencana'] = '0.00';
         $this->workGroups[$groupIdx]['months'][$monthIdx]['keterangan'] = '';
+        unset($this->workGroups[$groupIdx]['months'][$monthIdx]['weeks']);
+        if ($this->expandedWeeksKey === $groupIdx.'-'.$monthIdx) {
+            $this->expandedWeeksKey = null;
+        }
+    }
+
+    // ─── Weekly Split Actions ───────────────────────────────────────────────
+
+    /**
+     * Bagi rata pct bulan ke minggu-minggunya (truncate 3 desimal, sisa ke
+     * minggu terakhir) — mengisi override mingguan bulan tsb di form.
+     */
+    public function bagiRata(int $gi, int $mi): void
+    {
+        if (! $this->fillWeeksFromMonthly($gi, $mi)) {
+            $this->notifyWarning('Minggu untuk bulan ini tidak tersedia — pastikan kontrak terisi.');
+
+            return;
+        }
+
+        $this->expandedWeeksKey = $gi.'-'.$mi;
+        $weeks = $this->workGroups[$gi]['months'][$mi]['weeks'];
+        $this->notifyInfo('Rencana bulan ke-'.($this->workGroups[$gi]['months'][$mi]['bulan_ke']).' dibagi rata ke '.count($weeks).' minggu.');
+    }
+
+    /**
+     * Buka/tutup panel pembagian mingguan sebuah bulan. Saat pertama dibuka
+     * dan belum ada data mingguan, diisi bagi-rata bulanan sebagai titik awal.
+     */
+    public function toggleWeeks(int $gi, int $mi): void
+    {
+        $key = $gi.'-'.$mi;
+        if ($this->expandedWeeksKey === $key) {
+            $this->expandedWeeksKey = null;
+
+            return;
+        }
+
+        if (empty($this->workGroups[$gi]['months'][$mi]['weeks'] ?? [])) {
+            if (! $this->fillWeeksFromMonthly($gi, $mi)) {
+                $this->notifyWarning('Minggu untuk bulan ini tidak tersedia — pastikan kontrak terisi.');
+
+                return;
+            }
+        }
+
+        $this->expandedWeeksKey = $key;
+    }
+
+    /**
+     * Hapus override mingguan sebuah bulan — bulan tsb kembali memakai
+     * bagi-rata otomatis dari pct bulanan.
+     */
+    public function clearWeeks(int $gi, int $mi): void
+    {
+        unset($this->workGroups[$gi]['months'][$mi]['weeks']);
+        if ($this->expandedWeeksKey === $gi.'-'.$mi) {
+            $this->expandedWeeksKey = null;
+        }
+        $this->notifyInfo('Pembagian mingguan bulan ini dihapus — kembali ke bagi rata otomatis.');
+    }
+
+    /**
+     * Isi 'weeks' sebuah bulan dari pct bulanan dibagi rata ke cakupan
+     * minggunya (periode kontrak form). False bila kontrak/bulan tak valid.
+     */
+    private function fillWeeksFromMonthly(int $gi, int $mi): bool
+    {
+        $month = $this->workGroups[$gi]['months'][$mi] ?? null;
+        if (! $month) {
+            return false;
+        }
+
+        $mingguList = $this->mingguPerBulan[(int) $month['bulan_ke']] ?? [];
+        if (empty($mingguList)) {
+            return false;
+        }
+
+        $split = app(KurvaSService::class)->splitToWeeks((float) ($month['pct_rencana'] ?? 0), count($mingguList));
+
+        $this->workGroups[$gi]['months'][$mi]['weeks'] = collect($mingguList)
+            ->values()
+            ->map(fn ($w, $i) => [
+                'minggu_ke' => $w['minggu_ke'],
+                'pct_rencana' => number_format($split[$i] ?? 0, 3, '.', ''),
+            ])->values()->all();
+
+        return true;
     }
 
     // ─── Computed ────────────────────────────────────────────────────────────
@@ -422,6 +567,31 @@ class KurvaSManagement extends Component
             ->all();
     }
 
+    /**
+     * Daftar minggu per bulan periode kontrak (input form). Key = bulan_ke,
+     * tiap entri: ['minggu_ke' => int, 'periode' => 'dd - dd Mmm YYYY'].
+     * Dipakai untuk panel pembagian mingguan dan Bagi Rata.
+     */
+    public function getMingguPerBulanProperty(): array
+    {
+        $draft = $this->kontrakDraft();
+        if (! $draft->hasKontrak()) {
+            return [];
+        }
+
+        $service = app(KontrakPeriodeService::class);
+        $mingguList = collect($service->getMingguList($draft))->keyBy('minggu_ke');
+
+        return collect($service->getBulanList($draft))
+            ->mapWithKeys(fn ($b) => [$b['bulan_ke'] => collect(
+                range($b['minggu_dari'], $b['minggu_sampai'])
+            )->mapWithKeys(fn ($m) => [$m => [
+                'minggu_ke' => $m,
+                'periode' => $mingguList[$m]['label'] ?? '',
+            ]])->all()])
+            ->all();
+    }
+
     // ─── Validation ─────────────────────────────────────────────────────────
 
     protected function rules(): array
@@ -439,6 +609,9 @@ class KurvaSManagement extends Component
             'workGroups.*.months.*.bulan_ke' => $bulanKeRule,
             'workGroups.*.months.*.pct_rencana' => 'required|numeric|min:0|max:100',
             'workGroups.*.months.*.keterangan' => 'nullable|string|max:255',
+            'workGroups.*.months.*.weeks' => 'array',
+            'workGroups.*.months.*.weeks.*.minggu_ke' => 'required|integer|min:1',
+            'workGroups.*.months.*.weeks.*.pct_rencana' => 'required|numeric|min:0|max:100',
         ];
     }
 
@@ -456,6 +629,8 @@ class KurvaSManagement extends Component
             'workGroups.*.months.*.bulan_ke.max' => 'Nomor bulan melebihi total bulan kontrak.',
             'workGroups.*.months.*.pct_rencana.required' => 'Rencana % wajib diisi.',
             'workGroups.*.months.*.pct_rencana.max' => 'Rencana % per bulan maksimal 100%.',
+            'workGroups.*.months.*.weeks.*.pct_rencana.required' => 'Rencana % per minggu wajib diisi.',
+            'workGroups.*.months.*.weeks.*.pct_rencana.max' => 'Rencana % per minggu maksimal 100%.',
         ];
     }
 
@@ -488,11 +663,18 @@ class KurvaSManagement extends Component
             return;
         }
 
-        // Total rencana (poin % proyek) per work group tidak boleh melebihi bobotnya
+        // Total rencana (poin % proyek) per work group tidak boleh melebihi bobotnya.
+        // "Mingguan menang": bulan dengan override mingguan dihitung dari total minggunya.
         $kurang = [];
         foreach ($this->workGroups as $wg) {
             $bobot = (float) ($wg['bobot'] ?? 0);
-            $sum = array_reduce($wg['months'] ?? [], fn ($c, $m) => $c + (float) ($m['pct_rencana'] ?? 0), 0.0);
+            $sum = array_reduce($wg['months'] ?? [], function ($c, $m) {
+                if (! empty($m['weeks'])) {
+                    return $c + array_reduce($m['weeks'], fn ($cw, $w) => $cw + (float) ($w['pct_rencana'] ?? 0), 0.0);
+                }
+
+                return $c + (float) ($m['pct_rencana'] ?? 0);
+            }, 0.0);
             $nama = trim($wg['nama'] ?? '') ?: 'Tanpa Nama';
 
             if ($sum > $bobot + 0.01) {

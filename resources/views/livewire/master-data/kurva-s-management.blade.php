@@ -6,6 +6,7 @@
              x-data="{
                  _bobots: @js(collect($workGroups)->map(fn($wg) => (float)($wg['bobot'] ?? 0))->values()->all()),
                  _pcts: @js(collect($workGroups)->map(fn($wg) => collect($wg['months'] ?? [])->map(fn($w) => (float)($w['pct_rencana'] ?? 0))->values()->all())->values()->all()),
+                 _weeks: @js(collect($workGroups)->map(fn($wg) => collect($wg['months'] ?? [])->map(fn($m) => collect($m['weeks'] ?? [])->map(fn($w) => (float)($w['pct_rencana'] ?? 0))->values()->all())->values()->all())->values()->all()),
                  get totalBobot() {
                      return this._bobots.reduce((s, v) => s + (parseFloat(v) || 0), 0);
                  },
@@ -18,6 +19,15 @@
                  sumPct(gi) {
                      return (this._pcts[gi] || []).reduce((s, v) => s + (parseFloat(v) || 0), 0);
                  },
+                 monthPct(gi, mi) {
+                     return parseFloat((this._pcts[gi] || [])[mi]) || 0;
+                 },
+                 weekSum(gi, mi) {
+                     return ((this._weeks[gi] || [])[mi] || []).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+                 },
+                 weekCount(gi, mi) {
+                     return ((this._weeks[gi] || [])[mi] || []).length;
+                 },
                  updateBobot(gi, val) {
                      const b = [...this._bobots];
                      b[gi] = parseFloat(val) || 0;
@@ -28,6 +38,13 @@
                      if (!p[gi]) p[gi] = [];
                      p[gi][wi] = parseFloat(val) || 0;
                      this._pcts = p;
+                 },
+                 updateWeek(gi, mi, wi, val) {
+                     const w = this._weeks.map(a => (a || []).map(b => [...(b || [])]));
+                     if (!w[gi]) w[gi] = [];
+                     if (!w[gi][mi]) w[gi][mi] = [];
+                     w[gi][mi][wi] = parseFloat(val) || 0;
+                     this._weeks = w;
                  },
                  syncing: {},
                  syncFrom: {},
@@ -71,7 +88,7 @@
                      this.syncFrom = { ...this.syncFrom, [gi]: undefined };
                  },
                  fieldGroup(t) {
-                     const gi = t.dataset.bobotGi ?? t.dataset.pctGi;
+                     const gi = t.dataset.bobotGi ?? t.dataset.pctGi ?? t.dataset.weekGi;
                      return gi === undefined ? null : parseInt(gi);
                  },
                  onInput(event) {
@@ -79,6 +96,9 @@
                      const gi = t.dataset.bobotGi;
                      const pgi = t.dataset.pctGi;
                      const pwi = t.dataset.pctWi;
+                     const wgi = t.dataset.weekGi;
+                     const wmi = t.dataset.weekMi;
+                     const wwi = t.dataset.weekWi;
                      if (gi !== undefined) {
                          this.updateBobot(parseInt(gi), t.value);
                          this.markSyncing(parseInt(gi));
@@ -87,6 +107,11 @@
                      if (pgi !== undefined && pwi !== undefined) {
                          this.updatePct(parseInt(pgi), parseInt(pwi), t.value);
                          this.markSyncing(parseInt(pgi), parseInt(pwi));
+                         this.scheduleSync();
+                     }
+                     if (wgi !== undefined && wmi !== undefined && wwi !== undefined) {
+                         this.updateWeek(parseInt(wgi), parseInt(wmi), parseInt(wwi), t.value);
+                         this.markSyncing(parseInt(wgi), parseInt(wmi));
                          this.scheduleSync();
                      }
                  },
@@ -101,6 +126,7 @@
                      this.$wire.$watch('workGroups', (groups) => {
                          this._bobots = groups.map(wg => parseFloat(wg.bobot) || 0);
                          this._pcts = groups.map(wg => (wg.months || []).map(w => parseFloat(w.pct_rencana) || 0));
+                         this._weeks = groups.map(wg => (wg.months || []).map(m => (m.weeks || []).map(w => parseFloat(w.pct_rencana) || 0)));
                      });
                      this._unhookCommit = Livewire.hook('commit', ({ component, commit, respond, fail }) => {
                          if (component.id !== this.$wire.$id) return;
@@ -158,7 +184,7 @@
                     <div class="flex-1">
                         <h4 class="text-base font-semibold text-gray-900 dark:text-white">Hapus Work Group?</h4>
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                            Work group <strong>{{ $workGroups[$delGrpIdx]['nama'] ?: '(tanpa nama)' }}</strong> dan semua data rencana bulanannya akan dihapus. Tindakan ini tidak dapat dibatalkan.
+                            Work group <strong>{{ $workGroups[$delGrpIdx]['nama'] ?: '(tanpa nama)' }}</strong> dan semua data rencana bulanan & mingguannya akan dihapus. Tindakan ini tidak dapat dibatalkan.
                         </p>
                     </div>
                 </div>
@@ -639,7 +665,8 @@
                                         <thead>
                                             <tr class="bg-gray-50 dark:bg-gray-900/30">
                                                 <th class="px-3 py-1.5 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase w-44">Bulan</th>
-                                                <th class="px-3 py-1.5 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase w-36">Rencana (%)*</th>
+                                                <th class="px-3 py-1.5 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase w-44">Rencana (%)*</th>
+                                                <th class="px-3 py-1.5 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase w-40">Mingguan</th>
                                                 <th class="px-3 py-1.5 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Keterangan</th>
                                                 <th class="px-3 py-1.5 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase w-28">Kumulatif</th>
                                                 <th class="w-10"></th>
@@ -661,14 +688,64 @@
                                                         </div>
                                                     </td>
                                                     <td class="px-3 py-1.5">
-                                                        <div class="relative">
-                                                            <input type="number" step="0.01" min="0" max="100"
-                                                                wire:model.unintrusive="workGroups.{{ $gi }}.months.{{ $mi }}.pct_rencana"
-                                                                data-pct-gi="{{ $gi }}" data-pct-wi="{{ $mi }}"
-                                                                class="w-full pr-6 pl-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-right
-                                                                    @error('workGroups.'.$gi.'.months.'.$mi.'.pct_rencana') border-red-500 @enderror"
-                                                                placeholder="0.00">
-                                                            <span class="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>
+                                                        <div class="flex items-center gap-1">
+                                                            <div class="relative flex-1">
+                                                                <input type="number" step="0.01" min="0" max="100"
+                                                                    wire:model.unintrusive="workGroups.{{ $gi }}.months.{{ $mi }}.pct_rencana"
+                                                                    data-pct-gi="{{ $gi }}" data-pct-wi="{{ $mi }}"
+                                                                    class="w-full pr-6 pl-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-right
+                                                                        @error('workGroups.'.$gi.'.months.'.$mi.'.pct_rencana') border-red-500 @enderror"
+                                                                    placeholder="0.00">
+                                                                <span class="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>
+                                                            </div>
+                                                            <button type="button"
+                                                                wire:click="bagiRata({{ $gi }}, {{ $mi }})"
+                                                                wire:loading.attr="disabled" wire:target="bagiRata({{ $gi }}, {{ $mi }})"
+                                                                class="flex-shrink-0 p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded transition-colors disabled:opacity-50"
+                                                                title="Bagi rata rencana bulan ini ke minggu-minggunya (3 desimal, sisa ke minggu terakhir)">
+                                                                <svg wire:loading.class="hidden" wire:target="bagiRata({{ $gi }}, {{ $mi }})" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/>
+                                                                </svg>
+                                                                <svg wire:loading wire:target="bagiRata({{ $gi }}, {{ $mi }})" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                    <td class="px-3 py-1.5">
+                                                        <div class="flex items-center gap-2 whitespace-nowrap">
+                                                            <button type="button"
+                                                                wire:click="toggleWeeks({{ $gi }}, {{ $mi }})"
+                                                                wire:loading.attr="disabled" wire:target="toggleWeeks({{ $gi }}, {{ $mi }})"
+                                                                class="flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium rounded transition-colors disabled:opacity-50
+                                                                    {{ $expandedWeeksKey === $gi.'-'.$mi
+                                                                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                                                        : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600' }}"
+                                                                title="Edit pembagian rencana ke minggu-minggu bulan ini">
+                                                                <span>Mgg</span>
+                                                                <svg wire:loading.class="hidden" wire:target="toggleWeeks({{ $gi }}, {{ $mi }})" class="w-3 h-3 transition-transform {{ $expandedWeeksKey === $gi.'-'.$mi ? 'rotate-180' : '' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                                                </svg>
+                                                                <svg wire:loading wire:target="toggleWeeks({{ $gi }}, {{ $mi }})" class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                                                                </svg>
+                                                            </button>
+                                                            {{-- Σ mingguan vs bulanan — merah bila melebihi nilai bulanan --}}
+                                                            <span x-show="weekCount({{ $gi }}, {{ $mi }}) > 0" x-cloak
+                                                                class="text-xs tabular-nums"
+                                                                :class="weekSum({{ $gi }}, {{ $mi }}) > monthPct({{ $gi }}, {{ $mi }}) + 0.0005
+                                                                    ? 'text-red-600 dark:text-red-400 font-semibold'
+                                                                    : (Math.abs(weekSum({{ $gi }}, {{ $mi }}) - monthPct({{ $gi }}, {{ $mi }})) <= 0.0005
+                                                                        ? 'text-green-600 dark:text-green-400'
+                                                                        : 'text-yellow-600 dark:text-yellow-400')"
+                                                                :title="'Σ mingguan ' + weekSum({{ $gi }}, {{ $mi }}).toFixed(3) + '% vs bulanan ' + monthPct({{ $gi }}, {{ $mi }}).toFixed(2) + '% — merah bila melebihi'"
+                                                                x-text="'Σ ' + weekSum({{ $gi }}, {{ $mi }}).toFixed(3) + '%'">
+                                                            </span>
+                                                            <span x-show="weekCount({{ $gi }}, {{ $mi }}) === 0"
+                                                                class="text-[10px] text-gray-400 dark:text-gray-500 italic"
+                                                                title="Bulan ini memakai pembagian otomatis (bagi rata)">auto</span>
                                                         </div>
                                                     </td>
                                                     <td class="px-3 py-1.5">
@@ -705,6 +782,53 @@
                                                         </button>
                                                     </td>
                                                 </tr>
+
+                                                {{-- Panel pembagian mingguan bulan ini (mingguan menang vs bagi-rata otomatis) --}}
+                                                @if($expandedWeeksKey === $gi.'-'.$mi && !empty($month['weeks']))
+                                                <tr wire:key="wg-{{ $wg['id'] ?? 'new' }}-{{ $gi }}-month-{{ $mi }}-weeks" class="bg-blue-50/50 dark:bg-blue-900/10">
+                                                    <td colspan="6" class="px-4 py-3">
+                                                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 mb-2.5">
+                                                            <p class="text-xs font-medium text-blue-700 dark:text-blue-300">
+                                                                Pembagian Mingguan — Bulan ke-{{ $month['bulan_ke'] }}@if($bulanMeta) ({{ $bulanMeta['nama'] }}, {{ $bulanMeta['cakupan'] }})@endif
+                                                                <span class="block sm:inline font-normal text-blue-500/80 dark:text-blue-400/70">nilai mingguan menimpa bagi rata otomatis · maks 3 desimal</span>
+                                                            </p>
+                                                            <button type="button"
+                                                                wire:click="clearWeeks({{ $gi }}, {{ $mi }})"
+                                                                wire:loading.attr="disabled" wire:target="clearWeeks({{ $gi }}, {{ $mi }})"
+                                                                class="self-start sm:self-auto flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors disabled:opacity-50"
+                                                                title="Hapus pembagian mingguan — bulan ini kembali ke bagi rata otomatis">
+                                                                <svg wire:loading.class="hidden" wire:target="clearWeeks({{ $gi }}, {{ $mi }})" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
+                                                                </svg>
+                                                                <svg wire:loading wire:target="clearWeeks({{ $gi }}, {{ $mi }})" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                                                                </svg>
+                                                                Hapus Pembagian
+                                                            </button>
+                                                        </div>
+                                                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                                                            @foreach($month['weeks'] as $wi => $week)
+                                                            @php $weekMeta = $this->mingguPerBulan[(int) $month['bulan_ke']][$week['minggu_ke']] ?? null; @endphp
+                                                            <div wire:key="wg-{{ $wg['id'] ?? 'new' }}-{{ $gi }}-month-{{ $mi }}-week-{{ $week['minggu_ke'] }}">
+                                                                <label class="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5 truncate" @if($weekMeta) title="{{ $weekMeta['periode'] }}" @endif>
+                                                                    Mgg {{ $week['minggu_ke'] }}@if($weekMeta) <span class="text-gray-400 dark:text-gray-500">· {{ $weekMeta['periode'] }}</span>@endif
+                                                                </label>
+                                                                <div class="relative">
+                                                                    <input type="number" step="0.001" min="0" max="100"
+                                                                        wire:model.unintrusive="workGroups.{{ $gi }}.months.{{ $mi }}.weeks.{{ $wi }}.pct_rencana"
+                                                                        data-week-gi="{{ $gi }}" data-week-mi="{{ $mi }}" data-week-wi="{{ $wi }}"
+                                                                        class="w-full pr-6 pl-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-right tabular-nums
+                                                                            @error('workGroups.'.$gi.'.months.'.$mi.'.weeks.'.$wi.'.pct_rencana') border-red-500 @enderror"
+                                                                        placeholder="0.000">
+                                                                    <span class="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">%</span>
+                                                                </div>
+                                                            </div>
+                                                            @endforeach
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                @endif
                                             @endforeach
                                         </tbody>
                                     </table>

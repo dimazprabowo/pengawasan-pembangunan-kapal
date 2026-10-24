@@ -1,0 +1,102 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\LaporanBulanan;
+use App\Models\LaporanMingguan;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+
+class LaporanBulananService
+{
+    public function getFiltered(
+        ?string $search = null,
+        ?int $jenisKapalId = null,
+        int $perPage = 15
+    ): LengthAwarePaginator {
+        $query = LaporanBulanan::with(['user', 'jenisKapal.company', 'jenisKapal.galangan'])
+            ->byJenisKapal($jenisKapalId);
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('ringkasan', 'like', "%{$search}%")
+                    ->orWhereHas('user', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%");
+                    });
+
+                if (is_numeric($search)) {
+                    $q->orWhere('bulan_ke', (int) $search);
+                }
+            });
+        }
+
+        return $query->orderByDesc('bulan_ke')
+            ->orderByDesc('tanggal_laporan')
+            ->orderByDesc('created_at')
+            ->paginate($perPage);
+    }
+
+    /**
+     * Laporan mingguan yang masuk ke bulan_ke tertentu pada jenis kapal ini
+     * (berdasarkan pengelompokan kontrak), diurutkan per minggu.
+     */
+    public function getMingguanBulan(LaporanBulanan $laporan): Collection
+    {
+        $bulan = app(KontrakPeriodeService::class)
+            ->getBulanPeriode($laporan->jenisKapal, (int) $laporan->bulan_ke);
+
+        if (! $bulan) {
+            return collect();
+        }
+
+        return LaporanMingguan::where('jenis_kapal_id', $laporan->jenis_kapal_id)
+            ->whereBetween('minggu_ke', [$bulan['minggu_dari'], $bulan['minggu_sampai']])
+            ->withSum('laporanProgress as total_progress', 'pct_realisasi')
+            ->orderBy('minggu_ke')
+            ->get();
+    }
+
+    /**
+     * Cek bulan_ke sudah dipakai laporan bulanan lain pada jenis kapal ini.
+     */
+    public function bulanTaken(int $jenisKapalId, int $bulanKe, ?int $exceptId = null): bool
+    {
+        return LaporanBulanan::where('jenis_kapal_id', $jenisKapalId)
+            ->where('bulan_ke', $bulanKe)
+            ->when($exceptId, fn ($q) => $q->where('id', '!=', $exceptId))
+            ->exists();
+    }
+
+    public function create(array $data): LaporanBulanan
+    {
+        return DB::transaction(fn () => LaporanBulanan::create($data));
+    }
+
+    public function update(LaporanBulanan $laporanBulanan, array $data): LaporanBulanan
+    {
+        return DB::transaction(function () use ($laporanBulanan, $data) {
+            $laporanBulanan->update($data);
+
+            return $laporanBulanan;
+        });
+    }
+
+    /**
+     * Hapus laporan beserta file laporan external miliknya.
+     */
+    public function delete(LaporanBulanan $laporanBulanan): void
+    {
+        DB::transaction(function () use ($laporanBulanan) {
+            foreach ($laporanBulanan->laporanExternal as $external) {
+                if ($external->file_path) {
+                    Storage::disk('local')->delete($external->file_path);
+                }
+                $external->delete();
+            }
+
+            $laporanBulanan->delete();
+        });
+    }
+}

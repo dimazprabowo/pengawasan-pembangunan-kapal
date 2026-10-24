@@ -14,6 +14,7 @@ class LaporanExternal extends Model
 
     protected $fillable = [
         'laporan_mingguan_id',
+        'laporan_bulanan_id',
         'judul',
         'deskripsi',
         'file_path',
@@ -36,6 +37,11 @@ class LaporanExternal extends Model
         return $this->belongsTo(LaporanMingguan::class);
     }
 
+    public function laporanBulanan(): BelongsTo
+    {
+        return $this->belongsTo(LaporanBulanan::class);
+    }
+
     public function isFileProcessing(): bool
     {
         return in_array($this->file_status, ['pending', 'processing']);
@@ -53,14 +59,15 @@ class LaporanExternal extends Model
 
     public function hasFile(): bool
     {
-        return !empty($this->file_path) && !empty($this->file_name);
+        return ! empty($this->file_path) && ! empty($this->file_name);
     }
 
     public function getFileExtensionAttribute(): ?string
     {
-        if (!$this->file_name) {
+        if (! $this->file_name) {
             return null;
         }
+
         return strtolower(pathinfo($this->file_name, PATHINFO_EXTENSION));
     }
 }

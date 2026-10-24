@@ -53,10 +53,18 @@
                     Memuat...
                 </span>
             </a>
-            <a href="#"
-                class="whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium border-transparent text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50"
-                title="Segera hadir">
-                Bulanan
+            <a href="{{ route('laporan-bulanan.index', $jenisKapal) }}" wire:navigate
+                x-data="{ loading: false }" x-on:click="loading = true"
+                x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
+                class="whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600 inline-flex items-center gap-2">
+                <span x-show="!loading">Bulanan</span>
+                <span x-show="loading" x-cloak class="inline-flex items-center gap-2">
+                    <svg class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Memuat...
+                </span>
             </a>
         </nav>
     </div>

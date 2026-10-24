@@ -7,6 +7,7 @@ use App\Models\ChatMessage;
 use App\Models\Company;
 use App\Models\Cuaca;
 use App\Models\Kelembaban;
+use App\Models\LaporanBulanan;
 use App\Models\LaporanHarian;
 use App\Models\LaporanMingguan;
 use App\Models\Notification;
@@ -17,6 +18,7 @@ use App\Policies\CompanyPolicy;
 use App\Policies\CuacaPolicy;
 use App\Policies\DashboardPolicy;
 use App\Policies\KelembabanPolicy;
+use App\Policies\LaporanBulananPolicy;
 use App\Policies\LaporanHarianPolicy;
 use App\Policies\LaporanMingguanPolicy;
 use App\Policies\NotificationPolicy;
@@ -53,6 +55,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(ChatMessage::class, ChatPolicy::class);
         Gate::policy(LaporanHarian::class, LaporanHarianPolicy::class);
         Gate::policy(LaporanMingguan::class, LaporanMingguanPolicy::class);
+        Gate::policy(LaporanBulanan::class, LaporanBulananPolicy::class);
         Gate::policy(Kelembaban::class, KelembabanPolicy::class);
         Gate::policy(Cuaca::class, CuacaPolicy::class);
 
@@ -66,38 +69,6 @@ class AppServiceProvider extends ServiceProvider
 
         // Override Laravel config with database system configurations
         $this->applySystemConfigurations();
-
-        // TEMP DEBUG: capture Livewire checksum failures for diagnosis (remove after fix)
-        if (config('app.debug')) {
-            \Livewire\on('checksum.generate', function ($checksum, $snapshot) {
-                try {
-                    cache()->store('array')->put("lw-cksum:$checksum", $snapshot, 3600);
-                    \Illuminate\Support\Facades\File::append(
-                        storage_path('logs/lw-checksums.jsonl'),
-                        json_encode(['checksum' => $checksum, 'snapshot' => $snapshot])."\n"
-                    );
-                } catch (\Throwable $e) {
-                    // ignore
-                }
-            });
-            \Livewire\on('checksum.fail', function ($checksum, $comparitor, $snapshot) {
-                try {
-                    \Illuminate\Support\Facades\Log::warning('Livewire checksum fail', [
-                        'component' => $snapshot['memo']['name'] ?? '?',
-                        'id' => $snapshot['memo']['id'] ?? '?',
-                        'json_error' => json_last_error_msg(),
-                        'expected' => $checksum,
-                        'actual' => $comparitor,
-                    ]);
-                    \Illuminate\Support\Facades\File::append(
-                        storage_path('logs/lw-checksum-fail.json'),
-                        json_encode(['sent_checksum' => $checksum, 'snapshot' => $snapshot])."\n"
-                    );
-                } catch (\Throwable $e) {
-                    // ignore
-                }
-            });
-        }
     }
 
     /**

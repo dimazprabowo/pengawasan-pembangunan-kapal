@@ -10,7 +10,8 @@ return new class extends Migration
     {
         Schema::create('laporan_external', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('laporan_mingguan_id')->constrained('laporan_mingguan')->cascadeOnDelete();
+            $table->foreignId('laporan_mingguan_id')->nullable()->constrained('laporan_mingguan')->cascadeOnDelete();
+            $table->foreignId('laporan_bulanan_id')->nullable()->constrained('laporan_bulanan')->cascadeOnDelete();
             $table->string('judul');
             $table->text('deskripsi')->nullable();
             $table->string('file_path')->nullable();
@@ -22,6 +23,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index('laporan_mingguan_id');
+            $table->index('laporan_bulanan_id');
             $table->index('file_status');
         });
     }

@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             LaporanHarianSeeder::class,
             LaporanMingguanSeeder::class,
+            LaporanBulananSeeder::class,
         ]);
     }
 }

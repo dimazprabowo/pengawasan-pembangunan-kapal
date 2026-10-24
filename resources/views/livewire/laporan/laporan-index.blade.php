@@ -113,6 +113,12 @@
                                             {{ $jenisKapal->laporan_mingguan_count }}
                                         </span>
                                     </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs text-gray-500 dark:text-gray-400 w-16">Bulanan:</span>
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400">
+                                            {{ $jenisKapal->laporan_bulanan_count }}
+                                        </span>
+                                    </div>
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">

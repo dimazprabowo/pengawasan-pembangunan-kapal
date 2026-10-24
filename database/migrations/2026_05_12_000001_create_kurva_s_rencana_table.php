@@ -30,10 +30,21 @@ return new class extends Migration
             $table->unique(['work_group_id', 'bulan_ke']);
             $table->index(['work_group_id', 'bulan_ke']);
         });
+
+        Schema::create('kurva_s_rencana_mingguan', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('work_group_id')->constrained('kurva_s_work_groups')->cascadeOnDelete();
+            $table->unsignedSmallInteger('minggu_ke');
+            $table->decimal('pct_rencana', 8, 3)->default(0);
+            $table->timestamps();
+
+            $table->unique(['work_group_id', 'minggu_ke']);
+        });
     }
 
     public function down(): void
     {
+        Schema::dropIfExists('kurva_s_rencana_mingguan');
         Schema::dropIfExists('kurva_s_rencana');
         Schema::dropIfExists('kurva_s_work_groups');
     }

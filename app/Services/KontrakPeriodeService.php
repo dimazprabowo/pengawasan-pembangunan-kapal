@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\JenisKapal;
+use App\Models\LaporanBulanan;
 use App\Models\LaporanMingguan;
 use Carbon\Carbon;
 
@@ -136,6 +137,43 @@ class KontrakPeriodeService
             ])
             ->values()
             ->toArray();
+    }
+
+    /**
+     * Opsi bulan untuk dropdown laporan bulanan.
+     * Bulan yang sudah memiliki laporan dikecualikan (kecuali $excludeBulanKe
+     * untuk mode edit). Label menyertakan nama bulan kalender & rentang tanggal.
+     */
+    public function getBulanOptions(JenisKapal $jenisKapal, ?int $excludeBulanKe = null): array
+    {
+        if (! $jenisKapal->hasKontrak()) {
+            return [];
+        }
+
+        $usedMonths = LaporanBulanan::where('jenis_kapal_id', $jenisKapal->id)
+            ->whereNotNull('bulan_ke')
+            ->when($excludeBulanKe, fn ($q) => $q->where('bulan_ke', '!=', $excludeBulanKe))
+            ->pluck('bulan_ke')
+            ->toArray();
+
+        return collect($this->getBulanList($jenisKapal))
+            ->reject(fn ($b) => in_array($b['bulan_ke'], $usedMonths))
+            ->map(fn ($b) => [
+                'value' => $b['bulan_ke'],
+                'label' => 'Bulan ke-'.$b['bulan_ke'].' ('.$b['label'].', '.$this->formatRange($b['mulai'], $b['selesai']).')',
+            ])
+            ->values()
+            ->toArray();
+    }
+
+    /**
+     * Satu entri periode bulan berdasarkan nomor bulan ke-. Null jika di luar kontrak.
+     *
+     * @return array{bulan_ke: int, mulai: Carbon, selesai: Carbon, minggu_dari: int, minggu_sampai: int, total_minggu: int, total_hari: int, label: string}|null
+     */
+    public function getBulanPeriode(JenisKapal $jenisKapal, int $bulanKe): ?array
+    {
+        return collect($this->getBulanList($jenisKapal))->firstWhere('bulan_ke', $bulanKe);
     }
 
     /**

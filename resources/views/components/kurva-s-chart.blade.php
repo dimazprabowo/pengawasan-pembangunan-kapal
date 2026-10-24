@@ -43,8 +43,8 @@
         @if($showStats && $hasRencana)
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
             <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
-                <p class="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Total Minggu</p>
-                <p class="text-lg font-semibold text-gray-800 dark:text-white">{{ $chartData['total_minggu'] ?? 0 }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Total {{ $chartData['unit_label'] ?? 'Minggu' }}</p>
+                <p class="text-lg font-semibold text-gray-800 dark:text-white">{{ $chartData['total_unit'] ?? ($chartData['total_minggu'] ?? 0) }}</p>
             </div>
             <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
                 <p class="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Total Rencana</p>

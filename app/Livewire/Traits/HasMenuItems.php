@@ -157,7 +157,7 @@ trait HasMenuItems
                 'name' => 'Manajemen Laporan',
                 'route' => 'laporan.index',
                 'icon' => 'document-report',
-                'active' => $req->routeIs('laporan.*') || $req->routeIs('laporan-harian.*') || $req->routeIs('laporan-mingguan.*'),
+                'active' => $req->routeIs('laporan.*') || $req->routeIs('laporan-harian.*') || $req->routeIs('laporan-mingguan.*') || $req->routeIs('laporan-bulanan.*'),
             ];
         }
 

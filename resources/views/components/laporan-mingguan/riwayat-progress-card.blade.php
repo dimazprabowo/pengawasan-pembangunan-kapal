@@ -2,6 +2,7 @@
     'workGroups' => [],
     'progressHistory' => [],
     'fullProgressHistory' => null, // Pre-calculated full history from server (includes current week)
+    'unitLabel' => 'Minggu',       // Label periode kolom: 'Minggu' (default) atau 'Bulan'
 ])
 
 @if(count($progressHistory) > 0 || ($fullProgressHistory && count($fullProgressHistory) > 0))
@@ -19,6 +20,7 @@
          x-data="{
              bobots: @js(collect($workGroups)->mapWithKeys(fn($wg) => [(string)$wg['work_group_id'] => (float)$wg['bobot']])->all()),
              progressHistory: @js($fullProgressHistory ?? $progressHistory),
+             unitLabel: @js($unitLabel),
              navH: 0,
              init() {
                  @isset($fullProgressHistory)
@@ -56,6 +58,13 @@
                 const hist = this.progressHistory[weekIndex];
                  if (!hist || !hist.plans) return 0;
                  return hist.plans[String(wgId)] || 0;
+            },
+            fmtPlan(v) {
+                // Rencana mingguan = hasil pembagian bulanan (maks 3 desimal, di-cut);
+                // rencana bulanan tetap 2 desimal.
+                return this.unitLabel === 'Minggu'
+                    ? (Math.round(v * 1000) / 1000).toString()
+                    : v.toFixed(2);
             },
             historyDeviation(wgId, weekIndex) {
                 return Math.round((this.historyKontribusi(wgId, weekIndex) - this.historyPlanKontribusi(wgId, weekIndex)) * 100) / 100;
@@ -105,7 +114,7 @@
                         <th class="sticky left-[264px] z-20 bg-slate-200 dark:bg-slate-950 px-2 py-0.5 text-center align-middle font-semibold text-blue-800 dark:text-blue-300 w-[84px] min-w-[84px] border-r border-b-2 border-r-slate-300 border-b-blue-600 dark:border-r-slate-700 dark:border-b-blue-500">Physical<br>Progress</th>
                         <template x-for="(hist, weekIndex) in progressHistory" :key="'head-' + weekIndex">
                         <th class="bg-slate-100 dark:bg-slate-900 px-3 py-2 text-center font-semibold text-blue-800 dark:text-blue-300 min-w-[104px] border-r border-b-2 border-r-slate-200 border-b-blue-600 dark:border-r-slate-800 dark:border-b-blue-500">
-                            <div x-text="'Minggu ' + hist.minggu_ke"></div>
+                            <div x-text="unitLabel + ' ' + (hist.unit_ke ?? hist.minggu_ke)"></div>
                             <div class="text-[10px] font-normal text-slate-500 dark:text-slate-400 whitespace-nowrap leading-tight">
                                 <div x-text="hist.periode_mulai || hist.created_at"></div>
                                 <div x-show="hist.periode_selesai" x-text="'s/d ' + (hist.periode_selesai || '')"></div>
@@ -139,7 +148,7 @@
                         </td>
                         <td class="sticky left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left text-gray-500 dark:text-gray-400 border-r border-gray-200 dark:border-gray-700 {{ $groupBorder }}">Rencana</td>
                         <template x-for="(hist, weekIndex) in progressHistory" :key="'p-{{ $wg['work_group_id'] }}-' + weekIndex">
-                        <td class="px-2 py-0.5 text-center tabular-nums text-gray-500 dark:text-gray-400 {{ $groupBorder }}" x-text="historyPlanKontribusi('{{ $wg['work_group_id'] }}', weekIndex).toFixed(2) + '%'"></td>
+                        <td class="px-2 py-0.5 text-center tabular-nums text-gray-500 dark:text-gray-400 {{ $groupBorder }}" x-text="fmtPlan(historyPlanKontribusi('{{ $wg['work_group_id'] }}', weekIndex)) + '%'"></td>
                         </template>
                         <td class="sticky right-0 z-10 bg-gray-50 dark:bg-gray-800 px-2 py-0.5 text-center tabular-nums font-medium text-gray-500 dark:text-gray-400 border-l border-gray-200 dark:border-gray-700 {{ $groupBorder }}" x-text="totalHistoryPlan('{{ $wg['work_group_id'] }}').toFixed(2) + '%'"></td>
                     </tr>
@@ -166,11 +175,11 @@
                     @endforeach
                     {{-- Per Minggu --}}
                     <tr>
-                        <td rowspan="3" colspan="2" class="sticky left-0 z-10 bg-gray-50 dark:bg-gray-900 px-3 py-2 align-middle font-bold text-gray-900 dark:text-white border-r border-t-2 border-r-gray-200 border-t-gray-300 dark:border-r-gray-700 dark:border-t-gray-600">Per Minggu</td>
+                        <td rowspan="3" colspan="2" class="sticky left-0 z-10 bg-gray-50 dark:bg-gray-900 px-3 py-2 align-middle font-bold text-gray-900 dark:text-white border-r border-t-2 border-r-gray-200 border-t-gray-300 dark:border-r-gray-700 dark:border-t-gray-600">Per {{ $unitLabel }}</td>
                         <td rowspan="3" class="sticky left-[200px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[64px] min-w-[64px] align-middle text-center tabular-nums font-bold text-gray-900 dark:text-white border-r border-t-2 border-r-gray-200 border-t-gray-300 dark:border-r-gray-700 dark:border-t-gray-600" x-text="totalBobot().toFixed(2) + '%'"></td>
                         <td class="sticky left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left font-bold text-gray-900 dark:text-white border-r border-t-2 border-r-gray-200 border-t-gray-300 dark:border-r-gray-700 dark:border-t-gray-600">Rencana</td>
                         <template x-for="(hist, weekIndex) in progressHistory" :key="'wp-' + weekIndex">
-                        <td class="px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-t-2 border-gray-300 dark:border-gray-600" x-text="(hist.week_plan || 0).toFixed(2) + '%'"></td>
+                        <td class="px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-t-2 border-gray-300 dark:border-gray-600" x-text="fmtPlan(hist.week_plan || 0) + '%'"></td>
                         </template>
                         <td class="sticky right-0 z-10 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-l border-t-2 border-l-gray-200 border-t-gray-300 dark:border-l-gray-700 dark:border-t-gray-600" x-text="totalAllWeeksPlan().toFixed(2) + '%'"></td>
                     </tr>

@@ -58,6 +58,11 @@ class JenisKapal extends Model
         return $this->hasMany(LaporanMingguan::class);
     }
 
+    public function laporanBulanan(): HasMany
+    {
+        return $this->hasMany(LaporanBulanan::class);
+    }
+
     public function kurvaSWorkGroups(): HasMany
     {
         return $this->hasMany(KurvaSWorkGroup::class)->orderBy('sort_order');
@@ -125,12 +130,11 @@ class JenisKapal extends Model
 
     public function getLaporanCount(string $tipe): int
     {
-        // Currently all reports are stored in laporan_harian table
-        // TODO: Add tipe field to laporan_harian table to distinguish between harian, mingguan, bulanan
-        if ($tipe === 'harian') {
-            return $this->laporan_harian_count ?? 0;
-        }
-
-        return 0;
+        return match ($tipe) {
+            'harian' => $this->laporan_harian_count ?? $this->laporanHarian()->count(),
+            'mingguan' => $this->laporan_mingguan_count ?? $this->laporanMingguan()->count(),
+            'bulanan' => $this->laporan_bulanan_count ?? $this->laporanBulanan()->count(),
+            default => 0,
+        };
     }
 }

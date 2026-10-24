@@ -35,15 +35,26 @@ class LaporanMingguanSeeder extends Seeder
         $jenisKapal = $jenisKapals->first();
         $kontrakService = app(KontrakPeriodeService::class);
 
-        // Create 10 consecutive laporan for the same jenis kapal (weeks 1-10)
-        // Periode diambil dari kontrak jika tersedia, fallback ke tanggal relatif.
+        // Seed SEMUA minggu kontrak untuk jenis kapal ini agar Laporan Bulanan
+        // (yang menarik data dari mingguan) lengkap sampai bulan terakhir.
+        // Periode diambil dari kontrak; fallback 10 minggu relatif bila tanpa kontrak.
         $laporanData = [];
-        for ($i = 1; $i <= 10; $i++) {
-            $periode = $kontrakService->getMingguPeriode($jenisKapal, $i);
+        $mingguList = $kontrakService->getMingguList($jenisKapal);
+
+        if (empty($mingguList)) {
+            $mingguList = collect(range(1, 10))->map(fn ($i) => [
+                'minggu_ke' => $i,
+                'mulai' => Carbon::now()->subDays($i * 7),
+                'selesai' => Carbon::now()->subDays(($i - 1) * 7),
+            ])->all();
+        }
+
+        foreach ($mingguList as $minggu) {
+            $i = $minggu['minggu_ke'];
             $laporanData[] = [
                 'minggu_ke' => $i,
-                'periode_mulai' => $periode ? $periode['mulai'] : Carbon::now()->subDays($i * 7),
-                'periode_selesai' => $periode ? $periode['selesai'] : Carbon::now()->subDays(($i - 1) * 7),
+                'periode_mulai' => $minggu['mulai'],
+                'periode_selesai' => $minggu['selesai'],
                 'ringkasan' => 'Progress minggu ke-'.$i.' sesuai rencana.',
             ];
         }
@@ -104,6 +115,6 @@ class LaporanMingguanSeeder extends Seeder
             }
         }
 
-        $this->command->info('Laporan Mingguan seeded successfully (10 records).');
+        $this->command->info('Laporan Mingguan seeded successfully ('.count($laporanData).' records).');
     }
 }
