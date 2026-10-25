@@ -20,6 +20,8 @@ return new class extends Migration
                 ->comment('Tanggal mulai kontrak pembangunan (hari kalender)');
             $table->unsignedSmallInteger('durasi_kontrak_hari')->nullable()
                 ->comment('Durasi kontrak dalam hari kalender');
+            $table->json('minggu_bulan_map')->nullable()
+                ->comment('Override pemetaan minggu→bulan {minggu_ke: bulan_ke} — kosong = ikut kalender mayoritas');
             $table->string('template_path_harian')->nullable();
             $table->string('template_path_mingguan')->nullable();
             $table->string('template_path_bulanan')->nullable();

@@ -27,7 +27,10 @@ class MingguanReassignReproTest extends TestCase
         $this->seed();
 
         $this->admin = User::firstOrFail();
-        $this->dataKapal = DataKapal::firstOrFail();
+        // Kapal baru tanpa kontrak & tanpa Kurva-S: terisolasi dari data seeded
+        // (seeder mengisi 100 minggu + realisasi acak yang bisa memicu blokir
+        // anyExceedsBobot dan klaim harian pada kapal seeded).
+        $this->dataKapal = DataKapal::create(['nama' => 'Kapal Reassign', 'status' => 'active']);
         $this->base = now()->startOfMonth()->subMonth();
     }
 

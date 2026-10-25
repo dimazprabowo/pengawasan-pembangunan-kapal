@@ -38,6 +38,23 @@ class LaporanTanggalUnikTest extends TestCase
         return $dataKapal ?? DataKapal::firstOrFail();
     }
 
+    /**
+     * Kapal + harian baru yang terisolasi dari data seeded — kapal seeded
+     * punya Kurva-S dengan realisasi acak (bisa memicu blokir anyExceedsBobot)
+     * dan 100 laporan mingguan yang mengacaukan assertion berbasis id/minggu_ke.
+     */
+    private function kapalDanHarianBaru(): array
+    {
+        $dataKapal = DataKapal::create(['nama' => 'Kapal Uji Mingguan', 'status' => 'active']);
+        $harian = LaporanHarian::create([
+            'user_id' => $this->admin()->id,
+            'data_kapal_id' => $dataKapal->id,
+            'tanggal_laporan' => now()->subDays(3)->format('Y-m-d'),
+        ]);
+
+        return [$dataKapal, $harian];
+    }
+
     public function test_create_harian_rejects_tanggal_yang_sudah_dipakai(): void
     {
         $existing = LaporanHarian::firstOrFail();
@@ -154,8 +171,7 @@ class LaporanTanggalUnikTest extends TestCase
 
     public function test_create_mingguan_meminta_konfirmasi_saat_hari_sudah_diklaim_minggu_lain(): void
     {
-        $harian = LaporanHarian::firstOrFail();
-        $dataKapal = $harian->dataKapal;
+        [$dataKapal, $harian] = $this->kapalDanHarianBaru();
 
         // Klaim hari ini ke laporan mingguan yang sudah ada
         $mingguanLama = LaporanMingguan::create([
@@ -202,8 +218,7 @@ class LaporanTanggalUnikTest extends TestCase
 
     public function test_create_mingguan_tanpa_konflik_tidak_memunculkan_modal(): void
     {
-        $harian = LaporanHarian::firstOrFail();
-        $dataKapal = $harian->dataKapal;
+        [$dataKapal, $harian] = $this->kapalDanHarianBaru();
 
         // Pastikan hari ini belum diklaim mingguan manapun
         DB::table('laporan_mingguan_harian')->where('laporan_harian_id', $harian->id)->delete();

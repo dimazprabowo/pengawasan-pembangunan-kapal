@@ -124,7 +124,7 @@ class KurvaSRencanaImport implements ToCollection, WithHeadingRow
 
                 $totalPctRencana += $pctRencana;
 
-                $keterangan = array_key_exists($keteranganKey, $rowData) ? trim($rowData[$keteranganKey]) : null;
+                $keterangan = array_key_exists($keteranganKey, $rowData) ? trim((string) $rowData[$keteranganKey]) : null;
                 if (! empty($keterangan) && strlen($keterangan) > 500) {
                     $this->parent->addError(
                         sprintf(

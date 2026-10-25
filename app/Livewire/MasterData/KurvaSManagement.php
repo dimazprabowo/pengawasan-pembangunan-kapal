@@ -82,6 +82,9 @@ class KurvaSManagement extends Component
     /** Render lazy detail periode — tabel baru digenerate saat user membuka panel. */
     public bool $showPeriodeDetail = false;
 
+    /** Override pemetaan minggu→bulan per kontrak ({minggu_ke: bulan_ke}). */
+    public array $mingguBulanMap = [];
+
     #[On('open-kurvas-modal')]
     public function openModal(int $dataKapalId): void
     {
@@ -99,7 +102,7 @@ class KurvaSManagement extends Component
     public function closeModal(): void
     {
         $this->showModal = false;
-        $this->reset(['dataKapalId', 'dataKapalNama', 'workGroups', 'expandedGroupIdx', 'expandedWeeksKey', 'totalBulan', 'tanggal_mulai_kontrak', 'durasi_kontrak_hari', 'confirmApplyMonths', 'showPeriodeDetail']);
+        $this->reset(['dataKapalId', 'dataKapalNama', 'workGroups', 'expandedGroupIdx', 'expandedWeeksKey', 'totalBulan', 'tanggal_mulai_kontrak', 'durasi_kontrak_hari', 'confirmApplyMonths', 'showPeriodeDetail', 'mingguBulanMap']);
         $this->resetValidation();
     }
 
@@ -152,6 +155,9 @@ class KurvaSManagement extends Component
 
         $this->tanggal_mulai_kontrak = $dataKapal->tanggal_mulai_kontrak?->format('Y-m-d');
         $this->durasi_kontrak_hari = $dataKapal->durasi_kontrak_hari;
+        $this->mingguBulanMap = collect($dataKapal->minggu_bulan_map ?? [])
+            ->mapWithKeys(fn ($b, $w) => [(int) $w => (int) $b])
+            ->all();
 
         $totalBulanKontrak = $this->totalBulanKontrak();
         if ($totalBulanKontrak > 0) {
@@ -183,6 +189,7 @@ class KurvaSManagement extends Component
         return new DataKapal([
             'tanggal_mulai_kontrak' => $this->tanggal_mulai_kontrak ?: null,
             'durasi_kontrak_hari' => $this->durasi_kontrak_hari ?: null,
+            'minggu_bulan_map' => $this->mingguBulanMap ?: null,
         ]);
     }
 
@@ -207,6 +214,8 @@ class KurvaSManagement extends Component
         if ($total > 0) {
             $this->totalBulan = $total;
         }
+        // Kontrak berubah → pemetaan minggu→bulan lama tidak lagi valid.
+        $this->mingguBulanMap = [];
         $this->clearAllWeeks();
     }
 
@@ -496,6 +505,127 @@ class KurvaSManagement extends Component
     }
 
     /**
+     * Pindahkan minggu batas sebuah bulan ke bulan tetangganya
+     * ('prev' = ke bulan sebelumnya, 'next' = ke bulan berikutnya).
+     * Hanya minggu terdepan/terakhir bulan yang bisa dipindah dan bulan
+     * asal harus menyisakan ≥1 minggu — kekontinuan & bulan_ke terjaga.
+     */
+    public function moveWeek(int $mingguKe, string $direction): void
+    {
+        // Hanya minggu yang tanggalnya beririsan dua bulan kalender yang bisa
+        // dipindah — minggu murni satu bulan tidak punya bulan alternatif.
+        if (empty($this->mingguIrisan[$mingguKe])) {
+            return;
+        }
+
+        $bulanList = collect($this->currentBulanList());
+        $src = $bulanList->first(fn ($b) => $mingguKe >= $b['minggu_dari'] && $mingguKe <= $b['minggu_sampai']);
+        if (! $src) {
+            return;
+        }
+
+        $targetKe = $direction === 'prev' ? $src['bulan_ke'] - 1 : $src['bulan_ke'] + 1;
+        $isBoundary = $direction === 'prev' ? $mingguKe === $src['minggu_dari'] : $mingguKe === $src['minggu_sampai'];
+        if (! $isBoundary || $src['total_minggu'] <= 1 || ! $bulanList->firstWhere('bulan_ke', $targetKe)) {
+            return;
+        }
+
+        $this->mingguBulanMap[$mingguKe] = $targetKe;
+        $this->normalizeMingguBulanMap();
+        $this->reSlotWeeks();
+        $this->expandedWeeksKey = null;
+    }
+
+    /**
+     * Kembalikan pemetaan minggu→bulan ke aturan kalender default.
+     */
+    public function resetMingguMap(): void
+    {
+        $this->mingguBulanMap = [];
+        $this->reSlotWeeks();
+        $this->expandedWeeksKey = null;
+        $this->notifyInfo('Pemetaan minggu→bulan dikembalikan ke pengelompokan otomatis.');
+    }
+
+    /** Daftar bulan kontrak form saat ini (override minggu_bulan_map diterapkan). */
+    private function currentBulanList(): array
+    {
+        return app(KontrakPeriodeService::class)->getBulanList($this->kontrakDraft());
+    }
+
+    /**
+     * Map minggu_ke → true untuk minggu yang rentang tanggalnya beririsan
+     * dua bulan kalender — satu-satunya kandidat yang bisa dipindah antar bulan.
+     *
+     * @return array<int, bool>
+     */
+    public function getMingguIrisanProperty(): array
+    {
+        $draft = $this->kontrakDraft();
+        if (! $draft->hasKontrak()) {
+            return [];
+        }
+
+        return collect(app(KontrakPeriodeService::class)->getMingguList($draft))
+            ->filter(fn ($m) => $m['mulai']->format('Y-m') !== $m['selesai']->format('Y-m'))
+            ->mapWithKeys(fn ($m) => [$m['minggu_ke'] => true])
+            ->all();
+    }
+
+    /**
+     * Buang entri map yang sudah setara default / tidak valid — map tersimpan
+     * hanya berisi deviasi nyata dari pengelompokan kalender.
+     */
+    private function normalizeMingguBulanMap(): void
+    {
+        $draft = $this->kontrakDraft();
+        $draft->minggu_bulan_map = null;
+        $defaultAssign = [];
+        foreach (app(KontrakPeriodeService::class)->getBulanList($draft) as $b) {
+            for ($w = $b['minggu_dari']; $w <= $b['minggu_sampai']; $w++) {
+                $defaultAssign[$w] = $b['bulan_ke'];
+            }
+        }
+
+        $this->mingguBulanMap = collect($this->mingguBulanMap)
+            ->mapWithKeys(fn ($b, $w) => [(int) $w => (int) $b])
+            ->filter(fn ($target, $w) => isset($defaultAssign[$w]) && $defaultAssign[$w] !== $target)
+            ->all();
+    }
+
+    /**
+     * Susun ulang 'weeks' tiap bulan di form mengikuti pemetaan terbaru —
+     * nilai rencana mingguan ikut minggunya (key = minggu_ke), minggu baru
+     * di bulan tujuan diisi 0 sampai user mengisinya.
+     */
+    private function reSlotWeeks(): void
+    {
+        $mingguPerBulan = $this->mingguPerBulan;
+
+        foreach ($this->workGroups as $gi => $wg) {
+            foreach ($wg['months'] ?? [] as $mi => $month) {
+                if (empty($month['weeks'])) {
+                    continue;
+                }
+
+                $values = collect($month['weeks'])->pluck('pct_rencana', 'minggu_ke');
+                $mingguRange = $mingguPerBulan[(int) $month['bulan_ke']] ?? [];
+                if (empty($mingguRange)) {
+                    unset($this->workGroups[$gi]['months'][$mi]['weeks']);
+
+                    continue;
+                }
+
+                $this->workGroups[$gi]['months'][$mi]['weeks'] = collect($mingguRange)
+                    ->map(fn ($m) => [
+                        'minggu_ke' => $m['minggu_ke'],
+                        'pct_rencana' => number_format((float) ($values[$m['minggu_ke']] ?? 0), 3, '.', ''),
+                    ])->values()->all();
+            }
+        }
+    }
+
+    /**
      * Hapus override mingguan sebuah bulan — bulan tsb kembali memakai
      * bagi-rata otomatis dari pct bulanan.
      */
@@ -745,7 +875,8 @@ class KurvaSManagement extends Component
             app(KontrakPeriodeService::class)->saveKontrak(
                 $dataKapal,
                 $this->tanggal_mulai_kontrak,
-                $this->durasi_kontrak_hari !== null ? (int) $this->durasi_kontrak_hari : null
+                $this->durasi_kontrak_hari !== null ? (int) $this->durasi_kontrak_hari : null,
+                $this->mingguBulanMap ?: null
             );
             $service->saveWorkGroups($dataKapal, $this->workGroups);
 

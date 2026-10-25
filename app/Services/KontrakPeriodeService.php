@@ -30,13 +30,15 @@ class KontrakPeriodeService
 
     /**
      * Simpan data kontrak pada data kapal. Kedua field harus terisi bersama
-     * atau sama-sama kosong (menghapus kontrak).
+     * atau sama-sama kosong (menghapus kontrak). $mingguBulanMap = override
+     * pemetaan minggu→bulan ({minggu_ke: bulan_ke}); null = ikut kalender.
      */
-    public function saveKontrak(DataKapal $dataKapal, ?string $tanggalMulai, ?int $durasiHari): void
+    public function saveKontrak(DataKapal $dataKapal, ?string $tanggalMulai, ?int $durasiHari, ?array $mingguBulanMap = null): void
     {
         $dataKapal->update([
             'tanggal_mulai_kontrak' => $tanggalMulai ?: null,
             'durasi_kontrak_hari' => $durasiHari ?: null,
+            'minggu_bulan_map' => $mingguBulanMap ?: null,
         ]);
     }
 
@@ -229,6 +231,77 @@ class KontrakPeriodeService
                 'total_hari' => (int) $first['mulai']->diffInDays($last['selesai']) + 1,
                 'label' => Carbon::parse($group['key'].'-01')->translatedFormat('F Y'),
             ];
+        }
+
+        // Override pemetaan minggu→bulan dari data_kapal (mis. minggu irisan
+        // Feb–Mar dipilih masuk Maret, bukan default mayoritas).
+        $overrides = $dataKapal->minggu_bulan_map;
+        if (is_array($overrides) && $overrides !== []) {
+            $list = $this->applyMingguBulanOverrides($list, $mingguList, $overrides);
+        }
+
+        return $list;
+    }
+
+    /**
+     * Terapkan override pemetaan minggu→bulan ({minggu_ke: bulan_ke}) ke hasil
+     * getBulanList default. Syarat override diterima (dievaluasi berurutan):
+     * - minggu adalah minggu terdepan/terakhir bulan asalnya (kekontinuan terjaga)
+     * - target adalah bulan tetangga (bulan_ke ± 1)
+     * - bulan asal masih menyisakan minimal 1 minggu (bulan_ke tidak berubah)
+     * Entri yang tidak valid diabaikan.
+     */
+    private function applyMingguBulanOverrides(array $list, array $mingguList, array $overrides): array
+    {
+        // Penugasan minggu→bulan & keanggotaan awal dari default.
+        $assign = [];
+        $members = [];
+        foreach ($list as $b) {
+            $members[$b['bulan_ke']] = range($b['minggu_dari'], $b['minggu_sampai']);
+            foreach ($members[$b['bulan_ke']] as $w) {
+                $assign[$w] = $b['bulan_ke'];
+            }
+        }
+        $mingguByKe = collect($mingguList)->keyBy('minggu_ke');
+
+        foreach ($overrides as $w => $target) {
+            $w = (int) $w;
+            $target = (int) $target;
+            $src = $assign[$w] ?? null;
+            $week = $mingguByKe[$w] ?? null;
+            if ($src === null || $week === null || $target === $src || abs($target - $src) !== 1 || ! isset($members[$target])) {
+                continue;
+            }
+
+            // Hanya minggu yang tanggalnya beririsan dua bulan kalender —
+            // minggu murni satu bulan tidak masuk akal dipindah ke bulan lain.
+            if ($week['mulai']->format('Y-m') === $week['selesai']->format('Y-m')) {
+                continue;
+            }
+
+            $srcWeeks = $members[$src];
+            $isBoundary = $target === $src + 1 ? $w === max($srcWeeks) : $w === min($srcWeeks);
+            if (! $isBoundary || count($srcWeeks) <= 1) {
+                continue;
+            }
+
+            $assign[$w] = $target;
+            $members[$src] = array_values(array_diff($srcWeeks, [$w]));
+            $members[$target][] = $w;
+            sort($members[$target]);
+        }
+
+        // Bangun ulang entri bulan dari keanggotaan akhir.
+        foreach ($list as &$b) {
+            $weeks = $members[$b['bulan_ke']];
+            $first = $mingguByKe[$weeks[0]];
+            $last = $mingguByKe[$weeks[count($weeks) - 1]];
+            $b['minggu_dari'] = $weeks[0];
+            $b['minggu_sampai'] = $weeks[count($weeks) - 1];
+            $b['total_minggu'] = count($weeks);
+            $b['mulai'] = $first['mulai'];
+            $b['selesai'] = $last['selesai'];
+            $b['total_hari'] = (int) $first['mulai']->diffInDays($last['selesai']) + 1;
         }
 
         return $list;

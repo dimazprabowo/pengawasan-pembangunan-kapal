@@ -283,11 +283,112 @@ class KontrakPeriodeTest extends TestCase
         $this->assertTrue($jk->hasKontrak());
         $this->assertSame('2026-01-15', $jk->tanggal_mulai_kontrak->format('Y-m-d'));
         $this->assertSame(300, $jk->durasi_kontrak_hari);
+        $this->assertNull($jk->minggu_bulan_map);
 
-        // Kosongkan keduanya = hapus kontrak
+        // Kosongkan keduanya = hapus kontrak (map ikut dibersihkan)
         $this->service()->saveKontrak($jk, null, null);
         $jk->refresh();
         $this->assertFalse($jk->hasKontrak());
+    }
+
+    public function test_minggu_bulan_map_memindahkan_minggu_irisan(): void
+    {
+        // Default: Feb = mgg 3-6, Mar = mgg 7-11. Minggu 7 (26 Feb - 4 Mar)
+        // irisan Feb–Mar, default-nya masuk Maret — user memilih Februari.
+        $jk = $this->dataKapalKontrak(300);
+        $jk->minggu_bulan_map = [7 => 2];
+
+        $bulan = $this->service()->getBulanList($jk);
+
+        // Februari kini mgg 3-7 (5 mgg), Maret bergeser ke mgg 8-11 (4 mgg)
+        $this->assertSame([3, 7, 5], [$bulan[1]['minggu_dari'], $bulan[1]['minggu_sampai'], $bulan[1]['total_minggu']]);
+        $this->assertSame('2026-03-04', $bulan[1]['selesai']->format('Y-m-d'));
+        $this->assertSame([8, 11, 4], [$bulan[2]['minggu_dari'], $bulan[2]['minggu_sampai'], $bulan[2]['total_minggu']]);
+        $this->assertSame('2026-03-05', $bulan[2]['mulai']->format('Y-m-d'));
+
+        // Label kalender & urutan bulan tidak berubah
+        $this->assertSame('February 2026', $bulan[1]['label']);
+        $this->assertSame('March 2026', $bulan[2]['label']);
+
+        // Konsumen global ikut pemetaan baru
+        $this->assertSame(2, $this->service()->getMingguBulanMap($jk)[7]);
+        $periode = $this->service()->getBulanPeriode($jk, 2);
+        $this->assertSame('2026-03-04', $periode['selesai']->format('Y-m-d'));
+    }
+
+    public function test_minggu_bulan_map_tarik_minggu_pertama_ke_bulan_sebelumnya(): void
+    {
+        // Arah sebaliknya: mgg 3 (29 Jan - 4 Feb, minggu pertama Februari)
+        // ditarik ke Januari → Jan = mgg 1-3, Feb = mgg 4-6.
+        $jk = $this->dataKapalKontrak(300);
+        $jk->minggu_bulan_map = [3 => 1];
+
+        $bulan = $this->service()->getBulanList($jk);
+
+        $this->assertSame([1, 3, 3], [$bulan[0]['minggu_dari'], $bulan[0]['minggu_sampai'], $bulan[0]['total_minggu']]);
+        $this->assertSame('2026-02-04', $bulan[0]['selesai']->format('Y-m-d'));
+        $this->assertSame([4, 6, 3], [$bulan[1]['minggu_dari'], $bulan[1]['minggu_sampai'], $bulan[1]['total_minggu']]);
+        $this->assertSame('2026-02-05', $bulan[1]['mulai']->format('Y-m-d'));
+    }
+
+    public function test_minggu_bulan_map_minggu_non_irisan_ditolak_meski_berantai(): void
+    {
+        // Setelah mgg 7 pindah ke Feb, mgg 8 (5-11 Mar, murni Maret) memang
+        // menjadi minggu pertama Mar — tapi tanggalnya tidak beririsan dua
+        // bulan sehingga tidak bisa ikut dipindah.
+        $jk = $this->dataKapalKontrak(300);
+        $jk->minggu_bulan_map = [7 => 2, 8 => 2];
+
+        $bulan = $this->service()->getBulanList($jk);
+
+        // Hanya mgg 7 yang pindah: Feb = mgg 3-7, Mar = mgg 8-11
+        $this->assertSame([3, 7, 5], [$bulan[1]['minggu_dari'], $bulan[1]['minggu_sampai'], $bulan[1]['total_minggu']]);
+        $this->assertSame([8, 11, 4], [$bulan[2]['minggu_dari'], $bulan[2]['minggu_sampai'], $bulan[2]['total_minggu']]);
+    }
+
+    public function test_minggu_bulan_map_override_invalid_diabaikan(): void
+    {
+        $jk = $this->dataKapalKontrak(300);
+        $default = $this->service()->getBulanList($jk);
+
+        // w4 = interior Februari (bukan batas) → diabaikan
+        $jk->minggu_bulan_map = [4 => 3];
+        $this->assertEquals($default, $this->service()->getBulanList($jk));
+
+        // w6 → bulan 4 bukan tetangga (Feb = bulan 2) → diabaikan
+        $jk->minggu_bulan_map = [6 => 4];
+        $this->assertEquals($default, $this->service()->getBulanList($jk));
+
+        // w6 → bulan 3 memang tetangga & w6 batas akhir Feb, tapi w6
+        // (19-25 Feb) murni satu bulan → tetap diabaikan
+        $jk->minggu_bulan_map = [6 => 3];
+        $this->assertEquals($default, $this->service()->getBulanList($jk));
+
+        // w42 satu-satunya minggu November — sumber tidak boleh kosong
+        $jk->minggu_bulan_map = [42 => 10];
+        $this->assertEquals($default, $this->service()->getBulanList($jk));
+
+        // Minggu di luar kontrak → diabaikan
+        $jk->minggu_bulan_map = [99 => 2];
+        $this->assertEquals($default, $this->service()->getBulanList($jk));
+    }
+
+    public function test_save_kontrak_menyimpan_minggu_bulan_map(): void
+    {
+        $jk = DataKapal::create(['nama' => 'Kapal A', 'status' => 'active']);
+
+        $this->service()->saveKontrak($jk, '2026-01-15', 300, [7 => 2]);
+        $jk->refresh();
+        $this->assertSame([7 => 2], $jk->minggu_bulan_map);
+
+        $bulan = $this->service()->getBulanList($jk);
+        $this->assertSame(7, $bulan[1]['minggu_sampai']);
+
+        // Null = kembali ke pengelompokan kalender
+        $this->service()->saveKontrak($jk, '2026-01-15', 300, null);
+        $jk->refresh();
+        $this->assertNull($jk->minggu_bulan_map);
+        $this->assertSame(6, $this->service()->getBulanList($jk)[1]['minggu_sampai']);
     }
 
     public function test_form_create_auto_isi_periode_saat_pilih_minggu(): void

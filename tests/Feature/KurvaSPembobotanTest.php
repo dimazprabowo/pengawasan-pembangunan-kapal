@@ -13,6 +13,7 @@ use App\Models\KurvaSRencanaMingguan;
 use App\Models\KurvaSWorkGroup;
 use App\Models\LaporanMingguan;
 use App\Models\User;
+use App\Services\KontrakPeriodeService;
 use App\Services\KurvaSService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -411,6 +412,92 @@ class KurvaSPembobotanTest extends TestCase
             ]])
             ->call('applyContractMonths')
             ->assertSet('workGroups.0.months', fn ($months) => count($months) === 1); // tidak berubah
+    }
+
+    public function test_move_week_memindahkan_minggu_irisan_dan_tersimpan(): void
+    {
+        $this->seed();
+        $admin = User::firstOrFail();
+        $jk = $this->dataKapal();
+
+        // Kontrak 5 Jan +140 hari: Mar = mgg 9-12, Apr = mgg 13-17.
+        // Mgg 13 (30 Mar - 5 Apr) irisan Mar–Apr dipindah ke Maret.
+        Livewire::actingAs($admin)
+            ->test(KurvaSManagement::class)
+            ->call('openModal', $jk->id)
+            ->set('tanggal_mulai_kontrak', '2026-01-05')
+            ->set('durasi_kontrak_hari', 140)
+            ->call('moveWeek', 13, 'prev')
+            ->assertSet('mingguBulanMap.13', 3)
+            ->set('workGroups', [[
+                'id' => null, 'nama' => 'A', 'bobot' => '10.00',
+                'months' => [['bulan_ke' => 1, 'pct_rencana' => '10.00', 'keterangan' => '']],
+            ]])
+            ->call('save')
+            ->assertSet('showModal', false);
+
+        $jk->refresh();
+        $this->assertSame([13 => 3], $jk->minggu_bulan_map);
+
+        // Pemetaan tersimpan berlaku global: Mar = mgg 9-13, Apr = mgg 14-17
+        $bulan = app(KontrakPeriodeService::class)->getBulanList($jk);
+        $this->assertSame([9, 13, 5], [$bulan[2]['minggu_dari'], $bulan[2]['minggu_sampai'], $bulan[2]['total_minggu']]);
+        $this->assertSame([14, 17, 4], [$bulan[3]['minggu_dari'], $bulan[3]['minggu_sampai'], $bulan[3]['total_minggu']]);
+    }
+
+    public function test_move_week_menolak_minggu_non_batas(): void
+    {
+        $this->seed();
+        $admin = User::firstOrFail();
+        $jk = $this->dataKapal();
+
+        Livewire::actingAs($admin)
+            ->test(KurvaSManagement::class)
+            ->call('openModal', $jk->id)
+            ->set('tanggal_mulai_kontrak', '2026-01-05')
+            ->set('durasi_kontrak_hari', 140)
+            // mgg 10 = interior Maret, 'prev' hanya untuk minggu pertama bulan
+            ->call('moveWeek', 10, 'prev')
+            // mgg 12 = minggu terakhir Maret tapi murni satu bulan (23-29 Mar)
+            // → tidak beririsan dua bulan sehingga tidak bisa pindah ke April
+            ->call('moveWeek', 12, 'next')
+            // mgg 13 = minggu pertama April, 'next' hanya untuk minggu terakhir
+            ->call('moveWeek', 13, 'next')
+            // bulan pertama (Jan) tidak punya bulan sebelumnya
+            ->call('moveWeek', 1, 'prev')
+            ->assertSet('mingguBulanMap', []);
+    }
+
+    public function test_move_week_mempertahankan_nilai_mingguan_milik_minggunya(): void
+    {
+        $this->seed();
+        $admin = User::firstOrFail();
+        $jk = $this->dataKapal();
+
+        // Override mingguan bulan 3 (mgg 9-12); setelah mgg 13 pindah ke Mar,
+        // slot mingguan bulan 3 harus mencakup mgg 9-13 dengan nilai lama ikut.
+        Livewire::actingAs($admin)
+            ->test(KurvaSManagement::class)
+            ->call('openModal', $jk->id)
+            ->set('tanggal_mulai_kontrak', '2026-01-05')
+            ->set('durasi_kontrak_hari', 140)
+            ->set('workGroups', [[
+                'id' => null, 'nama' => 'A', 'bobot' => '10.00',
+                'months' => [
+                    ['bulan_ke' => 1, 'pct_rencana' => '2.00', 'keterangan' => ''],
+                    ['bulan_ke' => 2, 'pct_rencana' => '3.00', 'keterangan' => ''],
+                    ['bulan_ke' => 3, 'pct_rencana' => '5.00', 'keterangan' => '', 'weeks' => [
+                        ['minggu_ke' => 9, 'pct_rencana' => '1.000'],
+                        ['minggu_ke' => 10, 'pct_rencana' => '1.500'],
+                        ['minggu_ke' => 11, 'pct_rencana' => '1.500'],
+                        ['minggu_ke' => 12, 'pct_rencana' => '1.000'],
+                    ]],
+                ],
+            ]])
+            ->call('moveWeek', 13, 'prev')
+            ->assertSet('workGroups.0.months.2.weeks', fn ($weeks) => count($weeks) === 5
+                && $weeks[3]['minggu_ke'] === 12 && $weeks[3]['pct_rencana'] === '1.000'
+                && $weeks[4]['minggu_ke'] === 13 && $weeks[4]['pct_rencana'] === '0.000');
     }
 
     public function test_import_menolak_rencana_melebihi_bobot(): void

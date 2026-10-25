@@ -594,6 +594,17 @@
 
                             {{-- Tabel bulan --}}
                             <div x-show="detailTab === 'bulan'" class="max-h-56 overflow-auto custom-scrollbar bg-white/80 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 rounded-lg">
+                                @if(!empty($this->mingguBulanMap))
+                                <div class="flex items-center justify-between gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/30 border-b border-amber-200/70 dark:border-amber-800/50">
+                                    <span class="text-[11px] text-amber-700 dark:text-amber-300">Pemetaan minggu→bulan disesuaikan manual — berlaku untuk semua work group</span>
+                                    <button type="button" wire:click="resetMingguMap"
+                                        wire:loading.attr="disabled" wire:target="resetMingguMap"
+                                        class="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 hover:text-amber-900 dark:text-amber-300 dark:hover:text-amber-100 underline underline-offset-2 disabled:opacity-50">
+                                        <svg wire:loading wire:target="resetMingguMap" class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                        Reset ke otomatis
+                                    </button>
+                                </div>
+                                @endif
                                 <table class="min-w-full text-xs">
                                     <thead class="sticky top-0 bg-emerald-100 dark:bg-emerald-900">
                                         <tr>
@@ -610,8 +621,31 @@
                                             <td class="px-3 py-1 font-medium text-emerald-800 dark:text-emerald-200 whitespace-nowrap">Bulan Ke - {{ $b['bulan_ke'] }}</td>
                                             <td class="px-3 py-1 text-emerald-700 dark:text-emerald-300 whitespace-nowrap">{{ $b['nama'] }}</td>
                                             <td class="px-3 py-1 text-emerald-700 dark:text-emerald-300 whitespace-nowrap">
-                                                Minggu {{ $b['minggu_dari'] }}@if($b['minggu_sampai'] !== $b['minggu_dari']) – {{ $b['minggu_sampai'] }}@endif
-                                                <span class="text-emerald-500/80 dark:text-emerald-400/70">({{ $b['total_minggu'] }} mgg)</span>
+                                                <span class="inline-flex items-center gap-0.5">
+                                                    @if($b['bulan_ke'] > 1 && $b['total_minggu'] > 1 && ($this->mingguIrisan[$b['minggu_dari']] ?? false))
+                                                    <button type="button"
+                                                        wire:click="moveWeek({{ $b['minggu_dari'] }}, 'prev')"
+                                                        wire:loading.attr="disabled" wire:target="moveWeek({{ $b['minggu_dari'] }}, 'prev')"
+                                                        class="p-0.5 -ml-0.5 text-emerald-500/70 hover:text-emerald-700 dark:text-emerald-400/70 dark:hover:text-emerald-200 rounded transition-colors disabled:opacity-30"
+                                                        title="Pindahkan Minggu {{ $b['minggu_dari'] }} ke bulan sebelumnya">
+                                                        <svg wire:loading.class="hidden" wire:target="moveWeek({{ $b['minggu_dari'] }}, 'prev')" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                                                        <svg wire:loading wire:target="moveWeek({{ $b['minggu_dari'] }}, 'prev')" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                                    </button>
+                                                    @endif
+                                                    <span>Minggu {{ $b['minggu_dari'] }}@if($b['minggu_sampai'] !== $b['minggu_dari']) – {{ $b['minggu_sampai'] }}@endif
+                                                        <span class="text-emerald-500/80 dark:text-emerald-400/70">({{ $b['total_minggu'] }} mgg)</span>
+                                                    </span>
+                                                    @if($b['bulan_ke'] < count($this->periodePreview['bulan']) && $b['total_minggu'] > 1 && ($this->mingguIrisan[$b['minggu_sampai']] ?? false))
+                                                    <button type="button"
+                                                        wire:click="moveWeek({{ $b['minggu_sampai'] }}, 'next')"
+                                                        wire:loading.attr="disabled" wire:target="moveWeek({{ $b['minggu_sampai'] }}, 'next')"
+                                                        class="p-0.5 -mr-0.5 text-emerald-500/70 hover:text-emerald-700 dark:text-emerald-400/70 dark:hover:text-emerald-200 rounded transition-colors disabled:opacity-30"
+                                                        title="Pindahkan Minggu {{ $b['minggu_sampai'] }} ke bulan berikutnya">
+                                                        <svg wire:loading.class="hidden" wire:target="moveWeek({{ $b['minggu_sampai'] }}, 'next')" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                                        <svg wire:loading wire:target="moveWeek({{ $b['minggu_sampai'] }}, 'next')" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                                    </button>
+                                                    @endif
+                                                </span>
                                             </td>
                                             <td class="px-3 py-1 text-emerald-700 dark:text-emerald-300 whitespace-nowrap">{{ $b['periode'] }}</td>
                                             <td class="px-3 py-1 text-right text-emerald-700 dark:text-emerald-300 whitespace-nowrap">{{ $b['total_hari'] }}</td>
