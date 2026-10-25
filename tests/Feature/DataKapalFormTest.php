@@ -109,4 +109,59 @@ class DataKapalFormTest extends TestCase
             ->call('save')
             ->assertHasErrors(['nama']);
     }
+
+    public function test_form_menyimpan_spesifikasi_dinamis(): void
+    {
+        $dataKapal = DataKapal::firstOrFail();
+
+        Livewire::actingAs($this->admin())
+            ->test(DataKapalForm::class)
+            ->set('nama', 'KMP Spek Uji')
+            ->call('addSpesifikasi')
+            ->call('addSpesifikasi')
+            ->call('addSpesifikasi')
+            ->set('spesifikasi.0.item', 'Year of Build')
+            ->set('spesifikasi.0.keterangan', '2015')
+            ->set('spesifikasi.1.item', 'Material')
+            ->set('spesifikasi.1.keterangan', 'Steel')
+            // baris ke-3 dibiarkan kosong total -> otomatis dibuang saat save
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertRedirect(route('master-data.data-kapal'));
+
+        $saved = DataKapal::where('nama', 'KMP Spek Uji')->firstOrFail();
+        $this->assertSame(
+            [
+                ['item' => 'Year of Build', 'keterangan' => '2015'],
+                ['item' => 'Material', 'keterangan' => 'Steel'],
+            ],
+            $saved->spesifikasi
+        );
+        $this->assertNotSame($dataKapal->id, $saved->id);
+    }
+
+    public function test_form_spesifikasi_item_duplikat_ditolak(): void
+    {
+        Livewire::actingAs($this->admin())
+            ->test(DataKapalForm::class)
+            ->set('nama', 'KMP Spek Duplikat')
+            ->call('addSpesifikasi')
+            ->call('addSpesifikasi')
+            ->set('spesifikasi.0.item', 'Material')
+            ->set('spesifikasi.0.keterangan', 'Steel')
+            ->set('spesifikasi.1.item', 'Material')
+            ->set('spesifikasi.1.keterangan', 'Aluminium')
+            ->call('save')
+            ->assertHasErrors(['spesifikasi.1.item']);
+    }
+
+    public function test_form_edit_prefill_spesifikasi_tersimpan(): void
+    {
+        $dataKapal = DataKapal::firstOrFail();
+
+        Livewire::actingAs($this->admin())
+            ->test(DataKapalForm::class, ['dataKapal' => $dataKapal])
+            ->assertSet('editMode', true)
+            ->assertSet('spesifikasi.0.item', 'Year of Build');
+    }
 }

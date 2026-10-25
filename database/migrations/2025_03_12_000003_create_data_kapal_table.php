@@ -14,6 +14,8 @@ return new class extends Migration
             $table->foreignId('galangan_id')->nullable()->constrained('galangan')->nullOnDelete();
             $table->string('nama', 255);
             $table->text('deskripsi')->nullable();
+            $table->json('spesifikasi')->nullable()
+                ->comment('Daftar spesifikasi dinamis [{item, keterangan}]');
             $table->date('tanggal_mulai_kontrak')->nullable()
                 ->comment('Tanggal mulai kontrak pembangunan (hari kalender)');
             $table->unsignedSmallInteger('durasi_kontrak_hari')->nullable()

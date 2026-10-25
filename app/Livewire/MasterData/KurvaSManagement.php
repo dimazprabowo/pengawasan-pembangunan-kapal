@@ -66,6 +66,16 @@ class KurvaSManagement extends Component
 
     public ?int $confirmResetMonthIdx = null;
 
+    /** Konfirmasi hapus pembagian mingguan sebuah bulan */
+    public ?int $confirmClearWeeksGroupIdx = null;
+
+    public ?int $confirmClearWeeksMonthIdx = null;
+
+    /** Konfirmasi bagi rata bulanan ke mingguan (menimpa nilai mingguan terisi) */
+    public ?int $confirmBagiRataGroupIdx = null;
+
+    public ?int $confirmBagiRataMonthIdx = null;
+
     /** Konfirmasi terapkan bulan kontrak ke semua work group */
     public bool $confirmApplyMonths = false;
 
@@ -83,6 +93,7 @@ class KurvaSManagement extends Component
         $this->expandedGroupIdx = -1;
         $this->loadData();
         $this->showModal = true;
+        $this->dispatch('kurvas-modal-opened');
     }
 
     public function closeModal(): void
@@ -401,6 +412,27 @@ class KurvaSManagement extends Component
 
     // ─── Weekly Split Actions ───────────────────────────────────────────────
 
+    public function requestBagiRata(int $gi, int $mi): void
+    {
+        $this->confirmBagiRataGroupIdx = $gi;
+        $this->confirmBagiRataMonthIdx = $mi;
+    }
+
+    public function cancelBagiRata(): void
+    {
+        $this->confirmBagiRataGroupIdx = null;
+        $this->confirmBagiRataMonthIdx = null;
+    }
+
+    public function confirmBagiRata(): void
+    {
+        if ($this->confirmBagiRataGroupIdx !== null && $this->confirmBagiRataMonthIdx !== null) {
+            $this->bagiRata($this->confirmBagiRataGroupIdx, $this->confirmBagiRataMonthIdx);
+        }
+        $this->confirmBagiRataGroupIdx = null;
+        $this->confirmBagiRataMonthIdx = null;
+    }
+
     /**
      * Bagi rata pct bulan ke minggu-minggunya (truncate 3 desimal, sisa ke
      * minggu terakhir) — mengisi override mingguan bulan tsb di form.
@@ -440,6 +472,27 @@ class KurvaSManagement extends Component
         }
 
         $this->expandedWeeksKey = $key;
+    }
+
+    public function requestClearWeeks(int $gi, int $mi): void
+    {
+        $this->confirmClearWeeksGroupIdx = $gi;
+        $this->confirmClearWeeksMonthIdx = $mi;
+    }
+
+    public function cancelClearWeeks(): void
+    {
+        $this->confirmClearWeeksGroupIdx = null;
+        $this->confirmClearWeeksMonthIdx = null;
+    }
+
+    public function confirmClearWeeks(): void
+    {
+        if ($this->confirmClearWeeksGroupIdx !== null && $this->confirmClearWeeksMonthIdx !== null) {
+            $this->clearWeeks($this->confirmClearWeeksGroupIdx, $this->confirmClearWeeksMonthIdx);
+        }
+        $this->confirmClearWeeksGroupIdx = null;
+        $this->confirmClearWeeksMonthIdx = null;
     }
 
     /**
@@ -651,14 +704,14 @@ class KurvaSManagement extends Component
         // Rencana bulanan memerlukan kontrak — periode bulan diturunkan dari kontrak
         $hasMonths = collect($this->workGroups)->contains(fn ($wg) => count($wg['months'] ?? []) > 0);
         if ($hasMonths && $this->totalBulanKontrak() <= 0) {
-            $this->notifyError('Isi tanggal mulai & durasi kontrak terlebih dahulu — periode bulan rencana diturunkan dari kontrak.');
+            $this->notifyFailed('Isi tanggal mulai & durasi kontrak terlebih dahulu — periode bulan rencana diturunkan dari kontrak.');
 
             return;
         }
 
         $total = $this->totalBobot;
-        if ($total > 100.01) {
-            $this->notifyError('Total bobot semua work group tidak boleh melebihi 100%. Saat ini: '.number_format($total, 2).'%');
+        if (round($total, 2) > 100) {
+            $this->notifyFailed('Total bobot semua work group tidak boleh melebihi 100%. Saat ini: '.number_format($total, 2).'%');
 
             return;
         }
@@ -677,12 +730,13 @@ class KurvaSManagement extends Component
             }, 0.0);
             $nama = trim($wg['nama'] ?? '') ?: 'Tanpa Nama';
 
-            if ($sum > $bobot + 0.01) {
-                $this->notifyError('Total rencana work group "'.$nama.'" ('.number_format($sum, 2).'%) melebihi bobotnya ('.number_format($bobot, 2).'%).');
+            // Bandingkan pada presisi tampilan (2 desimal) — selaras indikator Σ di UI
+            if (round($sum, 2) > round($bobot, 2)) {
+                $this->notifyFailed('Total rencana work group "'.$nama.'" ('.number_format($sum, 2).'%) melebihi bobotnya ('.number_format($bobot, 2).'%).');
 
                 return;
             }
-            if ($sum < $bobot - 0.01) {
+            if (round($sum, 2) < round($bobot, 2)) {
                 $kurang[] = '"'.$nama.'" '.number_format($sum, 2).'/'.number_format($bobot, 2).'%';
             }
         }
@@ -696,7 +750,7 @@ class KurvaSManagement extends Component
             $service->saveWorkGroups($dataKapal, $this->workGroups);
 
             $warnings = [];
-            if (abs($total - 100.0) > 0.01) {
+            if (round($total, 2) != 100.0) {
                 $warnings[] = 'Total bobot: '.number_format($total, 2).'% — belum 100%';
             }
             if (! empty($kurang)) {
@@ -784,7 +838,7 @@ class KurvaSManagement extends Component
                 foreach ($result['errors'] as $error) {
                     $errorMessage .= "\n• ".$error;
                 }
-                $this->notifyError($errorMessage);
+                $this->notifyFailed($errorMessage);
             }
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk import template Kurva S.');

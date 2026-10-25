@@ -31,7 +31,7 @@
              class="bg-white dark:bg-gray-800 rounded-xl shadow-xl ring-1 ring-black/5 dark:ring-white/10 overflow-hidden border-l-4 pointer-events-auto transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-2xl select-none"
              :class="{
                  'border-green-500': item.type === 'success',
-                 'border-red-500': item.type === 'error',
+                 'border-red-500': item.type === 'error' || item.type === 'failed',
                  'border-yellow-500': item.type === 'warning',
                  'border-blue-500': item.type === 'info'
              }">
@@ -44,7 +44,7 @@
                         <svg x-show="item.type === 'success'" class="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
-                        <svg x-show="item.type === 'error'" class="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <svg x-show="item.type === 'error' || item.type === 'failed'" class="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
                         <svg x-show="item.type === 'warning'" class="h-5 w-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -73,7 +73,7 @@
                      :style="`width: ${progress}%`"
                      :class="{
                          'bg-green-500': item.type === 'success',
-                         'bg-red-500': item.type === 'error',
+                         'bg-red-500': item.type === 'error' || item.type === 'failed',
                          'bg-yellow-500': item.type === 'warning',
                          'bg-blue-500': item.type === 'info'
                      }"></div>

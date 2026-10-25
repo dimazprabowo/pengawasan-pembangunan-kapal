@@ -16,6 +16,15 @@ trait HasNotification
         $this->dispatch('notify', type: 'error', message: $message);
     }
 
+    /**
+     * Penolakan input oleh business rule (bukan bug sistem) — tampil sebagai
+     * toast "Gagal", bukan "Error", agar tidak terkesan ada kesalahan kode.
+     */
+    protected function notifyFailed(string $message): void
+    {
+        $this->dispatch('notify', type: 'failed', message: $message);
+    }
+
     protected function notifyWarning(string $message): void
     {
         $this->dispatch('notify', type: 'warning', message: $message);
@@ -37,14 +46,14 @@ trait HasNotification
             $errors = $exception->validator->errors();
             if ($errors->isNotEmpty()) {
                 $firstError = $errors->first();
-                $this->dispatch('notify', type: 'failed', message: 'Validasi gagal: ' . $firstError);
+                $this->dispatch('notify', type: 'failed', message: 'Validasi gagal: '.$firstError);
             }
         } else {
             // Fallback to error bag (for backward compatibility)
             $errors = $this->getErrorBag();
             if ($errors->isNotEmpty()) {
                 $firstError = $errors->first();
-                $this->dispatch('notify', type: 'failed', message: 'Validasi gagal: ' . $firstError);
+                $this->dispatch('notify', type: 'failed', message: 'Validasi gagal: '.$firstError);
             }
         }
     }

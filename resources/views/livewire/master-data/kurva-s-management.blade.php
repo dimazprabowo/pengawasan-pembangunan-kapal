@@ -16,8 +16,15 @@
                      for (let i = 0; i <= wi; i++) sum += parseFloat(pcts[i]) || 0;
                      return sum;
                  },
-                 sumPct(gi) {
-                     return (this._pcts[gi] || []).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+                 sumRencana(gi) {
+                     // Mingguan menang (selaras validasi server): bulan dengan override
+                     // mingguan dihitung dari total minggunya, sisanya pakai nilai bulan.
+                     const months = this._pcts[gi] || [];
+                     const weeks = this._weeks[gi] || [];
+                     return months.reduce((s, v, mi) => {
+                         const w = weeks[mi] || [];
+                         return s + (w.length ? w.reduce((a, b) => a + (parseFloat(b) || 0), 0) : (parseFloat(v) || 0));
+                     }, 0);
                  },
                  monthPct(gi, mi) {
                      return parseFloat((this._pcts[gi] || [])[mi]) || 0;
@@ -251,6 +258,97 @@
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                         </svg>
                         Ya, Reset
+                    </button>
+                </div>
+            </div>
+        </div>
+        @endif
+
+        {{-- ── Confirm: Hapus Pembagian Mingguan ────────────────────────── --}}
+        @if($confirmClearWeeksGroupIdx !== null && $confirmClearWeeksMonthIdx !== null)
+        @php /** @var int $cwGrp */ $cwGrp = (int) $confirmClearWeeksGroupIdx; /** @var int $cwIdx */ $cwIdx = (int) $confirmClearWeeksMonthIdx; @endphp
+        <div class="fixed inset-0 z-[80] flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/60" wire:click="cancelClearWeeks"></div>
+            <div class="relative z-10 w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-6">
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30">
+                        <svg class="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="text-base font-semibold text-gray-900 dark:text-white">Hapus Pembagian Mingguan?</h4>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            Pembagian mingguan bulan ke-{{ $workGroups[$cwGrp]['months'][$cwIdx]['bulan_ke'] ?? '' }} pada work group <strong>{{ ($workGroups[$cwGrp]['nama'] ?? '') ?: '(tanpa nama)' }}</strong> akan dihapus. Bulan ini kembali memakai bagi rata otomatis dari nilai rencana bulanan.
+                        </p>
+                    </div>
+                </div>
+                <div class="mt-5 flex justify-end gap-2">
+                    <button type="button" wire:click="cancelClearWeeks"
+                        wire:loading.attr="disabled" wire:target="cancelClearWeeks"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                        <svg wire:loading wire:target="cancelClearWeeks" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                        </svg>
+                        <span wire:loading.remove wire:target="cancelClearWeeks">Batal</span>
+                        <span wire:loading wire:target="cancelClearWeeks">Menutup...</span>
+                    </button>
+                    <button type="button" wire:click="confirmClearWeeks"
+                        wire:loading.attr="disabled" wire:target="confirmClearWeeks"
+                        class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-75 flex items-center gap-1.5">
+                        <svg wire:loading wire:target="confirmClearWeeks" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                        </svg>
+                        Ya, Hapus
+                    </button>
+                </div>
+            </div>
+        </div>
+        @endif
+
+        {{-- ── Confirm: Bagi Rata ke Mingguan ───────────────────────────── --}}
+        @if($confirmBagiRataGroupIdx !== null && $confirmBagiRataMonthIdx !== null)
+        @php /** @var int $brGrp */ $brGrp = (int) $confirmBagiRataGroupIdx; /** @var int $brIdx */ $brIdx = (int) $confirmBagiRataMonthIdx; @endphp
+        <div class="fixed inset-0 z-[80] flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/60" wire:click="cancelBagiRata"></div>
+            <div class="relative z-10 w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-6">
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30">
+                        <svg class="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z"/>
+                        </svg>
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="text-base font-semibold text-gray-900 dark:text-white">Bagi Rata ke Mingguan?</h4>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            Rencana bulan ke-{{ $workGroups[$brGrp]['months'][$brIdx]['bulan_ke'] ?? '' }} pada work group <strong>{{ ($workGroups[$brGrp]['nama'] ?? '') ?: '(tanpa nama)' }}</strong> akan dibagi rata ke seluruh minggunya (3 desimal, sisa ke minggu terakhir).
+                            @if(!empty($workGroups[$brGrp]['months'][$brIdx]['weeks']))
+                                <span class="block mt-1 text-amber-600 dark:text-amber-400">Nilai mingguan yang sudah diisi manual akan ditimpa.</span>
+                            @endif
+                        </p>
+                    </div>
+                </div>
+                <div class="mt-5 flex justify-end gap-2">
+                    <button type="button" wire:click="cancelBagiRata"
+                        wire:loading.attr="disabled" wire:target="cancelBagiRata"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                        <svg wire:loading wire:target="cancelBagiRata" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                        </svg>
+                        <span wire:loading.remove wire:target="cancelBagiRata">Batal</span>
+                        <span wire:loading wire:target="cancelBagiRata">Menutup...</span>
+                    </button>
+                    <button type="button" wire:click="confirmBagiRata"
+                        wire:loading.attr="disabled" wire:target="confirmBagiRata"
+                        class="px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors disabled:opacity-75 flex items-center gap-1.5">
+                        <svg wire:loading wire:target="confirmBagiRata" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                        </svg>
+                        Ya, Bagi Rata
                     </button>
                 </div>
             </div>
@@ -500,7 +598,7 @@
                                     <thead class="sticky top-0 bg-emerald-100 dark:bg-emerald-900">
                                         <tr>
                                             <th class="px-3 py-1.5 text-left font-semibold text-emerald-800 dark:text-emerald-200 w-24 whitespace-nowrap">Bulan</th>
-                                            <th class="px-3 py-1.5 text-left font-semibold text-emerald-800 dark:text-emerald-200 whitespace-nowrap">Nama</th>
+                                            <th class="px-3 py-1.5 text-left font-semibold text-emerald-800 dark:text-emerald-200 whitespace-nowrap">Periode</th>
                                             <th class="px-3 py-1.5 text-left font-semibold text-emerald-800 dark:text-emerald-200 w-32 whitespace-nowrap">Cakupan Minggu</th>
                                             <th class="px-3 py-1.5 text-left font-semibold text-emerald-800 dark:text-emerald-200 whitespace-nowrap">Periode Tanggal</th>
                                             <th class="px-3 py-1.5 text-right font-semibold text-emerald-800 dark:text-emerald-200 w-16 whitespace-nowrap">Hari</th>
@@ -510,7 +608,7 @@
                                         @foreach(($this->periodePreview['bulan'] ?? []) as $b)
                                         <tr wire:key="pv-bulan-{{ $b['bulan_ke'] }}" class="hover:bg-emerald-50/70 dark:hover:bg-emerald-900/30">
                                             <td class="px-3 py-1 font-medium text-emerald-800 dark:text-emerald-200 whitespace-nowrap">Bulan Ke - {{ $b['bulan_ke'] }}</td>
-                                            <td class="px-3 py-1 text-emerald-700 dark:text-emerald-300 whitespace-nowrap">Periode {{ $b['nama'] }}</td>
+                                            <td class="px-3 py-1 text-emerald-700 dark:text-emerald-300 whitespace-nowrap">{{ $b['nama'] }}</td>
                                             <td class="px-3 py-1 text-emerald-700 dark:text-emerald-300 whitespace-nowrap">
                                                 Minggu {{ $b['minggu_dari'] }}@if($b['minggu_sampai'] !== $b['minggu_dari']) – {{ $b['minggu_sampai'] }}@endif
                                                 <span class="text-emerald-500/80 dark:text-emerald-400/70">({{ $b['total_minggu'] }} mgg)</span>
@@ -537,31 +635,31 @@
                         <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Total Bobot Work Groups</span>
                         <span class="text-sm font-bold"
                             :class="{
-                                'text-green-600 dark:text-green-400': Math.abs(totalBobot - 100) < 0.01,
-                                'text-red-600 dark:text-red-400': totalBobot > 100.01,
-                                'text-yellow-600 dark:text-yellow-400': totalBobot <= 99.99
+                                'text-green-600 dark:text-green-400': Math.round(totalBobot * 100) === 10000,
+                                'text-red-600 dark:text-red-400': Math.round(totalBobot * 100) > 10000,
+                                'text-yellow-600 dark:text-yellow-400': Math.round(totalBobot * 100) < 10000
                             }">
                             <span x-text="totalBobot.toFixed(2) + '%'"></span>
-                            <span x-show="Math.abs(totalBobot - 100) < 0.01"> ✓</span>
-                            <span x-show="totalBobot > 100.01"> ↑</span>
-                            <span x-show="totalBobot <= 99.99 && totalBobot >= 0"> ↓</span>
+                            <span x-show="Math.round(totalBobot * 100) === 10000"> ✓</span>
+                            <span x-show="Math.round(totalBobot * 100) > 10000"> ↑</span>
+                            <span x-show="Math.round(totalBobot * 100) < 10000 && totalBobot >= 0"> ↓</span>
                         </span>
                     </div>
                     <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
                         <div class="h-2 rounded-full transition-all"
                             :class="{
-                                'bg-green-500': Math.abs(totalBobot - 100) < 0.01,
-                                'bg-red-500': totalBobot > 100.01,
-                                'bg-yellow-400': totalBobot <= 99.99
+                                'bg-green-500': Math.round(totalBobot * 100) === 10000,
+                                'bg-red-500': Math.round(totalBobot * 100) > 10000,
+                                'bg-yellow-400': Math.round(totalBobot * 100) < 10000
                             }"
                             :style="'width: ' + Math.min(100, totalBobot) + '%'"></div>
                     </div>
-                    <p class="text-xs mt-1" x-show="Math.abs(totalBobot - 100) >= 0.01"
+                    <p class="text-xs mt-1" x-show="Math.round(totalBobot * 100) !== 10000"
                         :class="{
-                            'text-red-500': totalBobot > 100.01,
-                            'text-yellow-600 dark:text-yellow-400': totalBobot <= 99.99
+                            'text-red-500': Math.round(totalBobot * 100) > 10000,
+                            'text-yellow-600 dark:text-yellow-400': Math.round(totalBobot * 100) < 10000
                         }"
-                        x-text="totalBobot > 100.01 ? 'Total bobot melebihi 100%!' : 'Total bobot belum mencapai 100%'">
+                        x-text="Math.round(totalBobot * 100) > 10000 ? 'Total bobot melebihi 100%!' : 'Total bobot belum mencapai 100%'">
                     </p>
                 </div>
 
@@ -610,19 +708,19 @@
                                     </div>
                                 </div>
 
-                                {{-- Σ rencana vs bobot — indikator ketercapaian bobot kategori --}}
+                                {{-- Σ rencana vs bobot — indikator ketercapaian bobot kategori (bandingkan pada presisi tampilan 2 desimal) --}}
                                 <span class="flex-shrink-0 inline-flex items-center gap-1 text-xs tabular-nums"
-                                    :class="sumPct({{ $gi }}) > (_bobots[{{ $gi }}] || 0) + 0.01
+                                    :class="Math.round(sumRencana({{ $gi }}) * 100) > Math.round((_bobots[{{ $gi }}] || 0) * 100)
                                         ? 'text-red-600 dark:text-red-400 font-semibold'
-                                        : (Math.abs(sumPct({{ $gi }}) - (_bobots[{{ $gi }}] || 0)) <= 0.01
+                                        : (Math.round(sumRencana({{ $gi }}) * 100) === Math.round((_bobots[{{ $gi }}] || 0) * 100)
                                             ? 'text-green-600 dark:text-green-400'
                                             : 'text-yellow-600 dark:text-yellow-400')"
-                                    :title="'Total rencana terdistribusi: ' + sumPct({{ $gi }}).toFixed(2) + '% dari bobot ' + (_bobots[{{ $gi }}] || 0).toFixed(2) + '%'">
+                                    :title="'Total rencana terdistribusi: ' + sumRencana({{ $gi }}).toFixed(2) + '% dari bobot ' + (_bobots[{{ $gi }}] || 0).toFixed(2) + '%'">
                                     <svg x-show="syncing[{{ $gi }}]" x-cloak class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
                                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                                     </svg>
-                                    <span x-show="!syncing[{{ $gi }}]" x-text="'Σ ' + sumPct({{ $gi }}).toFixed(2) + '%'"></span>
+                                    <span x-show="!syncing[{{ $gi }}]" x-text="'Σ ' + sumRencana({{ $gi }}).toFixed(2) + '%'"></span>
                                 </span>
 
                                 <button type="button" wire:click="toggleGroup({{ $gi }})"
@@ -699,14 +797,14 @@
                                                                 <span class="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>
                                                             </div>
                                                             <button type="button"
-                                                                wire:click="bagiRata({{ $gi }}, {{ $mi }})"
-                                                                wire:loading.attr="disabled" wire:target="bagiRata({{ $gi }}, {{ $mi }})"
+                                                                wire:click="requestBagiRata({{ $gi }}, {{ $mi }})"
+                                                                wire:loading.attr="disabled" wire:target="requestBagiRata({{ $gi }}, {{ $mi }})"
                                                                 class="flex-shrink-0 p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded transition-colors disabled:opacity-50"
                                                                 title="Bagi rata rencana bulan ini ke minggu-minggunya (3 desimal, sisa ke minggu terakhir)">
-                                                                <svg wire:loading.class="hidden" wire:target="bagiRata({{ $gi }}, {{ $mi }})" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <svg wire:loading.class="hidden" wire:target="requestBagiRata({{ $gi }}, {{ $mi }})" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/>
                                                                 </svg>
-                                                                <svg wire:loading wire:target="bagiRata({{ $gi }}, {{ $mi }})" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                                                <svg wire:loading wire:target="requestBagiRata({{ $gi }}, {{ $mi }})" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
                                                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                                                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                                                                 </svg>
@@ -732,12 +830,12 @@
                                                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                                                                 </svg>
                                                             </button>
-                                                            {{-- Σ mingguan vs bulanan — merah bila melebihi nilai bulanan --}}
+                                                            {{-- Σ mingguan vs bulanan — merah bila melebihi nilai bulanan (bandingkan pada presisi tampilan 3 desimal) --}}
                                                             <span x-show="weekCount({{ $gi }}, {{ $mi }}) > 0" x-cloak
                                                                 class="text-xs tabular-nums"
-                                                                :class="weekSum({{ $gi }}, {{ $mi }}) > monthPct({{ $gi }}, {{ $mi }}) + 0.0005
+                                                                :class="Math.round(weekSum({{ $gi }}, {{ $mi }}) * 1000) > Math.round(monthPct({{ $gi }}, {{ $mi }}) * 1000)
                                                                     ? 'text-red-600 dark:text-red-400 font-semibold'
-                                                                    : (Math.abs(weekSum({{ $gi }}, {{ $mi }}) - monthPct({{ $gi }}, {{ $mi }})) <= 0.0005
+                                                                    : (Math.round(weekSum({{ $gi }}, {{ $mi }}) * 1000) === Math.round(monthPct({{ $gi }}, {{ $mi }}) * 1000)
                                                                         ? 'text-green-600 dark:text-green-400'
                                                                         : 'text-yellow-600 dark:text-yellow-400')"
                                                                 :title="'Σ mingguan ' + weekSum({{ $gi }}, {{ $mi }}).toFixed(3) + '% vs bulanan ' + monthPct({{ $gi }}, {{ $mi }}).toFixed(2) + '% — merah bila melebihi'"
@@ -793,14 +891,14 @@
                                                                 <span class="block sm:inline font-normal text-blue-500/80 dark:text-blue-400/70">nilai mingguan menimpa bagi rata otomatis · maks 3 desimal</span>
                                                             </p>
                                                             <button type="button"
-                                                                wire:click="clearWeeks({{ $gi }}, {{ $mi }})"
-                                                                wire:loading.attr="disabled" wire:target="clearWeeks({{ $gi }}, {{ $mi }})"
+                                                                wire:click="requestClearWeeks({{ $gi }}, {{ $mi }})"
+                                                                wire:loading.attr="disabled" wire:target="requestClearWeeks({{ $gi }}, {{ $mi }})"
                                                                 class="self-start sm:self-auto flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors disabled:opacity-50"
                                                                 title="Hapus pembagian mingguan — bulan ini kembali ke bagi rata otomatis">
-                                                                <svg wire:loading.class="hidden" wire:target="clearWeeks({{ $gi }}, {{ $mi }})" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <svg wire:loading.class="hidden" wire:target="requestClearWeeks({{ $gi }}, {{ $mi }})" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
                                                                 </svg>
-                                                                <svg wire:loading wire:target="clearWeeks({{ $gi }}, {{ $mi }})" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                                                                <svg wire:loading wire:target="requestClearWeeks({{ $gi }}, {{ $mi }})" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
                                                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                                                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                                                                 </svg>

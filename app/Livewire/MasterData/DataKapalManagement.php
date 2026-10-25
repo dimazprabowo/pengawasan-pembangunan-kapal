@@ -329,13 +329,6 @@ class DataKapalManagement extends Component
         }
     }
 
-    public function openKurvaSModal(int $id): void
-    {
-        $dataKapal = DataKapal::findOrFail($id);
-        $this->authorize('managekurvaSRencana', $dataKapal);
-        $this->dispatch('open-kurvas-modal', dataKapalId: $id);
-    }
-
     public function exportKurvaSTemplate($id, bool $withData, DataKapalService $service)
     {
         try {

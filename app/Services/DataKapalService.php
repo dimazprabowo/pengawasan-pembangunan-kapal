@@ -51,12 +51,38 @@ class DataKapalService
 
     public function create(array $data): DataKapal
     {
+        $data['spesifikasi'] = $this->normalizeSpesifikasi($data['spesifikasi'] ?? null);
+
         return DataKapal::create($data);
     }
 
     public function update(DataKapal $dataKapal, array $data): bool
     {
+        $data['spesifikasi'] = $this->normalizeSpesifikasi($data['spesifikasi'] ?? null);
+
         return $dataKapal->update($data);
+    }
+
+    /**
+     * Normalisasi input spesifikasi dinamis:
+     * buang baris kosong, trim nilai, hapus key internal (row_key), reindex.
+     */
+    private function normalizeSpesifikasi(?array $rows): ?array
+    {
+        if (empty($rows)) {
+            return null;
+        }
+
+        $normalized = collect($rows)
+            ->map(fn ($row) => [
+                'item' => trim((string) ($row['item'] ?? '')),
+                'keterangan' => trim((string) ($row['keterangan'] ?? '')),
+            ])
+            ->filter(fn ($row) => $row['item'] !== '' || $row['keterangan'] !== '')
+            ->values()
+            ->all();
+
+        return $normalized === [] ? null : $normalized;
     }
 
     public function delete(DataKapal $dataKapal): bool

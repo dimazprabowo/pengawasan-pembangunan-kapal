@@ -39,6 +39,7 @@ document.addEventListener('alpine:init', () => {
             add(type, message, title) {
                 const id = this.nextId++;
                 const defaultTitle = type === 'success' ? 'Berhasil'
+                    : type === 'failed' ? 'Gagal'
                     : type === 'error' ? 'Error'
                     : type === 'warning' ? 'Peringatan'
                     : 'Informasi';

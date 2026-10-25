@@ -203,6 +203,34 @@ class KurvaSPembobotanTest extends TestCase
         $this->assertSame(0, KurvaSWorkGroup::where('data_kapal_id', $jk->id)->count());
     }
 
+    public function test_management_save_ditolak_bila_rencana_melebihi_bobot_sedikit(): void
+    {
+        $this->seed();
+        $admin = User::firstOrFail();
+        $jk = $this->dataKapal();
+
+        // Regresi: kelebihan 0.01 (satu langkah presisi tampilan) dulu lolos
+        // toleransi +0.01 — padahal indikator Σ menampilkan "10.01% > 10.00%".
+        Livewire::actingAs($admin)
+            ->test(KurvaSManagement::class)
+            ->call('openModal', $jk->id)
+            ->set('tanggal_mulai_kontrak', '2026-01-05')
+            ->set('durasi_kontrak_hari', 140)
+            ->set('workGroups', [[
+                'id' => null,
+                'nama' => 'Engineering',
+                'bobot' => '10.00',
+                'months' => [
+                    ['bulan_ke' => 1, 'pct_rencana' => '6.00', 'keterangan' => ''],
+                    ['bulan_ke' => 2, 'pct_rencana' => '4.01', 'keterangan' => ''],
+                ],
+            ]])
+            ->call('save')
+            ->assertSet('showModal', true);
+
+        $this->assertSame(0, KurvaSWorkGroup::where('data_kapal_id', $jk->id)->count());
+    }
+
     public function test_management_save_sukses_bila_rencana_sesuai_bobot(): void
     {
         $this->seed();

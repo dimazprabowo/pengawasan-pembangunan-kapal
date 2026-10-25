@@ -21,6 +21,7 @@ class DataKapal extends Model
         'galangan_id',
         'nama',
         'deskripsi',
+        'spesifikasi',
         'tanggal_mulai_kontrak',
         'durasi_kontrak_hari',
         'template_path_harian',
@@ -31,6 +32,7 @@ class DataKapal extends Model
 
     protected $casts = [
         'status' => DataKapalStatus::class,
+        'spesifikasi' => 'array',
         'tanggal_mulai_kontrak' => 'date',
         'durasi_kontrak_hari' => 'integer',
         'created_at' => 'datetime',

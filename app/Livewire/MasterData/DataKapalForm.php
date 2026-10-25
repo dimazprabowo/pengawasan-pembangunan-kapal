@@ -9,6 +9,8 @@ use App\Models\DataKapal;
 use App\Models\Galangan;
 use App\Services\DataKapalService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -29,10 +31,20 @@ class DataKapalForm extends Component
 
     public $deskripsi;
 
+    public array $spesifikasi = [];
+
+    public bool $showDeleteSpesifikasiModal = false;
+
+    public ?int $deletingSpesifikasiIndex = null;
+
     public $status = 'active';
+
+    // Preferensi autosave draft per user (persisten via cache)
+    public bool $autoSave = true;
 
     public function mount(?DataKapal $dataKapal = null): void
     {
+        $this->autoSave = Cache::get('dk_draft_autosave:'.auth()->id(), true);
         if ($dataKapal && $dataKapal->exists) {
             $this->authorize('update', $dataKapal);
 
@@ -42,6 +54,12 @@ class DataKapalForm extends Component
             $this->galangan_id = $dataKapal->galangan_id;
             $this->nama = $dataKapal->nama;
             $this->deskripsi = $dataKapal->deskripsi;
+            $this->spesifikasi = collect($dataKapal->spesifikasi ?? [])
+                ->map(fn ($row) => [
+                    'row_key' => (string) Str::uuid(),
+                    'item' => $row['item'] ?? '',
+                    'keterangan' => $row['keterangan'] ?? '',
+                ])->all();
             $this->status = $dataKapal->status->value;
         } else {
             $this->authorize('create', DataKapal::class);
@@ -55,6 +73,9 @@ class DataKapalForm extends Component
             'galangan_id' => 'nullable|exists:galangan,id',
             'nama' => 'required|string|max:255',
             'deskripsi' => 'nullable|string',
+            'spesifikasi' => 'array',
+            'spesifikasi.*.item' => 'required|string|max:100|distinct',
+            'spesifikasi.*.keterangan' => 'required|string|max:255',
             'status' => ['required', 'string', 'in:'.implode(',', DataKapalStatus::values())],
         ];
     }
@@ -66,12 +87,54 @@ class DataKapalForm extends Component
             'galangan_id' => 'galangan',
             'nama' => 'nama kapal',
             'deskripsi' => 'deskripsi',
+            'spesifikasi.*.item' => 'item spesifikasi',
+            'spesifikasi.*.keterangan' => 'keterangan spesifikasi',
             'status' => 'status',
         ];
     }
 
+    public function addSpesifikasi(): void
+    {
+        $this->spesifikasi[] = [
+            'row_key' => (string) Str::uuid(),
+            'item' => '',
+            'keterangan' => '',
+        ];
+    }
+
+    public function confirmRemoveSpesifikasi(int $index): void
+    {
+        $this->deletingSpesifikasiIndex = $index;
+        $this->showDeleteSpesifikasiModal = true;
+    }
+
+    public function removeSpesifikasiConfirmed(): void
+    {
+        if ($this->deletingSpesifikasiIndex !== null) {
+            $this->removeSpesifikasi($this->deletingSpesifikasiIndex);
+        }
+        $this->showDeleteSpesifikasiModal = false;
+        $this->deletingSpesifikasiIndex = null;
+        $this->notifySuccess('Item spesifikasi berhasil dihapus');
+    }
+
+    public function removeSpesifikasi(int $index): void
+    {
+        if (isset($this->spesifikasi[$index])) {
+            unset($this->spesifikasi[$index]);
+            $this->spesifikasi = array_values($this->spesifikasi);
+        }
+    }
+
     public function save(DataKapalService $service)
     {
+        // Buang baris spesifikasi yang masih kosong total sebelum validasi
+        $this->spesifikasi = collect($this->spesifikasi)
+            ->filter(fn ($row) => trim((string) ($row['item'] ?? '')) !== ''
+                || trim((string) ($row['keterangan'] ?? '')) !== '')
+            ->values()
+            ->all();
+
         try {
             $this->validate();
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -85,6 +148,7 @@ class DataKapalForm extends Component
                 'galangan_id' => $this->galangan_id ?: null,
                 'nama' => $this->nama,
                 'deskripsi' => $this->deskripsi,
+                'spesifikasi' => $this->spesifikasi,
                 'status' => $this->status,
             ];
 
@@ -109,8 +173,17 @@ class DataKapalForm extends Component
         }
     }
 
+    public function toggleAutoSave(): void
+    {
+        $this->autoSave = ! $this->autoSave;
+        Cache::forever('dk_draft_autosave:'.auth()->id(), $this->autoSave);
+    }
+
     public function cancel()
     {
+        // Buang draft lokal sebelum navigate kembali ke index
+        $this->dispatch('dk-clear-draft');
+
         return $this->redirect(route('master-data.data-kapal'), navigate: true);
     }
 
