@@ -2,7 +2,7 @@
 
 namespace App\Exports;
 
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\KurvaSRencana;
 use App\Services\KontrakPeriodeService;
 use Maatwebsite\Excel\Concerns\FromArray;
@@ -18,32 +18,32 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class KurvaSRencanaSheet implements FromArray, WithColumnWidths, WithHeadings, WithStyles, WithTitle
 {
-    protected JenisKapal $jenisKapal;
+    protected DataKapal $dataKapal;
 
     protected bool $withData;
 
     protected int $months;
 
-    public function __construct(JenisKapal $jenisKapal, bool $withData = true, ?int $months = null)
+    public function __construct(DataKapal $dataKapal, bool $withData = true, ?int $months = null)
     {
-        $this->jenisKapal = $jenisKapal;
+        $this->dataKapal = $dataKapal;
         $this->withData = $withData;
-        $this->months = $months ?? static::resolveMonths($jenisKapal);
+        $this->months = $months ?? static::resolveMonths($dataKapal);
     }
 
     /**
      * Jumlah kolom bulan pada file: ikut total bulan kontrak bila ada,
      * fallback ke bulan terbesar di data, default 24.
      */
-    public static function resolveMonths(JenisKapal $jenisKapal): int
+    public static function resolveMonths(DataKapal $dataKapal): int
     {
-        $kontrak = $jenisKapal->hasKontrak()
-            ? app(KontrakPeriodeService::class)->getTotalBulan($jenisKapal)
+        $kontrak = $dataKapal->hasKontrak()
+            ? app(KontrakPeriodeService::class)->getTotalBulan($dataKapal)
             : 0;
 
         $dbMax = (int) (KurvaSRencana::whereHas(
             'workGroup',
-            fn ($q) => $q->where('jenis_kapal_id', $jenisKapal->id)
+            fn ($q) => $q->where('data_kapal_id', $dataKapal->id)
         )->max('bulan_ke') ?? 0);
 
         $months = max($kontrak, $dbMax);
@@ -59,7 +59,7 @@ class KurvaSRencanaSheet implements FromArray, WithColumnWidths, WithHeadings, W
         }
 
         // Jika minta dengan data, ambil dari database
-        $workGroups = $this->jenisKapal->kurvaSWorkGroups()
+        $workGroups = $this->dataKapal->kurvaSWorkGroups()
             ->with('kurvaSRencana')
             ->orderBy('sort_order')
             ->get();

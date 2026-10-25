@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
 use Illuminate\Database\Eloquent\Collection;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class RolePermissionService
 {
@@ -85,16 +85,16 @@ class RolePermissionService
                 ['name' => 'companies_export_excel', 'label' => 'Export Excel Perusahaan'],
                 ['name' => 'companies_export_pdf',   'label' => 'Export PDF Perusahaan'],
             ],
-            'Jenis Kapal' => [
-                ['name' => 'jenis_kapal_view',              'label' => 'Lihat Jenis Kapal'],
-                ['name' => 'jenis_kapal_create',            'label' => 'Tambah Jenis Kapal'],
-                ['name' => 'jenis_kapal_update',            'label' => 'Edit Jenis Kapal'],
-                ['name' => 'jenis_kapal_delete',            'label' => 'Hapus Jenis Kapal'],
-                ['name' => 'jenis_kapal_upload_template',   'label' => 'Upload Template Laporan'],
-                ['name' => 'jenis_kapal_download_template', 'label' => 'Download Template Harian'],
-                ['name' => 'jenis_kapal_manage_kurva_s', 'label' => 'Manage Kurva S'],
-                ['name' => 'jenis_kapal_export_excel',      'label' => 'Export Excel Jenis Kapal'],
-                ['name' => 'jenis_kapal_export_pdf',        'label' => 'Export PDF Jenis Kapal'],
+            'Data Kapal' => [
+                ['name' => 'data_kapal_view',              'label' => 'Lihat Data Kapal'],
+                ['name' => 'data_kapal_create',            'label' => 'Tambah Data Kapal'],
+                ['name' => 'data_kapal_update',            'label' => 'Edit Data Kapal'],
+                ['name' => 'data_kapal_delete',            'label' => 'Hapus Data Kapal'],
+                ['name' => 'data_kapal_upload_template',   'label' => 'Upload Template Laporan'],
+                ['name' => 'data_kapal_download_template', 'label' => 'Download Template Harian'],
+                ['name' => 'data_kapal_manage_kurva_s', 'label' => 'Manage Kurva S'],
+                ['name' => 'data_kapal_export_excel',      'label' => 'Export Excel Data Kapal'],
+                ['name' => 'data_kapal_export_pdf',        'label' => 'Export PDF Data Kapal'],
             ],
             'Galangan' => [
                 ['name' => 'galangan_view',         'label' => 'Lihat Galangan'],
@@ -166,7 +166,7 @@ class RolePermissionService
                 ['name' => 'laporan_lampiran_download',   'label' => 'Download Lampiran'],
                 ['name' => 'laporan_export_excel',        'label' => 'Export Excel Laporan'],
                 ['name' => 'laporan_export_pdf',          'label' => 'Export PDF Laporan'],
-                ['name' => 'laporan_view_all_jenis_kapal', 'label' => 'Laporan View All Jenis Kapal'],
+                ['name' => 'laporan_view_all_data_kapal', 'label' => 'Laporan View All Data Kapal'],
             ],
         ];
 
@@ -176,9 +176,9 @@ class RolePermissionService
 
         $groups = $groupMapping;
 
-        if (!empty($unmapped)) {
+        if (! empty($unmapped)) {
             $groups['Lainnya'] = array_values(array_map(
-                fn($p) => ['name' => $p, 'label' => ucwords(str_replace('_', ' ', $p))],
+                fn ($p) => ['name' => $p, 'label' => ucwords(str_replace('_', ' ', $p))],
                 $unmapped
             ));
         }

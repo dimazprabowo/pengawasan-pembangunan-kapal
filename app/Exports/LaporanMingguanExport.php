@@ -17,17 +17,17 @@ class LaporanMingguanExport implements FromQuery, ShouldAutoSize, WithHeadings, 
 
     protected ?string $search;
 
-    protected ?int $jenisKapalId;
+    protected ?int $dataKapalId;
 
-    public function __construct(?string $search = null, ?int $jenisKapalId = null)
+    public function __construct(?string $search = null, ?int $dataKapalId = null)
     {
         $this->search = $search;
-        $this->jenisKapalId = $jenisKapalId;
+        $this->dataKapalId = $dataKapalId;
     }
 
     public function query()
     {
-        $query = LaporanMingguan::with(['user', 'jenisKapal.company', 'jenisKapal.galangan']);
+        $query = LaporanMingguan::with(['user', 'dataKapal.company', 'dataKapal.galangan']);
 
         if ($this->search) {
             $query->where(function ($q) {
@@ -35,7 +35,7 @@ class LaporanMingguanExport implements FromQuery, ShouldAutoSize, WithHeadings, 
                     ->orWhereHas('user', function ($q) {
                         $q->where('name', 'like', "%{$this->search}%");
                     })
-                    ->orWhereHas('jenisKapal', function ($q) {
+                    ->orWhereHas('dataKapal', function ($q) {
                         $q->where('nama', 'like', "%{$this->search}%");
                     });
 
@@ -45,8 +45,8 @@ class LaporanMingguanExport implements FromQuery, ShouldAutoSize, WithHeadings, 
             });
         }
 
-        if ($this->jenisKapalId) {
-            $query->where('jenis_kapal_id', $this->jenisKapalId);
+        if ($this->dataKapalId) {
+            $query->where('data_kapal_id', $this->dataKapalId);
         }
 
         return $query->orderByDesc('tanggal_laporan')->orderByDesc('created_at');
@@ -58,7 +58,7 @@ class LaporanMingguanExport implements FromQuery, ShouldAutoSize, WithHeadings, 
             'No',
             'Judul',
             'Tanggal Laporan',
-            'Jenis Kapal',
+            'Data Kapal',
             'Perusahaan',
             'Galangan',
             'Pembuat',
@@ -75,9 +75,9 @@ class LaporanMingguanExport implements FromQuery, ShouldAutoSize, WithHeadings, 
             $no,
             $laporan->judul,
             $laporan->tanggal_laporan->format('d/m/Y'),
-            $laporan->jenisKapal->nama ?? '-',
-            $laporan->jenisKapal->company->name ?? '-',
-            $laporan->jenisKapal->galangan->nama ?? '-',
+            $laporan->dataKapal->nama ?? '-',
+            $laporan->dataKapal->company->name ?? '-',
+            $laporan->dataKapal->galangan->nama ?? '-',
             $laporan->user->name ?? '-',
             $laporan->created_at->format('d/m/Y H:i'),
         ];

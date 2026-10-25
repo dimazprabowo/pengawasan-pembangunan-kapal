@@ -3,9 +3,9 @@
 namespace App\Livewire\LaporanMingguan;
 
 use App\Exports\LaporanMingguanExport;
-use App\Livewire\Traits\HasJenisKapalFilter;
+use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\LaporanMingguan;
 use App\Services\KurvaSService;
 use App\Services\LaporanMingguanService;
@@ -19,16 +19,16 @@ use Livewire\WithPagination;
 #[Layout('layouts.app', ['title' => 'Manajemen Laporan Mingguan'])]
 class LaporanMingguanIndex extends Component
 {
-    use AuthorizesRequests, HasJenisKapalFilter, HasNotification, WithPagination;
+    use AuthorizesRequests, HasDataKapalFilter, HasNotification, WithPagination;
 
     protected $paginationTheme = 'tailwind';
 
     #[Url(as: 'q')]
     public string $search = '';
 
-    public JenisKapal $jenisKapal;
+    public DataKapal $dataKapal;
 
-    public ?int $jenisKapalId = null;
+    public ?int $dataKapalId = null;
 
     public int $perPage = 10;
 
@@ -42,13 +42,13 @@ class LaporanMingguanIndex extends Component
 
     public ?string $deletingLaporanJudul = null;
 
-    public function mount(JenisKapal $jenisKapal): void
+    public function mount(DataKapal $dataKapal): void
     {
         $this->authorize('viewAny', LaporanMingguan::class);
-        $this->authorizeJenisKapalAccess($jenisKapal);
+        $this->authorizeDataKapalAccess($dataKapal);
 
-        $this->jenisKapal = $jenisKapal;
-        $this->jenisKapalId = $jenisKapal->id;
+        $this->dataKapal = $dataKapal;
+        $this->dataKapalId = $dataKapal->id;
         $this->showKurvaS = session('laporan_mingguan_show_kurva_s', false);
 
         if (session()->has('notify')) {
@@ -72,18 +72,18 @@ class LaporanMingguanIndex extends Component
     {
         session(['laporan_mingguan_show_kurva_s' => $value]);
 
-        if ($value && $this->jenisKapalId) {
+        if ($value && $this->dataKapalId) {
             $this->dispatchRealtimeUpdates();
         }
     }
 
     private function dispatchRealtimeUpdates(): void
     {
-        $chartData = app(KurvaSService::class)->getChartData($this->jenisKapal);
-        $progressHistory = app(KurvaSService::class)->getProgressHistory($this->jenisKapal);
+        $chartData = app(KurvaSService::class)->getChartData($this->dataKapal);
+        $progressHistory = app(KurvaSService::class)->getProgressHistory($this->dataKapal);
 
         // Get work groups for history table
-        $workGroupsForHistory = \App\Models\KurvaSWorkGroup::where('jenis_kapal_id', $this->jenisKapalId)
+        $workGroupsForHistory = \App\Models\KurvaSWorkGroup::where('data_kapal_id', $this->dataKapalId)
             ->orderBy('sort_order')
             ->get()
             ->map(function ($wg) {
@@ -158,7 +158,7 @@ class LaporanMingguanIndex extends Component
 
         $filename = 'laporan-mingguan-'.now()->format('Y-m-d-His').'.xlsx';
 
-        return (new LaporanMingguanExport($this->search, $this->jenisKapalId))
+        return (new LaporanMingguanExport($this->search, $this->dataKapalId))
             ->download($filename);
     }
 
@@ -166,7 +166,7 @@ class LaporanMingguanIndex extends Component
     {
         $this->authorize('exportPdf', LaporanMingguan::class);
 
-        $laporanList = LaporanMingguan::with(['user', 'jenisKapal'])
+        $laporanList = LaporanMingguan::with(['user', 'dataKapal'])
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
                     $q->where('ringkasan', 'like', "%{$this->search}%")
@@ -179,8 +179,8 @@ class LaporanMingguanIndex extends Component
                     }
                 });
             })
-            ->when($this->jenisKapalId, function ($q) {
-                $q->where('jenis_kapal_id', $this->jenisKapalId);
+            ->when($this->dataKapalId, function ($q) {
+                $q->where('data_kapal_id', $this->dataKapalId);
             })
             ->orderByDesc('tanggal_laporan')
             ->orderByDesc('created_at')
@@ -209,13 +209,13 @@ class LaporanMingguanIndex extends Component
         $totalAktual = null;
 
         if ($this->showKurvaS) {
-            $jenisKapal = $this->jenisKapal;
-            if ($jenisKapal) {
-                $chartData = $kurvaSService->getChartData($jenisKapal);
-                $progressHistory = $kurvaSService->getProgressHistory($jenisKapal);
+            $dataKapal = $this->dataKapal;
+            if ($dataKapal) {
+                $chartData = $kurvaSService->getChartData($dataKapal);
+                $progressHistory = $kurvaSService->getProgressHistory($dataKapal);
 
                 // Get work groups for history table
-                $workGroupsForHistory = \App\Models\KurvaSWorkGroup::where('jenis_kapal_id', $this->jenisKapalId)
+                $workGroupsForHistory = \App\Models\KurvaSWorkGroup::where('data_kapal_id', $this->dataKapalId)
                     ->orderBy('sort_order')
                     ->get()
                     ->map(function ($wg) {
@@ -256,10 +256,10 @@ class LaporanMingguanIndex extends Component
         return view('livewire.laporan-mingguan.laporan-mingguan-index', [
             'laporanList' => $service->getFiltered(
                 $this->search,
-                $this->jenisKapalId,
+                $this->dataKapalId,
                 $this->perPage
             ),
-            'jenisKapal' => $this->jenisKapal,
+            'dataKapal' => $this->dataKapal,
             'kurvaSChartData' => $chartData,
             'progressHistory' => $progressHistory,
             'workGroupsForHistory' => $workGroupsForHistory,

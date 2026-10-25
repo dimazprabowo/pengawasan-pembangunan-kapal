@@ -213,7 +213,7 @@ class GalanganManagement extends Component
             $this->authorize('delete', $galangan);
 
             $service->delete($galangan);
-            $this->notifySuccess('Galangan berhasil dihapus! Jenis kapal terkait akan di-set null.');
+            $this->notifySuccess('Galangan berhasil dihapus! Kapal terkait akan di-set null.');
             $this->showDeleteModal = false;
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak dapat menghapus galangan ini.');
@@ -281,7 +281,7 @@ class GalanganManagement extends Component
         $this->authorize('exportPdf', Galangan::class);
 
         $galanganList = Galangan::query()
-            ->withCount('jenisKapal')
+            ->withCount('dataKapal')
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
                     $q->where('nama', 'like', "%{$this->search}%")

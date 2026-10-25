@@ -3,9 +3,9 @@
 namespace App\Livewire\LaporanHarian;
 
 use App\Exports\LaporanHarianExport;
-use App\Livewire\Traits\HasJenisKapalFilter;
+use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\LaporanHarian;
 use App\Services\LaporanHarianService;
 use App\Services\QueueStatusService;
@@ -19,16 +19,16 @@ use Livewire\WithPagination;
 #[Layout('layouts.app', ['title' => 'Manajemen Laporan Harian'])]
 class LaporanHarianIndex extends Component
 {
-    use AuthorizesRequests, HasJenisKapalFilter, HasNotification, WithPagination;
+    use AuthorizesRequests, HasDataKapalFilter, HasNotification, WithPagination;
 
     protected $paginationTheme = 'tailwind';
 
     #[Url(as: 'q')]
     public string $search = '';
 
-    public JenisKapal $jenisKapal;
+    public DataKapal $dataKapal;
 
-    public ?int $jenisKapalId = null;
+    public ?int $dataKapalId = null;
 
     public int $perPage = 10;
 
@@ -39,13 +39,13 @@ class LaporanHarianIndex extends Component
 
     public ?string $deletingLaporanJudul = null;
 
-    public function mount(JenisKapal $jenisKapal): void
+    public function mount(DataKapal $dataKapal): void
     {
         $this->authorize('viewAny', LaporanHarian::class);
-        $this->authorizeJenisKapalAccess($jenisKapal);
+        $this->authorizeDataKapalAccess($dataKapal);
 
-        $this->jenisKapal = $jenisKapal;
-        $this->jenisKapalId = $jenisKapal->id;
+        $this->dataKapal = $dataKapal;
+        $this->dataKapalId = $dataKapal->id;
 
         if (session()->has('notify')) {
             $notify = session('notify');
@@ -106,7 +106,7 @@ class LaporanHarianIndex extends Component
 
         $filename = 'laporan-harian-'.now()->format('Y-m-d-His').'.xlsx';
 
-        return (new LaporanHarianExport($this->search, $this->jenisKapalId))
+        return (new LaporanHarianExport($this->search, $this->dataKapalId))
             ->download($filename);
     }
 
@@ -114,8 +114,8 @@ class LaporanHarianIndex extends Component
     {
         $this->authorize('exportPdf', LaporanHarian::class);
 
-        $laporanList = LaporanHarian::with(['user', 'jenisKapal.company', 'jenisKapal.galangan'])
-            ->byJenisKapal($this->jenisKapalId)
+        $laporanList = LaporanHarian::with(['user', 'dataKapal.company', 'dataKapal.galangan'])
+            ->byDataKapal($this->dataKapalId)
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
                     $q->where('tanggal_laporan', 'like', "%{$this->search}%")
@@ -147,11 +147,11 @@ class LaporanHarianIndex extends Component
         return view('livewire.laporan-harian.laporan-harian-index', [
             'laporanList' => $service->getFiltered(
                 $this->search,
-                $this->jenisKapalId,
+                $this->dataKapalId,
                 $this->perPage
             ),
             'queueStatus' => $queueStatusService->getQueueStatusMessage(),
-            'jenisKapal' => $this->jenisKapal,
+            'dataKapal' => $this->dataKapal,
         ]);
     }
 }

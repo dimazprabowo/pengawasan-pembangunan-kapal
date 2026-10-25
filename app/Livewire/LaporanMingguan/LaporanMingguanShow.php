@@ -3,9 +3,9 @@
 namespace App\Livewire\LaporanMingguan;
 
 use App\Jobs\GenerateLaporanMingguanJob;
-use App\Livewire\Traits\HasJenisKapalFilter;
+use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\LaporanLampiran;
 use App\Models\LaporanMingguan;
 use App\Services\KurvaSService;
@@ -19,11 +19,11 @@ use Livewire\Component;
 #[Layout('layouts.app', ['title' => 'Detail Laporan Mingguan'])]
 class LaporanMingguanShow extends Component
 {
-    use AuthorizesRequests, HasJenisKapalFilter, HasNotification;
+    use AuthorizesRequests, HasDataKapalFilter, HasNotification;
 
     public LaporanMingguan $laporan;
 
-    public JenisKapal $jenisKapal;
+    public DataKapal $dataKapal;
 
     // Lampiran Harian Modal
     public bool $showLampiranModal = false;
@@ -49,13 +49,13 @@ class LaporanMingguanShow extends Component
     // Progress per group (for compatibility with progress history component)
     public array $progressPerGroup = [];
 
-    public function mount(JenisKapal $jenisKapal, LaporanMingguan $laporanMingguan): void
+    public function mount(DataKapal $dataKapal, LaporanMingguan $laporanMingguan): void
     {
         $this->authorize('view', $laporanMingguan);
-        $this->authorizeJenisKapalAccess($jenisKapal);
-        abort_unless($laporanMingguan->jenis_kapal_id === $jenisKapal->id, 404);
+        $this->authorizeDataKapalAccess($dataKapal);
+        abort_unless($laporanMingguan->data_kapal_id === $dataKapal->id, 404);
 
-        $this->jenisKapal = $jenisKapal;
+        $this->dataKapal = $dataKapal;
         $this->loadLaporan($laporanMingguan);
     }
 
@@ -63,8 +63,8 @@ class LaporanMingguanShow extends Component
     {
         $this->laporan = $laporanMingguan->load([
             'user',
-            'jenisKapal.company',
-            'jenisKapal.galangan',
+            'dataKapal.company',
+            'dataKapal.galangan',
             'laporanHarian' => function ($query) {
                 $query->orderBy('tanggal_laporan', 'asc');
             },
@@ -97,7 +97,7 @@ class LaporanMingguanShow extends Component
     {
         $laporanHarianIds = $this->laporan->laporanHarian->pluck('id')->toArray();
 
-        $this->availableLaporanHarian = \App\Models\LaporanHarian::with(['user', 'jenisKapal'])
+        $this->availableLaporanHarian = \App\Models\LaporanHarian::with(['user', 'dataKapal'])
             ->whereIn('id', $laporanHarianIds)
             ->orderByDesc('tanggal_laporan')
             ->get();
@@ -501,12 +501,12 @@ class LaporanMingguanShow extends Component
         $progressHistory = [];
         $workGroupsForHistory = [];
 
-        if ($this->laporan->jenisKapal) {
-            $chartData = $kurvaSService->getChartData($this->laporan->jenisKapal);
-            $progressHistory = $kurvaSService->getProgressHistory($this->laporan->jenisKapal);
+        if ($this->laporan->dataKapal) {
+            $chartData = $kurvaSService->getChartData($this->laporan->dataKapal);
+            $progressHistory = $kurvaSService->getProgressHistory($this->laporan->dataKapal);
 
             // Get work groups for history table
-            $workGroupsForHistory = \App\Models\KurvaSWorkGroup::where('jenis_kapal_id', $this->laporan->jenis_kapal_id)
+            $workGroupsForHistory = \App\Models\KurvaSWorkGroup::where('data_kapal_id', $this->laporan->data_kapal_id)
                 ->orderBy('sort_order')
                 ->get()
                 ->map(fn ($wg) => [
@@ -518,7 +518,7 @@ class LaporanMingguanShow extends Component
 
             // Calculate totals from progress history using service
             if (! empty($progressHistory)) {
-                $workGroups = \App\Models\KurvaSWorkGroup::where('jenis_kapal_id', $this->laporan->jenis_kapal_id)
+                $workGroups = \App\Models\KurvaSWorkGroup::where('data_kapal_id', $this->laporan->data_kapal_id)
                     ->orderBy('sort_order')
                     ->get();
 
@@ -531,7 +531,7 @@ class LaporanMingguanShow extends Component
         return view('livewire.laporan-mingguan.laporan-mingguan-show', [
             'queueStatus' => $queueStatusService->getQueueStatusMessage(),
             'kurvaSChartData' => $chartData,
-            'jenisKapalNama' => $this->laporan->jenisKapal?->nama,
+            'dataKapalNama' => $this->laporan->dataKapal?->nama,
             'totalRencana' => $totalRencana,
             'totalAktual' => $totalAktual,
             'progressHistory' => $progressHistory,

@@ -71,7 +71,7 @@
     {{-- Header --}}
     <div class="mb-6">
         <div class="flex items-center gap-2">
-            <a href="{{ route('laporan-harian.index', $jenisKapal) }}" wire:navigate
+            <a href="{{ route('laporan-harian.index', $dataKapal) }}" wire:navigate
                 x-data="{ loading: false }" x-on:click="loading = true"
                 x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                 class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
@@ -85,7 +85,7 @@
             </a>
             <div class="min-w-0">
                 <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Edit Laporan Harian</h2>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 truncate">{{ $jenisKapal->nama }}{{ $jenisKapal->company ? ' · ' . $jenisKapal->company->name : '' }} — Perbarui data laporan di bawah ini</p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 truncate">{{ $dataKapal->nama }}{{ $dataKapal->company ? ' · ' . $dataKapal->company->name : '' }} — Perbarui data laporan di bawah ini</p>
             </div>
             {{-- Auto Save toggle + draft indicator (pojok kanan, indikator di bawah toggle) --}}
             <div class="ml-auto flex flex-col items-end gap-1.5 flex-shrink-0">

@@ -10,13 +10,13 @@ return new class extends Migration
     {
         Schema::create('kurva_s_work_groups', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('jenis_kapal_id')->constrained('jenis_kapal')->cascadeOnDelete();
+            $table->foreignId('data_kapal_id')->constrained('data_kapal')->cascadeOnDelete();
             $table->string('nama');
             $table->decimal('bobot', 8, 2)->default(0);
             $table->unsignedSmallInteger('sort_order')->default(0);
             $table->timestamps();
 
-            $table->index(['jenis_kapal_id', 'sort_order']);
+            $table->index(['data_kapal_id', 'sort_order']);
         });
 
         Schema::create('kurva_s_rencana', function (Blueprint $table) {

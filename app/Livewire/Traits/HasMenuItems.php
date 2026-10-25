@@ -5,8 +5,8 @@ namespace App\Livewire\Traits;
 use App\Models\Chat;
 use App\Models\Company;
 use App\Models\Cuaca;
+use App\Models\DataKapal;
 use App\Models\Galangan;
-use App\Models\JenisKapal;
 use App\Models\Kelembaban;
 use App\Models\LaporanHarian;
 use App\Models\Notification;
@@ -33,7 +33,7 @@ trait HasMenuItems
         $perms = [
             'dashboard_view' => Gate::allows('viewStats'),
             'companies_view' => Gate::allows('viewAny', Company::class),
-            'jenis_kapal_view' => Gate::allows('viewAny', JenisKapal::class),
+            'data_kapal_view' => Gate::allows('viewAny', DataKapal::class),
             'galangan_view' => Gate::allows('viewAny', Galangan::class),
             'kelembaban_view' => Gate::allows('viewAny', Kelembaban::class),
             'cuaca_view' => Gate::allows('viewAny', Cuaca::class),
@@ -66,11 +66,11 @@ trait HasMenuItems
                 'active' => $req->routeIs('master-data.perusahaan'),
             ];
         }
-        if ($perms['jenis_kapal_view']) {
+        if ($perms['data_kapal_view']) {
             $masterDataChildren[] = [
-                'name' => 'Jenis Kapal',
-                'route' => 'master-data.jenis-kapal',
-                'active' => $req->routeIs('master-data.jenis-kapal'),
+                'name' => 'Data Kapal',
+                'route' => 'master-data.data-kapal',
+                'active' => $req->routeIs('master-data.data-kapal*'),
             ];
         }
         if ($perms['galangan_view']) {
@@ -151,7 +151,7 @@ trait HasMenuItems
             ];
         }
 
-        // Manajemen Laporan (per jenis kapal)
+        // Manajemen Laporan (per data kapal)
         if ($perms['laporan_view']) {
             $items[] = [
                 'name' => 'Manajemen Laporan',

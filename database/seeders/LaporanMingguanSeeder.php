@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\KurvaSWorkGroup;
 use App\Models\LaporanExternal;
 use App\Models\LaporanMingguan;
@@ -17,7 +17,7 @@ class LaporanMingguanSeeder extends Seeder
     public function run(): void
     {
         $users = User::all();
-        $jenisKapals = JenisKapal::all();
+        $dataKapals = DataKapal::all();
 
         if ($users->isEmpty()) {
             $this->command->warn('No users found. Please run UserSeeder first.');
@@ -25,21 +25,21 @@ class LaporanMingguanSeeder extends Seeder
             return;
         }
 
-        if ($jenisKapals->isEmpty()) {
-            $this->command->warn('No Jenis Kapal found. Please run JenisKapalSeeder first.');
+        if ($dataKapals->isEmpty()) {
+            $this->command->warn('No Data Kapal found. Please run DataKapalSeeder first.');
 
             return;
         }
 
-        // Pick ONE jenis kapal for all laporan to show consistent progress across weeks
-        $jenisKapal = $jenisKapals->first();
+        // Pick ONE data kapal for all laporan to show consistent progress across weeks
+        $dataKapal = $dataKapals->first();
         $kontrakService = app(KontrakPeriodeService::class);
 
-        // Seed SEMUA minggu kontrak untuk jenis kapal ini agar Laporan Bulanan
+        // Seed SEMUA minggu kontrak untuk data kapal ini agar Laporan Bulanan
         // (yang menarik data dari mingguan) lengkap sampai bulan terakhir.
         // Periode diambil dari kontrak; fallback 10 minggu relatif bila tanpa kontrak.
         $laporanData = [];
-        $mingguList = $kontrakService->getMingguList($jenisKapal);
+        $mingguList = $kontrakService->getMingguList($dataKapal);
 
         if (empty($mingguList)) {
             $mingguList = collect(range(1, 10))->map(fn ($i) => [
@@ -62,7 +62,7 @@ class LaporanMingguanSeeder extends Seeder
         foreach ($laporanData as $data) {
             $laporan = LaporanMingguan::firstOrCreate(
                 [
-                    'jenis_kapal_id' => $jenisKapal->id,
+                    'data_kapal_id' => $dataKapal->id,
                     'minggu_ke' => $data['minggu_ke'],
                 ],
                 [
@@ -76,10 +76,10 @@ class LaporanMingguanSeeder extends Seeder
             );
 
             // Create progress records for each work group
-            $workGroups = KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)->get();
+            $workGroups = KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)->get();
 
             // Rencana minggu ini diturunkan dari rencana bulanan (dibagi rata ke minggunya)
-            $rencanaMinggu = app(\App\Services\KurvaSService::class)->getWeekPlans($jenisKapal, $data['minggu_ke']);
+            $rencanaMinggu = app(\App\Services\KurvaSService::class)->getWeekPlans($dataKapal, $data['minggu_ke']);
 
             foreach ($workGroups as $wg) {
                 // Realisasi minggu ini dalam poin % proyek — mengikuti rencana minggu tsb

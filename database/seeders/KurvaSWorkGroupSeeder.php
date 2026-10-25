@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\KurvaSRencana;
 use App\Models\KurvaSWorkGroup;
 use App\Services\KontrakPeriodeService;
@@ -17,15 +17,15 @@ class KurvaSWorkGroupSeeder extends Seeder
      * di-derive oleh sistem (bulanan dibagi rata ke minggu-minggu di bulan tsb).
      * Bobot = porsi maksimal work group terhadap total proyek (total semua bobot = 100%).
      *
-     * @param  int  $jenisKapalId  - used to generate different curve patterns per ship type
+     * @param  int  $dataKapalId  - used to generate different curve patterns per ship type
      * @param  int  $totalMonths  - jumlah bulan proyek dari kontrak
      */
-    private function getTemplate(int $jenisKapalId, int $totalMonths): array
+    private function getTemplate(int $dataKapalId, int $totalMonths): array
     {
         // Different sigma values (curve width) for each ship type to create unique S-curve shapes
         // sigma = activeMonths / sigmaMultiplier
         // Higher multiplier = narrower curve, Lower multiplier = wider curve
-        $sigmaMultiplier = 3 + ($jenisKapalId % 5); // Range: 3-7
+        $sigmaMultiplier = 3 + ($dataKapalId % 5); // Range: 3-7
 
         // Fractions of totalMonths for each group's active range (start,end)
         return [
@@ -122,36 +122,36 @@ class KurvaSWorkGroupSeeder extends Seeder
 
     public function run(): void
     {
-        $jenisKapals = JenisKapal::all();
+        $dataKapals = DataKapal::all();
         $kontrakService = app(KontrakPeriodeService::class);
 
-        if ($jenisKapals->isEmpty()) {
-            $this->command->warn('Tidak ada Jenis Kapal. Jalankan JenisKapalSeeder terlebih dahulu.');
+        if ($dataKapals->isEmpty()) {
+            $this->command->warn('Tidak ada Data Kapal. Jalankan DataKapalSeeder terlebih dahulu.');
 
             return;
         }
 
         $now = now();
 
-        foreach ($jenisKapals as $jenisKapal) {
-            if (KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)->exists()) {
-                $this->command->line("  Skip: {$jenisKapal->nama} sudah memiliki work group.");
+        foreach ($dataKapals as $dataKapal) {
+            if (KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)->exists()) {
+                $this->command->line("  Skip: {$dataKapal->nama} sudah memiliki work group.");
 
                 continue;
             }
 
             // Rencana bulanan memerlukan kontrak (bulan di-derive dari tanggal & durasi kontrak)
-            if (! $jenisKapal->hasKontrak()) {
-                $this->command->warn("  Skip: {$jenisKapal->nama} belum memiliki data kontrak.");
+            if (! $dataKapal->hasKontrak()) {
+                $this->command->warn("  Skip: {$dataKapal->nama} belum memiliki data kontrak.");
 
                 continue;
             }
 
-            $totalMonths = $kontrakService->getTotalBulan($jenisKapal);
+            $totalMonths = $kontrakService->getTotalBulan($dataKapal);
 
-            foreach ($this->getTemplate($jenisKapal->id, $totalMonths) as $sortOrder => $wgData) {
+            foreach ($this->getTemplate($dataKapal->id, $totalMonths) as $sortOrder => $wgData) {
                 $wg = KurvaSWorkGroup::create([
-                    'jenis_kapal_id' => $jenisKapal->id,
+                    'data_kapal_id' => $dataKapal->id,
                     'nama' => $wgData['nama'],
                     'bobot' => $wgData['bobot'],
                     'sort_order' => $sortOrder,
@@ -172,7 +172,7 @@ class KurvaSWorkGroupSeeder extends Seeder
                 KurvaSRencana::insert($insert);
             }
 
-            $this->command->line("  Seeded: {$jenisKapal->nama} — 7 work groups, {$totalMonths} bulan.");
+            $this->command->line("  Seeded: {$dataKapal->nama} — 7 work groups, {$totalMonths} bulan.");
         }
 
         $this->command->info('KurvaSWorkGroup seeded successfully.');

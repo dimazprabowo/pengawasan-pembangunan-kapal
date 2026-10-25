@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('laporan_mingguan', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('jenis_kapal_id')->nullable()->constrained('jenis_kapal')->nullOnDelete();
+            $table->foreignId('data_kapal_id')->nullable()->constrained('data_kapal')->nullOnDelete();
             $table->date('tanggal_laporan');
             $table->date('periode_mulai')->nullable();
             $table->date('periode_selesai')->nullable();
@@ -36,7 +36,7 @@ return new class extends Migration
             $table->index('periode_mulai');
             $table->index('periode_selesai');
             $table->index('user_id');
-            $table->index('jenis_kapal_id');
+            $table->index('data_kapal_id');
         });
     }
 

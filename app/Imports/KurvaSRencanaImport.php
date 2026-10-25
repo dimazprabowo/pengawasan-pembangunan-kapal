@@ -2,20 +2,20 @@
 
 namespace App\Imports;
 
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
 class KurvaSRencanaImport implements ToCollection, WithHeadingRow
 {
-    protected JenisKapal $jenisKapal;
+    protected DataKapal $dataKapal;
 
     protected KurvaSTemplateImport $parent;
 
-    public function __construct(JenisKapal $jenisKapal, KurvaSTemplateImport $parent)
+    public function __construct(DataKapal $dataKapal, KurvaSTemplateImport $parent)
     {
-        $this->jenisKapal = $jenisKapal;
+        $this->dataKapal = $dataKapal;
         $this->parent = $parent;
     }
 

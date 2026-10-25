@@ -18,7 +18,7 @@ class LaporanMingguan extends Model
 
     protected $fillable = [
         'user_id',
-        'jenis_kapal_id',
+        'data_kapal_id',
         'tanggal_laporan',
         'periode_mulai',
         'periode_selesai',
@@ -57,9 +57,9 @@ class LaporanMingguan extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function jenisKapal(): BelongsTo
+    public function dataKapal(): BelongsTo
     {
-        return $this->belongsTo(JenisKapal::class);
+        return $this->belongsTo(DataKapal::class);
     }
 
     public function laporanProgress(): HasMany
@@ -90,10 +90,10 @@ class LaporanMingguan extends Model
         return $query->where('user_id', $userId);
     }
 
-    public function scopeByJenisKapal($query, ?int $jenisKapalId)
+    public function scopeByDataKapal($query, ?int $dataKapalId)
     {
-        if ($jenisKapalId) {
-            return $query->where('jenis_kapal_id', $jenisKapalId);
+        if ($dataKapalId) {
+            return $query->where('data_kapal_id', $dataKapalId);
         }
 
         return $query;

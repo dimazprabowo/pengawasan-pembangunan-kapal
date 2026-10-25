@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\JenisKapalStatus;
+use App\Enums\DataKapalStatus;
 use App\Traits\HasEncryptedRouteKey;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,11 +10,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class JenisKapal extends Model
+class DataKapal extends Model
 {
     use HasEncryptedRouteKey, HasFactory, SoftDeletes;
 
-    protected $table = 'jenis_kapal';
+    protected $table = 'data_kapal';
 
     protected $fillable = [
         'company_id',
@@ -30,7 +30,7 @@ class JenisKapal extends Model
     ];
 
     protected $casts = [
-        'status' => JenisKapalStatus::class,
+        'status' => DataKapalStatus::class,
         'tanggal_mulai_kontrak' => 'date',
         'durasi_kontrak_hari' => 'integer',
         'created_at' => 'datetime',
@@ -70,7 +70,7 @@ class JenisKapal extends Model
 
     public function scopeActive($query)
     {
-        return $query->where('status', JenisKapalStatus::Active);
+        return $query->where('status', DataKapalStatus::Active);
     }
 
     public function scopeByCompany($query, int $companyId)
@@ -80,7 +80,7 @@ class JenisKapal extends Model
 
     public function getIsActiveAttribute(): bool
     {
-        return $this->status === JenisKapalStatus::Active;
+        return $this->status === DataKapalStatus::Active;
     }
 
     /**

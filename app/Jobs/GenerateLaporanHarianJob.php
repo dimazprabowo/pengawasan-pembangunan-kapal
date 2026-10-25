@@ -15,8 +15,10 @@ class GenerateLaporanHarianJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries   = 3;
+    public int $tries = 3;
+
     public int $backoff = 10;
+
     public int $timeout = 120;
 
     public function __construct(
@@ -27,13 +29,13 @@ class GenerateLaporanHarianJob implements ShouldQueue
     {
         $queueStatusService->markWorkerActive();
 
-        // Load jenisKapal relationship to ensure template detection works
+        // Load dataKapal relationship to ensure template detection works
         // This is critical because SerializesModels trait doesn't preserve relationships
-        $this->laporan->load('jenisKapal');
+        $this->laporan->load('dataKapal');
 
         // Delete old generated doc if re-generating
         if ($this->laporan->doc_path) {
-            $oldPath = storage_path('app/' . $this->laporan->doc_path);
+            $oldPath = storage_path('app/'.$this->laporan->doc_path);
             if (file_exists($oldPath)) {
                 @unlink($oldPath);
             }
@@ -41,18 +43,18 @@ class GenerateLaporanHarianJob implements ShouldQueue
 
         $this->laporan->update([
             'doc_status' => 'processing',
-            'doc_error'  => null,
+            'doc_error' => null,
         ]);
 
         try {
             $storagePath = $wordService->generate($this->laporan);
 
             $this->laporan->update([
-                'doc_path'         => $storagePath,
-                'doc_name'         => 'Laporan-Harian-' . $this->laporan->tanggal_laporan->format('Y-m-d') . '.docx',
-                'doc_status'       => 'completed',
+                'doc_path' => $storagePath,
+                'doc_name' => 'Laporan-Harian-'.$this->laporan->tanggal_laporan->format('Y-m-d').'.docx',
+                'doc_status' => 'completed',
                 'doc_generated_at' => now(),
-                'doc_error'        => null,
+                'doc_error' => null,
             ]);
 
             // Mark worker active again after successful completion
@@ -60,7 +62,7 @@ class GenerateLaporanHarianJob implements ShouldQueue
         } catch (\Exception $e) {
             $this->laporan->update([
                 'doc_status' => 'failed',
-                'doc_error'  => $e->getMessage(),
+                'doc_error' => $e->getMessage(),
             ]);
             throw $e;
         }
@@ -70,7 +72,7 @@ class GenerateLaporanHarianJob implements ShouldQueue
     {
         $this->laporan->update([
             'doc_status' => 'failed',
-            'doc_error'  => $exception->getMessage(),
+            'doc_error' => $exception->getMessage(),
         ]);
     }
 }

@@ -306,7 +306,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Kurva S — Work Groups & Rencana</h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{{ $jenisKapalNama }}</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{{ $dataKapalNama }}</p>
                     </div>
                     <button type="button" wire:click="closeModal"
                         wire:loading.attr="disabled" wire:target="closeModal"
@@ -365,7 +365,7 @@
                             <label for="durasi_kontrak_hari" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Durasi Kontrak (hari)</label>
                             <input id="durasi_kontrak_hari" type="number"
                                 wire:model.live.debounce.500ms="durasi_kontrak_hari"
-                                wire:key="durasi-kontrak-{{ $jenisKapalId }}"
+                                wire:key="durasi-kontrak-{{ $dataKapalId }}"
                                 wire:ignore
                                 value="{{ $durasi_kontrak_hari }}"
                                 min="1" max="7300" step="1"
@@ -893,7 +893,7 @@
     @if($showKurvaSImportModal)
         <x-kurva-s-import-modal 
             :show="$showKurvaSImportModal"
-            :jenisKapalNama="$jenisKapalNama"
+            :dataKapalNama="$dataKapalNama"
             wire:model="kurvaS_file"
         />
     @endif

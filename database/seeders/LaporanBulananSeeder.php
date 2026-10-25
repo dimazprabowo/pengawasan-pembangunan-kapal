@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\LaporanBulanan;
 use App\Models\LaporanExternal;
 use App\Models\User;
@@ -14,7 +14,7 @@ class LaporanBulananSeeder extends Seeder
     public function run(): void
     {
         $users = User::all();
-        $jenisKapals = JenisKapal::all();
+        $dataKapals = DataKapal::all();
 
         if ($users->isEmpty()) {
             $this->command->warn('No users found. Please run UserSeeder first.');
@@ -22,21 +22,21 @@ class LaporanBulananSeeder extends Seeder
             return;
         }
 
-        if ($jenisKapals->isEmpty()) {
-            $this->command->warn('No Jenis Kapal found. Please run JenisKapalSeeder first.');
+        if ($dataKapals->isEmpty()) {
+            $this->command->warn('No Data Kapal found. Please run DataKapalSeeder first.');
 
             return;
         }
 
-        // Satu jenis kapal yang sama dengan LaporanMingguanSeeder
-        $jenisKapal = $jenisKapals->first();
+        // Satu data kapal yang sama dengan LaporanMingguanSeeder
+        $dataKapal = $dataKapals->first();
         $kontrakService = app(KontrakPeriodeService::class);
 
         // Seed SEMUA bulan kontrak — lengkap sampai bulan terakhir.
-        $bulanList = $kontrakService->getBulanList($jenisKapal);
+        $bulanList = $kontrakService->getBulanList($dataKapal);
 
         if (empty($bulanList)) {
-            $this->command->warn('Jenis kapal tidak punya kontrak. Skipping Laporan Bulanan seeding.');
+            $this->command->warn('Data kapal tidak punya kontrak. Skipping Laporan Bulanan seeding.');
 
             return;
         }
@@ -44,7 +44,7 @@ class LaporanBulananSeeder extends Seeder
         foreach ($bulanList as $bulan) {
             $laporan = LaporanBulanan::firstOrCreate(
                 [
-                    'jenis_kapal_id' => $jenisKapal->id,
+                    'data_kapal_id' => $dataKapal->id,
                     'bulan_ke' => $bulan['bulan_ke'],
                 ],
                 [

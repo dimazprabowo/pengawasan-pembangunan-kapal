@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-enum JenisKapalStatus: string
+enum DataKapalStatus: string
 {
     case Active = 'active';
     case Inactive = 'inactive';

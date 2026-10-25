@@ -13,38 +13,21 @@ class ConfigHelper
 
     public static function isRegistrationOpen(): bool
     {
-        $config = SystemConfiguration::where('key', 'registration.deadline')
-            ->where('is_active', true)
-            ->first();
+        $deadline = self::getRegistrationDeadline();
 
-        if (!$config) {
-            return false;
-        }
-
-        if (empty($config->value)) {
-            return false;
-        }
-
-        try {
-            $deadlineDate = \Carbon\Carbon::parse($config->value);
-            return \Carbon\Carbon::now()->lt($deadlineDate);
-        } catch (\Exception $e) {
-            return false;
-        }
+        return $deadline !== null && \Carbon\Carbon::now()->lt($deadline);
     }
 
     public static function getRegistrationDeadline(): ?\Carbon\Carbon
     {
-        $config = SystemConfiguration::where('key', 'registration.deadline')
-            ->where('is_active', true)
-            ->first();
+        $value = SystemConfiguration::get('registration.deadline');
 
-        if (!$config || empty($config->value)) {
+        if (empty($value)) {
             return null;
         }
 
         try {
-            return \Carbon\Carbon::parse($config->value);
+            return \Carbon\Carbon::parse($value);
         } catch (\Exception $e) {
             return null;
         }
@@ -53,23 +36,26 @@ class ConfigHelper
     public static function getFormattedRegistrationDeadline(string $format = 'd F Y, H:i'): ?string
     {
         $deadline = self::getRegistrationDeadline();
+
         return $deadline ? $deadline->translatedFormat($format) : null;
     }
 
     public static function getRegistrationDaysRemaining(): ?int
     {
         $deadline = self::getRegistrationDeadline();
-        if (!$deadline) {
+        if (! $deadline) {
             return null;
         }
 
         $days = \Carbon\Carbon::now()->diffInDays($deadline, false);
+
         return max(0, (int) $days);
     }
 
     public static function shouldShowRegistrationCountdown(): bool
     {
         $days = self::getRegistrationDaysRemaining();
+
         return $days !== null && $days <= 7;
     }
 

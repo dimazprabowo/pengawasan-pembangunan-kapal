@@ -4,16 +4,17 @@ namespace App\Exports;
 
 use App\Models\Galangan;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class GalanganExport implements FromCollection, WithHeadings, WithMapping, WithStyles, WithTitle, ShouldAutoSize
+class GalanganExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping, WithStyles, WithTitle
 {
     protected ?string $search;
+
     protected ?string $statusFilter;
 
     public function __construct(?string $search = null, ?string $statusFilter = null)
@@ -25,14 +26,14 @@ class GalanganExport implements FromCollection, WithHeadings, WithMapping, WithS
     public function collection()
     {
         return Galangan::query()
-            ->withCount('jenisKapal')
+            ->withCount('dataKapal')
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
                     $q->where('nama', 'like', "%{$this->search}%")
-                      ->orWhere('kode', 'like', "%{$this->search}%")
-                      ->orWhere('kota', 'like', "%{$this->search}%")
-                      ->orWhere('provinsi', 'like', "%{$this->search}%")
-                      ->orWhere('pic_name', 'like', "%{$this->search}%");
+                        ->orWhere('kode', 'like', "%{$this->search}%")
+                        ->orWhere('kota', 'like', "%{$this->search}%")
+                        ->orWhere('provinsi', 'like', "%{$this->search}%")
+                        ->orWhere('pic_name', 'like', "%{$this->search}%");
                 });
             })
             ->when($this->statusFilter !== null && $this->statusFilter !== '', function ($q) {
@@ -53,7 +54,7 @@ class GalanganExport implements FromCollection, WithHeadings, WithMapping, WithS
             'Email',
             'PIC',
             'Telepon PIC',
-            'Jumlah Jenis Kapal',
+            'Jumlah Data Kapal',
             'Status',
             'Dibuat Pada',
         ];
@@ -70,7 +71,7 @@ class GalanganExport implements FromCollection, WithHeadings, WithMapping, WithS
             $galangan->email ?? '-',
             $galangan->pic_name ?? '-',
             $galangan->pic_phone ?? '-',
-            $galangan->jenis_kapal_count,
+            $galangan->data_kapal_count,
             $galangan->status->label(),
             $galangan->created_at->format('d/m/Y H:i'),
         ];

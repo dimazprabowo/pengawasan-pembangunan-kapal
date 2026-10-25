@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Livewire\LaporanMingguan\LaporanMingguanCreate;
 use App\Livewire\LaporanMingguan\LaporanMingguanEdit;
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\KurvaSWorkGroup;
 use App\Models\LaporanMingguan;
 use App\Models\User;
@@ -28,9 +28,9 @@ class LaporanMingguanSnapshotTest extends TestCase
         return User::firstOrFail();
     }
 
-    private function jenisKapalWithKurvaS(): JenisKapal
+    private function dataKapalWithKurvaS(): DataKapal
     {
-        return JenisKapal::whereHas('kurvaSWorkGroups')->firstOrFail();
+        return DataKapal::whereHas('kurvaSWorkGroups')->firstOrFail();
     }
 
     /**
@@ -78,9 +78,9 @@ class LaporanMingguanSnapshotTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
-    private function makeWorkGroupKeysNonAscending(JenisKapal $jenisKapal): void
+    private function makeWorkGroupKeysNonAscending(DataKapal $dataKapal): void
     {
-        $groups = KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
+        $groups = KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)
             ->orderBy('id')
             ->get();
 
@@ -91,12 +91,12 @@ class LaporanMingguanSnapshotTest extends TestCase
 
     public function test_create_progress_input_update_keeps_snapshot_valid(): void
     {
-        $jenisKapal = $this->jenisKapalWithKurvaS();
-        $workGroup = KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)->firstOrFail();
-        $this->makeWorkGroupKeysNonAscending($jenisKapal);
+        $dataKapal = $this->dataKapalWithKurvaS();
+        $workGroup = KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)->firstOrFail();
+        $this->makeWorkGroupKeysNonAscending($dataKapal);
 
         $component = Livewire::actingAs($this->admin())
-            ->test(LaporanMingguanCreate::class, ['jenisKapal' => $jenisKapal])
+            ->test(LaporanMingguanCreate::class, ['dataKapal' => $dataKapal])
             ->assertSet('hasKurvaS', true);
 
         $this->assertSnapshotValidAfterJsRoundTrip($component->snapshot);
@@ -111,13 +111,13 @@ class LaporanMingguanSnapshotTest extends TestCase
 
     public function test_edit_progress_input_update_keeps_snapshot_valid(): void
     {
-        $jenisKapal = $this->jenisKapalWithKurvaS();
-        $laporan = LaporanMingguan::where('jenis_kapal_id', $jenisKapal->id)->firstOrFail();
-        $workGroup = KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)->firstOrFail();
-        $this->makeWorkGroupKeysNonAscending($jenisKapal);
+        $dataKapal = $this->dataKapalWithKurvaS();
+        $laporan = LaporanMingguan::where('data_kapal_id', $dataKapal->id)->firstOrFail();
+        $workGroup = KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)->firstOrFail();
+        $this->makeWorkGroupKeysNonAscending($dataKapal);
 
         $component = Livewire::actingAs($this->admin())
-            ->test(LaporanMingguanEdit::class, ['jenisKapal' => $jenisKapal, 'laporanMingguan' => $laporan])
+            ->test(LaporanMingguanEdit::class, ['dataKapal' => $dataKapal, 'laporanMingguan' => $laporan])
             ->assertSet('hasKurvaS', true);
 
         $this->assertSnapshotValidAfterJsRoundTrip($component->snapshot);

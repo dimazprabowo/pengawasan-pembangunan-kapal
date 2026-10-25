@@ -63,7 +63,7 @@
                 <th width="20%">Nama Galangan</th>
                 <th width="15%">Lokasi</th>
                 <th width="15%">Kontak</th>
-                <th width="10%" class="text-center">Jenis Kapal</th>
+                <th width="10%" class="text-center">Data Kapal</th>
                 <th width="10%" class="text-center">Status</th>
                 <th width="13%">Dibuat</th>
             </tr>
@@ -82,7 +82,7 @@
                         {{ $galangan->pic_name ?? '-' }}<br>
                         <small style="color: #666;">{{ $galangan->telepon ?? '-' }}</small>
                     </td>
-                    <td class="text-center">{{ $galangan->jenis_kapal_count }}</td>
+                    <td class="text-center">{{ $galangan->data_kapal_count }}</td>
                     <td class="text-center">
                         <span class="badge {{ $galangan->status->value === 'active' ? 'badge-success' : 'badge-danger' }}">
                             {{ $galangan->status->label() }}

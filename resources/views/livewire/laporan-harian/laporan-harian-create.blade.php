@@ -1,7 +1,7 @@
 <div x-data="{
         draftState: 'idle',
         draftSavedAt: '',
-        draftKey: 'lh-draft:{{ auth()->id() }}:create:{{ $jenisKapal->id }}',
+        draftKey: 'lh-draft:{{ auth()->id() }}:create:{{ $dataKapal->id }}',
         dirty: false,
         flashField(el) {
             if (! this.$wire.autoSave || ! el || ! el.matches('input, textarea, select')) return;
@@ -62,7 +62,7 @@
     {{-- Header --}}
     <div class="mb-6">
         <div class="flex items-center gap-2">
-            <a href="{{ route('laporan-harian.index', $jenisKapal) }}" wire:navigate
+            <a href="{{ route('laporan-harian.index', $dataKapal) }}" wire:navigate
                 x-data="{ loading: false }" x-on:click="loading = true"
                 x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                 class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
@@ -77,7 +77,7 @@
             <div class="min-w-0">
                 <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Tambah Laporan Harian</h2>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 truncate">
-                    {{ $jenisKapal->nama }}{{ $jenisKapal->company ? ' · ' . $jenisKapal->company->name : '' }} — setiap tab adalah satu hari; tanggal otomatis mengikuti hari sebelumnya
+                    {{ $dataKapal->nama }}{{ $dataKapal->company ? ' · ' . $dataKapal->company->name : '' }} — setiap tab adalah satu hari; tanggal otomatis mengikuti hari sebelumnya
                 </p>
             </div>
             {{-- Auto Save toggle + draft indicator (pojok kanan, indikator di bawah toggle) --}}
@@ -113,9 +113,9 @@
         <div x-data="{ activeTab: $wire.entangle('activeTab').live }"
              x-init="
                 (function () {
-                    let s = parseInt(localStorage.getItem('lh-tab:{{ auth()->id() }}:create:{{ $jenisKapal->id }}'));
+                    let s = parseInt(localStorage.getItem('lh-tab:{{ auth()->id() }}:create:{{ $dataKapal->id }}'));
                     if (! isNaN(s) && s !== {{ $activeTab }}) { $wire.set('activeTab', s); }
-                    $watch('activeTab', function (v) { localStorage.setItem('lh-tab:{{ auth()->id() }}:create:{{ $jenisKapal->id }}', v); });
+                    $watch('activeTab', function (v) { localStorage.setItem('lh-tab:{{ auth()->id() }}:create:{{ $dataKapal->id }}', v); });
                 })();
              "
              x-on:laporan-item-added.window="$nextTick(() => { $el.querySelector('[data-tab=\'' + $event.detail.index + '\']')?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' }); })"
@@ -215,7 +215,7 @@
                             foreach ($sectionMeta as $secKey => $meta) {
                                 if ($meta['error']) { $defaultSection = $secKey; break; }
                             }
-                            $sectKey = 'lh-sect:'.auth()->id().':create:'.$jenisKapal->id.':'.($item['tanggal_laporan'] ?? $index);
+                            $sectKey = 'lh-sect:'.auth()->id().':create:'.$dataKapal->id.':'.($item['tanggal_laporan'] ?? $index);
                             $sectionInit = $errors->any() ? "'{$defaultSection}'" : "(localStorage.getItem('{$sectKey}') || '{$defaultSection}')";
                         @endphp
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4"

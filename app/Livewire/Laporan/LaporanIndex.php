@@ -2,8 +2,8 @@
 
 namespace App\Livewire\Laporan;
 
-use App\Exports\RekapJenisKapalExport;
-use App\Livewire\Traits\HasJenisKapalFilter;
+use App\Exports\RekapDataKapalExport;
+use App\Livewire\Traits\HasDataKapalFilter;
 use App\Models\KurvaSWorkGroup;
 use App\Models\LaporanHarian;
 use App\Services\KurvaSService;
@@ -19,7 +19,7 @@ use Livewire\WithPagination;
 #[Layout('layouts.app', ['title' => 'Manajemen Laporan'])]
 class LaporanIndex extends Component
 {
-    use AuthorizesRequests, HasJenisKapalFilter, WithPagination;
+    use AuthorizesRequests, HasDataKapalFilter, WithPagination;
 
     protected $paginationTheme = 'tailwind';
 
@@ -38,7 +38,7 @@ class LaporanIndex extends Component
     {
         $this->authorize('viewAny', LaporanHarian::class);
 
-        $accessible = $this->getJenisKapalList();
+        $accessible = $this->getDataKapalList();
 
         // Single accessible ship: skip picker entirely
         if ($accessible->count() === 1) {
@@ -72,12 +72,12 @@ class LaporanIndex extends Component
         $this->resetPage();
     }
 
-    public function openLaporan(int $jenisKapalId)
+    public function openLaporan(int $dataKapalId)
     {
-        $jenisKapal = $this->getJenisKapalList()->firstWhere('id', $jenisKapalId);
-        abort_unless($jenisKapal, 403);
+        $dataKapal = $this->getDataKapalList()->firstWhere('id', $dataKapalId);
+        abort_unless($dataKapal, 403);
 
-        return $this->redirect(route('laporan-harian.index', $jenisKapal), navigate: true);
+        return $this->redirect(route('laporan-harian.index', $dataKapal), navigate: true);
     }
 
     public function exportExcel()
@@ -86,8 +86,8 @@ class LaporanIndex extends Component
 
         $items = $this->withProgress($this->filteredQuery()->get());
 
-        return (new RekapJenisKapalExport($items))
-            ->download('rekap-jenis-kapal-'.now()->format('Y-m-d-His').'.xlsx');
+        return (new RekapDataKapalExport($items))
+            ->download('rekap-data-kapal-'.now()->format('Y-m-d-His').'.xlsx');
     }
 
     public function exportPdf()
@@ -96,23 +96,23 @@ class LaporanIndex extends Component
 
         $items = $this->withProgress($this->filteredQuery()->get());
 
-        $pdf = Pdf::loadView('exports.rekap-jenis-kapal-pdf', [
-            'jenisKapalList' => $items,
+        $pdf = Pdf::loadView('exports.rekap-data-kapal-pdf', [
+            'dataKapalList' => $items,
         ]);
         $pdf->setPaper('a4', 'landscape');
 
         return response()->streamDownload(
             fn () => print ($pdf->output()),
-            'rekap-jenis-kapal-'.now()->format('Y-m-d-His').'.pdf'
+            'rekap-data-kapal-'.now()->format('Y-m-d-His').'.pdf'
         );
     }
 
     /**
-     * Base query for the picker table: accessible jenis kapal + search/filters + summary aggregates.
+     * Base query for the picker table: accessible data kapal + search/filters + summary aggregates.
      */
     private function filteredQuery(): Builder
     {
-        return $this->getJenisKapalQuery()
+        return $this->getDataKapalQuery()
             ->withCount(['laporanHarian', 'laporanMingguan', 'laporanBulanan'])
             ->withMax('laporanHarian', 'tanggal_laporan')
             ->when($this->search, function ($q) {
@@ -127,27 +127,27 @@ class LaporanIndex extends Component
     }
 
     /**
-     * Enrich a jenis kapal collection with `progress_aktual` (Kurva-S realization).
+     * Enrich a data kapal collection with `progress_aktual` (Kurva-S realization).
      * Progress only exists once a mingguan report has been made.
      */
     private function withProgress(Collection|\Illuminate\Pagination\LengthAwarePaginator $items): Collection|\Illuminate\Pagination\LengthAwarePaginator
     {
-        $workGroupBobots = KurvaSWorkGroup::whereIn('jenis_kapal_id', $items->pluck('id'))
-            ->get(['id', 'jenis_kapal_id', 'bobot'])
-            ->groupBy('jenis_kapal_id');
+        $workGroupBobots = KurvaSWorkGroup::whereIn('data_kapal_id', $items->pluck('id'))
+            ->get(['id', 'data_kapal_id', 'bobot'])
+            ->groupBy('data_kapal_id');
 
         $kurvaSService = app(KurvaSService::class);
 
-        foreach ($items as $jenisKapal) {
-            $jenisKapal->progress_aktual = null;
+        foreach ($items as $dataKapal) {
+            $dataKapal->progress_aktual = null;
 
-            if ($jenisKapal->laporan_mingguan_count > 0) {
-                $workGroups = ($workGroupBobots[$jenisKapal->id] ?? collect())
+            if ($dataKapal->laporan_mingguan_count > 0) {
+                $workGroups = ($workGroupBobots[$dataKapal->id] ?? collect())
                     ->map(fn ($wg) => ['work_group_id' => $wg->id, 'bobot' => $wg->bobot])
                     ->toArray();
 
-                $jenisKapal->progress_aktual = $kurvaSService->calculateTotalsFromHistory(
-                    $kurvaSService->getProgressHistory($jenisKapal),
+                $dataKapal->progress_aktual = $kurvaSService->calculateTotalsFromHistory(
+                    $kurvaSService->getProgressHistory($dataKapal),
                     $workGroups
                 )['total_aktual'];
             }
@@ -158,15 +158,15 @@ class LaporanIndex extends Component
 
     public function render()
     {
-        // Filter options: only companies/galangans that own accessible jenis kapal
-        $accessible = $this->getJenisKapalList();
+        // Filter options: only companies/galangans that own accessible data kapal
+        $accessible = $this->getDataKapalList();
         $companies = $accessible->pluck('company')->filter()->unique('id')->sortBy('name')->values();
         $galangans = $accessible->pluck('galangan')->filter()->unique('id')->sortBy('nama')->values();
 
-        $jenisKapalList = $this->withProgress($this->filteredQuery()->paginate($this->perPage));
+        $dataKapalList = $this->withProgress($this->filteredQuery()->paginate($this->perPage));
 
         return view('livewire.laporan.laporan-index', [
-            'jenisKapalList' => $jenisKapalList,
+            'dataKapalList' => $dataKapalList,
             'companies' => $companies,
             'galangans' => $galangans,
         ]);

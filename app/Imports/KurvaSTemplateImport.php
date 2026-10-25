@@ -2,23 +2,25 @@
 
 namespace App\Imports;
 
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
 class KurvaSTemplateImport implements WithMultipleSheets
 {
-    protected JenisKapal $jenisKapal;
+    protected DataKapal $dataKapal;
+
     protected array $errors = [];
+
     protected array $rencanaData = [];
 
-    public function __construct(JenisKapal $jenisKapal)
+    public function __construct(DataKapal $dataKapal)
     {
-        $this->jenisKapal = $jenisKapal;
+        $this->dataKapal = $dataKapal;
     }
 
     public function sheets(): array
     {
-        $rencanaImport = new KurvaSRencanaImport($this->jenisKapal, $this);
+        $rencanaImport = new KurvaSRencanaImport($this->dataKapal, $this);
 
         return [
             'Rencana' => $rencanaImport,
@@ -42,7 +44,7 @@ class KurvaSTemplateImport implements WithMultipleSheets
 
     public function hasErrors(): bool
     {
-        return !empty($this->errors);
+        return ! empty($this->errors);
     }
 
     public function getErrors(): array

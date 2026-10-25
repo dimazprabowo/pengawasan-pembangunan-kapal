@@ -80,7 +80,7 @@
     {{-- Header --}}
     <div class="mb-6">
         <div class="flex items-center gap-2">
-            <a href="{{ route('laporan-mingguan.index', $jenisKapal) }}" wire:navigate
+            <a href="{{ route('laporan-mingguan.index', $dataKapal) }}" wire:navigate
                 x-data="{ loading: false }" x-on:click="loading = true"
                 x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                 class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
@@ -94,7 +94,7 @@
             </a>
             <div class="min-w-0">
                 <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Edit Laporan Mingguan</h2>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 truncate">{{ $jenisKapal->nama }}{{ $jenisKapal->company ? ' · ' . $jenisKapal->company->name : '' }} — Perbarui data laporan di bawah ini</p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 truncate">{{ $dataKapal->nama }}{{ $dataKapal->company ? ' · ' . $dataKapal->company->name : '' }} — Perbarui data laporan di bawah ini</p>
             </div>
             {{-- Auto Save toggle + draft indicator (pojok kanan, indikator di bawah toggle) --}}
             <div class="ml-auto flex flex-col items-end gap-1.5 flex-shrink-0">
@@ -145,9 +145,9 @@
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Periode Mingguan <span class="text-red-500">*</span>
                         </label>
-                        @if(!$jenis_kapal_id)
+                        @if(!$data_kapal_id)
                             <div class="w-full h-[42px] px-3 py-2 bg-gray-100 dark:bg-gray-600/50 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 text-sm flex items-center cursor-not-allowed">
-                                Pilih jenis kapal terlebih dahulu
+                                Pilih data kapal terlebih dahulu
                             </div>
                         @elseif($hasKontrak)
                             <div class="w-full min-h-[42px] px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border rounded-lg text-sm flex items-center gap-2 cursor-not-allowed {{ $errors->has('periode_mulai') || $errors->has('periode_selesai') ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600' }}">
@@ -310,7 +310,7 @@
         </div>
 
         {{-- Kurva S Progress --}}
-        @if($jenis_kapal_id)
+        @if($data_kapal_id)
         <div class="mt-6">
             <x-laporan-mingguan.kurva-s-form
                 :mingguOptions="$mingguOptions"
@@ -335,7 +335,7 @@
         {{-- Kurva S Chart --}}
         <x-kurva-s-chart-card
             :chartData="$kurvaSChartData"
-            :jenisKapalNama="$jenisKapalNama ?? null"
+            :dataKapalNama="$dataKapalNama ?? null"
             :mingguKe="$minggu_ke"
             :showStats="true"
             :totalRencana="$totalRencana"

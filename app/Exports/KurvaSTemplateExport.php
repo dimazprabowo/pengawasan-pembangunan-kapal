@@ -2,28 +2,28 @@
 
 namespace App\Exports;
 
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
 class KurvaSTemplateExport implements WithMultipleSheets
 {
-    protected JenisKapal $jenisKapal;
+    protected DataKapal $dataKapal;
 
     protected bool $withData;
 
-    public function __construct(JenisKapal $jenisKapal, bool $withData = true)
+    public function __construct(DataKapal $dataKapal, bool $withData = true)
     {
-        $this->jenisKapal = $jenisKapal;
+        $this->dataKapal = $dataKapal;
         $this->withData = $withData;
     }
 
     public function sheets(): array
     {
-        $months = KurvaSRencanaSheet::resolveMonths($this->jenisKapal);
+        $months = KurvaSRencanaSheet::resolveMonths($this->dataKapal);
 
         return [
-            new KurvaSInstructionsSheet($this->jenisKapal, $months),
-            new KurvaSRencanaSheet($this->jenisKapal, $this->withData, $months),
+            new KurvaSInstructionsSheet($this->dataKapal, $months),
+            new KurvaSRencanaSheet($this->dataKapal, $this->withData, $months),
         ];
     }
 }

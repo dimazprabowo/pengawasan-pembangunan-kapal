@@ -5,8 +5,8 @@ namespace App\Models;
 use App\Enums\GalanganStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Galangan extends Model
 {
@@ -35,9 +35,9 @@ class Galangan extends Model
         'deleted_at' => 'datetime',
     ];
 
-    public function jenisKapal(): HasMany
+    public function dataKapal(): HasMany
     {
-        return $this->hasMany(JenisKapal::class);
+        return $this->hasMany(DataKapal::class);
     }
 
     public function scopeActive($query)

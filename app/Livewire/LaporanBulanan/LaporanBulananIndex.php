@@ -2,9 +2,9 @@
 
 namespace App\Livewire\LaporanBulanan;
 
-use App\Livewire\Traits\HasJenisKapalFilter;
+use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\KurvaSWorkGroup;
 use App\Models\LaporanBulanan;
 use App\Services\KurvaSService;
@@ -18,16 +18,16 @@ use Livewire\WithPagination;
 #[Layout('layouts.app', ['title' => 'Manajemen Laporan Bulanan'])]
 class LaporanBulananIndex extends Component
 {
-    use AuthorizesRequests, HasJenisKapalFilter, HasNotification, WithPagination;
+    use AuthorizesRequests, HasDataKapalFilter, HasNotification, WithPagination;
 
     protected $paginationTheme = 'tailwind';
 
     #[Url(as: 'q')]
     public string $search = '';
 
-    public JenisKapal $jenisKapal;
+    public DataKapal $dataKapal;
 
-    public ?int $jenisKapalId = null;
+    public ?int $dataKapalId = null;
 
     public int $perPage = 10;
 
@@ -41,13 +41,13 @@ class LaporanBulananIndex extends Component
 
     public ?string $deletingLaporanJudul = null;
 
-    public function mount(JenisKapal $jenisKapal): void
+    public function mount(DataKapal $dataKapal): void
     {
         $this->authorize('viewAny', LaporanBulanan::class);
-        $this->authorizeJenisKapalAccess($jenisKapal);
+        $this->authorizeDataKapalAccess($dataKapal);
 
-        $this->jenisKapal = $jenisKapal;
-        $this->jenisKapalId = $jenisKapal->id;
+        $this->dataKapal = $dataKapal;
+        $this->dataKapalId = $dataKapal->id;
         $this->showKurvaS = session('laporan_bulanan_show_kurva_s', true);
 
         if (session()->has('notify')) {
@@ -71,7 +71,7 @@ class LaporanBulananIndex extends Component
     {
         session(['laporan_bulanan_show_kurva_s' => $value]);
 
-        if ($value && $this->jenisKapalId) {
+        if ($value && $this->dataKapalId) {
             $this->dispatchRealtimeUpdates();
         }
     }
@@ -79,8 +79,8 @@ class LaporanBulananIndex extends Component
     private function dispatchRealtimeUpdates(): void
     {
         $kurvaSService = app(KurvaSService::class);
-        $chartData = $kurvaSService->getMonthlyChartData($this->jenisKapal);
-        $progressHistory = $kurvaSService->getMonthlyProgressHistory($this->jenisKapal);
+        $chartData = $kurvaSService->getMonthlyChartData($this->dataKapal);
+        $progressHistory = $kurvaSService->getMonthlyProgressHistory($this->dataKapal);
         $workGroupsForHistory = $this->getWorkGroupsForHistory();
 
         $totalRencana = null;
@@ -99,7 +99,7 @@ class LaporanBulananIndex extends Component
 
     private function getWorkGroupsForHistory(): array
     {
-        return KurvaSWorkGroup::where('jenis_kapal_id', $this->jenisKapalId)
+        return KurvaSWorkGroup::where('data_kapal_id', $this->dataKapalId)
             ->orderBy('sort_order')
             ->get()
             ->map(fn ($wg) => [
@@ -160,9 +160,9 @@ class LaporanBulananIndex extends Component
         $totalRencana = null;
         $totalAktual = null;
 
-        if ($this->showKurvaS && $this->jenisKapal) {
-            $chartData = $kurvaSService->getMonthlyChartData($this->jenisKapal);
-            $progressHistory = $kurvaSService->getMonthlyProgressHistory($this->jenisKapal);
+        if ($this->showKurvaS && $this->dataKapal) {
+            $chartData = $kurvaSService->getMonthlyChartData($this->dataKapal);
+            $progressHistory = $kurvaSService->getMonthlyProgressHistory($this->dataKapal);
             $workGroupsForHistory = $this->getWorkGroupsForHistory();
 
             if (! empty($progressHistory) && ! empty($workGroupsForHistory)) {
@@ -175,10 +175,10 @@ class LaporanBulananIndex extends Component
         return view('livewire.laporan-bulanan.laporan-bulanan-index', [
             'laporanList' => $service->getFiltered(
                 $this->search,
-                $this->jenisKapalId,
+                $this->dataKapalId,
                 $this->perPage
             ),
-            'jenisKapal' => $this->jenisKapal,
+            'dataKapal' => $this->dataKapal,
             'kurvaSChartData' => $chartData,
             'progressHistory' => $progressHistory,
             'workGroupsForHistory' => $workGroupsForHistory,

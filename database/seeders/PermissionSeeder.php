@@ -37,16 +37,16 @@ class PermissionSeeder extends Seeder
             'companies_export_excel',
             'companies_export_pdf',
 
-            // Master Data — Jenis Kapal
-            'jenis_kapal_view',
-            'jenis_kapal_create',
-            'jenis_kapal_update',
-            'jenis_kapal_delete',
-            'jenis_kapal_export_excel',
-            'jenis_kapal_export_pdf',
-            'jenis_kapal_upload_template',
-            'jenis_kapal_download_template',
-            'jenis_kapal_manage_kurva_s',
+            // Master Data — Data Kapal
+            'data_kapal_view',
+            'data_kapal_create',
+            'data_kapal_update',
+            'data_kapal_delete',
+            'data_kapal_export_excel',
+            'data_kapal_export_pdf',
+            'data_kapal_upload_template',
+            'data_kapal_download_template',
+            'data_kapal_manage_kurva_s',
 
             // Master Data — Galangan
             'galangan_view',
@@ -118,7 +118,7 @@ class PermissionSeeder extends Seeder
             'laporan_lampiran_download',
             'laporan_export_excel',
             'laporan_export_pdf',
-            'laporan_view_all_jenis_kapal',
+            'laporan_view_all_data_kapal',
         ];
 
         foreach ($permissions as $permission) {

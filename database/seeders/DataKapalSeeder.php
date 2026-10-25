@@ -2,13 +2,13 @@
 
 namespace Database\Seeders;
 
-use App\Enums\JenisKapalStatus;
+use App\Enums\DataKapalStatus;
 use App\Models\Company;
+use App\Models\DataKapal;
 use App\Models\Galangan;
-use App\Models\JenisKapal;
 use Illuminate\Database\Seeder;
 
-class JenisKapalSeeder extends Seeder
+class DataKapalSeeder extends Seeder
 {
     public function run(): void
     {
@@ -27,16 +27,16 @@ class JenisKapalSeeder extends Seeder
             return;
         }
 
-        $jenisKapalData = [
+        $dataKapalData = [
             [
                 'nama' => 'Crew Boat 22 PAX',
                 'deskripsi' => 'Kapal crew boat dengan kapasitas 22 penumpang untuk transportasi pekerja offshore',
-                'status' => JenisKapalStatus::Active,
+                'status' => DataKapalStatus::Active,
             ],
             [
                 'nama' => 'Crew Boat 50 PAX',
                 'deskripsi' => 'Kapal crew boat dengan kapasitas 50 penumpang untuk transportasi pekerja offshore',
-                'status' => JenisKapalStatus::Active,
+                'status' => DataKapalStatus::Active,
             ],
         ];
 
@@ -46,8 +46,8 @@ class JenisKapalSeeder extends Seeder
         $durasiKontrakHari = 700;
 
         foreach ($companies as $company) {
-            foreach ($jenisKapalData as $data) {
-                JenisKapal::firstOrCreate(
+            foreach ($dataKapalData as $data) {
+                DataKapal::firstOrCreate(
                     [
                         'company_id' => $company->id,
                         'nama' => $data['nama'],
@@ -63,6 +63,6 @@ class JenisKapalSeeder extends Seeder
             }
         }
 
-        $this->command->info('Jenis Kapal seeded successfully.');
+        $this->command->info('Data Kapal seeded successfully.');
     }
 }

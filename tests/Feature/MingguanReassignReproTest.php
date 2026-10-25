@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Livewire\LaporanMingguan\LaporanMingguanCreate;
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\LaporanHarian;
 use App\Models\LaporanMingguan;
 use App\Models\User;
@@ -17,7 +17,7 @@ class MingguanReassignReproTest extends TestCase
 
     private User $admin;
 
-    private JenisKapal $jenisKapal;
+    private DataKapal $dataKapal;
 
     private \Carbon\Carbon $base;
 
@@ -27,7 +27,7 @@ class MingguanReassignReproTest extends TestCase
         $this->seed();
 
         $this->admin = User::firstOrFail();
-        $this->jenisKapal = JenisKapal::firstOrFail();
+        $this->dataKapal = DataKapal::firstOrFail();
         $this->base = now()->startOfMonth()->subMonth();
     }
 
@@ -37,7 +37,7 @@ class MingguanReassignReproTest extends TestCase
         for ($d = $from; $d <= $to; $d++) {
             $ids[$d] = LaporanHarian::create([
                 'user_id' => $this->admin->id,
-                'jenis_kapal_id' => $this->jenisKapal->id,
+                'data_kapal_id' => $this->dataKapal->id,
                 'tanggal_laporan' => $this->base->copy()->day($d)->format('Y-m-d'),
             ])->id;
         }
@@ -60,7 +60,7 @@ class MingguanReassignReproTest extends TestCase
         $this->createHarianRange(1, 10);
 
         $component = Livewire::actingAs($this->admin)
-            ->test(LaporanMingguanCreate::class, ['jenisKapal' => $this->jenisKapal])
+            ->test(LaporanMingguanCreate::class, ['dataKapal' => $this->dataKapal])
             ->set('periode_mulai', $this->base->copy()->day(1)->format('Y-m-d'))
             ->set('periode_selesai', $this->base->copy()->day(10)->format('Y-m-d'));
 
@@ -73,20 +73,23 @@ class MingguanReassignReproTest extends TestCase
         $this->createHarianRange(1, 10);
 
         // Mingguan 1: periode 1..10
+        // Seeder bisa punya minggu_ke sama -> identifikasi via latest id, bukan where('minggu_ke')
         Livewire::actingAs($this->admin)
-            ->test(LaporanMingguanCreate::class, ['jenisKapal' => $this->jenisKapal])
+            ->test(LaporanMingguanCreate::class, ['dataKapal' => $this->dataKapal])
             ->set('minggu_ke', 81)
             ->set('tanggal_laporan', $this->base->copy()->day(10)->format('Y-m-d'))
             ->set('periode_mulai', $this->base->copy()->day(1)->format('Y-m-d'))
             ->set('periode_selesai', $this->base->copy()->day(10)->format('Y-m-d'))
-            ->call('save');
+            ->call('save')
+            ->assertHasNoErrors();
 
-        $mingguan1 = LaporanMingguan::where('minggu_ke', 81)->firstOrFail();
+        $mingguan1 = LaporanMingguan::latest('id')->firstOrFail();
+        $this->assertSame(81, $mingguan1->minggu_ke);
         $this->assertCount(10, $mingguan1->laporanHarian);
 
         // Mingguan 2: periode 2..9 -> konflik -> konfirmasi pemindahan
         $component = Livewire::actingAs($this->admin)
-            ->test(LaporanMingguanCreate::class, ['jenisKapal' => $this->jenisKapal])
+            ->test(LaporanMingguanCreate::class, ['dataKapal' => $this->dataKapal])
             ->set('minggu_ke', 82)
             ->set('tanggal_laporan', $this->base->copy()->day(9)->format('Y-m-d'))
             ->set('periode_mulai', $this->base->copy()->day(2)->format('Y-m-d'))
@@ -96,7 +99,8 @@ class MingguanReassignReproTest extends TestCase
 
         $component->call('saveWithReassign');
 
-        $mingguan2 = LaporanMingguan::where('minggu_ke', 82)->firstOrFail();
+        $mingguan2 = LaporanMingguan::latest('id')->firstOrFail();
+        $this->assertSame(82, $mingguan2->minggu_ke);
 
         $this->assertSame(['01', '10'], $this->tanggalMingguan($mingguan1));
         $this->assertSame(

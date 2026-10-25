@@ -11,7 +11,7 @@ class KurvaSWorkGroup extends Model
     protected $table = 'kurva_s_work_groups';
 
     protected $fillable = [
-        'jenis_kapal_id',
+        'data_kapal_id',
         'nama',
         'bobot',
         'sort_order',
@@ -22,9 +22,9 @@ class KurvaSWorkGroup extends Model
         'sort_order' => 'integer',
     ];
 
-    public function jenisKapal(): BelongsTo
+    public function dataKapal(): BelongsTo
     {
-        return $this->belongsTo(JenisKapal::class, 'jenis_kapal_id');
+        return $this->belongsTo(DataKapal::class, 'data_kapal_id');
     }
 
     public function kurvaSRencana(): HasMany

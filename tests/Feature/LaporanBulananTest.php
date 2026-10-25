@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Livewire\LaporanBulanan\LaporanBulananCreate;
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\KurvaSRencana;
 use App\Models\KurvaSWorkGroup;
 use App\Models\LaporanBulanan;
@@ -29,53 +29,53 @@ class LaporanBulananTest extends TestCase
         return User::firstOrFail();
     }
 
-    private function jenisKapal(): JenisKapal
+    private function dataKapal(): DataKapal
     {
-        return JenisKapal::whereNotNull('tanggal_mulai_kontrak')->firstOrFail();
+        return DataKapal::whereNotNull('tanggal_mulai_kontrak')->firstOrFail();
     }
 
-    public function test_bulanan_index_renders_in_jenis_kapal_context(): void
+    public function test_bulanan_index_renders_in_data_kapal_context(): void
     {
-        $jenisKapal = $this->jenisKapal();
+        $dataKapal = $this->dataKapal();
 
         $this->actingAs($this->admin())
-            ->get(route('laporan-bulanan.index', $jenisKapal))
+            ->get(route('laporan-bulanan.index', $dataKapal))
             ->assertOk()
-            ->assertSee($jenisKapal->nama)
+            ->assertSee($dataKapal->nama)
             ->assertSee('Laporan Bulanan');
     }
 
     public function test_bulanan_create_show_edit_render(): void
     {
         $laporan = LaporanBulanan::firstOrFail();
-        $jenisKapal = $laporan->jenisKapal;
+        $dataKapal = $laporan->dataKapal;
 
         $this->actingAs($this->admin())
-            ->get(route('laporan-bulanan.create', $jenisKapal))
+            ->get(route('laporan-bulanan.create', $dataKapal))
             ->assertOk();
 
         $this->actingAs($this->admin())
-            ->get(route('laporan-bulanan.show', [$jenisKapal, $laporan]))
+            ->get(route('laporan-bulanan.show', [$dataKapal, $laporan]))
             ->assertOk()
             ->assertSee($laporan->judul);
 
         $this->actingAs($this->admin())
-            ->get(route('laporan-bulanan.edit', [$jenisKapal, $laporan]))
+            ->get(route('laporan-bulanan.edit', [$dataKapal, $laporan]))
             ->assertOk();
     }
 
     public function test_monthly_chart_menjumlahkan_realisasi_mingguan(): void
     {
-        $jenisKapal = $this->jenisKapal();
+        $dataKapal = $this->dataKapal();
         $service = app(KurvaSService::class);
 
-        $monthly = $service->getMonthlyChartData($jenisKapal);
+        $monthly = $service->getMonthlyChartData($dataKapal);
         $this->assertNotEmpty($monthly['labels']);
         $this->assertSame('Bulan', $monthly['unit_label']);
         $this->assertSame($monthly['total_unit'], count($monthly['labels']));
 
         // Kumulatif aktual terakhir chart = kumulatif terakhir history
-        $history = $service->getMonthlyProgressHistory($jenisKapal);
+        $history = $service->getMonthlyProgressHistory($dataKapal);
         $this->assertNotEmpty($history);
 
         $lastHistoryCum = end($history)['cumulative_actual'];
@@ -86,12 +86,12 @@ class LaporanBulananTest extends TestCase
 
     public function test_monthly_rencana_sesuai_kurva_s_rencana(): void
     {
-        $jenisKapal = $this->jenisKapal();
+        $dataKapal = $this->dataKapal();
         $service = app(KurvaSService::class);
 
-        $workGroupIds = KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)->pluck('id');
+        $workGroupIds = KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)->pluck('id');
 
-        foreach ($service->getMonthlyProgressHistory($jenisKapal) as $entry) {
+        foreach ($service->getMonthlyProgressHistory($dataKapal) as $entry) {
             // Rencana bulan = Σ pct_rencana bulan_ke tsb (langsung, tidak dibagi)
             $expected = (float) KurvaSRencana::where('bulan_ke', $entry['bulan_ke'])
                 ->whereIn('work_group_id', $workGroupIds)
@@ -103,11 +103,11 @@ class LaporanBulananTest extends TestCase
 
     public function test_get_bulan_options_mengecualikan_bulan_terpakai(): void
     {
-        $jenisKapal = $this->jenisKapal();
-        $used = LaporanBulanan::where('jenis_kapal_id', $jenisKapal->id)->pluck('bulan_ke')->toArray();
+        $dataKapal = $this->dataKapal();
+        $used = LaporanBulanan::where('data_kapal_id', $dataKapal->id)->pluck('bulan_ke')->toArray();
         $this->assertNotEmpty($used);
 
-        $options = app(KontrakPeriodeService::class)->getBulanOptions($jenisKapal);
+        $options = app(KontrakPeriodeService::class)->getBulanOptions($dataKapal);
         $optionValues = array_column($options, 'value');
 
         foreach ($used as $bulanKe) {
@@ -119,46 +119,46 @@ class LaporanBulananTest extends TestCase
     {
         // Kapal pertama sudah penuh (semua bulan ter-seed) — pakai kapal
         // lain dengan kontrak yang belum punya laporan bulanan.
-        $jenisKapal = JenisKapal::whereNotNull('tanggal_mulai_kontrak')
+        $dataKapal = DataKapal::whereNotNull('tanggal_mulai_kontrak')
             ->whereDoesntHave('laporanBulanan')
             ->firstOrFail();
 
-        $options = app(KontrakPeriodeService::class)->getBulanOptions($jenisKapal);
+        $options = app(KontrakPeriodeService::class)->getBulanOptions($dataKapal);
         $this->assertNotEmpty($options);
         $bulanKe = $options[0]['value'];
 
         Livewire::actingAs($this->admin())
-            ->test(LaporanBulananCreate::class, ['jenisKapal' => $jenisKapal])
+            ->test(LaporanBulananCreate::class, ['dataKapal' => $dataKapal])
             ->set('tanggal_laporan', now()->format('Y-m-d'))
             ->set('bulan_ke', $bulanKe)
             ->set('ringkasan', 'Uji laporan bulanan')
             ->call('save')
             ->assertRedirect(); // URL berisi encrypted route key (non-deterministik)
 
-        $laporan = LaporanBulanan::where('jenis_kapal_id', $jenisKapal->id)
+        $laporan = LaporanBulanan::where('data_kapal_id', $dataKapal->id)
             ->where('bulan_ke', $bulanKe)
             ->firstOrFail();
 
         // Periode snapshot mengikuti kontrak
-        $bulan = app(KontrakPeriodeService::class)->getBulanPeriode($jenisKapal, $bulanKe);
+        $bulan = app(KontrakPeriodeService::class)->getBulanPeriode($dataKapal, $bulanKe);
         $this->assertEquals($bulan['mulai']->format('Y-m-d'), $laporan->periode_mulai->format('Y-m-d'));
         $this->assertEquals($bulan['selesai']->format('Y-m-d'), $laporan->periode_selesai->format('Y-m-d'));
     }
 
     public function test_bulan_ke_ganda_ditolak(): void
     {
-        $jenisKapal = $this->jenisKapal();
-        $existing = LaporanBulanan::where('jenis_kapal_id', $jenisKapal->id)->firstOrFail();
+        $dataKapal = $this->dataKapal();
+        $existing = LaporanBulanan::where('data_kapal_id', $dataKapal->id)->firstOrFail();
 
         Livewire::actingAs($this->admin())
-            ->test(LaporanBulananCreate::class, ['jenisKapal' => $jenisKapal])
+            ->test(LaporanBulananCreate::class, ['dataKapal' => $dataKapal])
             ->set('tanggal_laporan', now()->format('Y-m-d'))
             ->set('bulan_ke', $existing->bulan_ke)
             ->call('save');
 
         $this->assertSame(
             1,
-            LaporanBulanan::where('jenis_kapal_id', $jenisKapal->id)
+            LaporanBulanan::where('data_kapal_id', $dataKapal->id)
                 ->where('bulan_ke', $existing->bulan_ke)
                 ->count()
         );
@@ -170,10 +170,10 @@ class LaporanBulananTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $jenisKapal = $this->jenisKapal();
+        $dataKapal = $this->dataKapal();
 
         $this->actingAs($user)
-            ->get(route('laporan-bulanan.index', $jenisKapal))
+            ->get(route('laporan-bulanan.index', $dataKapal))
             ->assertForbidden();
     }
 }

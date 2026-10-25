@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('laporan_harian', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('jenis_kapal_id')->nullable()->constrained('jenis_kapal')->nullOnDelete();
+            $table->foreignId('data_kapal_id')->nullable()->constrained('data_kapal')->nullOnDelete();
             $table->date('tanggal_laporan');
             $table->string('file_path')->nullable();
             $table->string('file_name')->nullable();
@@ -37,7 +37,7 @@ return new class extends Migration
 
             $table->index('tanggal_laporan');
             $table->index('user_id');
-            $table->index('jenis_kapal_id');
+            $table->index('data_kapal_id');
         });
     }
 

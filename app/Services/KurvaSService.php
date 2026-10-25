@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\KurvaSRencana;
 use App\Models\KurvaSRencanaMingguan;
 use App\Models\KurvaSWorkGroup;
@@ -13,11 +13,11 @@ use Illuminate\Support\Collection;
 class KurvaSService
 {
     /**
-     * Ambil semua work groups beserta rencana per bulan untuk satu jenis kapal.
+     * Ambil semua work groups beserta rencana per bulan untuk satu data kapal.
      */
-    public function getWorkGroups(JenisKapal $jenisKapal): Collection
+    public function getWorkGroups(DataKapal $dataKapal): Collection
     {
-        return KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
+        return KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)
             ->with(['kurvaSRencana' => fn ($q) => $q->orderBy('bulan_ke')])
             ->orderBy('sort_order')
             ->get();
@@ -38,9 +38,9 @@ class KurvaSService
      *   ...
      * ]
      */
-    public function saveWorkGroups(JenisKapal $jenisKapal, array $workGroups): void
+    public function saveWorkGroups(DataKapal $dataKapal, array $workGroups): void
     {
-        $existingIds = KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
+        $existingIds = KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)
             ->pluck('id')
             ->toArray();
 
@@ -58,7 +58,7 @@ class KurvaSService
             }
 
             $wg->fill([
-                'jenis_kapal_id' => $jenisKapal->id,
+                'data_kapal_id' => $dataKapal->id,
                 'nama' => trim($wgData['nama'] ?? ''),
                 'bobot' => $bobot,
                 'sort_order' => $sortOrder,
@@ -108,7 +108,7 @@ class KurvaSService
             $savedIds[] = $wg->id;
         }
 
-        KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
+        KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)
             ->whereNotIn('id', $savedIds)
             ->delete();
     }
@@ -144,11 +144,11 @@ class KurvaSService
     }
 
     /**
-     * Cek apakah sebuah jenis kapal sudah memiliki work groups dengan rencana Kurva S.
+     * Cek apakah sebuah data kapal sudah memiliki work groups dengan rencana Kurva S.
      */
-    public function hasRencana(JenisKapal $jenisKapal): bool
+    public function hasRencana(DataKapal $dataKapal): bool
     {
-        return KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)->exists();
+        return KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)->exists();
     }
 
     /**
@@ -157,13 +157,13 @@ class KurvaSService
      * tanpa kontrak tidak ada definisi minggu/bulan → daftar kosong.
      * Minggu yang sudah memiliki laporan mingguan akan dikecualikan.
      */
-    public function getMingguOptions(JenisKapal $jenisKapal, ?int $excludeCurrentWeek = null): array
+    public function getMingguOptions(DataKapal $dataKapal, ?int $excludeCurrentWeek = null): array
     {
-        if (! $jenisKapal->hasKontrak()) {
+        if (! $dataKapal->hasKontrak()) {
             return [];
         }
 
-        return app(KontrakPeriodeService::class)->getMingguOptions($jenisKapal, $excludeCurrentWeek);
+        return app(KontrakPeriodeService::class)->getMingguOptions($dataKapal, $excludeCurrentWeek);
     }
 
     /**
@@ -205,15 +205,15 @@ class KurvaSService
      *
      * @return array<int, array<int, float>> [work_group_id => [minggu_ke => pct]]
      */
-    private function getWeeklyPlanMap(JenisKapal $jenisKapal, ?Collection $workGroups = null): array
+    private function getWeeklyPlanMap(DataKapal $dataKapal, ?Collection $workGroups = null): array
     {
-        $bulanList = collect(app(KontrakPeriodeService::class)->getBulanList($jenisKapal))
+        $bulanList = collect(app(KontrakPeriodeService::class)->getBulanList($dataKapal))
             ->keyBy('bulan_ke');
         if ($bulanList->isEmpty()) {
             return [];
         }
 
-        $workGroups ??= KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
+        $workGroups ??= KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)
             ->get();
         $workGroups->loadMissing(['kurvaSRencana', 'kurvaSRencanaMingguan']);
 
@@ -252,11 +252,11 @@ class KurvaSService
      */
     public function getProgressInputData(LaporanMingguan $laporan): array
     {
-        if (! $laporan->jenis_kapal_id) {
+        if (! $laporan->data_kapal_id) {
             return [];
         }
 
-        $workGroups = KurvaSWorkGroup::where('jenis_kapal_id', $laporan->jenis_kapal_id)
+        $workGroups = KurvaSWorkGroup::where('data_kapal_id', $laporan->data_kapal_id)
             ->orderBy('sort_order')
             ->get();
 
@@ -287,12 +287,12 @@ class KurvaSService
      * @param  int|null  $excludeLaporanId  Laporan yang dikecualikan dari DB (digunakan saat edit)
      */
     public function getChartData(
-        JenisKapal $jenisKapal,
+        DataKapal $dataKapal,
         ?int $previewMingguKe = null,
         array $previewProgress = [],
         ?int $excludeLaporanId = null
     ): array {
-        $workGroups = KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
+        $workGroups = KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)
             ->with(['kurvaSRencana' => fn ($q) => $q->orderBy('bulan_ke')])
             ->orderBy('sort_order')
             ->get();
@@ -315,10 +315,10 @@ class KurvaSService
         $workGroupIds = $workGroups->pluck('id')->toArray();
 
         // Rencana per minggu diturunkan dari rencana bulanan (dibagi rata)
-        $weeklyPlan = $this->getWeeklyPlanMap($jenisKapal, $workGroups);
+        $weeklyPlan = $this->getWeeklyPlanMap($dataKapal, $workGroups);
 
         // Map: minggu_ke -> [work_group_id -> pct_realisasi] (ambil laporan terbaru per minggu)
-        $aktualByWeek = $this->getAktualByWeek($jenisKapal, $workGroupIds, $excludeLaporanId);
+        $aktualByWeek = $this->getAktualByWeek($dataKapal, $workGroupIds, $excludeLaporanId);
 
         // Overlay preview data (unsaved form values) for the week being edited/created
         if ($previewMingguKe !== null && ! empty($previewProgress)) {
@@ -334,7 +334,7 @@ class KurvaSService
         }
 
         // Minggu kurva = seluruh minggu kontrak ∪ minggu yang sudah ada laporannya
-        $totalMingguKontrak = app(KontrakPeriodeService::class)->getTotalMinggu($jenisKapal);
+        $totalMingguKontrak = app(KontrakPeriodeService::class)->getTotalMinggu($dataKapal);
         $allWeeks = array_unique(array_merge(
             $totalMingguKontrak > 0 ? range(1, $totalMingguKontrak) : [],
             array_keys($aktualByWeek)
@@ -419,9 +419,9 @@ class KurvaSService
      *
      * @return array<int, array<int, float>>
      */
-    private function getAktualByWeek(JenisKapal $jenisKapal, array $workGroupIds, ?int $excludeLaporanId = null): array
+    private function getAktualByWeek(DataKapal $dataKapal, array $workGroupIds, ?int $excludeLaporanId = null): array
     {
-        $laporanList = LaporanMingguan::where('jenis_kapal_id', $jenisKapal->id)
+        $laporanList = LaporanMingguan::where('data_kapal_id', $dataKapal->id)
             ->whereNotNull('minggu_ke')
             ->whereHas('laporanProgress')
             ->when($excludeLaporanId, fn ($q) => $q->where('id', '!=', $excludeLaporanId))
@@ -458,9 +458,9 @@ class KurvaSService
      * has_*, total_bobot, progress_terkini, deviasi, work_groups) plus
      * 'unit_label' => 'Bulan' dan 'total_unit' => jumlah bulan kontrak.
      */
-    public function getMonthlyChartData(JenisKapal $jenisKapal): array
+    public function getMonthlyChartData(DataKapal $dataKapal): array
     {
-        $workGroups = KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
+        $workGroups = KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)
             ->with(['kurvaSRencana' => fn ($q) => $q->orderBy('bulan_ke')])
             ->orderBy('sort_order')
             ->get();
@@ -486,18 +486,18 @@ class KurvaSService
         $workGroupIds = $workGroups->pluck('id')->toArray();
 
         $kontrak = app(KontrakPeriodeService::class);
-        $bulanList = $kontrak->getBulanList($jenisKapal);
+        $bulanList = $kontrak->getBulanList($dataKapal);
         if (empty($bulanList)) {
             return $empty;
         }
-        $mingguBulanMap = $kontrak->getMingguBulanMap($jenisKapal);
+        $mingguBulanMap = $kontrak->getMingguBulanMap($dataKapal);
 
         // Rencana per bulan langsung dari kurva_s_rencana
         $planByBulan = $this->getMonthlyPlanMap($workGroups);
 
         // Realisasi per bulan = Σ realisasi minggu-minggu di dalamnya
         $aktualByBulan = [];
-        foreach ($this->getAktualByWeek($jenisKapal, $workGroupIds) as $week => $map) {
+        foreach ($this->getAktualByWeek($dataKapal, $workGroupIds) as $week => $map) {
             $bulanKe = $mingguBulanMap[$week] ?? null;
             if ($bulanKe === null) {
                 continue;
@@ -581,25 +581,25 @@ class KurvaSService
      * progress[] = Σ realisasi minggu dalam bulan; kumulatif ditambahkan
      * oleh addCumulativeTotalsToHistory (shape sama dengan getProgressHistory).
      */
-    public function getMonthlyProgressHistory(JenisKapal $jenisKapal): array
+    public function getMonthlyProgressHistory(DataKapal $dataKapal): array
     {
         $kontrak = app(KontrakPeriodeService::class);
-        $bulanList = collect($kontrak->getBulanList($jenisKapal))->keyBy('bulan_ke');
+        $bulanList = collect($kontrak->getBulanList($dataKapal))->keyBy('bulan_ke');
         if ($bulanList->isEmpty()) {
             return [];
         }
 
-        $workGroups = KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
+        $workGroups = KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)
             ->with(['kurvaSRencana' => fn ($q) => $q->orderBy('bulan_ke')])
             ->orderBy('sort_order')
             ->get();
         $workGroupIds = $workGroups->pluck('id')->toArray();
 
-        $mingguBulanMap = $kontrak->getMingguBulanMap($jenisKapal);
+        $mingguBulanMap = $kontrak->getMingguBulanMap($dataKapal);
         $planByBulan = $this->getMonthlyPlanMap($workGroups);
 
         // Laporan terbaru per minggu → realisasi + referensi tanggal laporan
-        $laporanList = LaporanMingguan::where('jenis_kapal_id', $jenisKapal->id)
+        $laporanList = LaporanMingguan::where('data_kapal_id', $dataKapal->id)
             ->whereNotNull('minggu_ke')
             ->whereHas('laporanProgress')
             ->with(['laporanProgress'])
@@ -663,9 +663,9 @@ class KurvaSService
      * Ambil history progress per work group untuk semua minggu yang sudah ada laporannya.
      * Returns: [['minggu_ke' => 1, 'progress' => [wg_id => pct_realisasi], 'plans' => [wg_id => pct_rencana], 'created_at' => '...'], ...]
      */
-    public function getProgressHistory(JenisKapal $jenisKapal): array
+    public function getProgressHistory(DataKapal $dataKapal): array
     {
-        $laporanList = LaporanMingguan::where('jenis_kapal_id', $jenisKapal->id)
+        $laporanList = LaporanMingguan::where('data_kapal_id', $dataKapal->id)
             ->whereNotNull('minggu_ke')
             ->whereHas('laporanProgress')
             ->with(['laporanProgress'])
@@ -673,14 +673,14 @@ class KurvaSService
             ->orderBy('created_at')
             ->get();
 
-        // Get all work groups for this jenis kapal
-        $workGroups = KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
+        // Get all work groups for this data kapal
+        $workGroups = KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)
             ->with(['kurvaSRencana' => fn ($q) => $q->orderBy('bulan_ke')])
             ->orderBy('sort_order')
             ->get();
 
         // Plan per minggu diturunkan dari rencana bulanan (dibagi rata ke minggunya)
-        $weeklyPlan = $this->getWeeklyPlanMap($jenisKapal, $workGroups);
+        $weeklyPlan = $this->getWeeklyPlanMap($dataKapal, $workGroups);
 
         // Get all weeks from laporan to ensure we have plans for all reported weeks
         $allWeeks = $laporanList->pluck('minggu_ke')->unique()->sort()->values()->toArray();
@@ -809,9 +809,9 @@ class KurvaSService
      * tertentu — override mingguan tersimpan atau bagi-rata dari bulanan.
      * Returns: [work_group_id => pct_rencana, ...]
      */
-    public function getWeekPlans(JenisKapal $jenisKapal, int $mingguKe): array
+    public function getWeekPlans(DataKapal $dataKapal, int $mingguKe): array
     {
-        return collect($this->getWeeklyPlanMap($jenisKapal))
+        return collect($this->getWeeklyPlanMap($dataKapal))
             ->mapWithKeys(fn ($weeks, $workGroupId) => [
                 $workGroupId => round((float) ($weeks[$mingguKe] ?? 0), 3),
             ])

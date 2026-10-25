@@ -59,7 +59,7 @@
             </div>
             <div>
                 <h3 class="font-semibold text-white mb-1">Kapal, Galangan & Perusahaan</h3>
-                <p class="text-sm text-blue-200">Master data jenis kapal dan lokasi pembangunan terpusat</p>
+                <p class="text-sm text-blue-200">Master data data kapal dan lokasi pembangunan terpusat</p>
             </div>
         </div>
     </div>

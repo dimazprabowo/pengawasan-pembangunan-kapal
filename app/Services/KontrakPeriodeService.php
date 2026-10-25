@@ -2,14 +2,14 @@
 
 namespace App\Services;
 
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\LaporanBulanan;
 use App\Models\LaporanMingguan;
 use Carbon\Carbon;
 
 /**
  * Single source of truth untuk penomoran periode laporan berdasarkan kontrak
- * (tanggal mulai + durasi hari kalender) pada jenis_kapal.
+ * (tanggal mulai + durasi hari kalender) pada data_kapal.
  *
  * - Minggu = "minggu proyek": blok 7 hari dari tanggal mulai kontrak.
  *   Sisa hari < 7 di akhir kontrak digabung ke minggu terakhir
@@ -23,26 +23,26 @@ use Carbon\Carbon;
  */
 class KontrakPeriodeService
 {
-    public function hasKontrak(JenisKapal $jenisKapal): bool
+    public function hasKontrak(DataKapal $dataKapal): bool
     {
-        return $jenisKapal->hasKontrak();
+        return $dataKapal->hasKontrak();
     }
 
     /**
-     * Simpan data kontrak pada jenis kapal. Kedua field harus terisi bersama
+     * Simpan data kontrak pada data kapal. Kedua field harus terisi bersama
      * atau sama-sama kosong (menghapus kontrak).
      */
-    public function saveKontrak(JenisKapal $jenisKapal, ?string $tanggalMulai, ?int $durasiHari): void
+    public function saveKontrak(DataKapal $dataKapal, ?string $tanggalMulai, ?int $durasiHari): void
     {
-        $jenisKapal->update([
+        $dataKapal->update([
             'tanggal_mulai_kontrak' => $tanggalMulai ?: null,
             'durasi_kontrak_hari' => $durasiHari ?: null,
         ]);
     }
 
-    public function getTanggalSelesai(JenisKapal $jenisKapal): ?Carbon
+    public function getTanggalSelesai(DataKapal $dataKapal): ?Carbon
     {
-        return $jenisKapal->tanggal_selesai_kontrak;
+        return $dataKapal->tanggal_selesai_kontrak;
     }
 
     /**
@@ -50,21 +50,21 @@ class KontrakPeriodeService
      * Sisa pembagian (< 7 hari) digabung ke minggu terakhir
      * sehingga minggu terakhir maksimal 13 hari. 0 jika kontrak belum diatur.
      */
-    public function getTotalMinggu(JenisKapal $jenisKapal): int
+    public function getTotalMinggu(DataKapal $dataKapal): int
     {
-        if (! $jenisKapal->hasKontrak()) {
+        if (! $dataKapal->hasKontrak()) {
             return 0;
         }
 
-        return max(1, intdiv($jenisKapal->durasi_kontrak_hari, 7));
+        return max(1, intdiv($dataKapal->durasi_kontrak_hari, 7));
     }
 
     /**
      * Total bulan kalender yang tersentuh rentang kontrak. 0 jika belum diatur.
      */
-    public function getTotalBulan(JenisKapal $jenisKapal): int
+    public function getTotalBulan(DataKapal $dataKapal): int
     {
-        return count($this->getBulanList($jenisKapal));
+        return count($this->getBulanList($dataKapal));
     }
 
     /**
@@ -72,17 +72,17 @@ class KontrakPeriodeService
      *
      * @return array{mulai: Carbon, selesai: Carbon}|null
      */
-    public function getMingguPeriode(JenisKapal $jenisKapal, int $mingguKe): ?array
+    public function getMingguPeriode(DataKapal $dataKapal, int $mingguKe): ?array
     {
-        $total = $this->getTotalMinggu($jenisKapal);
+        $total = $this->getTotalMinggu($dataKapal);
         if ($mingguKe < 1 || $mingguKe > $total) {
             return null;
         }
 
-        $mulai = $jenisKapal->tanggal_mulai_kontrak->copy()->addDays(($mingguKe - 1) * 7);
+        $mulai = $dataKapal->tanggal_mulai_kontrak->copy()->addDays(($mingguKe - 1) * 7);
         // Minggu terakhir menyerap sisa hari (< 7) → berakhir tepat di akhir kontrak.
         $selesai = $mingguKe === $total
-            ? $jenisKapal->tanggal_selesai_kontrak->copy()
+            ? $dataKapal->tanggal_selesai_kontrak->copy()
             : $mulai->copy()->addDays(6);
 
         return ['mulai' => $mulai, 'selesai' => $selesai];
@@ -93,15 +93,15 @@ class KontrakPeriodeService
      *
      * @return array<int, array{minggu_ke: int, mulai: Carbon, selesai: Carbon, total_hari: int, label: string}>
      */
-    public function getMingguList(JenisKapal $jenisKapal): array
+    public function getMingguList(DataKapal $dataKapal): array
     {
-        if (! $jenisKapal->hasKontrak()) {
+        if (! $dataKapal->hasKontrak()) {
             return [];
         }
 
         $list = [];
-        foreach (range(1, $this->getTotalMinggu($jenisKapal)) as $mingguKe) {
-            $periode = $this->getMingguPeriode($jenisKapal, $mingguKe);
+        foreach (range(1, $this->getTotalMinggu($dataKapal)) as $mingguKe) {
+            $periode = $this->getMingguPeriode($dataKapal, $mingguKe);
             $list[] = $periode + [
                 'minggu_ke' => $mingguKe,
                 'total_hari' => (int) $periode['mulai']->diffInDays($periode['selesai']) + 1,
@@ -117,19 +117,19 @@ class KontrakPeriodeService
      * Minggu yang sudah memiliki laporan dikecualikan (kecuali $excludeMingguKe
      * untuk mode edit). Label menyertakan rentang tanggal.
      */
-    public function getMingguOptions(JenisKapal $jenisKapal, ?int $excludeMingguKe = null): array
+    public function getMingguOptions(DataKapal $dataKapal, ?int $excludeMingguKe = null): array
     {
-        if (! $jenisKapal->hasKontrak()) {
+        if (! $dataKapal->hasKontrak()) {
             return [];
         }
 
-        $usedWeeks = LaporanMingguan::where('jenis_kapal_id', $jenisKapal->id)
+        $usedWeeks = LaporanMingguan::where('data_kapal_id', $dataKapal->id)
             ->whereNotNull('minggu_ke')
             ->when($excludeMingguKe, fn ($q) => $q->where('minggu_ke', '!=', $excludeMingguKe))
             ->pluck('minggu_ke')
             ->toArray();
 
-        return collect($this->getMingguList($jenisKapal))
+        return collect($this->getMingguList($dataKapal))
             ->reject(fn ($m) => in_array($m['minggu_ke'], $usedWeeks))
             ->map(fn ($m) => [
                 'value' => $m['minggu_ke'],
@@ -144,19 +144,19 @@ class KontrakPeriodeService
      * Bulan yang sudah memiliki laporan dikecualikan (kecuali $excludeBulanKe
      * untuk mode edit). Label menyertakan nama bulan kalender & rentang tanggal.
      */
-    public function getBulanOptions(JenisKapal $jenisKapal, ?int $excludeBulanKe = null): array
+    public function getBulanOptions(DataKapal $dataKapal, ?int $excludeBulanKe = null): array
     {
-        if (! $jenisKapal->hasKontrak()) {
+        if (! $dataKapal->hasKontrak()) {
             return [];
         }
 
-        $usedMonths = LaporanBulanan::where('jenis_kapal_id', $jenisKapal->id)
+        $usedMonths = LaporanBulanan::where('data_kapal_id', $dataKapal->id)
             ->whereNotNull('bulan_ke')
             ->when($excludeBulanKe, fn ($q) => $q->where('bulan_ke', '!=', $excludeBulanKe))
             ->pluck('bulan_ke')
             ->toArray();
 
-        return collect($this->getBulanList($jenisKapal))
+        return collect($this->getBulanList($dataKapal))
             ->reject(fn ($b) => in_array($b['bulan_ke'], $usedMonths))
             ->map(fn ($b) => [
                 'value' => $b['bulan_ke'],
@@ -171,9 +171,9 @@ class KontrakPeriodeService
      *
      * @return array{bulan_ke: int, mulai: Carbon, selesai: Carbon, minggu_dari: int, minggu_sampai: int, total_minggu: int, total_hari: int, label: string}|null
      */
-    public function getBulanPeriode(JenisKapal $jenisKapal, int $bulanKe): ?array
+    public function getBulanPeriode(DataKapal $dataKapal, int $bulanKe): ?array
     {
-        return collect($this->getBulanList($jenisKapal))->firstWhere('bulan_ke', $bulanKe);
+        return collect($this->getBulanList($dataKapal))->firstWhere('bulan_ke', $bulanKe);
     }
 
     /**
@@ -186,9 +186,9 @@ class KontrakPeriodeService
      *
      * @return array<int, array{bulan_ke: int, mulai: Carbon, selesai: Carbon, minggu_dari: int, minggu_sampai: int, total_minggu: int, total_hari: int, label: string}>
      */
-    public function getBulanList(JenisKapal $jenisKapal): array
+    public function getBulanList(DataKapal $dataKapal): array
     {
-        $mingguList = $this->getMingguList($jenisKapal);
+        $mingguList = $this->getMingguList($dataKapal);
         if (empty($mingguList)) {
             return [];
         }
@@ -255,10 +255,10 @@ class KontrakPeriodeService
      *
      * @return array<int, int>
      */
-    public function getMingguBulanMap(JenisKapal $jenisKapal): array
+    public function getMingguBulanMap(DataKapal $dataKapal): array
     {
         $map = [];
-        foreach ($this->getBulanList($jenisKapal) as $b) {
+        foreach ($this->getBulanList($dataKapal) as $b) {
             for ($m = $b['minggu_dari']; $m <= $b['minggu_sampai']; $m++) {
                 $map[$m] = $b['bulan_ke'];
             }
@@ -270,21 +270,21 @@ class KontrakPeriodeService
     /**
      * Cari nomor minggu proyek yang memuat sebuah tanggal. Null jika di luar kontrak.
      */
-    public function getMingguKeFromDate(JenisKapal $jenisKapal, Carbon $tanggal): ?int
+    public function getMingguKeFromDate(DataKapal $dataKapal, Carbon $tanggal): ?int
     {
-        if (! $jenisKapal->hasKontrak()) {
+        if (! $dataKapal->hasKontrak()) {
             return null;
         }
 
-        if ($tanggal->lt($jenisKapal->tanggal_mulai_kontrak) || $tanggal->gt($jenisKapal->tanggal_selesai_kontrak)) {
+        if ($tanggal->lt($dataKapal->tanggal_mulai_kontrak) || $tanggal->gt($dataKapal->tanggal_selesai_kontrak)) {
             return null;
         }
 
         // Tanggal pada "ekor" minggu terakhir (gabungan sisa hari) memetakan
         // melewati total minggu — clamp ke minggu terakhir.
         return min(
-            intdiv((int) $jenisKapal->tanggal_mulai_kontrak->diffInDays($tanggal), 7) + 1,
-            $this->getTotalMinggu($jenisKapal)
+            intdiv((int) $dataKapal->tanggal_mulai_kontrak->diffInDays($tanggal), 7) + 1,
+            $this->getTotalMinggu($dataKapal)
         );
     }
 

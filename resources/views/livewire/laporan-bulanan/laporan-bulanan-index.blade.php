@@ -7,14 +7,14 @@
                 <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                 </svg>
-                <span class="font-medium text-gray-700 dark:text-gray-300 truncate">{{ $jenisKapal->nama }}</span>
+                <span class="font-medium text-gray-700 dark:text-gray-300 truncate">{{ $dataKapal->nama }}</span>
             </div>
             <h2 class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">Laporan Bulanan</h2>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {{ $jenisKapal->company?->name }}{{ $jenisKapal->company && $jenisKapal->galangan ? ' · ' : '' }}{{ $jenisKapal->galangan?->nama }}
+                {{ $dataKapal->company?->name }}{{ $dataKapal->company && $dataKapal->galangan ? ' · ' : '' }}{{ $dataKapal->galangan?->nama }}
             </p>
         </div>
-        <x-loading-button wire:click="gantiKapal" target="gantiKapal" variant="secondary" size="md" loadingText="Memuat..." title="Ganti jenis kapal">
+        <x-loading-button wire:click="gantiKapal" target="gantiKapal" variant="secondary" size="md" loadingText="Memuat..." title="Ganti data kapal">
             <x-slot:icon>
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
@@ -27,7 +27,7 @@
     {{-- Tabs --}}
     <div class="mb-6 border-b border-gray-200 dark:border-gray-700">
         <nav class="-mb-px flex space-x-6" aria-label="Tabs">
-            <a href="{{ route('laporan-harian.index', $jenisKapal) }}" wire:navigate
+            <a href="{{ route('laporan-harian.index', $dataKapal) }}" wire:navigate
                 x-data="{ loading: false }" x-on:click="loading = true"
                 x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                 class="whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600 inline-flex items-center gap-2">
@@ -40,7 +40,7 @@
                     Memuat...
                 </span>
             </a>
-            <a href="{{ route('laporan-mingguan.index', $jenisKapal) }}" wire:navigate
+            <a href="{{ route('laporan-mingguan.index', $dataKapal) }}" wire:navigate
                 x-data="{ loading: false }" x-on:click="loading = true"
                 x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                 class="whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600 inline-flex items-center gap-2">
@@ -53,7 +53,7 @@
                     Memuat...
                 </span>
             </a>
-            <a href="{{ route('laporan-bulanan.index', $jenisKapal) }}" wire:navigate
+            <a href="{{ route('laporan-bulanan.index', $dataKapal) }}" wire:navigate
                 x-data="{ loading: false }" x-on:click="loading = true"
                 x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                 class="whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium border-blue-500 text-blue-600 dark:text-blue-400 inline-flex items-center gap-2">
@@ -81,7 +81,7 @@
 
         <div class="flex items-center gap-2 flex-wrap">
             @can('create', \App\Models\LaporanBulanan::class)
-                <a href="{{ route('laporan-bulanan.create', $jenisKapal) }}" wire:navigate
+                <a href="{{ route('laporan-bulanan.create', $dataKapal) }}" wire:navigate
                     x-data="{ loading: false }" x-on:click="loading = true"
                     x-bind:class="loading ? 'opacity-75 pointer-events-none' : ''"
                     class="inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500 px-3 py-2 text-sm gap-1.5 flex-1 lg:flex-none whitespace-nowrap">
@@ -139,7 +139,7 @@
     @if($showKurvaS)
         <x-kurva-s-chart-card
             :chartData="$kurvaSChartData"
-            :jenisKapalNama="$jenisKapal?->nama"
+            :dataKapalNama="$dataKapal?->nama"
             :showStats="true"
             :showMingguBadge="false"
             :totalRencana="$totalRencana"
@@ -168,7 +168,7 @@
                         <svg class="w-12 h-12 text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                         </svg>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Belum ada riwayat progress untuk jenis kapal ini</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Belum ada riwayat progress untuk data kapal ini</p>
                         <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Riwayat akan muncul setelah laporan mingguan dibuat</p>
                     </div>
                 </div>
@@ -230,7 +230,7 @@
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div class="flex items-center justify-end gap-2">
                                     @can('view', $laporan)
-                                        <a href="{{ route('laporan-bulanan.show', [$jenisKapal, $laporan]) }}" wire:navigate
+                                        <a href="{{ route('laporan-bulanan.show', [$dataKapal, $laporan]) }}" wire:navigate
                                             x-data="{ loading: false }" x-on:click="loading = true"
                                             x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                                             class="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
@@ -246,7 +246,7 @@
                                         </a>
                                     @endcan
                                     @can('update', $laporan)
-                                        <a href="{{ route('laporan-bulanan.edit', [$jenisKapal, $laporan]) }}" wire:navigate
+                                        <a href="{{ route('laporan-bulanan.edit', [$dataKapal, $laporan]) }}" wire:navigate
                                             x-data="{ loading: false }" x-on:click="loading = true"
                                             x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                                             class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
@@ -286,7 +286,7 @@
                                 </svg>
                                 <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Belum ada laporan bulanan</p>
                                 @can('create', \App\Models\LaporanBulanan::class)
-                                    <a href="{{ route('laporan-bulanan.create', $jenisKapal) }}" wire:navigate
+                                    <a href="{{ route('laporan-bulanan.create', $dataKapal) }}" wire:navigate
                                         x-data="{ loading: false }" x-on:click="loading = true"
                                         x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                                         class="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300">

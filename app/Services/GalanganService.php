@@ -13,14 +13,14 @@ class GalanganService
         string $statusFilter = '',
         int $perPage = 15
     ): LengthAwarePaginator {
-        return Galangan::withCount('jenisKapal')
+        return Galangan::withCount('dataKapal')
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($q) use ($search) {
                     $q->where('nama', 'like', "%{$search}%")
-                      ->orWhere('kode', 'like', "%{$search}%")
-                      ->orWhere('kota', 'like', "%{$search}%")
-                      ->orWhere('provinsi', 'like', "%{$search}%")
-                      ->orWhere('pic_name', 'like', "%{$search}%");
+                        ->orWhere('kode', 'like', "%{$search}%")
+                        ->orWhere('kota', 'like', "%{$search}%")
+                        ->orWhere('provinsi', 'like', "%{$search}%")
+                        ->orWhere('pic_name', 'like', "%{$search}%");
                 });
             })
             ->when($statusFilter !== null && $statusFilter !== '', function ($q) use ($statusFilter) {
@@ -38,6 +38,7 @@ class GalanganService
     public function update(Galangan $galangan, array $data): Galangan
     {
         $galangan->update($data);
+
         return $galangan->fresh();
     }
 

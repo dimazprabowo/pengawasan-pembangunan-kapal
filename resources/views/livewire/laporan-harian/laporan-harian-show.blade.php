@@ -10,7 +10,7 @@
     <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
             <div class="flex items-center gap-2">
-                <a href="{{ route('laporan-harian.index', $jenisKapal) }}" wire:navigate
+                <a href="{{ route('laporan-harian.index', $dataKapal) }}" wire:navigate
                     x-data="{ loading: false }" x-on:click="loading = true"
                     x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                     class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
@@ -28,7 +28,7 @@
         </div>
         <div class="flex items-center gap-2">
             @can('update', $laporan)
-                <a href="{{ route('laporan-harian.edit', [$jenisKapal, $laporan]) }}" wire:navigate
+                <a href="{{ route('laporan-harian.edit', [$dataKapal, $laporan]) }}" wire:navigate
                     x-data="{ loading: false }" x-on:click="loading = true"
                     x-bind:class="loading ? 'opacity-75 pointer-events-none' : ''"
                     class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800">
@@ -46,8 +46,8 @@
         </div>
     </div>
 
-    {{-- Jenis Kapal Info Card --}}
-    @if($laporan->jenisKapal)
+    {{-- Data Kapal Info Card --}}
+    @if($laporan->dataKapal)
         <div class="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
             <div class="flex items-center gap-2 mb-2">
                 <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -60,15 +60,15 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
-                    <span class="font-medium">{{ $laporan->jenisKapal->nama }}</span>
+                    <span class="font-medium">{{ $laporan->dataKapal->nama }}</span>
                 </div>
-                @if($laporan->jenisKapal->company)
+                @if($laporan->dataKapal->company)
                     <span class="text-blue-600 dark:text-blue-400">•</span>
-                    <span>{{ $laporan->jenisKapal->company->name }}</span>
+                    <span>{{ $laporan->dataKapal->company->name }}</span>
                 @endif
-                @if($laporan->jenisKapal->galangan)
+                @if($laporan->dataKapal->galangan)
                     <span class="text-blue-600 dark:text-blue-400">•</span>
-                    <span>{{ $laporan->jenisKapal->galangan->nama }}</span>
+                    <span>{{ $laporan->dataKapal->galangan->nama }}</span>
                 @endif
             </div>
         </div>
@@ -118,14 +118,14 @@
 
             <div class="p-6">
                 {{-- Template Status Info --}}
-                @if($laporan->jenisKapal)
-                    @if($laporan->jenisKapal->hasTemplate('harian'))
+                @if($laporan->dataKapal)
+                    @if($laporan->dataKapal->hasTemplate('harian'))
                         <div class="mb-4 flex items-start gap-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
                             <svg class="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
                             <p class="text-sm text-green-700 dark:text-green-400">
-                                Template khusus tersedia untuk jenis kapal <strong>{{ $laporan->jenisKapal->nama }}</strong>. Dokumen akan digenerate menggunakan template khusus.
+                                Template khusus tersedia untuk data kapal <strong>{{ $laporan->dataKapal->nama }}</strong>. Dokumen akan digenerate menggunakan template khusus.
                             </p>
                         </div>
                     @else
@@ -134,9 +134,9 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                             </svg>
                             <p class="text-sm text-yellow-700 dark:text-yellow-400">
-                                Template khusus belum tersedia untuk jenis kapal <strong>{{ $laporan->jenisKapal->nama }}</strong>. Dokumen akan digenerate menggunakan template default. 
-                                @can('jenis_kapal_upload_template')
-                                    <a href="{{ route('master-data.jenis-kapal') }}" wire:navigate class="underline hover:text-yellow-800 dark:hover:text-yellow-300">Upload template di Master Jenis Kapal</a>
+                                Template khusus belum tersedia untuk data kapal <strong>{{ $laporan->dataKapal->nama }}</strong>. Dokumen akan digenerate menggunakan template default. 
+                                @can('data_kapal_upload_template')
+                                    <a href="{{ route('master-data.data-kapal') }}" wire:navigate class="underline hover:text-yellow-800 dark:hover:text-yellow-300">Upload template di Master Data Kapal</a>
                                 @endcan
                             </p>
                         </div>
@@ -487,7 +487,7 @@
 
     {{-- Back button --}}
     <div class="flex items-center">
-        <a href="{{ route('laporan-harian.index', $jenisKapal) }}" wire:navigate
+        <a href="{{ route('laporan-harian.index', $dataKapal) }}" wire:navigate
             x-data="{ loading: false }" x-on:click="loading = true"
             x-bind:class="loading ? 'opacity-75 pointer-events-none' : ''"
             class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">

@@ -3,9 +3,9 @@
 namespace App\Livewire\LaporanBulanan;
 
 use App\Jobs\ProcessLaporanExternal;
-use App\Livewire\Traits\HasJenisKapalFilter;
+use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\LaporanBulanan;
 use App\Models\LaporanExternal;
 use App\Services\KontrakPeriodeService;
@@ -19,9 +19,9 @@ use Livewire\WithFileUploads;
 #[Layout('layouts.app', ['title' => 'Edit Laporan Bulanan'])]
 class LaporanBulananEdit extends Component
 {
-    use AuthorizesRequests, HasJenisKapalFilter, HasNotification, WithFileUploads;
+    use AuthorizesRequests, HasDataKapalFilter, HasNotification, WithFileUploads;
 
-    public JenisKapal $jenisKapal;
+    public DataKapal $dataKapal;
 
     public LaporanBulanan $laporan;
 
@@ -48,21 +48,21 @@ class LaporanBulananEdit extends Component
 
     public ?string $deletingExternalId = null;
 
-    public function mount(JenisKapal $jenisKapal, LaporanBulanan $laporanBulanan): void
+    public function mount(DataKapal $dataKapal, LaporanBulanan $laporanBulanan): void
     {
         $this->authorize('update', $laporanBulanan);
-        $this->authorizeJenisKapalAccess($jenisKapal);
-        abort_unless($laporanBulanan->jenis_kapal_id === $jenisKapal->id, 404);
+        $this->authorizeDataKapalAccess($dataKapal);
+        abort_unless($laporanBulanan->data_kapal_id === $dataKapal->id, 404);
 
-        $this->jenisKapal = $jenisKapal;
+        $this->dataKapal = $dataKapal;
         $this->laporan = $laporanBulanan;
-        $this->hasKontrak = $jenisKapal->hasKontrak();
+        $this->hasKontrak = $dataKapal->hasKontrak();
         $this->tanggal_laporan = $laporanBulanan->tanggal_laporan?->format('Y-m-d') ?? '';
         $this->periode_mulai = $laporanBulanan->periode_mulai?->format('Y-m-d') ?? '';
         $this->periode_selesai = $laporanBulanan->periode_selesai?->format('Y-m-d') ?? '';
         $this->ringkasan = $laporanBulanan->ringkasan ?? '';
         $this->bulan_ke = $laporanBulanan->bulan_ke;
-        $this->bulanOptions = app(KontrakPeriodeService::class)->getBulanOptions($jenisKapal, $this->bulan_ke);
+        $this->bulanOptions = app(KontrakPeriodeService::class)->getBulanOptions($dataKapal, $this->bulan_ke);
 
         $this->laporanExternal = $laporanBulanan->laporanExternal->map(function ($item) {
             return [
@@ -113,7 +113,7 @@ class LaporanBulananEdit extends Component
     public function updatedBulanKe(): void
     {
         $periode = $this->bulan_ke
-            ? app(KontrakPeriodeService::class)->getBulanPeriode($this->jenisKapal, (int) $this->bulan_ke)
+            ? app(KontrakPeriodeService::class)->getBulanPeriode($this->dataKapal, (int) $this->bulan_ke)
             : null;
 
         $this->periode_mulai = $periode ? $periode['mulai']->format('Y-m-d') : '';
@@ -256,7 +256,7 @@ class LaporanBulananEdit extends Component
             throw $e;
         }
 
-        if ($service->bulanTaken($this->jenisKapal->id, (int) $this->bulan_ke, $this->laporan->id)) {
+        if ($service->bulanTaken($this->dataKapal->id, (int) $this->bulan_ke, $this->laporan->id)) {
             $this->notifyError('Bulan ke-'.$this->bulan_ke.' sudah memiliki laporan bulanan.');
 
             return;
@@ -275,7 +275,7 @@ class LaporanBulananEdit extends Component
 
             $this->notifySuccess('Laporan bulanan berhasil diupdate!');
 
-            $this->redirect(route('laporan-bulanan.index', $this->jenisKapal), navigate: true);
+            $this->redirect(route('laporan-bulanan.index', $this->dataKapal), navigate: true);
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
@@ -332,7 +332,7 @@ class LaporanBulananEdit extends Component
 
     public function cancel()
     {
-        return $this->redirect(route('laporan-bulanan.index', $this->jenisKapal), navigate: true);
+        return $this->redirect(route('laporan-bulanan.index', $this->dataKapal), navigate: true);
     }
 
     public function render()

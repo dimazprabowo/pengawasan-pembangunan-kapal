@@ -16,7 +16,7 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             CompanySeeder::class,
             GalanganSeeder::class,
-            JenisKapalSeeder::class,
+            DataKapalSeeder::class,
             KurvaSWorkGroupSeeder::class,
             KelembabanSeeder::class,
             CuacaSeeder::class,

@@ -72,11 +72,11 @@ class LaporanMingguanPolicy
     }
 
     /**
-     * Determine whether the user can view all jenis kapal.
+     * Determine whether the user can view all data kapal.
      */
-    public function viewAllJenisKapal(User $user): bool
+    public function viewAllDataKapal(User $user): bool
     {
-        return $user->can('laporan_view_all_jenis_kapal');
+        return $user->can('laporan_view_all_data_kapal');
     }
 
     /**

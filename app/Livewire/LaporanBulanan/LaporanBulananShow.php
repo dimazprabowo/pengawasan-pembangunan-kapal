@@ -2,9 +2,9 @@
 
 namespace App\Livewire\LaporanBulanan;
 
-use App\Livewire\Traits\HasJenisKapalFilter;
+use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\KurvaSWorkGroup;
 use App\Models\LaporanBulanan;
 use App\Services\KurvaSService;
@@ -17,23 +17,23 @@ use Livewire\Component;
 #[Layout('layouts.app', ['title' => 'Detail Laporan Bulanan'])]
 class LaporanBulananShow extends Component
 {
-    use AuthorizesRequests, HasJenisKapalFilter, HasNotification;
+    use AuthorizesRequests, HasDataKapalFilter, HasNotification;
 
     public LaporanBulanan $laporan;
 
-    public JenisKapal $jenisKapal;
+    public DataKapal $dataKapal;
 
-    public function mount(JenisKapal $jenisKapal, LaporanBulanan $laporanBulanan): void
+    public function mount(DataKapal $dataKapal, LaporanBulanan $laporanBulanan): void
     {
         $this->authorize('view', $laporanBulanan);
-        $this->authorizeJenisKapalAccess($jenisKapal);
-        abort_unless($laporanBulanan->jenis_kapal_id === $jenisKapal->id, 404);
+        $this->authorizeDataKapalAccess($dataKapal);
+        abort_unless($laporanBulanan->data_kapal_id === $dataKapal->id, 404);
 
-        $this->jenisKapal = $jenisKapal;
+        $this->dataKapal = $dataKapal;
         $this->laporan = $laporanBulanan->load([
             'user',
-            'jenisKapal.company',
-            'jenisKapal.galangan',
+            'dataKapal.company',
+            'dataKapal.galangan',
             'laporanExternal',
         ]);
     }
@@ -88,11 +88,11 @@ class LaporanBulananShow extends Component
         $progressHistory = [];
         $workGroupsForHistory = [];
 
-        if ($this->laporan->jenisKapal) {
-            $chartData = $kurvaSService->getMonthlyChartData($this->laporan->jenisKapal);
-            $progressHistory = $kurvaSService->getMonthlyProgressHistory($this->laporan->jenisKapal);
+        if ($this->laporan->dataKapal) {
+            $chartData = $kurvaSService->getMonthlyChartData($this->laporan->dataKapal);
+            $progressHistory = $kurvaSService->getMonthlyProgressHistory($this->laporan->dataKapal);
 
-            $workGroupsForHistory = KurvaSWorkGroup::where('jenis_kapal_id', $this->laporan->jenis_kapal_id)
+            $workGroupsForHistory = KurvaSWorkGroup::where('data_kapal_id', $this->laporan->data_kapal_id)
                 ->orderBy('sort_order')
                 ->get()
                 ->map(fn ($wg) => [
@@ -112,7 +112,7 @@ class LaporanBulananShow extends Component
         return view('livewire.laporan-bulanan.laporan-bulanan-show', [
             'laporanMingguanBulan' => $service->getMingguanBulan($this->laporan),
             'kurvaSChartData' => $chartData,
-            'jenisKapalNama' => $this->laporan->jenisKapal?->nama,
+            'dataKapalNama' => $this->laporan->dataKapal?->nama,
             'totalRencana' => $totalRencana,
             'totalAktual' => $totalAktual,
             'progressHistory' => $progressHistory,

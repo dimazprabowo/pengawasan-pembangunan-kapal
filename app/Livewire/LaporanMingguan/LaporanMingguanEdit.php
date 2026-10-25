@@ -3,10 +3,10 @@
 namespace App\Livewire\LaporanMingguan;
 
 use App\Jobs\ProcessLaporanExternal;
-use App\Livewire\Traits\HasJenisKapalFilter;
+use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
 use App\Livewire\Traits\StabilizesSnapshot;
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\LaporanExternal;
 use App\Models\LaporanLampiran;
 use App\Models\LaporanMingguan;
@@ -23,13 +23,13 @@ use Livewire\WithFileUploads;
 #[Layout('layouts.app', ['title' => 'Edit Laporan Mingguan'])]
 class LaporanMingguanEdit extends Component
 {
-    use AuthorizesRequests, HasJenisKapalFilter, HasNotification, StabilizesSnapshot, WithFileUploads;
+    use AuthorizesRequests, HasDataKapalFilter, HasNotification, StabilizesSnapshot, WithFileUploads;
 
     public LaporanMingguan $laporan;
 
-    public JenisKapal $jenisKapal;
+    public DataKapal $dataKapal;
 
-    public ?int $jenis_kapal_id = null;
+    public ?int $data_kapal_id = null;
 
     public string $tanggal_laporan = '';
 
@@ -56,7 +56,7 @@ class LaporanMingguanEdit extends Component
 
     public bool $hasKurvaS = false;
 
-    /** Kontrak jenis kapal terisi → periode mingguan auto-generate & terkunci */
+    /** Kontrak data kapal terisi → periode mingguan auto-generate & terkunci */
     public bool $hasKontrak = false;
 
     public array $progressHistory = [];
@@ -96,16 +96,16 @@ class LaporanMingguanEdit extends Component
     // Preferensi autosave draft per user (persisten via cache)
     public bool $autoSave = true;
 
-    public function mount(JenisKapal $jenisKapal, LaporanMingguan $laporanMingguan): void
+    public function mount(DataKapal $dataKapal, LaporanMingguan $laporanMingguan): void
     {
         $this->authorize('update', $laporanMingguan);
-        $this->authorizeJenisKapalAccess($jenisKapal);
-        abort_unless($laporanMingguan->jenis_kapal_id === $jenisKapal->id, 404);
+        $this->authorizeDataKapalAccess($dataKapal);
+        abort_unless($laporanMingguan->data_kapal_id === $dataKapal->id, 404);
 
-        $this->jenisKapal = $jenisKapal;
+        $this->dataKapal = $dataKapal;
         $this->laporan = $laporanMingguan;
-        $this->jenis_kapal_id = $laporanMingguan->jenis_kapal_id;
-        $this->hasKontrak = $jenisKapal->hasKontrak();
+        $this->data_kapal_id = $laporanMingguan->data_kapal_id;
+        $this->hasKontrak = $dataKapal->hasKontrak();
         $this->autoSave = Cache::get('lm_draft_autosave:'.auth()->id(), true);
         $this->tanggal_laporan = $laporanMingguan->tanggal_laporan?->format('Y-m-d') ?? '';
         $this->periode_mulai = $laporanMingguan->periode_mulai?->format('Y-m-d') ?? '';
@@ -148,7 +148,7 @@ class LaporanMingguanEdit extends Component
 
     private function loadKurvaSOptions(): void
     {
-        if (! $this->jenis_kapal_id) {
+        if (! $this->data_kapal_id) {
             $this->mingguOptions = [];
             $this->hasKurvaS = false;
             $this->workGroupsForInput = [];
@@ -157,16 +157,16 @@ class LaporanMingguanEdit extends Component
             return;
         }
 
-        $jenisKapal = $this->jenisKapal;
+        $dataKapal = $this->dataKapal;
         $service = app(KurvaSService::class);
 
-        $this->hasKurvaS = $jenisKapal && $service->hasRencana($jenisKapal);
-        $this->mingguOptions = $jenisKapal ? $service->getMingguOptions($jenisKapal, $this->minggu_ke) : [];
+        $this->hasKurvaS = $dataKapal && $service->hasRencana($dataKapal);
+        $this->mingguOptions = $dataKapal ? $service->getMingguOptions($dataKapal, $this->minggu_ke) : [];
 
-        if ($jenisKapal && $this->hasKurvaS) {
+        if ($dataKapal && $this->hasKurvaS) {
             $this->workGroupsForInput = $service->getProgressInputData($this->laporan);
             $this->progressPerGroup = array_column($this->workGroupsForInput, 'pct_realisasi', 'work_group_id');
-            $this->progressHistory = $service->getProgressHistory($jenisKapal);
+            $this->progressHistory = $service->getProgressHistory($dataKapal);
         } else {
             $this->workGroupsForInput = [];
             $this->progressPerGroup = [];
@@ -183,7 +183,7 @@ class LaporanMingguanEdit extends Component
     {
         if ($this->hasKontrak) {
             $periode = $this->minggu_ke
-                ? app(KontrakPeriodeService::class)->getMingguPeriode($this->jenisKapal, (int) $this->minggu_ke)
+                ? app(KontrakPeriodeService::class)->getMingguPeriode($this->dataKapal, (int) $this->minggu_ke)
                 : null;
 
             $this->periode_mulai = $periode ? $periode['mulai']->format('Y-m-d') : '';
@@ -199,18 +199,18 @@ class LaporanMingguanEdit extends Component
 
     private function dispatchRealtimeUpdates(): void
     {
-        if (! $this->jenis_kapal_id || ! $this->hasKurvaS) {
+        if (! $this->data_kapal_id || ! $this->hasKurvaS) {
             return;
         }
 
-        $jenisKapal = $this->jenisKapal;
-        if (! $jenisKapal) {
+        $dataKapal = $this->dataKapal;
+        if (! $dataKapal) {
             return;
         }
 
         // Exclude current laporan from DB so only form values represent this week
         $previewChartData = app(KurvaSService::class)->getChartData(
-            $jenisKapal,
+            $dataKapal,
             $this->minggu_ke,
             $this->progressPerGroup,
             $this->laporan->id
@@ -244,8 +244,8 @@ class LaporanMingguanEdit extends Component
             return;
         }
 
-        // Return empty if jenis kapal is not selected
-        if (! $this->jenis_kapal_id) {
+        // Return empty if data kapal is not selected
+        if (! $this->data_kapal_id) {
             $this->availableLaporanHarian = [];
             $this->laporan_harian_ids = [];
 
@@ -254,7 +254,7 @@ class LaporanMingguanEdit extends Component
 
         $this->availableLaporanHarian = app(LaporanMingguanService::class)
             ->getAvailableHarianForPeriode(
-                $this->jenis_kapal_id,
+                $this->data_kapal_id,
                 $this->periode_mulai,
                 $this->periode_selesai,
                 $this->laporan->id
@@ -296,11 +296,11 @@ class LaporanMingguanEdit extends Component
     protected function rules(): array
     {
         $maxMinggu = $this->hasKontrak
-            ? app(KontrakPeriodeService::class)->getTotalMinggu($this->jenisKapal)
+            ? app(KontrakPeriodeService::class)->getTotalMinggu($this->dataKapal)
             : 1000;
 
         return [
-            'jenis_kapal_id' => 'required|exists:jenis_kapal,id',
+            'data_kapal_id' => 'required|exists:data_kapal,id',
             'tanggal_laporan' => 'required|date',
             'periode_mulai' => 'required|date|before_or_equal:periode_selesai',
             'periode_selesai' => 'required|date|after_or_equal:periode_mulai',
@@ -321,7 +321,7 @@ class LaporanMingguanEdit extends Component
     public function validationAttributes(): array
     {
         return [
-            'jenis_kapal_id' => 'jenis kapal',
+            'data_kapal_id' => 'data kapal',
             'tanggal_laporan' => 'tanggal laporan',
             'periode_mulai' => 'periode mulai',
             'periode_selesai' => 'periode selesai',
@@ -765,7 +765,7 @@ class LaporanMingguanEdit extends Component
 
         try {
             $data = [
-                'jenis_kapal_id' => $this->jenis_kapal_id,
+                'data_kapal_id' => $this->data_kapal_id,
                 'tanggal_laporan' => $this->tanggal_laporan,
                 'periode_mulai' => $this->periode_mulai ?: null,
                 'periode_selesai' => $this->periode_selesai ?: null,
@@ -785,7 +785,7 @@ class LaporanMingguanEdit extends Component
 
             $this->notifySuccess('Laporan mingguan berhasil diupdate!');
 
-            $this->redirect(route('laporan-mingguan.index', $this->jenisKapal), navigate: true);
+            $this->redirect(route('laporan-mingguan.index', $this->dataKapal), navigate: true);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk mengupdate laporan ini.');
         } catch (\Exception $e) {
@@ -808,7 +808,7 @@ class LaporanMingguanEdit extends Component
         // Beri tahu Alpine untuk menghapus draft lokal sebelum navigate
         $this->dispatch('lm-clear-draft');
 
-        return $this->redirect(route('laporan-mingguan.index', $this->jenisKapal), navigate: true);
+        return $this->redirect(route('laporan-mingguan.index', $this->dataKapal), navigate: true);
     }
 
     protected function updateLaporanExternal(): void
@@ -931,10 +931,10 @@ class LaporanMingguanEdit extends Component
                 ? ($fullHistory[$currentWeekIndex]['plans'] ?? [])
                 : [];
 
-            if ($currentWeekIndex === false && $this->jenis_kapal_id) {
-                $jenisKapal = $this->jenisKapal;
-                if ($jenisKapal) {
-                    $existingPlans = app(KurvaSService::class)->getWeekPlans($jenisKapal, $this->minggu_ke);
+            if ($currentWeekIndex === false && $this->data_kapal_id) {
+                $dataKapal = $this->dataKapal;
+                if ($dataKapal) {
+                    $existingPlans = app(KurvaSService::class)->getWeekPlans($dataKapal, $this->minggu_ke);
                 }
             }
 
@@ -960,10 +960,10 @@ class LaporanMingguanEdit extends Component
         });
 
         // Add cumulative totals using the same logic as KurvaSService
-        if (! empty($fullHistory) && $this->jenis_kapal_id) {
-            $jenisKapal = $this->jenisKapal;
-            if ($jenisKapal) {
-                $workGroups = \App\Models\KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
+        if (! empty($fullHistory) && $this->data_kapal_id) {
+            $dataKapal = $this->dataKapal;
+            if ($dataKapal) {
+                $workGroups = \App\Models\KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)
                     ->orderBy('sort_order')
                     ->get();
                 $fullHistory = app(KurvaSService::class)->addCumulativeTotalsToHistory($fullHistory, $workGroups);
@@ -979,12 +979,12 @@ class LaporanMingguanEdit extends Component
         $totalRencana = null;
         $totalAktual = null;
 
-        if ($this->jenis_kapal_id && $this->hasKurvaS) {
-            $jenisKapal = $this->jenisKapal;
-            if ($jenisKapal) {
+        if ($this->data_kapal_id && $this->hasKurvaS) {
+            $dataKapal = $this->dataKapal;
+            if ($dataKapal) {
                 // Build chart data with unsaved form values overlaid, excluding saved DB entry for this laporan
                 $kurvaSChartData = $kurvaSService->getChartData(
-                    $jenisKapal,
+                    $dataKapal,
                     $this->minggu_ke,
                     $this->progressPerGroup,
                     $this->laporan->id

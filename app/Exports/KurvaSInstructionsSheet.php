@@ -2,7 +2,7 @@
 
 namespace App\Exports;
 
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithStyles;
@@ -13,13 +13,13 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class KurvaSInstructionsSheet implements FromArray, WithColumnWidths, WithStyles, WithTitle
 {
-    protected JenisKapal $jenisKapal;
+    protected DataKapal $dataKapal;
 
     protected ?int $months;
 
-    public function __construct(JenisKapal $jenisKapal, ?int $months = null)
+    public function __construct(DataKapal $dataKapal, ?int $months = null)
     {
-        $this->jenisKapal = $jenisKapal;
+        $this->dataKapal = $dataKapal;
         $this->months = $months;
     }
 
@@ -33,10 +33,10 @@ class KurvaSInstructionsSheet implements FromArray, WithColumnWidths, WithStyles
         return [
             ['TEMPLATE KURVA S - PERENCANAAN PEMBANGUNAN KAPAL'],
             [''],
-            ['📋 INFORMASI JENIS KAPAL'],
-            ['Nama Jenis Kapal', $this->jenisKapal->nama],
-            ['Perusahaan', $this->jenisKapal->company?->name ?? '-'],
-            ['Galangan', $this->jenisKapal->galangan?->nama ?? '-'],
+            ['📋 INFORMASI DATA KAPAL'],
+            ['Nama Data Kapal', $this->dataKapal->nama],
+            ['Perusahaan', $this->dataKapal->company?->name ?? '-'],
+            ['Galangan', $this->dataKapal->galangan?->nama ?? '-'],
             ['Tanggal Export', now()->format('d/m/Y H:i:s')],
             [''],
             ['📖 CARA PENGGUNAAN'],
@@ -77,7 +77,7 @@ class KurvaSInstructionsSheet implements FromArray, WithColumnWidths, WithStyles
             ['CARA IMPORT'],
             ['  1. Isi data pada sheet "Rencana"'],
             ['  2. Simpan file (format .xlsx)'],
-            ['  3. Buka aplikasi > Menu Jenis Kapal'],
+            ['  3. Buka aplikasi > Menu Data Kapal'],
             ['  4. Klik tombol "Kurva S" > "Import Kurva S"'],
             ['  5. Upload file dan tunggu validasi'],
             ['  6. Data lama akan DIHAPUS dan diganti dengan data baru'],

@@ -33,7 +33,7 @@ class LaporanBulanan extends Model
      */
     protected $fillable = [
         'user_id',
-        'jenis_kapal_id',
+        'data_kapal_id',
         'tanggal_laporan',
         'periode_mulai',
         'periode_selesai',
@@ -58,7 +58,7 @@ class LaporanBulanan extends Model
     {
         return LogOptions::defaults()
             ->useLogName('laporan_bulanan')
-            ->logOnly(['user_id', 'jenis_kapal_id', 'tanggal_laporan', 'periode_mulai', 'periode_selesai', 'bulan_ke'])
+            ->logOnly(['user_id', 'data_kapal_id', 'tanggal_laporan', 'periode_mulai', 'periode_selesai', 'bulan_ke'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }
@@ -72,11 +72,11 @@ class LaporanBulanan extends Model
     }
 
     /**
-     * Get the jenis kapal this report belongs to.
+     * Get the data kapal this report belongs to.
      */
-    public function jenisKapal(): BelongsTo
+    public function dataKapal(): BelongsTo
     {
-        return $this->belongsTo(JenisKapal::class);
+        return $this->belongsTo(DataKapal::class);
     }
 
     /**
@@ -96,11 +96,11 @@ class LaporanBulanan extends Model
     }
 
     /**
-     * Scope: filter by jenis kapal.
+     * Scope: filter by data kapal.
      */
-    public function scopeByJenisKapal($query, $jenisKapalId)
+    public function scopeByDataKapal($query, $dataKapalId)
     {
-        return $query->where('jenis_kapal_id', $jenisKapalId);
+        return $query->where('data_kapal_id', $dataKapalId);
     }
 
     /**

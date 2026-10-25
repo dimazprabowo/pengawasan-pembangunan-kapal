@@ -2,7 +2,7 @@
 
 namespace App\Exports;
 
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -11,7 +11,7 @@ use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class JenisKapalExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping, WithStyles, WithTitle
+class DataKapalExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping, WithStyles, WithTitle
 {
     protected $search;
 
@@ -28,7 +28,7 @@ class JenisKapalExport implements FromCollection, ShouldAutoSize, WithHeadings, 
 
     public function collection()
     {
-        return JenisKapal::with('company')
+        return DataKapal::with('company')
             ->withCount(['laporanHarian', 'laporanMingguan', 'laporanBulanan'])
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
@@ -54,7 +54,7 @@ class JenisKapalExport implements FromCollection, ShouldAutoSize, WithHeadings, 
     {
         return [
             'No',
-            'Jenis Kapal',
+            'Data Kapal',
             'Perusahaan',
             'Kode Perusahaan',
             'Deskripsi',
@@ -66,22 +66,22 @@ class JenisKapalExport implements FromCollection, ShouldAutoSize, WithHeadings, 
         ];
     }
 
-    public function map($jenisKapal): array
+    public function map($dataKapal): array
     {
         static $no = 0;
         $no++;
 
         return [
             $no,
-            $jenisKapal->nama,
-            $jenisKapal->company->name,
-            $jenisKapal->company->code,
-            $jenisKapal->deskripsi ?? '-',
-            $jenisKapal->getLaporanCount('harian'),
-            $jenisKapal->getLaporanCount('mingguan'),
-            $jenisKapal->getLaporanCount('bulanan'),
-            $jenisKapal->status->label(),
-            $jenisKapal->created_at->format('d/m/Y H:i'),
+            $dataKapal->nama,
+            $dataKapal->company->name,
+            $dataKapal->company->code,
+            $dataKapal->deskripsi ?? '-',
+            $dataKapal->getLaporanCount('harian'),
+            $dataKapal->getLaporanCount('mingguan'),
+            $dataKapal->getLaporanCount('bulanan'),
+            $dataKapal->status->label(),
+            $dataKapal->created_at->format('d/m/Y H:i'),
         ];
     }
 
@@ -100,6 +100,6 @@ class JenisKapalExport implements FromCollection, ShouldAutoSize, WithHeadings, 
 
     public function title(): string
     {
-        return 'Jenis Kapal';
+        return 'Data Kapal';
     }
 }

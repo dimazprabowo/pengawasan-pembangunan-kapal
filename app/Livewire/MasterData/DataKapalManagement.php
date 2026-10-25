@@ -2,13 +2,13 @@
 
 namespace App\Livewire\MasterData;
 
-use App\Enums\JenisKapalStatus;
-use App\Exports\JenisKapalExport;
+use App\Enums\DataKapalStatus;
+use App\Exports\DataKapalExport;
 use App\Livewire\Traits\HasNotification;
 use App\Models\Company;
+use App\Models\DataKapal;
 use App\Models\Galangan;
-use App\Models\JenisKapal;
-use App\Services\JenisKapalService;
+use App\Services\DataKapalService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Component;
@@ -16,7 +16,7 @@ use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 use Maatwebsite\Excel\Facades\Excel;
 
-class JenisKapalManagement extends Component
+class DataKapalManagement extends Component
 {
     use AuthorizesRequests, HasNotification, WithFileUploads, WithPagination;
 
@@ -32,32 +32,16 @@ class JenisKapalManagement extends Component
 
     public int $perPage = 10;
 
-    public $showModal = false;
-
-    public $editMode = false;
-
-    public $jenisKapalId;
-
-    public $company_id;
-
-    public $galangan_id;
-
-    public $nama;
-
-    public $deskripsi;
-
-    public $status = 'active';
-
     public $showDeleteModal = false;
 
-    public $deletingJenisKapalId;
+    public $deletingDataKapalId;
 
-    public $deletingJenisKapalNama;
+    public $deletingDataKapalNama;
 
     // Template upload modal states
     public $showTemplateUploadModal = false;
 
-    public $uploadingJenisKapalId;
+    public $uploadingDataKapalId;
 
     public $uploadingTemplateTipe;
 
@@ -69,42 +53,20 @@ class JenisKapalManagement extends Component
     // Template delete modal states
     public $showDeleteTemplateModal = false;
 
-    public $deletingTemplateJenisKapalId;
+    public $deletingTemplateDataKapalId;
 
     public $deletingTemplateTipe;
 
     // Kurva S import/export modal states
     public $showKurvaSImportModal = false;
 
-    public $kurvaSJenisKapalId;
+    public $kurvaSDataKapalId;
 
     public $kurvaS_file;
 
     public function mount()
     {
-        $this->authorize('viewAny', JenisKapal::class);
-    }
-
-    public function rules()
-    {
-        return [
-            'company_id' => 'nullable|exists:companies,id',
-            'galangan_id' => 'nullable|exists:galangan,id',
-            'nama' => 'required|string|max:255',
-            'deskripsi' => 'nullable|string',
-            'status' => ['required', 'string', 'in:'.implode(',', JenisKapalStatus::values())],
-        ];
-    }
-
-    public function validationAttributes()
-    {
-        return [
-            'company_id' => 'perusahaan',
-            'galangan_id' => 'galangan',
-            'nama' => 'jenis kapal',
-            'deskripsi' => 'deskripsi',
-            'status' => 'status',
-        ];
+        $this->authorize('viewAny', DataKapal::class);
     }
 
     public function updatingSearch()
@@ -140,149 +102,75 @@ class JenisKapalManagement extends Component
 
     public function create()
     {
-        $this->authorize('create', JenisKapal::class);
+        $this->authorize('create', DataKapal::class);
 
-        $this->resetForm();
-        $this->editMode = false;
-        $this->showModal = true;
+        return $this->redirect(route('master-data.data-kapal.create'), navigate: true);
     }
 
     public function edit($id)
     {
-        $jenisKapal = JenisKapal::findOrFail($id);
-        $this->authorize('update', $jenisKapal);
+        $dataKapal = DataKapal::findOrFail($id);
+        $this->authorize('update', $dataKapal);
 
-        $this->jenisKapalId = $jenisKapal->id;
-        $this->company_id = $jenisKapal->company_id;
-        $this->galangan_id = $jenisKapal->galangan_id;
-        $this->nama = $jenisKapal->nama;
-        $this->deskripsi = $jenisKapal->deskripsi;
-        $this->status = $jenisKapal->status->value;
-        $this->template_file = null;
-
-        $this->editMode = true;
-        $this->showModal = true;
-    }
-
-    public function save(JenisKapalService $service)
-    {
-        try {
-            $this->validate();
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            $this->notifyValidationError($e);
-            throw $e;
-        }
-
-        try {
-            $data = [
-                'company_id' => $this->company_id ?: null,
-                'galangan_id' => $this->galangan_id ?: null,
-                'nama' => $this->nama,
-                'deskripsi' => $this->deskripsi,
-                'status' => $this->status,
-            ];
-
-            if ($this->editMode) {
-                $jenisKapal = JenisKapal::findOrFail($this->jenisKapalId);
-                $this->authorize('update', $jenisKapal);
-
-                $service->update($jenisKapal, $data);
-
-                $message = 'Jenis kapal berhasil diupdate!';
-            } else {
-                $this->authorize('create', JenisKapal::class);
-
-                $jenisKapal = $service->create($data);
-
-                $message = 'Jenis kapal berhasil ditambahkan!';
-            }
-
-            $this->notifySuccess($message);
-            $this->closeModal();
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
-            $this->notifyError('Anda tidak memiliki izin untuk melakukan aksi ini.');
-        } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
-        }
+        return $this->redirect(route('master-data.data-kapal.edit', $dataKapal), navigate: true);
     }
 
     public function confirmDelete($id)
     {
-        $jenisKapal = JenisKapal::findOrFail($id);
-        $this->deletingJenisKapalId = $jenisKapal->id;
-        $this->deletingJenisKapalNama = $jenisKapal->nama;
+        $dataKapal = DataKapal::findOrFail($id);
+        $this->deletingDataKapalId = $dataKapal->id;
+        $this->deletingDataKapalNama = $dataKapal->nama;
         $this->showDeleteModal = true;
     }
 
-    public function delete(JenisKapalService $service)
+    public function delete(DataKapalService $service)
     {
         try {
-            $jenisKapal = JenisKapal::findOrFail($this->deletingJenisKapalId);
-            $this->authorize('delete', $jenisKapal);
+            $dataKapal = DataKapal::findOrFail($this->deletingDataKapalId);
+            $this->authorize('delete', $dataKapal);
 
-            $service->delete($jenisKapal);
-            $this->notifySuccess('Jenis kapal berhasil dihapus! Laporan terkait akan di-set null.');
+            $service->delete($dataKapal);
+            $this->notifySuccess('Kapal berhasil dihapus! Laporan terkait akan di-set null.');
             $this->showDeleteModal = false;
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
-            $this->notifyError('Anda tidak dapat menghapus jenis kapal ini.');
+            $this->notifyError('Anda tidak dapat menghapus kapal ini.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
-    public function toggleStatus($id, JenisKapalService $service)
+    public function toggleStatus($id, DataKapalService $service)
     {
         try {
-            $jenisKapal = JenisKapal::findOrFail($id);
-            $this->authorize('toggleStatus', $jenisKapal);
+            $dataKapal = DataKapal::findOrFail($id);
+            $this->authorize('toggleStatus', $dataKapal);
 
-            $service->toggleStatus($jenisKapal);
+            $service->toggleStatus($dataKapal);
 
-            $status = $jenisKapal->fresh()->status->label();
-            $this->notifySuccess("Status jenis kapal berhasil diubah menjadi {$status}!");
+            $status = $dataKapal->fresh()->status->label();
+            $this->notifySuccess("Status kapal berhasil diubah menjadi {$status}!");
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
-            $this->notifyError('Anda tidak memiliki izin untuk mengubah status jenis kapal.');
+            $this->notifyError('Anda tidak memiliki izin untuk mengubah status kapal.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
-    }
-
-    public function closeModal()
-    {
-        $this->showModal = false;
-        $this->resetForm();
-        $this->resetValidation();
-    }
-
-    private function resetForm()
-    {
-        $this->reset([
-            'jenisKapalId',
-            'company_id',
-            'galangan_id',
-            'nama',
-            'deskripsi',
-            'status',
-        ]);
-
-        $this->status = JenisKapalStatus::Active->value;
     }
 
     public function exportExcel()
     {
-        $this->authorize('exportExcel', JenisKapal::class);
+        $this->authorize('exportExcel', DataKapal::class);
 
         return Excel::download(
-            new JenisKapalExport($this->search, $this->statusFilter, $this->companyFilter),
-            'jenis-kapal-'.now()->format('Y-m-d-His').'.xlsx'
+            new DataKapalExport($this->search, $this->statusFilter, $this->companyFilter),
+            'data-kapal-'.now()->format('Y-m-d-His').'.xlsx'
         );
     }
 
-    public function exportPdf(JenisKapalService $service)
+    public function exportPdf(DataKapalService $service)
     {
-        $this->authorize('exportPdf', JenisKapal::class);
+        $this->authorize('exportPdf', DataKapal::class);
 
-        $jenisKapalList = JenisKapal::with('company')
+        $dataKapalList = DataKapal::with('company')
             ->withCount('laporanHarian')
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
@@ -303,18 +191,18 @@ class JenisKapalManagement extends Component
             ->orderBy('nama')
             ->get();
 
-        $pdf = Pdf::loadView('exports.jenis-kapal-pdf', ['jenisKapalList' => $jenisKapalList]);
+        $pdf = Pdf::loadView('exports.data-kapal-pdf', ['dataKapalList' => $dataKapalList]);
         $pdf->setPaper('a4', 'landscape');
 
         return response()->streamDownload(
             fn () => print ($pdf->output()),
-            'jenis-kapal-'.now()->format('Y-m-d-His').'.pdf'
+            'data-kapal-'.now()->format('Y-m-d-His').'.pdf'
         );
     }
 
     public function openDownloadTemplateModal()
     {
-        $this->authorize('downloadTemplate', JenisKapal::class);
+        $this->authorize('downloadTemplate', DataKapal::class);
         $this->showDownloadTemplateModal = true;
     }
 
@@ -323,9 +211,9 @@ class JenisKapalManagement extends Component
         $this->showDownloadTemplateModal = false;
     }
 
-    public function downloadDefaultTemplate(string $tipe, JenisKapalService $service)
+    public function downloadDefaultTemplate(string $tipe, DataKapalService $service)
     {
-        $this->authorize('downloadTemplate', JenisKapal::class);
+        $this->authorize('downloadTemplate', DataKapal::class);
 
         $templatePath = $service->downloadDefaultTemplate($tipe);
 
@@ -340,10 +228,10 @@ class JenisKapalManagement extends Component
 
     public function openTemplateUploadModal($id, string $tipe)
     {
-        $jenisKapal = JenisKapal::findOrFail($id);
-        $this->authorize('uploadTemplate', $jenisKapal);
+        $dataKapal = DataKapal::findOrFail($id);
+        $this->authorize('uploadTemplate', $dataKapal);
 
-        $this->uploadingJenisKapalId = $jenisKapal->id;
+        $this->uploadingDataKapalId = $dataKapal->id;
         $this->uploadingTemplateTipe = $tipe;
         $this->showTemplateUploadModal = true;
     }
@@ -351,15 +239,15 @@ class JenisKapalManagement extends Component
     public function closeTemplateUploadModal()
     {
         $this->showTemplateUploadModal = false;
-        $this->reset(['uploadingJenisKapalId', 'uploadingTemplateTipe', 'template_file']);
+        $this->reset(['uploadingDataKapalId', 'uploadingTemplateTipe', 'template_file']);
         $this->resetValidation();
     }
 
-    public function uploadTemplate(JenisKapalService $service)
+    public function uploadTemplate(DataKapalService $service)
     {
         try {
             $this->validate([
-                'template_file' => file_upload_validation_rule('template_laporan_jenis_kapal'),
+                'template_file' => file_upload_validation_rule('template_laporan_data_kapal'),
             ], [
                 'template_file' => 'template laporan '.$this->uploadingTemplateTipe,
             ]);
@@ -369,11 +257,11 @@ class JenisKapalManagement extends Component
         }
 
         try {
-            $jenisKapal = JenisKapal::findOrFail($this->uploadingJenisKapalId);
-            $this->authorize('uploadTemplate', $jenisKapal);
+            $dataKapal = DataKapal::findOrFail($this->uploadingDataKapalId);
+            $this->authorize('uploadTemplate', $dataKapal);
 
             if ($this->template_file) {
-                $service->uploadTemplate($jenisKapal, $this->template_file, $this->uploadingTemplateTipe);
+                $service->uploadTemplate($dataKapal, $this->template_file, $this->uploadingTemplateTipe);
                 $this->notifySuccess('Template laporan '.$this->uploadingTemplateTipe.' berhasil diupload!');
             }
 
@@ -387,27 +275,27 @@ class JenisKapalManagement extends Component
 
     public function confirmDeleteTemplate($id, string $tipe)
     {
-        $jenisKapal = JenisKapal::findOrFail($id);
-        $this->authorize('uploadTemplate', $jenisKapal);
+        $dataKapal = DataKapal::findOrFail($id);
+        $this->authorize('uploadTemplate', $dataKapal);
 
-        if (! $jenisKapal->hasTemplate($tipe)) {
+        if (! $dataKapal->hasTemplate($tipe)) {
             $this->notifyWarning('Tidak ada template '.$tipe.' untuk dihapus.');
 
             return;
         }
 
-        $this->deletingTemplateJenisKapalId = $jenisKapal->id;
+        $this->deletingTemplateDataKapalId = $dataKapal->id;
         $this->deletingTemplateTipe = $tipe;
         $this->showDeleteTemplateModal = true;
     }
 
-    public function deleteTemplate(JenisKapalService $service)
+    public function deleteTemplate(DataKapalService $service)
     {
         try {
-            $jenisKapal = JenisKapal::findOrFail($this->deletingTemplateJenisKapalId);
-            $this->authorize('uploadTemplate', $jenisKapal);
+            $dataKapal = DataKapal::findOrFail($this->deletingTemplateDataKapalId);
+            $this->authorize('uploadTemplate', $dataKapal);
 
-            $service->deleteTemplate($jenisKapal, $this->deletingTemplateTipe);
+            $service->deleteTemplate($dataKapal, $this->deletingTemplateTipe);
             $this->notifySuccess('Template laporan '.$this->deletingTemplateTipe.' berhasil dihapus!');
             $this->showDeleteTemplateModal = false;
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
@@ -417,13 +305,13 @@ class JenisKapalManagement extends Component
         }
     }
 
-    public function downloadTemplate($id, string $tipe, JenisKapalService $service)
+    public function downloadTemplate($id, string $tipe, DataKapalService $service)
     {
         try {
-            $jenisKapal = JenisKapal::findOrFail($id);
-            $this->authorize('uploadTemplate', $jenisKapal);
+            $dataKapal = DataKapal::findOrFail($id);
+            $this->authorize('uploadTemplate', $dataKapal);
 
-            $templatePath = $service->downloadTemplate($jenisKapal, $tipe);
+            $templatePath = $service->downloadTemplate($dataKapal, $tipe);
 
             if (! $templatePath || ! file_exists($templatePath)) {
                 $this->notifyError('Template tidak ditemukan.');
@@ -431,7 +319,7 @@ class JenisKapalManagement extends Component
                 return;
             }
 
-            $filename = 'template-'.$tipe.'-'.\Str::slug($jenisKapal->nama).'.docx';
+            $filename = 'template-'.$tipe.'-'.\Str::slug($dataKapal->nama).'.docx';
 
             return response()->download($templatePath, $filename);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
@@ -443,22 +331,22 @@ class JenisKapalManagement extends Component
 
     public function openKurvaSModal(int $id): void
     {
-        $jenisKapal = JenisKapal::findOrFail($id);
-        $this->authorize('managekurvaSRencana', $jenisKapal);
-        $this->dispatch('open-kurvas-modal', jenisKapalId: $id);
+        $dataKapal = DataKapal::findOrFail($id);
+        $this->authorize('managekurvaSRencana', $dataKapal);
+        $this->dispatch('open-kurvas-modal', dataKapalId: $id);
     }
 
-    public function exportKurvaSTemplate($id, bool $withData, JenisKapalService $service)
+    public function exportKurvaSTemplate($id, bool $withData, DataKapalService $service)
     {
         try {
-            $jenisKapal = JenisKapal::findOrFail($id);
-            $this->authorize('exportKurvaSTemplate', $jenisKapal);
+            $dataKapal = DataKapal::findOrFail($id);
+            $this->authorize('exportKurvaSTemplate', $dataKapal);
 
-            return $service->exportKurvaSTemplate($jenisKapal, $withData);
+            return $service->exportKurvaSTemplate($dataKapal, $withData);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk export template Kurva S.');
         } catch (\Exception $e) {
-            \Log::error('Export Kurva S gagal', ['jenis_kapal_id' => $id, 'error' => $e->getMessage()]);
+            \Log::error('Export Kurva S gagal', ['data_kapal_id' => $id, 'error' => $e->getMessage()]);
             $this->notifyError('Terjadi kesalahan sistem saat export. Silakan coba lagi.');
         }
     }
@@ -466,10 +354,10 @@ class JenisKapalManagement extends Component
     public function openKurvaSImportModal($id)
     {
         try {
-            $jenisKapal = JenisKapal::findOrFail($id);
-            $this->authorize('importKurvaSTemplate', $jenisKapal);
+            $dataKapal = DataKapal::findOrFail($id);
+            $this->authorize('importKurvaSTemplate', $dataKapal);
 
-            $this->kurvaSJenisKapalId = $jenisKapal->id;
+            $this->kurvaSDataKapalId = $dataKapal->id;
             $this->showKurvaSImportModal = true;
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk import template Kurva S.');
@@ -479,11 +367,11 @@ class JenisKapalManagement extends Component
     public function closeKurvaSImportModal()
     {
         $this->showKurvaSImportModal = false;
-        $this->reset(['kurvaSJenisKapalId', 'kurvaS_file']);
+        $this->reset(['kurvaSDataKapalId', 'kurvaS_file']);
         $this->resetValidation();
     }
 
-    public function importKurvaSTemplate(JenisKapalService $service)
+    public function importKurvaSTemplate(DataKapalService $service)
     {
         try {
             $this->validate([
@@ -502,10 +390,10 @@ class JenisKapalManagement extends Component
         }
 
         try {
-            $jenisKapal = JenisKapal::findOrFail($this->kurvaSJenisKapalId);
-            $this->authorize('importKurvaSTemplate', $jenisKapal);
+            $dataKapal = DataKapal::findOrFail($this->kurvaSDataKapalId);
+            $this->authorize('importKurvaSTemplate', $dataKapal);
 
-            $result = $service->importKurvaSTemplate($jenisKapal, $this->kurvaS_file);
+            $result = $service->importKurvaSTemplate($dataKapal, $this->kurvaS_file);
 
             if ($result['success']) {
                 $this->notifySuccess($result['message'].' Total work groups: '.$result['work_groups_count']);
@@ -521,22 +409,22 @@ class JenisKapalManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk import template Kurva S.');
         } catch (\Exception $e) {
-            \Log::error('Import Kurva S gagal', ['jenis_kapal_id' => $this->kurvaSJenisKapalId, 'error' => $e->getMessage()]);
+            \Log::error('Import Kurva S gagal', ['data_kapal_id' => $this->kurvaSDataKapalId, 'error' => $e->getMessage()]);
             $this->notifyError('Terjadi kesalahan sistem saat import. Silakan coba lagi.');
         }
     }
 
-    public function render(JenisKapalService $service)
+    public function render(DataKapalService $service)
     {
-        return view('livewire.master-data.jenis-kapal-management', [
-            'jenisKapalList' => $service->getFiltered(
+        return view('livewire.master-data.data-kapal-management', [
+            'dataKapalList' => $service->getFiltered(
                 $this->search,
                 $this->statusFilter,
                 $this->companyFilter ? (int) $this->companyFilter : null,
                 $this->galanganFilter ? (int) $this->galanganFilter : null,
                 $this->perPage
             ),
-            'statuses' => JenisKapalStatus::cases(),
+            'statuses' => DataKapalStatus::cases(),
             'companies' => Company::active()->orderBy('name')->get(),
             'galangans' => Galangan::active()->orderBy('nama')->get(),
         ]);

@@ -29,9 +29,17 @@ Route::middleware(['auth', 'verified', 'active'])->group(function () {
             return view('master-data.perusahaan');
         })->middleware('can:companies_view')->name('perusahaan');
 
-        Route::get('/jenis-kapal', function () {
-            return view('master-data.jenis-kapal');
-        })->middleware('can:jenis_kapal_view')->name('jenis-kapal');
+        Route::prefix('data-kapal')->group(function () {
+            Route::get('/', function () {
+                return view('master-data.data-kapal');
+            })->middleware('can:data_kapal_view')->name('data-kapal');
+            Route::get('/create', App\Livewire\MasterData\DataKapalForm::class)
+                ->middleware('can:data_kapal_create')
+                ->name('data-kapal.create');
+            Route::get('/{dataKapal}/edit', App\Livewire\MasterData\DataKapalForm::class)
+                ->middleware('can:data_kapal_update')
+                ->name('data-kapal.edit');
+        });
 
         Route::get('/galangan', function () {
             return view('master-data.galangan');
@@ -61,12 +69,12 @@ Route::middleware(['auth', 'verified', 'active'])->group(function () {
     })->middleware('can:chat_view')->name('chat.index');
 
     // Manajemen Laporan Harian
-    // Manajemen Laporan — pilih jenis kapal dulu, lalu laporan per kapal
+    // Manajemen Laporan — pilih data kapal dulu, lalu laporan per kapal
     Route::get('/laporan', App\Livewire\Laporan\LaporanIndex::class)
         ->middleware('can:laporan_view')
         ->name('laporan.index');
 
-    Route::prefix('laporan/{jenisKapal}')->middleware('can:laporan_view')->group(function () {
+    Route::prefix('laporan/{dataKapal}')->middleware('can:laporan_view')->group(function () {
         Route::prefix('harian')->name('laporan-harian.')->group(function () {
             Route::get('/', App\Livewire\LaporanHarian\LaporanHarianIndex::class)->name('index');
             Route::get('/create', App\Livewire\LaporanHarian\LaporanHarianCreate::class)

@@ -12,7 +12,7 @@ triggers:
 3. System Analyst yang teliti & berorientasi maintainability
 
 # Konteks Aplikasi
-- Aplikasi PENGAWASAN PEMBANGUNAN KAPAL: memonitor progres pembangunan kapal di galangan melalui Laporan Harian & Laporan Mingguan (dengan lampiran foto/dokumen), Kurva-S (rencana vs realisasi progress), serta master data (perusahaan, jenis kapal, galangan, cuaca, kelembaban). Termasuk chat realtime, notifikasi, impersonate user, dan konfigurasi sistem.
+- Aplikasi PENGAWASAN PEMBANGUNAN KAPAL: memonitor progres pembangunan kapal di galangan melalui Laporan Harian & Laporan Mingguan (dengan lampiran foto/dokumen), Kurva-S (rencana vs realisasi progress), serta master data (perusahaan, data kapal, galangan, cuaca, kelembaban). Termasuk chat realtime, notifikasi, impersonate user, dan konfigurasi sistem.
 - Dibangun di atas template "client-app" (SSO/RBAC boilerplate). README masih bernama Client App — itu normal, jangan "dibetulkan".
 - Database boleh di-reset total. Untuk perubahan schema, LANGSUNG UBAH migration create utama (jangan bikin migration `add_*` baru untuk tabel yang sama), lalu jalankan:
   `php artisan migrate:fresh --seed`
@@ -32,8 +32,8 @@ triggers:
 - Dev tools: laravel/pint (code style), phpunit (test)
 
 # Peta Domain (entity -> permission prefix)
-- Master Data: `companies` (perusahaan), `jenis_kapal` (jenis kapal + `manage_kurva_s` + template upload/download), `galangan`, `kelembaban`, `cuaca`
-- Laporan: `laporan` (dipakai bersama oleh Laporan Harian & Mingguan: `laporan_view`, `laporan_show`, `laporan_create`, `laporan_update`, `laporan_delete`, `laporan_download`, `laporan_lampiran_preview`, `laporan_lampiran_download`, `laporan_export_excel`, `laporan_export_pdf`, `laporan_view_all_jenis_kapal`)
+- Master Data: `companies` (perusahaan), `data_kapal` (data kapal + `manage_kurva_s` + template upload/download), `galangan`, `kelembaban`, `cuaca`
+- Laporan: `laporan` (dipakai bersama oleh Laporan Harian & Mingguan: `laporan_view`, `laporan_show`, `laporan_create`, `laporan_update`, `laporan_delete`, `laporan_download`, `laporan_lampiran_preview`, `laporan_lampiran_download`, `laporan_export_excel`, `laporan_export_pdf`, `laporan_view_all_data_kapal`)
 - Settings: `users` (termasuk `users_impersonate`), `roles`, `configuration`, `manage_own_company`
 - Lainnya: `notifications` (view, send), `chat` (view, create, delete), `dashboard_view`
 - Model laporan: `LaporanHarian` + anak `LaporanAktivitas`, `LaporanPersonel`, `LaporanPeralatan`, `LaporanConsumable`, `LaporanLampiran`, `LaporanExternal`; `LaporanMingguan` + `LaporanMingguanProgress`; Kurva-S: `KurvaSWorkGroup`, `KurvaSRencana`
@@ -47,14 +47,14 @@ triggers:
 5. TRAIT yang WAJIB dipakai ulang (jangan bikin duplikat):
    - `App\Livewire\Traits\HasNotification` -> notifySuccess/notifyError/notifyWarning/notifyInfo/notifyValidationError
    - `App\Livewire\Traits\HasMenuItems` -> daftarkan menu baru DI SINI dengan Gate check (jangan hardcode di sidebar)
-   - `App\Livewire\Traits\HasJenisKapalFilter` -> filter data laporan per jenis kapal (scope akses user)
+   - `App\Livewire\Traits\HasDataKapalFilter` -> filter data laporan per data kapal (scope akses user)
    - `App\Traits\HasDynamicLike` -> operator LIKE lintas DB (sqlite/mysql)
    - `App\Traits\HasEncryptedRouteKey` -> route-model-binding ID terenkripsi (cegah ID enumeration/IDOR). Saat ini dipakai `LaporanHarian` & `LaporanMingguan`.
    - `App\Services\QueueStatusService` -> `markWorkerActive()` di awal `handle()` Job untuk status worker.
 
 # Permission-First (ikuti pola yang ada)
 - Single source of truth: `Database\Seeders\PermissionSeeder`, konvensi nama `{entity}_{action}`
-  (action umum: view, show, create, update, delete, export_excel, export_pdf; aksi khusus: impersonate, send, download, upload_template, download_template, manage_kurva_s, lampiran_preview, lampiran_download, view_all_jenis_kapal).
+  (action umum: view, show, create, update, delete, export_excel, export_pdf; aksi khusus: impersonate, send, download, upload_template, download_template, manage_kurva_s, lampiran_preview, lampiran_download, view_all_data_kapal).
 - Route WAJIB diberi middleware permission: `Route::get('/x', ...)->middleware('can:{entity}_view')`.
 - Grouping UI: tambahkan mapping di `App\Services\RolePermissionService::buildPermissionGroups()`.
 - Di Blade gunakan `@can('permission')`, JANGAN hardcode role.
@@ -113,7 +113,7 @@ Pola full-page form:
 | Modal | `<x-confirm-modal>` / `<x-document-confirm-modal>` | `components/confirm-modal.blade.php`, `document-confirm-modal.blade.php` |
 | Modal | `<x-image-crop-modal>` | `components/image-crop-modal.blade.php` (crop foto lampiran) |
 | Modal | `<x-lampiran-preview-modal>` | `components/lampiran-preview-modal.blade.php` (preview lampiran) |
-| Modal | `<x-upload-template-modal>` / `<x-download-template-modal>` | import/template Excel (dipakai jenis-kapal/kurva-S) |
+| Modal | `<x-upload-template-modal>` / `<x-download-template-modal>` | import/template Excel (dipakai data-kapal/kurva-S) |
 | Modal | `<x-reset-password-modal>` | `components/reset-password-modal.blade.php` |
 | Form | `<x-input-label>` (prop `:required`) | `components/input-label.blade.php` |
 | Form | `<x-text-input>` | `components/text-input.blade.php` |
@@ -240,7 +240,7 @@ Jika ada ambiguitas yang berdampak besar -> TANYA dulu, jangan berasumsi.
 
 # Data Integrity & Transaksi
 - Operasi multi-tabel (laporan + anak: aktivitas/personel/peralatan/consumable/lampiran) WAJIB `DB::transaction()`.
-- Cek dependency sebelum delete (mis. perusahaan dengan users, jenis kapal dengan kurva-S) dan beri pesan jelas via HasNotification.
+- Cek dependency sebelum delete (mis. perusahaan dengan users, data kapal dengan kurva-S) dan beri pesan jelas via HasNotification.
 - Gunakan `findOrFail` + authorize di SETIAP aksi berbasis id.
 - Normalisasi input konsisten (mis. `strtoupper` untuk kode) di Service, bukan di Component.
 
@@ -313,7 +313,7 @@ JANGAN bocorkan pesan exception mentah ke user.
 - Validasi & sanitasi semua input; mass-assignment aman (`$fillable` eksplisit).
 - File: validasi mime & size via `config/file_upload.php`; jangan percaya nama file dari client.
 - Jangan hardcode secret; pakai .env. Hormati fitur SSO/impersonate yang sudah ada.
-- Scope data laporan per jenis kapal pakai `HasJenisKapalFilter` + permission `laporan_view_all_jenis_kapal` — jangan bypass.
+- Scope data laporan per data kapal pakai `HasDataKapalFilter` + permission `laporan_view_all_data_kapal` — jangan bypass.
 
 # Encrypted Route Model Binding (WAJIB untuk semua model yang tampil di URL)
 - Model di route parameter WAJIB trait `App\Traits\HasEncryptedRouteKey` (sudah dipakai `LaporanHarian` & `LaporanMingguan`).

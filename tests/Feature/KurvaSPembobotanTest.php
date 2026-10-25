@@ -7,7 +7,7 @@ use App\Imports\KurvaSRencanaImport;
 use App\Imports\KurvaSTemplateImport;
 use App\Livewire\LaporanMingguan\LaporanMingguanCreate;
 use App\Livewire\MasterData\KurvaSManagement;
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\KurvaSRencana;
 use App\Models\KurvaSRencanaMingguan;
 use App\Models\KurvaSWorkGroup;
@@ -30,18 +30,18 @@ class KurvaSPembobotanTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function jenisKapal(): JenisKapal
+    private function dataKapal(): DataKapal
     {
-        return JenisKapal::create(['nama' => 'Kapal Uji', 'status' => 'active']);
+        return DataKapal::create(['nama' => 'Kapal Uji', 'status' => 'active']);
     }
 
     /**
      * Kontrak 5 Jan 2026 + 140 hari = 20 minggu → 5 bulan:
      * Jan (mgg 1-4), Feb (5-8), Mar (9-12), Apr (14-17), Mei (18-20).
      */
-    private function jenisKapalKontrak(): JenisKapal
+    private function dataKapalKontrak(): DataKapal
     {
-        return JenisKapal::create([
+        return DataKapal::create([
             'nama' => 'Kapal Uji',
             'status' => 'active',
             'tanggal_mulai_kontrak' => '2026-01-05',
@@ -54,10 +54,10 @@ class KurvaSPembobotanTest extends TestCase
         return app(KurvaSService::class);
     }
 
-    private function seedWorkGroup(JenisKapal $jk, float $bobot, array $months): KurvaSWorkGroup
+    private function seedWorkGroup(DataKapal $jk, float $bobot, array $months): KurvaSWorkGroup
     {
         $wg = KurvaSWorkGroup::create([
-            'jenis_kapal_id' => $jk->id,
+            'data_kapal_id' => $jk->id,
             'nama' => 'Grup '.$bobot,
             'bobot' => $bobot,
             'sort_order' => 0,
@@ -76,7 +76,7 @@ class KurvaSPembobotanTest extends TestCase
 
     public function test_save_work_groups_clamp_pct_rencana_ke_bobot(): void
     {
-        $jk = $this->jenisKapal();
+        $jk = $this->dataKapal();
 
         $this->service()->saveWorkGroups($jk, [
             [
@@ -96,7 +96,7 @@ class KurvaSPembobotanTest extends TestCase
 
     public function test_get_week_plans_menurunkan_rencana_bulanan_ke_minggu(): void
     {
-        $jk = $this->jenisKapalKontrak();
+        $jk = $this->dataKapalKontrak();
         $wg = $this->seedWorkGroup($jk, 10.0, [3 => 6.0]); // bulan 3 = Mar, mgg 9-12 (4 mgg)
 
         $plans = $this->service()->getWeekPlans($jk, 10);
@@ -111,7 +111,7 @@ class KurvaSPembobotanTest extends TestCase
 
     public function test_chart_rencana_adalah_jumlah_langsung_tanpa_pembobotan(): void
     {
-        $jk = $this->jenisKapalKontrak();
+        $jk = $this->dataKapalKontrak();
         // Bulan 1 (mgg 1-4): 4.0 → 1.0/mgg; Bulan 2 (mgg 5-8): 8.0 → 2.0/mgg
         $this->seedWorkGroup($jk, 10.0, [1 => 4.0]);
         $this->seedWorkGroup($jk, 30.0, [2 => 8.0]);
@@ -128,13 +128,13 @@ class KurvaSPembobotanTest extends TestCase
 
     public function test_save_progress_clamp_pct_realisasi_ke_bobot(): void
     {
-        $jk = $this->jenisKapal();
+        $jk = $this->dataKapal();
         $user = User::factory()->create();
         $wg = $this->seedWorkGroup($jk, 10.0, [1 => 10.0]);
 
         $laporan = LaporanMingguan::create([
             'user_id' => $user->id,
-            'jenis_kapal_id' => $jk->id,
+            'data_kapal_id' => $jk->id,
             'tanggal_laporan' => '2026-01-21',
             'minggu_ke' => 1,
         ]);
@@ -150,7 +150,7 @@ class KurvaSPembobotanTest extends TestCase
 
     public function test_history_totals_dan_kontribusi_tanpa_pembobotan(): void
     {
-        $jk = $this->jenisKapalKontrak();
+        $jk = $this->dataKapalKontrak();
         $user = User::factory()->create();
         // Bulan 1 = 8.0 → mgg 1-4 masing-masing 2.0
         $wg = $this->seedWorkGroup($jk, 10.0, [1 => 8.0]);
@@ -158,7 +158,7 @@ class KurvaSPembobotanTest extends TestCase
         foreach ([1 => 3.0, 2 => 5.0] as $minggu => $pct) {
             $laporan = LaporanMingguan::create([
                 'user_id' => $user->id,
-                'jenis_kapal_id' => $jk->id,
+                'data_kapal_id' => $jk->id,
                 'tanggal_laporan' => '2026-01-21',
                 'minggu_ke' => $minggu,
             ]);
@@ -181,7 +181,7 @@ class KurvaSPembobotanTest extends TestCase
     {
         $this->seed();
         $admin = User::firstOrFail();
-        $jk = $this->jenisKapal();
+        $jk = $this->dataKapal();
 
         Livewire::actingAs($admin)
             ->test(KurvaSManagement::class)
@@ -200,14 +200,14 @@ class KurvaSPembobotanTest extends TestCase
             ->call('save')
             ->assertSet('showModal', true);
 
-        $this->assertSame(0, KurvaSWorkGroup::where('jenis_kapal_id', $jk->id)->count());
+        $this->assertSame(0, KurvaSWorkGroup::where('data_kapal_id', $jk->id)->count());
     }
 
     public function test_management_save_sukses_bila_rencana_sesuai_bobot(): void
     {
         $this->seed();
         $admin = User::firstOrFail();
-        $jk = $this->jenisKapal();
+        $jk = $this->dataKapal();
 
         Livewire::actingAs($admin)
             ->test(KurvaSManagement::class)
@@ -226,7 +226,7 @@ class KurvaSPembobotanTest extends TestCase
             ->call('save')
             ->assertSet('showModal', false);
 
-        $wg = KurvaSWorkGroup::where('jenis_kapal_id', $jk->id)->firstOrFail();
+        $wg = KurvaSWorkGroup::where('data_kapal_id', $jk->id)->firstOrFail();
         $this->assertEqualsWithDelta(10.0, (float) $wg->kurvaSRencana->sum('pct_rencana'), 0.001);
 
         // Kontrak ikut tersimpan
@@ -238,7 +238,7 @@ class KurvaSPembobotanTest extends TestCase
     {
         $this->seed();
         $admin = User::firstOrFail();
-        $jk = $this->jenisKapal();
+        $jk = $this->dataKapal();
 
         // Rencana bulanan tidak bermakna tanpa kontrak → save ditolak
         Livewire::actingAs($admin)
@@ -255,14 +255,14 @@ class KurvaSPembobotanTest extends TestCase
             ->call('save')
             ->assertSet('showModal', true);
 
-        $this->assertSame(0, KurvaSWorkGroup::where('jenis_kapal_id', $jk->id)->count());
+        $this->assertSame(0, KurvaSWorkGroup::where('data_kapal_id', $jk->id)->count());
     }
 
     public function test_sync_draft_menerapkan_nilai_tanpa_gagal(): void
     {
         $this->seed();
         $admin = User::firstOrFail();
-        $jk = $this->jenisKapal();
+        $jk = $this->dataKapal();
 
         // Sinkronisasi ringan saat mengetik: nilai tetap masuk ke properti
         // komponen; tidak ada error walau tanpa render ulang.
@@ -286,7 +286,7 @@ class KurvaSPembobotanTest extends TestCase
     {
         $this->seed();
         $admin = User::firstOrFail();
-        $jk = $this->jenisKapal(); // tanpa kontrak di DB — kontrak diisi via form
+        $jk = $this->dataKapal(); // tanpa kontrak di DB — kontrak diisi via form
 
         // Kontrak 90 hari dari 1 Jan 2025 → 3 bulan (Jan/Feb/Mar masing-masing 4 mgg)
         Livewire::actingAs($admin)
@@ -330,7 +330,7 @@ class KurvaSPembobotanTest extends TestCase
     {
         $this->seed();
         $admin = User::firstOrFail();
-        $jk = $this->jenisKapal();
+        $jk = $this->dataKapal();
 
         Livewire::actingAs($admin)
             ->test(KurvaSManagement::class)
@@ -353,7 +353,7 @@ class KurvaSPembobotanTest extends TestCase
     {
         $this->seed();
         $admin = User::firstOrFail();
-        $jk = $this->jenisKapal();
+        $jk = $this->dataKapal();
 
         Livewire::actingAs($admin)
             ->test(KurvaSManagement::class)
@@ -372,7 +372,7 @@ class KurvaSPembobotanTest extends TestCase
     {
         $this->seed();
         $admin = User::firstOrFail();
-        $jk = $this->jenisKapal();
+        $jk = $this->dataKapal();
 
         Livewire::actingAs($admin)
             ->test(KurvaSManagement::class)
@@ -387,7 +387,7 @@ class KurvaSPembobotanTest extends TestCase
 
     public function test_import_menolak_rencana_melebihi_bobot(): void
     {
-        $jk = $this->jenisKapal();
+        $jk = $this->dataKapal();
         $parent = new KurvaSTemplateImport($jk);
         $import = new KurvaSRencanaImport($jk, $parent);
 
@@ -401,7 +401,7 @@ class KurvaSPembobotanTest extends TestCase
 
     public function test_import_menerima_rencana_sesuai_bobot(): void
     {
-        $jk = $this->jenisKapal();
+        $jk = $this->dataKapal();
         $parent = new KurvaSTemplateImport($jk);
         $import = new KurvaSRencanaImport($jk, $parent);
 
@@ -417,13 +417,13 @@ class KurvaSPembobotanTest extends TestCase
     {
         $this->seed();
         $admin = User::firstOrFail();
-        $jk = $this->jenisKapal();
+        $jk = $this->dataKapal();
         $wg = $this->seedWorkGroup($jk, 10.0, [1 => 10.0]);
 
         // Laporan minggu 1 sudah melaporkan 8 poin dari bobot 10
         $laporan1 = LaporanMingguan::create([
             'user_id' => $admin->id,
-            'jenis_kapal_id' => $jk->id,
+            'data_kapal_id' => $jk->id,
             'tanggal_laporan' => '2026-01-21',
             'minggu_ke' => 1,
         ]);
@@ -431,19 +431,19 @@ class KurvaSPembobotanTest extends TestCase
 
         // Laporan minggu 2: input 5 → total 13 > bobot 10 → diblokir
         Livewire::actingAs($admin)
-            ->test(LaporanMingguanCreate::class, ['jenisKapal' => $jk])
+            ->test(LaporanMingguanCreate::class, ['dataKapal' => $jk])
             ->set('tanggal_laporan', '2026-01-28')
             ->set('minggu_ke', 2)
             ->set('progressPerGroup.'.$wg->id, 5.0)
             ->call('save');
 
-        $this->assertSame(1, LaporanMingguan::where('jenis_kapal_id', $jk->id)->count());
+        $this->assertSame(1, LaporanMingguan::where('data_kapal_id', $jk->id)->count());
     }
 
     public function test_export_kolom_bulan_mengikuti_kontrak(): void
     {
         // Kontrak 90 hari dari 1 Jan 2025 → 3 bulan → kolom B1-B3
-        $jk = JenisKapal::create([
+        $jk = DataKapal::create([
             'nama' => 'Kapal Uji',
             'status' => 'active',
             'tanggal_mulai_kontrak' => '2025-01-01',
@@ -461,7 +461,7 @@ class KurvaSPembobotanTest extends TestCase
 
     public function test_export_kolom_bulan_fallback_data_dan_default(): void
     {
-        $jk = $this->jenisKapal();
+        $jk = $this->dataKapal();
         // Tanpa kontrak & tanpa data → default 24
         $this->assertSame(24, KurvaSRencanaSheet::resolveMonths($jk));
 
@@ -490,7 +490,7 @@ class KurvaSPembobotanTest extends TestCase
 
     public function test_get_week_plans_menggunakan_override_mingguan_tersimpan(): void
     {
-        $jk = $this->jenisKapalKontrak();
+        $jk = $this->dataKapalKontrak();
         $wg = $this->seedWorkGroup($jk, 10.0, [1 => 4.0, 3 => 6.0]);
 
         // Bulan 3 (mgg 9-12): override manual — bukan bagi rata 6/4 = 1.5
@@ -512,14 +512,14 @@ class KurvaSPembobotanTest extends TestCase
 
     public function test_get_week_plans_bagi_rata_hasil_3_digit(): void
     {
-        $jk = $this->jenisKapalKontrak();
+        $jk = $this->dataKapalKontrak();
         $wg = $this->seedWorkGroup($jk, 10.0, [3 => 5.0]); // bulan 3 = mgg 9-12 → 1.25/mgg
 
         $plans = $this->service()->getWeekPlans($jk, 9);
         $this->assertEqualsWithDelta(1.25, (float) $plans[$wg->id], 0.0001);
 
         // Nilai tidak habis dibagi: 5 / 3 mgg (bulan 1 = mgg 1-4? gunakan 3 mgg lewat bulan 5: mgg 18-20)
-        $jk2 = $this->jenisKapalKontrak();
+        $jk2 = $this->dataKapalKontrak();
         $wg2 = $this->seedWorkGroup($jk2, 10.0, [5 => 5.0]); // bulan 5 = mgg 18-20 (3 mgg)
         $plans2 = $this->service()->getWeekPlans($jk2, 18);
         $this->assertEqualsWithDelta(1.666, (float) $plans2[$wg2->id], 0.0001);
@@ -533,7 +533,7 @@ class KurvaSPembobotanTest extends TestCase
 
     public function test_save_work_groups_menyimpan_dan_menghapus_override_mingguan(): void
     {
-        $jk = $this->jenisKapalKontrak();
+        $jk = $this->dataKapalKontrak();
 
         $this->service()->saveWorkGroups($jk, [[
             'nama' => 'Engineering',
@@ -575,7 +575,7 @@ class KurvaSPembobotanTest extends TestCase
     {
         $this->seed();
         $admin = User::firstOrFail();
-        $jk = $this->jenisKapal();
+        $jk = $this->dataKapal();
 
         Livewire::actingAs($admin)
             ->test(KurvaSManagement::class)
@@ -604,7 +604,7 @@ class KurvaSPembobotanTest extends TestCase
     {
         $this->seed();
         $admin = User::firstOrFail();
-        $jk = $this->jenisKapal();
+        $jk = $this->dataKapal();
 
         // Bulanan 8% ≤ bobot 10 — tapi mingguan di-override hingga total 20% → tolak
         Livewire::actingAs($admin)
@@ -633,6 +633,6 @@ class KurvaSPembobotanTest extends TestCase
             ->call('save')
             ->assertSet('showModal', true);
 
-        $this->assertSame(0, KurvaSWorkGroup::where('jenis_kapal_id', $jk->id)->count());
+        $this->assertSame(0, KurvaSWorkGroup::where('data_kapal_id', $jk->id)->count());
     }
 }

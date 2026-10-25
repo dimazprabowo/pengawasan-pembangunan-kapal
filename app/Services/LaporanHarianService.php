@@ -12,11 +12,11 @@ class LaporanHarianService
 {
     public function getFiltered(
         ?string $search = null,
-        ?int $jenisKapalId = null,
+        ?int $dataKapalId = null,
         int $perPage = 15
     ): LengthAwarePaginator {
-        $query = LaporanHarian::with(['user', 'jenisKapal.company', 'jenisKapal.galangan', 'lampiran'])
-            ->byJenisKapal($jenisKapalId);
+        $query = LaporanHarian::with(['user', 'dataKapal.company', 'dataKapal.galangan', 'lampiran'])
+            ->byDataKapal($dataKapalId);
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -31,7 +31,7 @@ class LaporanHarianService
             ->orderByDesc('created_at')
             ->paginate($perPage);
 
-        $this->flagDuplicateTanggal($paginator, $jenisKapalId);
+        $this->flagDuplicateTanggal($paginator, $dataKapalId);
 
         return $paginator;
     }
@@ -40,12 +40,12 @@ class LaporanHarianService
      * Tandai laporan pada halaman ini yang tanggal_laporan-nya juga dipakai
      * laporan harian lain pada kapal yang sama (data duplikat legacy).
      */
-    private function flagDuplicateTanggal(LengthAwarePaginator $paginator, ?int $jenisKapalId): void
+    private function flagDuplicateTanggal(LengthAwarePaginator $paginator, ?int $dataKapalId): void
     {
         $items = $paginator->getCollection();
         $dates = $items->map(fn ($l) => $l->tanggal_laporan->format('Y-m-d'))->unique();
 
-        if (! $jenisKapalId || $dates->isEmpty()) {
+        if (! $dataKapalId || $dates->isEmpty()) {
             $items->each(function ($l) {
                 $l->tanggal_duplikat = false;
             });
@@ -53,7 +53,7 @@ class LaporanHarianService
             return;
         }
 
-        $dupeDates = LaporanHarian::where('jenis_kapal_id', $jenisKapalId)
+        $dupeDates = LaporanHarian::where('data_kapal_id', $dataKapalId)
             ->where(function ($q) use ($dates) {
                 foreach ($dates as $d) {
                     $q->orWhereDate('tanggal_laporan', $d);

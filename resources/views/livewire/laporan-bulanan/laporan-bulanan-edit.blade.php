@@ -6,7 +6,7 @@
     {{-- Header --}}
     <div class="mb-6">
         <div class="flex items-center gap-2">
-            <a href="{{ route('laporan-bulanan.index', $jenisKapal) }}" wire:navigate
+            <a href="{{ route('laporan-bulanan.index', $dataKapal) }}" wire:navigate
                 x-data="{ loading: false }" x-on:click="loading = true"
                 x-bind:class="loading ? 'opacity-50 pointer-events-none' : ''"
                 class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
@@ -20,7 +20,7 @@
             </a>
             <div class="min-w-0">
                 <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Edit Laporan Bulanan</h2>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 truncate">{{ $jenisKapal->nama }}{{ $jenisKapal->company ? ' · ' . $jenisKapal->company->name : '' }} — {{ $laporan->judul }}</p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 truncate">{{ $dataKapal->nama }}{{ $dataKapal->company ? ' · ' . $dataKapal->company->name : '' }} — {{ $laporan->judul }}</p>
             </div>
         </div>
     </div>

@@ -17,7 +17,7 @@
                     Pilih jenis template laporan yang ingin diunduh
                 </p>
                 <div class="space-y-3">
-                    @can('jenis_kapal_download_template')
+                    @can('data_kapal_download_template')
                         <button wire:click="downloadDefaultTemplate('harian')"
                             wire:loading.attr="disabled"
                             wire:target="downloadDefaultTemplate('harian')"

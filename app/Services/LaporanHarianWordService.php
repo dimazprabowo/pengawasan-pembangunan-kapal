@@ -4,13 +4,14 @@ namespace App\Services;
 
 use App\Models\LaporanHarian;
 use PhpOffice\PhpWord\TemplateProcessor;
-use App\Services\WordImageService;
 
 class LaporanHarianWordService
 {
     private const TEMPLATE_PATH = 'templates/laporan-harian/template-laporan-harian.docx';
-    private const MAX_ROWS      = 30;
-    private const MAX_LAMPIRAN  = 10;
+
+    private const MAX_ROWS = 30;
+
+    private const MAX_LAMPIRAN = 10;
 
     public function __construct(
         private WordImageService $imageService
@@ -28,8 +29,8 @@ class LaporanHarianWordService
     {
         $laporan->loadMissing([
             'user',
-            'jenisKapal.company',
-            'jenisKapal.galangan',
+            'dataKapal.company',
+            'dataKapal.galangan',
             'cuacaPagi',
             'kelembabanPagi',
             'cuacaSiang',
@@ -43,23 +44,23 @@ class LaporanHarianWordService
             'lampiran',
         ]);
 
-        // Try to use template from Jenis Kapal first
+        // Try to use template from Data Kapal first
         $templateFullPath = null;
         $templateSource = 'default';
 
-        if ($laporan->jenisKapal && $laporan->jenisKapal->hasTemplate('harian')) {
-            $templateFullPath = $laporan->jenisKapal->getTemplateFullPath('harian');
-            $templateSource = 'jenis_kapal';
+        if ($laporan->dataKapal && $laporan->dataKapal->hasTemplate('harian')) {
+            $templateFullPath = $laporan->dataKapal->getTemplateFullPath('harian');
+            $templateSource = 'data_kapal';
         }
-        
-        // Fall back to default template if Jenis Kapal template not available
-        if (!$templateFullPath || !file_exists($templateFullPath)) {
-            $templateFullPath = storage_path('app/' . self::TEMPLATE_PATH);
+
+        // Fall back to default template if Data Kapal template not available
+        if (! $templateFullPath || ! file_exists($templateFullPath)) {
+            $templateFullPath = storage_path('app/'.self::TEMPLATE_PATH);
             $templateSource = 'default';
-            
-            if (!file_exists($templateFullPath)) {
+
+            if (! file_exists($templateFullPath)) {
                 throw new \RuntimeException(
-                    'Template Word tidak ditemukan. Harap upload template pada master Jenis Kapal atau pastikan template default tersedia di: storage/app/' . self::TEMPLATE_PATH
+                    'Template Word tidak ditemukan. Harap upload template pada master Data Kapal atau pastikan template default tersedia di: storage/app/'.self::TEMPLATE_PATH
                 );
             }
         }
@@ -86,15 +87,15 @@ class LaporanHarianWordService
 
         // Basic Info
         $values['judul'] = $laporan->judul ?? '-';
-        $values['lokasi'] = $laporan->jenisKapal?->galangan?->nama ?? '-';
-        $values['no_kapal'] = $laporan->jenisKapal?->nama ?? '-';
-        $values['perusahaan'] = $laporan->jenisKapal?->company?->name ?? '-';
+        $values['lokasi'] = $laporan->dataKapal?->galangan?->nama ?? '-';
+        $values['no_kapal'] = $laporan->dataKapal?->nama ?? '-';
+        $values['perusahaan'] = $laporan->dataKapal?->company?->name ?? '-';
         $values['tanggal'] = $laporan->tanggal_laporan ? $laporan->tanggal_laporan->translatedFormat('d F Y') : '-';
         $values['dibuat_oleh'] = $laporan->user?->name ?? '-';
         $values['no_laporan'] = (string) $laporan->id;
 
         // Weather - use '-' for empty values
-        $values['suhu'] = $laporan->suhu ? number_format((float) $laporan->suhu, 1) . '°C' : '-';
+        $values['suhu'] = $laporan->suhu ? number_format((float) $laporan->suhu, 1).'°C' : '-';
         $values['cuaca_pagi'] = $laporan->cuacaPagi?->nama ?? '-';
         $values['kelembaban_pagi'] = $laporan->kelembabanPagi?->nama ?? '-';
         $values['cuaca_siang'] = $laporan->cuacaSiang?->nama ?? '-';
@@ -107,10 +108,10 @@ class LaporanHarianWordService
         $values['peralatan_total'] = (string) $laporan->peralatan->count();
         $values['consumable_total'] = (string) $laporan->consumable->count();
         $values['aktivitas_total'] = (string) $laporan->aktivitas->count();
-        $values['lampiran_total'] = (string) $laporan->lampiran->filter(fn($l) => $l->isFileCompleted())->count();
+        $values['lampiran_total'] = (string) $laporan->lampiran->filter(fn ($l) => $l->isFileCompleted())->count();
 
         // Signature
-        $values['ttd_kota'] = $laporan->jenisKapal?->galangan?->kota ?? '-';
+        $values['ttd_kota'] = $laporan->dataKapal?->galangan?->kota ?? '-';
         $values['ttd_tanggal'] = $laporan->tanggal_laporan ? $laporan->tanggal_laporan->translatedFormat('d F Y') : '-';
         $values['ttd_nama'] = $laporan->user?->name ?? '-';
 
@@ -133,14 +134,14 @@ class LaporanHarianWordService
     private function fillPersonelTable(TemplateProcessor $processor, LaporanHarian $laporan): void
     {
         $rows = $laporan->personel->values();
-        
+
         if ($rows->isEmpty()) {
             // Jika tidak ada data, isi dengan satu row berisi '-'
             $processor->setValue('personel_no', '1');
             $processor->setValue('personel_jabatan', '-');
             $processor->setValue('personel_status', '-');
             $processor->setValue('personel_keterangan', '-');
-            
+
             return;
         }
 
@@ -150,25 +151,26 @@ class LaporanHarianWordService
         // Set values untuk setiap row yang sudah di-clone
         foreach ($rows as $index => $row) {
             $i = $index + 1;
-            
+
             // Format: placeholder#index (misal: personel_no#1, personel_no#2)
-            $processor->setValue('personel_no#' . $i, (string) $i);
-            $processor->setValue('personel_jabatan#' . $i, $row->jabatan ?? '-');
-            $processor->setValue('personel_status#' . $i, $row->status ?? '-');
-            $processor->setValue('personel_keterangan#' . $i, $row->keterangan ?? '-');
+            $processor->setValue('personel_no#'.$i, (string) $i);
+            $processor->setValue('personel_jabatan#'.$i, $row->jabatan ?? '-');
+            $processor->setValue('personel_status#'.$i, $row->status ?? '-');
+            $processor->setValue('personel_keterangan#'.$i, $row->keterangan ?? '-');
         }
     }
 
     private function fillPeralatanTable(TemplateProcessor $processor, LaporanHarian $laporan): void
     {
         $rows = $laporan->peralatan->values();
-        
+
         if ($rows->isEmpty()) {
             // Jika tidak ada data, isi dengan satu row berisi '-'
             $processor->setValue('peralatan_no', '1');
             $processor->setValue('peralatan_jenis', '-');
             $processor->setValue('peralatan_jumlah', '-');
             $processor->setValue('peralatan_keterangan', '-');
+
             return;
         }
 
@@ -177,15 +179,15 @@ class LaporanHarianWordService
 
             foreach ($rows as $index => $row) {
                 $i = $index + 1;
-                
-                $processor->setValue('peralatan_no#' . $i, (string) $i);
-                $processor->setValue('peralatan_jenis#' . $i, $row->jenis ?? '-');
-                $processor->setValue('peralatan_jumlah#' . $i, $row->jumlah !== null ? (string) $row->jumlah : '-');
-                $processor->setValue('peralatan_keterangan#' . $i, $row->keterangan ?? '-');
+
+                $processor->setValue('peralatan_no#'.$i, (string) $i);
+                $processor->setValue('peralatan_jenis#'.$i, $row->jenis ?? '-');
+                $processor->setValue('peralatan_jumlah#'.$i, $row->jumlah !== null ? (string) $row->jumlah : '-');
+                $processor->setValue('peralatan_keterangan#'.$i, $row->keterangan ?? '-');
             }
         } catch (\Exception $e) {
             \Log::warning('LaporanWordService: Skipping peralatan table (placeholder not found or contains markup)', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
@@ -193,13 +195,14 @@ class LaporanHarianWordService
     private function fillConsumableTable(TemplateProcessor $processor, LaporanHarian $laporan): void
     {
         $rows = $laporan->consumable->values();
-        
+
         if ($rows->isEmpty()) {
             // Jika tidak ada data, isi dengan satu row berisi '-'
             $processor->setValue('consumable_no', '1');
             $processor->setValue('consumable_jenis', '-');
             $processor->setValue('consumable_jumlah', '-');
             $processor->setValue('consumable_keterangan', '-');
+
             return;
         }
 
@@ -208,15 +211,15 @@ class LaporanHarianWordService
 
             foreach ($rows as $index => $row) {
                 $i = $index + 1;
-                
-                $processor->setValue('consumable_no#' . $i, (string) $i);
-                $processor->setValue('consumable_jenis#' . $i, $row->jenis ?? '-');
-                $processor->setValue('consumable_jumlah#' . $i, $row->jumlah !== null ? (string) $row->jumlah : '-');
-                $processor->setValue('consumable_keterangan#' . $i, $row->keterangan ?? '-');
+
+                $processor->setValue('consumable_no#'.$i, (string) $i);
+                $processor->setValue('consumable_jenis#'.$i, $row->jenis ?? '-');
+                $processor->setValue('consumable_jumlah#'.$i, $row->jumlah !== null ? (string) $row->jumlah : '-');
+                $processor->setValue('consumable_keterangan#'.$i, $row->keterangan ?? '-');
             }
         } catch (\Exception $e) {
             \Log::warning('LaporanWordService: Skipping consumable table (placeholder not found or contains markup)', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
@@ -224,13 +227,14 @@ class LaporanHarianWordService
     private function fillAktivitasTable(TemplateProcessor $processor, LaporanHarian $laporan): void
     {
         $rows = $laporan->aktivitas->values();
-        
+
         if ($rows->isEmpty()) {
             // Jika tidak ada data, isi dengan satu row berisi '-'
             $processor->setValue('aktivitas_no', '1');
             $processor->setValue('aktivitas_kategori', '-');
             $processor->setValue('aktivitas_aktivitas', '-');
             $processor->setValue('aktivitas_pic', '-');
+
             return;
         }
 
@@ -239,28 +243,29 @@ class LaporanHarianWordService
 
             foreach ($rows as $index => $row) {
                 $i = $index + 1;
-                
-                $processor->setValue('aktivitas_no#' . $i, (string) $i);
-                $processor->setValue('aktivitas_kategori#' . $i, $row->kategori ?? '-');
-                $processor->setValue('aktivitas_aktivitas#' . $i, $row->aktivitas ?? '-');
-                $processor->setValue('aktivitas_pic#' . $i, $row->pic ?? '-');
+
+                $processor->setValue('aktivitas_no#'.$i, (string) $i);
+                $processor->setValue('aktivitas_kategori#'.$i, $row->kategori ?? '-');
+                $processor->setValue('aktivitas_aktivitas#'.$i, $row->aktivitas ?? '-');
+                $processor->setValue('aktivitas_pic#'.$i, $row->pic ?? '-');
             }
         } catch (\Exception $e) {
             \Log::warning('LaporanWordService: Skipping aktivitas table (placeholder not found or contains markup)', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
 
     private function fillLampiranTable(TemplateProcessor $processor, LaporanHarian $laporan): void
     {
-        $rows = $laporan->lampiran->filter(fn($l) => $l->isFileCompleted())->values();
-        
+        $rows = $laporan->lampiran->filter(fn ($l) => $l->isFileCompleted())->values();
+
         if ($rows->isEmpty()) {
             // Jika tidak ada data, isi dengan satu row berisi '-'
             $processor->setValue('lampiran_no', '1');
             $processor->setValue('lampiran_gambar', '-');
             $processor->setValue('lampiran_ket', '-');
+
             return;
         }
 
@@ -270,10 +275,10 @@ class LaporanHarianWordService
         // Set values untuk setiap row yang sudah di-clone
         foreach ($rows as $index => $item) {
             $i = $index + 1;
-            
+
             // Set nomor
-            $processor->setValue('lampiran_no#' . $i, (string) $i);
-            
+            $processor->setValue('lampiran_no#'.$i, (string) $i);
+
             // Set gambar jika file adalah image
             if ($this->imageService->isImageFile($item->file_path)) {
                 $imagePath = $this->imageService->resolveLampiranPath($item->file_path);
@@ -282,11 +287,11 @@ class LaporanHarianWordService
                     try {
                         $finalImagePath = $this->imageService->prepareImageForWord($imagePath);
 
-                        $processor->setImageValue('lampiran_gambar#' . $i, [
+                        $processor->setImageValue('lampiran_gambar#'.$i, [
                             'path' => $finalImagePath,
                             'width' => WordImageService::DEFAULT_WIDTH,
                             'height' => WordImageService::DEFAULT_HEIGHT,
-                            'ratio' => true
+                            'ratio' => true,
                         ]);
 
                         // Clean up temporary file if it was created
@@ -301,25 +306,25 @@ class LaporanHarianWordService
                             'file_path' => $item->file_path,
                             'full_path' => $imagePath,
                             'error' => $e->getMessage(),
-                            'trace' => $e->getTraceAsString()
+                            'trace' => $e->getTraceAsString(),
                         ]);
-                        $processor->setValue('lampiran_gambar#' . $i, $item->file_name ?? '-');
+                        $processor->setValue('lampiran_gambar#'.$i, $item->file_name ?? '-');
                     }
                 } else {
                     \Log::warning('LaporanWordService: Image file not found', [
                         'lampiran_id' => $item->id,
                         'file_path' => $item->file_path,
                         'full_path' => $imagePath,
-                        'storage_app_exists' => is_dir(storage_path('app'))
+                        'storage_app_exists' => is_dir(storage_path('app')),
                     ]);
-                    $processor->setValue('lampiran_gambar#' . $i, $item->file_name ?? '-');
+                    $processor->setValue('lampiran_gambar#'.$i, $item->file_name ?? '-');
                 }
             } else {
                 // Jika bukan image, tampilkan nama file
-                $processor->setValue('lampiran_gambar#' . $i, $item->file_name ?? '-');
+                $processor->setValue('lampiran_gambar#'.$i, $item->file_name ?? '-');
             }
             // Set keterangan
-            $processor->setValue('lampiran_ket#' . $i, $item->keterangan ?? '-');
+            $processor->setValue('lampiran_ket#'.$i, $item->keterangan ?? '-');
         }
     }
 
@@ -330,7 +335,7 @@ class LaporanHarianWordService
     private function saveDocument(TemplateProcessor $processor, LaporanHarian $laporan): string
     {
         $dir = storage_path('app/laporan/word');
-        if (!is_dir($dir)) {
+        if (! is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
 
@@ -340,8 +345,8 @@ class LaporanHarianWordService
             now()->format('YmdHis')
         );
 
-        $processor->saveAs($dir . '/' . $filename);
+        $processor->saveAs($dir.'/'.$filename);
 
-        return 'laporan/word/' . $filename;
+        return 'laporan/word/'.$filename;
     }
 }

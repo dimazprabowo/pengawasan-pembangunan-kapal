@@ -3,10 +3,10 @@
 namespace App\Livewire\LaporanHarian;
 
 use App\Jobs\ProcessLaporanLampiran;
-use App\Livewire\Traits\HasJenisKapalFilter;
+use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
 use App\Models\Cuaca;
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\Kelembaban;
 use App\Models\LaporanHarian;
 use App\Services\LaporanHarianService;
@@ -20,11 +20,11 @@ use Livewire\WithFileUploads;
 #[Layout('layouts.app', ['title' => 'Tambah Laporan Harian'])]
 class LaporanHarianCreate extends Component
 {
-    use AuthorizesRequests, HasJenisKapalFilter, HasNotification, WithFileUploads;
+    use AuthorizesRequests, HasDataKapalFilter, HasNotification, WithFileUploads;
 
-    public JenisKapal $jenisKapal;
+    public DataKapal $dataKapal;
 
-    public ?int $jenis_kapal_id = null;
+    public ?int $data_kapal_id = null;
 
     public array $items = [];
 
@@ -93,13 +93,13 @@ class LaporanHarianCreate extends Component
         $this->activeTab = max(0, min($value, count($this->items) - 1));
     }
 
-    public function mount(JenisKapal $jenisKapal): void
+    public function mount(DataKapal $dataKapal): void
     {
         $this->authorize('create', LaporanHarian::class);
-        $this->authorizeJenisKapalAccess($jenisKapal);
+        $this->authorizeDataKapalAccess($dataKapal);
 
-        $this->jenisKapal = $jenisKapal;
-        $this->jenis_kapal_id = $jenisKapal->id;
+        $this->dataKapal = $dataKapal;
+        $this->data_kapal_id = $dataKapal->id;
         $this->autoSave = Cache::get('lh_draft_autosave:'.auth()->id(), true);
         $this->addItem();
     }
@@ -115,7 +115,7 @@ class LaporanHarianCreate extends Component
      */
     protected function usedTanggalLaporan(): array
     {
-        return LaporanHarian::where('jenis_kapal_id', $this->jenis_kapal_id)
+        return LaporanHarian::where('data_kapal_id', $this->data_kapal_id)
             ->pluck('tanggal_laporan')
             ->map(fn ($d) => \Carbon\Carbon::parse($d)->format('Y-m-d'))
             ->all();
@@ -469,7 +469,7 @@ class LaporanHarianCreate extends Component
     protected function rules(): array
     {
         $rules = [
-            'jenis_kapal_id' => 'required|exists:jenis_kapal,id',
+            'data_kapal_id' => 'required|exists:data_kapal,id',
             'items' => 'required|array|min:1',
             'items.*.tanggal_laporan' => [
                 'required',
@@ -478,7 +478,7 @@ class LaporanHarianCreate extends Component
                 'distinct',
                 // whereDate (bukan Rule::unique) agar perbandingan tanggal konsisten lintas driver DB
                 function ($attribute, $value, $fail) {
-                    if ($value && LaporanHarian::where('jenis_kapal_id', $this->jenis_kapal_id)
+                    if ($value && LaporanHarian::where('data_kapal_id', $this->data_kapal_id)
                         ->whereDate('tanggal_laporan', $value)
                         ->exists()) {
                         $fail('Tanggal pada :attribute sudah memiliki laporan untuk kapal ini.');
@@ -527,7 +527,7 @@ class LaporanHarianCreate extends Component
     public function validationAttributes(): array
     {
         $attributes = [
-            'jenis_kapal_id' => 'jenis kapal',
+            'data_kapal_id' => 'data kapal',
         ];
 
         foreach ($this->items as $index => $item) {
@@ -575,7 +575,7 @@ class LaporanHarianCreate extends Component
             foreach ($this->items as $item) {
                 $itemData = [
                     'user_id' => $userId,
-                    'jenis_kapal_id' => $this->jenis_kapal_id,
+                    'data_kapal_id' => $this->data_kapal_id,
                     'tanggal_laporan' => $item['tanggal_laporan'],
                 ];
 
@@ -701,7 +701,7 @@ class LaporanHarianCreate extends Component
 
             $this->notifySuccess($message);
 
-            $this->redirect(route('laporan-harian.index', $this->jenisKapal), navigate: true);
+            $this->redirect(route('laporan-harian.index', $this->dataKapal), navigate: true);
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
@@ -712,7 +712,7 @@ class LaporanHarianCreate extends Component
         // Beri tahu Alpine untuk menghapus draft lokal sebelum navigate
         $this->dispatch('lh-clear-draft');
 
-        return $this->redirect(route('laporan-harian.index', $this->jenisKapal), navigate: true);
+        return $this->redirect(route('laporan-harian.index', $this->dataKapal), navigate: true);
     }
 
     /**

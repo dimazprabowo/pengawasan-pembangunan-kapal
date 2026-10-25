@@ -3,10 +3,10 @@
 namespace App\Livewire\LaporanHarian;
 
 use App\Jobs\ProcessLaporanLampiran;
-use App\Livewire\Traits\HasJenisKapalFilter;
+use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
 use App\Models\Cuaca;
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\Kelembaban;
 use App\Models\LaporanHarian;
 use App\Services\LaporanHarianService;
@@ -21,13 +21,13 @@ use Livewire\WithFileUploads;
 #[Layout('layouts.app', ['title' => 'Edit Laporan Harian'])]
 class LaporanHarianEdit extends Component
 {
-    use AuthorizesRequests, HasJenisKapalFilter, HasNotification, WithFileUploads;
+    use AuthorizesRequests, HasDataKapalFilter, HasNotification, WithFileUploads;
 
     public LaporanHarian $laporan;
 
-    public JenisKapal $jenisKapal;
+    public DataKapal $dataKapal;
 
-    public ?int $jenis_kapal_id = null;
+    public ?int $data_kapal_id = null;
 
     public string $tanggal_laporan = '';
 
@@ -106,15 +106,15 @@ class LaporanHarianEdit extends Component
 
     public ?int $previewLampiranId = null;
 
-    public function mount(JenisKapal $jenisKapal, LaporanHarian $laporanHarian): void
+    public function mount(DataKapal $dataKapal, LaporanHarian $laporanHarian): void
     {
         $this->authorize('update', $laporanHarian);
-        $this->authorizeJenisKapalAccess($jenisKapal);
-        abort_unless($laporanHarian->jenis_kapal_id === $jenisKapal->id, 404);
+        $this->authorizeDataKapalAccess($dataKapal);
+        abort_unless($laporanHarian->data_kapal_id === $dataKapal->id, 404);
 
-        $this->jenisKapal = $jenisKapal;
+        $this->dataKapal = $dataKapal;
         $this->laporan = $laporanHarian;
-        $this->jenis_kapal_id = $laporanHarian->jenis_kapal_id;
+        $this->data_kapal_id = $laporanHarian->data_kapal_id;
         $this->autoSave = Cache::get('lh_draft_autosave:'.auth()->id(), true);
         $this->tanggal_laporan = $laporanHarian->tanggal_laporan->format('Y-m-d');
 
@@ -182,7 +182,7 @@ class LaporanHarianEdit extends Component
      */
     protected function usedTanggalLaporan(): array
     {
-        return LaporanHarian::where('jenis_kapal_id', $this->jenis_kapal_id)
+        return LaporanHarian::where('data_kapal_id', $this->data_kapal_id)
             ->where('id', '!=', $this->laporan->id)
             ->pluck('tanggal_laporan')
             ->map(fn ($d) => \Carbon\Carbon::parse($d)->format('Y-m-d'))
@@ -192,14 +192,14 @@ class LaporanHarianEdit extends Component
     public function rules(): array
     {
         $rules = [
-            'jenis_kapal_id' => 'required|exists:jenis_kapal,id',
+            'data_kapal_id' => 'required|exists:data_kapal,id',
             'tanggal_laporan' => [
                 'required',
                 'date',
                 'before_or_equal:today',
                 // whereDate (bukan Rule::unique) agar perbandingan tanggal konsisten lintas driver DB
                 function ($attribute, $value, $fail) {
-                    if ($value && LaporanHarian::where('jenis_kapal_id', $this->jenis_kapal_id)
+                    if ($value && LaporanHarian::where('data_kapal_id', $this->data_kapal_id)
                         ->where('id', '!=', $this->laporan->id)
                         ->whereDate('tanggal_laporan', $value)
                         ->exists()) {
@@ -249,7 +249,7 @@ class LaporanHarianEdit extends Component
     public function validationAttributes(): array
     {
         $attributes = [
-            'jenis_kapal_id' => 'jenis kapal',
+            'data_kapal_id' => 'data kapal',
             'tanggal_laporan' => 'tanggal laporan',
             'newLampiran.*.file' => 'file lampiran baru',
             'newLampiran.*.keterangan' => 'keterangan lampiran baru',
@@ -405,7 +405,7 @@ class LaporanHarianEdit extends Component
 
         try {
             $data = [
-                'jenis_kapal_id' => $this->jenis_kapal_id,
+                'data_kapal_id' => $this->data_kapal_id,
                 'tanggal_laporan' => $this->tanggal_laporan,
             ];
 
@@ -516,7 +516,7 @@ class LaporanHarianEdit extends Component
 
             $this->notifySuccess($message);
 
-            $this->redirect(route('laporan-harian.index', $this->jenisKapal), navigate: true);
+            $this->redirect(route('laporan-harian.index', $this->dataKapal), navigate: true);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk mengupdate laporan ini.');
         } catch (\Exception $e) {
@@ -529,7 +529,7 @@ class LaporanHarianEdit extends Component
         // Beri tahu Alpine untuk menghapus draft lokal sebelum navigate
         $this->dispatch('lh-clear-draft');
 
-        return $this->redirect(route('laporan-harian.index', $this->jenisKapal), navigate: true);
+        return $this->redirect(route('laporan-harian.index', $this->dataKapal), navigate: true);
     }
 
     public function openLampiranPreview(int $lampiranId): void

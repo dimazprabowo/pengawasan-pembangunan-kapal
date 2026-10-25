@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
-use App\Enums\JenisKapalStatus;
+use App\Enums\DataKapalStatus;
 use App\Exports\KurvaSTemplateExport;
 use App\Imports\KurvaSRencanaImport;
 use App\Imports\KurvaSTemplateImport;
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\KurvaSRencana;
 use App\Models\KurvaSWorkGroup;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Maatwebsite\Excel\Facades\Excel;
 
-class JenisKapalService
+class DataKapalService
 {
     public function getFiltered(
         string $search = '',
@@ -24,7 +24,7 @@ class JenisKapalService
         ?int $galanganFilter = null,
         int $perPage = 15
     ): LengthAwarePaginator {
-        return JenisKapal::with(['company', 'galangan'])
+        return DataKapal::with(['company', 'galangan'])
             ->withCount('laporanHarian')
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($q) use ($search) {
@@ -49,64 +49,64 @@ class JenisKapalService
             ->paginate($perPage);
     }
 
-    public function create(array $data): JenisKapal
+    public function create(array $data): DataKapal
     {
-        return JenisKapal::create($data);
+        return DataKapal::create($data);
     }
 
-    public function update(JenisKapal $jenisKapal, array $data): bool
+    public function update(DataKapal $dataKapal, array $data): bool
     {
-        return $jenisKapal->update($data);
+        return $dataKapal->update($data);
     }
 
-    public function delete(JenisKapal $jenisKapal): bool
+    public function delete(DataKapal $dataKapal): bool
     {
-        return $jenisKapal->delete();
+        return $dataKapal->delete();
     }
 
-    public function toggleStatus(JenisKapal $jenisKapal): bool
+    public function toggleStatus(DataKapal $dataKapal): bool
     {
-        $newStatus = $jenisKapal->status === JenisKapalStatus::Active
-            ? JenisKapalStatus::Inactive
-            : JenisKapalStatus::Active;
+        $newStatus = $dataKapal->status === DataKapalStatus::Active
+            ? DataKapalStatus::Inactive
+            : DataKapalStatus::Active;
 
-        return $jenisKapal->update(['status' => $newStatus]);
+        return $dataKapal->update(['status' => $newStatus]);
     }
 
-    public function uploadTemplate(JenisKapal $jenisKapal, TemporaryUploadedFile $file, string $tipe = 'harian'): bool
+    public function uploadTemplate(DataKapal $dataKapal, TemporaryUploadedFile $file, string $tipe = 'harian'): bool
     {
         $column = 'template_path_'.$tipe;
 
         // Delete old template if exists
-        if ($jenisKapal->$column && Storage::disk('local')->exists($jenisKapal->$column)) {
-            Storage::disk('local')->delete($jenisKapal->$column);
+        if ($dataKapal->$column && Storage::disk('local')->exists($dataKapal->$column)) {
+            Storage::disk('local')->delete($dataKapal->$column);
         }
 
         // Store new template in specific folder based on tipe
         $folder = 'templates/laporan-'.$tipe;
-        $filename = 'template-'.$jenisKapal->id.'-'.time().'.'.$file->getClientOriginalExtension();
+        $filename = 'template-'.$dataKapal->id.'-'.time().'.'.$file->getClientOriginalExtension();
         $path = $file->storeAs($folder, $filename, 'local');
 
-        return $jenisKapal->update([$column => $path]);
+        return $dataKapal->update([$column => $path]);
     }
 
-    public function deleteTemplate(JenisKapal $jenisKapal, string $tipe): bool
+    public function deleteTemplate(DataKapal $dataKapal, string $tipe): bool
     {
         $column = 'template_path_'.$tipe;
-        if ($jenisKapal->$column && Storage::disk('local')->exists($jenisKapal->$column)) {
-            Storage::disk('local')->delete($jenisKapal->$column);
+        if ($dataKapal->$column && Storage::disk('local')->exists($dataKapal->$column)) {
+            Storage::disk('local')->delete($dataKapal->$column);
         }
 
-        return $jenisKapal->update([$column => null]);
+        return $dataKapal->update([$column => null]);
     }
 
-    public function downloadTemplate(JenisKapal $jenisKapal, string $tipe): ?string
+    public function downloadTemplate(DataKapal $dataKapal, string $tipe): ?string
     {
-        if (! $jenisKapal->hasTemplate($tipe)) {
+        if (! $dataKapal->hasTemplate($tipe)) {
             return null;
         }
 
-        return $jenisKapal->getTemplateFullPath($tipe);
+        return $dataKapal->getTemplateFullPath($tipe);
     }
 
     public function downloadDefaultTemplate(string $tipe = 'harian'): ?string
@@ -120,23 +120,23 @@ class JenisKapalService
         return $templatePath;
     }
 
-    public function exportKurvaSTemplate(JenisKapal $jenisKapal, bool $withData = true)
+    public function exportKurvaSTemplate(DataKapal $dataKapal, bool $withData = true)
     {
         $prefix = $withData ? 'kurva-s-data' : 'kurva-s-template-kosong';
-        $filename = $prefix.'-'.\Str::slug($jenisKapal->nama).'-'.now()->format('Y-m-d-His').'.xlsx';
+        $filename = $prefix.'-'.\Str::slug($dataKapal->nama).'-'.now()->format('Y-m-d-His').'.xlsx';
 
         return Excel::download(
-            new KurvaSTemplateExport($jenisKapal, $withData),
+            new KurvaSTemplateExport($dataKapal, $withData),
             $filename
         );
     }
 
-    public function importKurvaSTemplate(JenisKapal $jenisKapal, TemporaryUploadedFile $file): array
+    public function importKurvaSTemplate(DataKapal $dataKapal, TemporaryUploadedFile $file): array
     {
         DB::beginTransaction();
 
         try {
-            $import = new KurvaSTemplateImport($jenisKapal);
+            $import = new KurvaSTemplateImport($dataKapal);
             Excel::import($import, $file->getRealPath());
 
             if ($import->hasErrors()) {
@@ -171,8 +171,8 @@ class JenisKapalService
             }
 
             // Guard: rencana tidak boleh melebihi total bulan kontrak
-            if ($jenisKapal->hasKontrak()) {
-                $totalBulanKontrak = app(KontrakPeriodeService::class)->getTotalBulan($jenisKapal);
+            if ($dataKapal->hasKontrak()) {
+                $totalBulanKontrak = app(KontrakPeriodeService::class)->getTotalBulan($dataKapal);
                 $maxBulanImport = 0;
                 foreach ($workGroupsData as $wgData) {
                     foreach ($wgData['monthly_data'] ?? [] as $rencana) {
@@ -189,16 +189,16 @@ class JenisKapalService
                 }
             }
 
-            KurvaSRencana::whereHas('workGroup', function ($q) use ($jenisKapal) {
-                $q->where('jenis_kapal_id', $jenisKapal->id);
+            KurvaSRencana::whereHas('workGroup', function ($q) use ($dataKapal) {
+                $q->where('data_kapal_id', $dataKapal->id);
             })->delete();
 
-            KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)->delete();
+            KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)->delete();
 
             $now = now();
             foreach ($workGroupsData as $wgName => $wgData) {
                 $workGroup = KurvaSWorkGroup::create([
-                    'jenis_kapal_id' => $jenisKapal->id,
+                    'data_kapal_id' => $dataKapal->id,
                     'nama' => $wgName,
                     'bobot' => $wgData['bobot'],
                     'sort_order' => $wgData['sort_order'],

@@ -7,6 +7,7 @@ use App\Enums\ConfigDataType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 
 class SystemConfiguration extends Model
 {
@@ -56,8 +57,14 @@ class SystemConfiguration extends Model
     // Static Methods
     public static function get(string $key, $default = null)
     {
-        return Cache::remember("config.{$key}", 3600, function() use ($key, $default) {
+        // Guard: tabel belum ada (mis. saat test tanpa migrasi/early boot)
+        if (! Schema::hasTable('system_configurations')) {
+            return $default;
+        }
+
+        return Cache::remember("config.{$key}", 3600, function () use ($key, $default) {
             $config = self::where('key', $key)->where('is_active', true)->first();
+
             return $config ? $config->parsed_value : $default;
         });
     }

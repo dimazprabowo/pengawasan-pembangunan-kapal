@@ -3,9 +3,9 @@
 namespace App\Livewire\LaporanHarian;
 
 use App\Jobs\GenerateLaporanHarianJob;
-use App\Livewire\Traits\HasJenisKapalFilter;
+use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\LaporanHarian;
 use App\Services\QueueStatusService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -16,11 +16,11 @@ use Livewire\Component;
 #[Layout('layouts.app', ['title' => 'Detail Laporan Harian'])]
 class LaporanHarianShow extends Component
 {
-    use AuthorizesRequests, HasJenisKapalFilter, HasNotification;
+    use AuthorizesRequests, HasDataKapalFilter, HasNotification;
 
     public LaporanHarian $laporan;
 
-    public JenisKapal $jenisKapal;
+    public DataKapal $dataKapal;
 
     public bool $showPreviewModal = false;
 
@@ -30,13 +30,13 @@ class LaporanHarianShow extends Component
 
     public bool $showDeleteDocConfirm = false;
 
-    public function mount(JenisKapal $jenisKapal, LaporanHarian $laporanHarian): void
+    public function mount(DataKapal $dataKapal, LaporanHarian $laporanHarian): void
     {
         $this->authorize('view', $laporanHarian);
-        $this->authorizeJenisKapalAccess($jenisKapal);
-        abort_unless($laporanHarian->jenis_kapal_id === $jenisKapal->id, 404);
+        $this->authorizeDataKapalAccess($dataKapal);
+        abort_unless($laporanHarian->data_kapal_id === $dataKapal->id, 404);
 
-        $this->jenisKapal = $jenisKapal;
+        $this->dataKapal = $dataKapal;
         $this->loadLaporan($laporanHarian);
     }
 
@@ -44,8 +44,8 @@ class LaporanHarianShow extends Component
     {
         $this->laporan = $laporanHarian->load([
             'user',
-            'jenisKapal.company',
-            'jenisKapal.galangan',
+            'dataKapal.company',
+            'dataKapal.galangan',
             'cuacaPagi',
             'kelembabanPagi',
             'cuacaSiang',

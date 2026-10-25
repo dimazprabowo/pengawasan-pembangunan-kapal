@@ -3,8 +3,8 @@
 namespace App\Livewire\MasterData;
 
 use App\Livewire\Traits\HasNotification;
-use App\Models\JenisKapal;
-use App\Services\JenisKapalService;
+use App\Models\DataKapal;
+use App\Services\DataKapalService;
 use App\Services\KontrakPeriodeService;
 use App\Services\KurvaSService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -18,9 +18,9 @@ class KurvaSManagement extends Component
 
     public bool $showModal = false;
 
-    public ?int $jenisKapalId = null;
+    public ?int $dataKapalId = null;
 
-    public ?string $jenisKapalNama = null;
+    public ?string $dataKapalNama = null;
 
     // Import modal states
     public bool $showKurvaSImportModal = false;
@@ -53,7 +53,7 @@ class KurvaSManagement extends Component
     /** Jumlah bulan bawaan untuk work group baru (dari kontrak → group existing → default) */
     public int $totalBulan = 4;
 
-    /** Periode kontrak (hari kalender) — disimpan di jenis_kapal */
+    /** Periode kontrak (hari kalender) — disimpan di data_kapal */
     public ?string $tanggal_mulai_kontrak = null;
 
     public ?int $durasi_kontrak_hari = null;
@@ -73,13 +73,13 @@ class KurvaSManagement extends Component
     public bool $showPeriodeDetail = false;
 
     #[On('open-kurvas-modal')]
-    public function openModal(int $jenisKapalId): void
+    public function openModal(int $dataKapalId): void
     {
-        $jenisKapal = JenisKapal::findOrFail($jenisKapalId);
-        $this->authorize('managekurvaSRencana', $jenisKapal);
+        $dataKapal = DataKapal::findOrFail($dataKapalId);
+        $this->authorize('managekurvaSRencana', $dataKapal);
 
-        $this->jenisKapalId = $jenisKapal->id;
-        $this->jenisKapalNama = $jenisKapal->nama;
+        $this->dataKapalId = $dataKapal->id;
+        $this->dataKapalNama = $dataKapal->nama;
         $this->expandedGroupIdx = -1;
         $this->loadData();
         $this->showModal = true;
@@ -88,21 +88,21 @@ class KurvaSManagement extends Component
     public function closeModal(): void
     {
         $this->showModal = false;
-        $this->reset(['jenisKapalId', 'jenisKapalNama', 'workGroups', 'expandedGroupIdx', 'expandedWeeksKey', 'totalBulan', 'tanggal_mulai_kontrak', 'durasi_kontrak_hari', 'confirmApplyMonths', 'showPeriodeDetail']);
+        $this->reset(['dataKapalId', 'dataKapalNama', 'workGroups', 'expandedGroupIdx', 'expandedWeeksKey', 'totalBulan', 'tanggal_mulai_kontrak', 'durasi_kontrak_hari', 'confirmApplyMonths', 'showPeriodeDetail']);
         $this->resetValidation();
     }
 
     private function loadData(): void
     {
-        $jenisKapal = JenisKapal::findOrFail($this->jenisKapalId);
-        $groups = $jenisKapal->kurvaSWorkGroups()
+        $dataKapal = DataKapal::findOrFail($this->dataKapalId);
+        $groups = $dataKapal->kurvaSWorkGroups()
             ->with(['kurvaSRencana', 'kurvaSRencanaMingguan'])
             ->get();
 
         // Range minggu per bulan berdasarkan kontrak TERSIMPAN — untuk memetakan
         // rencana mingguan tersimpan ke slot bulan yang sesuai.
-        $bulanRanges = $jenisKapal->hasKontrak()
-            ? collect(app(KontrakPeriodeService::class)->getBulanList($jenisKapal))->keyBy('bulan_ke')
+        $bulanRanges = $dataKapal->hasKontrak()
+            ? collect(app(KontrakPeriodeService::class)->getBulanList($dataKapal))->keyBy('bulan_ke')
             : collect();
 
         $this->workGroups = $groups->map(function ($wg) use ($bulanRanges) {
@@ -139,8 +139,8 @@ class KurvaSManagement extends Component
             ];
         })->toArray();
 
-        $this->tanggal_mulai_kontrak = $jenisKapal->tanggal_mulai_kontrak?->format('Y-m-d');
-        $this->durasi_kontrak_hari = $jenisKapal->durasi_kontrak_hari;
+        $this->tanggal_mulai_kontrak = $dataKapal->tanggal_mulai_kontrak?->format('Y-m-d');
+        $this->durasi_kontrak_hari = $dataKapal->durasi_kontrak_hari;
 
         $totalBulanKontrak = $this->totalBulanKontrak();
         if ($totalBulanKontrak > 0) {
@@ -165,11 +165,11 @@ class KurvaSManagement extends Component
     }
 
     /**
-     * Instance JenisKapal sementara berisi input kontrak form (untuk kalkulasi service).
+     * Instance DataKapal sementara berisi input kontrak form (untuk kalkulasi service).
      */
-    private function kontrakDraft(): JenisKapal
+    private function kontrakDraft(): DataKapal
     {
-        return new JenisKapal([
+        return new DataKapal([
             'tanggal_mulai_kontrak' => $this->tanggal_mulai_kontrak ?: null,
             'durasi_kontrak_hari' => $this->durasi_kontrak_hari ?: null,
         ]);
@@ -638,8 +638,8 @@ class KurvaSManagement extends Component
 
     public function save(KurvaSService $service): void
     {
-        $jenisKapal = JenisKapal::findOrFail($this->jenisKapalId);
-        $this->authorize('managekurvaSRencana', $jenisKapal);
+        $dataKapal = DataKapal::findOrFail($this->dataKapalId);
+        $this->authorize('managekurvaSRencana', $dataKapal);
 
         try {
             $this->validate();
@@ -689,11 +689,11 @@ class KurvaSManagement extends Component
 
         try {
             app(KontrakPeriodeService::class)->saveKontrak(
-                $jenisKapal,
+                $dataKapal,
                 $this->tanggal_mulai_kontrak,
                 $this->durasi_kontrak_hari !== null ? (int) $this->durasi_kontrak_hari : null
             );
-            $service->saveWorkGroups($jenisKapal, $this->workGroups);
+            $service->saveWorkGroups($dataKapal, $this->workGroups);
 
             $warnings = [];
             if (abs($total - 100.0) > 0.01) {
@@ -716,17 +716,17 @@ class KurvaSManagement extends Component
 
     // ─── Export & Import ─────────────────────────────────────────────────────
 
-    public function exportKurvaSTemplate(bool $withData, JenisKapalService $service)
+    public function exportKurvaSTemplate(bool $withData, DataKapalService $service)
     {
         try {
-            $jenisKapal = JenisKapal::findOrFail($this->jenisKapalId);
-            $this->authorize('exportKurvaSTemplate', $jenisKapal);
+            $dataKapal = DataKapal::findOrFail($this->dataKapalId);
+            $this->authorize('exportKurvaSTemplate', $dataKapal);
 
-            return $service->exportKurvaSTemplate($jenisKapal, $withData);
+            return $service->exportKurvaSTemplate($dataKapal, $withData);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk export template Kurva S.');
         } catch (\Exception $e) {
-            \Log::error('Export Kurva S gagal', ['jenis_kapal_id' => $this->jenisKapalId, 'error' => $e->getMessage()]);
+            \Log::error('Export Kurva S gagal', ['data_kapal_id' => $this->dataKapalId, 'error' => $e->getMessage()]);
             $this->notifyError('Terjadi kesalahan sistem saat export. Silakan coba lagi.');
         }
     }
@@ -734,8 +734,8 @@ class KurvaSManagement extends Component
     public function openKurvaSImportModal()
     {
         try {
-            $jenisKapal = JenisKapal::findOrFail($this->jenisKapalId);
-            $this->authorize('importKurvaSTemplate', $jenisKapal);
+            $dataKapal = DataKapal::findOrFail($this->dataKapalId);
+            $this->authorize('importKurvaSTemplate', $dataKapal);
 
             $this->showKurvaSImportModal = true;
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
@@ -750,7 +750,7 @@ class KurvaSManagement extends Component
         $this->resetValidation();
     }
 
-    public function importKurvaSTemplate(JenisKapalService $service)
+    public function importKurvaSTemplate(DataKapalService $service)
     {
         try {
             $this->validate([
@@ -769,10 +769,10 @@ class KurvaSManagement extends Component
         }
 
         try {
-            $jenisKapal = JenisKapal::findOrFail($this->jenisKapalId);
-            $this->authorize('importKurvaSTemplate', $jenisKapal);
+            $dataKapal = DataKapal::findOrFail($this->dataKapalId);
+            $this->authorize('importKurvaSTemplate', $dataKapal);
 
-            $result = $service->importKurvaSTemplate($jenisKapal, $this->kurvaS_file);
+            $result = $service->importKurvaSTemplate($dataKapal, $this->kurvaS_file);
 
             if ($result['success']) {
                 $this->notifySuccess($result['message'].' Total work groups: '.$result['work_groups_count']);
@@ -789,7 +789,7 @@ class KurvaSManagement extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk import template Kurva S.');
         } catch (\Exception $e) {
-            \Log::error('Import Kurva S gagal', ['jenis_kapal_id' => $this->jenisKapalId, 'error' => $e->getMessage()]);
+            \Log::error('Import Kurva S gagal', ['data_kapal_id' => $this->dataKapalId, 'error' => $e->getMessage()]);
             $this->notifyError('Terjadi kesalahan sistem saat import. Silakan coba lagi.');
         }
     }

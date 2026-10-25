@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Rekap Laporan per Jenis Kapal</title>
+    <title>Rekap Laporan per Data Kapal</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -53,14 +53,14 @@
     </style>
 </head>
 <body>
-    <h1>Rekap Laporan per Jenis Kapal</h1>
+    <h1>Rekap Laporan per Data Kapal</h1>
     <div class="subtitle">Dicetak pada {{ now()->translatedFormat('d F Y H:i') }}</div>
 
     <table>
         <thead>
             <tr>
                 <th width="5%" class="text-center">No</th>
-                <th width="25%">Jenis Kapal</th>
+                <th width="25%">Data Kapal</th>
                 <th width="20%">Perusahaan</th>
                 <th width="15%">Galangan</th>
                 <th width="8%" class="text-center">Harian</th>
@@ -70,18 +70,18 @@
             </tr>
         </thead>
         <tbody>
-            @forelse($jenisKapalList as $index => $jenisKapal)
+            @forelse($dataKapalList as $index => $dataKapal)
                 <tr>
                     <td class="text-center">{{ $index + 1 }}</td>
-                    <td>{{ $jenisKapal->nama }}</td>
-                    <td>{{ $jenisKapal->company->name ?? '-' }}</td>
-                    <td>{{ $jenisKapal->galangan->nama ?? '-' }}</td>
-                    <td class="text-center">{{ $jenisKapal->laporan_harian_count }}</td>
-                    <td class="text-center">{{ $jenisKapal->laporan_mingguan_count }}</td>
-                    <td class="text-center">{{ $jenisKapal->progress_aktual !== null ? $jenisKapal->progress_aktual . '%' : '-' }}</td>
+                    <td>{{ $dataKapal->nama }}</td>
+                    <td>{{ $dataKapal->company->name ?? '-' }}</td>
+                    <td>{{ $dataKapal->galangan->nama ?? '-' }}</td>
+                    <td class="text-center">{{ $dataKapal->laporan_harian_count }}</td>
+                    <td class="text-center">{{ $dataKapal->laporan_mingguan_count }}</td>
+                    <td class="text-center">{{ $dataKapal->progress_aktual !== null ? $dataKapal->progress_aktual . '%' : '-' }}</td>
                     <td class="text-center">
-                        {{ $jenisKapal->laporan_harian_max_tanggal_laporan
-                            ? \Carbon\Carbon::parse($jenisKapal->laporan_harian_max_tanggal_laporan)->format('d/m/Y')
+                        {{ $dataKapal->laporan_harian_max_tanggal_laporan
+                            ? \Carbon\Carbon::parse($dataKapal->laporan_harian_max_tanggal_laporan)->format('d/m/Y')
                             : 'Belum ada' }}
                     </td>
                 </tr>
@@ -94,7 +94,7 @@
     </table>
 
     <div class="footer">
-        Total: {{ $jenisKapalList->count() }} jenis kapal
+        Total: {{ $dataKapalList->count() }} data kapal
     </div>
 </body>
 </html>

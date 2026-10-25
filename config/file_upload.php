@@ -52,7 +52,7 @@ return [
             'mimes' => ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'png', 'jpg', 'jpeg'],
         ],
 
-        'template_laporan_jenis_kapal' => [
+        'template_laporan_data_kapal' => [
             'max_size' => 20480, // 20 MB
             'mimes' => ['doc', 'docx'],
         ],

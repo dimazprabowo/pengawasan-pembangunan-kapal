@@ -3,9 +3,9 @@
 namespace App\Livewire\LaporanBulanan;
 
 use App\Jobs\ProcessLaporanExternal;
-use App\Livewire\Traits\HasJenisKapalFilter;
+use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\LaporanBulanan;
 use App\Models\LaporanExternal;
 use App\Services\KontrakPeriodeService;
@@ -18,9 +18,9 @@ use Livewire\WithFileUploads;
 #[Layout('layouts.app', ['title' => 'Tambah Laporan Bulanan'])]
 class LaporanBulananCreate extends Component
 {
-    use AuthorizesRequests, HasJenisKapalFilter, HasNotification, WithFileUploads;
+    use AuthorizesRequests, HasDataKapalFilter, HasNotification, WithFileUploads;
 
-    public JenisKapal $jenisKapal;
+    public DataKapal $dataKapal;
 
     public string $tanggal_laporan = '';
 
@@ -45,15 +45,15 @@ class LaporanBulananCreate extends Component
 
     public ?string $deletingExternalId = null;
 
-    public function mount(JenisKapal $jenisKapal): void
+    public function mount(DataKapal $dataKapal): void
     {
         $this->authorize('create', LaporanBulanan::class);
-        $this->authorizeJenisKapalAccess($jenisKapal);
+        $this->authorizeDataKapalAccess($dataKapal);
 
-        $this->jenisKapal = $jenisKapal;
-        $this->hasKontrak = $jenisKapal->hasKontrak();
+        $this->dataKapal = $dataKapal;
+        $this->hasKontrak = $dataKapal->hasKontrak();
         $this->tanggal_laporan = now()->format('Y-m-d');
-        $this->bulanOptions = app(KontrakPeriodeService::class)->getBulanOptions($jenisKapal);
+        $this->bulanOptions = app(KontrakPeriodeService::class)->getBulanOptions($dataKapal);
     }
 
     protected function rules(): array
@@ -90,7 +90,7 @@ class LaporanBulananCreate extends Component
     public function updatedBulanKe(): void
     {
         $periode = $this->bulan_ke
-            ? app(KontrakPeriodeService::class)->getBulanPeriode($this->jenisKapal, (int) $this->bulan_ke)
+            ? app(KontrakPeriodeService::class)->getBulanPeriode($this->dataKapal, (int) $this->bulan_ke)
             : null;
 
         $this->periode_mulai = $periode ? $periode['mulai']->format('Y-m-d') : '';
@@ -158,7 +158,7 @@ class LaporanBulananCreate extends Component
             throw $e;
         }
 
-        if ($service->bulanTaken($this->jenisKapal->id, (int) $this->bulan_ke)) {
+        if ($service->bulanTaken($this->dataKapal->id, (int) $this->bulan_ke)) {
             $this->notifyError('Bulan ke-'.$this->bulan_ke.' sudah memiliki laporan bulanan.');
 
             return;
@@ -167,7 +167,7 @@ class LaporanBulananCreate extends Component
         try {
             $laporan = $service->create([
                 'user_id' => auth()->id(),
-                'jenis_kapal_id' => $this->jenisKapal->id,
+                'data_kapal_id' => $this->dataKapal->id,
                 'tanggal_laporan' => $this->tanggal_laporan,
                 'periode_mulai' => $this->periode_mulai ?: null,
                 'periode_selesai' => $this->periode_selesai ?: null,
@@ -179,7 +179,7 @@ class LaporanBulananCreate extends Component
 
             $this->notifySuccess('Laporan bulanan berhasil ditambahkan!');
 
-            $this->redirect(route('laporan-bulanan.index', $this->jenisKapal), navigate: true);
+            $this->redirect(route('laporan-bulanan.index', $this->dataKapal), navigate: true);
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
@@ -219,7 +219,7 @@ class LaporanBulananCreate extends Component
 
     public function cancel()
     {
-        return $this->redirect(route('laporan-bulanan.index', $this->jenisKapal), navigate: true);
+        return $this->redirect(route('laporan-bulanan.index', $this->dataKapal), navigate: true);
     }
 
     public function render()

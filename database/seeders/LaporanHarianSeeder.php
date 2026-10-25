@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Cuaca;
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\Kelembaban;
 use App\Models\LaporanHarian;
 use App\Models\User;
@@ -15,7 +15,7 @@ class LaporanHarianSeeder extends Seeder
     public function run(): void
     {
         $users = User::all();
-        $jenisKapals = JenisKapal::all();
+        $dataKapals = DataKapal::all();
         $cuacas = Cuaca::all();
         $kelembabans = Kelembaban::all();
 
@@ -25,8 +25,8 @@ class LaporanHarianSeeder extends Seeder
             return;
         }
 
-        if ($jenisKapals->isEmpty()) {
-            $this->command->warn('No Jenis Kapal found. Please run JenisKapalSeeder first.');
+        if ($dataKapals->isEmpty()) {
+            $this->command->warn('No Data Kapal found. Please run DataKapalSeeder first.');
 
             return;
         }
@@ -37,13 +37,13 @@ class LaporanHarianSeeder extends Seeder
         $jumlahHari = 21;
 
         $count = 0;
-        foreach ($jenisKapals as $jenisKapal) {
+        foreach ($dataKapals as $dataKapal) {
             for ($i = 0; $i < $jumlahHari; $i++) {
                 $tanggal = $tanggalMulai->copy()->addDays($i);
 
                 LaporanHarian::firstOrCreate(
                     [
-                        'jenis_kapal_id' => $jenisKapal->id,
+                        'data_kapal_id' => $dataKapal->id,
                         'tanggal_laporan' => $tanggal->format('Y-m-d'),
                     ],
                     [

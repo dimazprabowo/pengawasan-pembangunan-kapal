@@ -3,10 +3,10 @@
 namespace App\Livewire\LaporanMingguan;
 
 use App\Jobs\ProcessLaporanExternal;
-use App\Livewire\Traits\HasJenisKapalFilter;
+use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
 use App\Livewire\Traits\StabilizesSnapshot;
-use App\Models\JenisKapal;
+use App\Models\DataKapal;
 use App\Models\LaporanExternal;
 use App\Models\LaporanLampiran;
 use App\Models\LaporanMingguan;
@@ -23,11 +23,11 @@ use Livewire\WithFileUploads;
 #[Layout('layouts.app', ['title' => 'Tambah Laporan Mingguan'])]
 class LaporanMingguanCreate extends Component
 {
-    use AuthorizesRequests, HasJenisKapalFilter, HasNotification, StabilizesSnapshot, WithFileUploads;
+    use AuthorizesRequests, HasDataKapalFilter, HasNotification, StabilizesSnapshot, WithFileUploads;
 
-    public JenisKapal $jenisKapal;
+    public DataKapal $dataKapal;
 
-    public ?int $jenis_kapal_id = null;
+    public ?int $data_kapal_id = null;
 
     public string $tanggal_laporan = '';
 
@@ -54,7 +54,7 @@ class LaporanMingguanCreate extends Component
 
     public bool $hasKurvaS = false;
 
-    /** Kontrak jenis kapal terisi → periode mingguan auto-generate & terkunci */
+    /** Kontrak data kapal terisi → periode mingguan auto-generate & terkunci */
     public bool $hasKontrak = false;
 
     public array $progressHistory = [];
@@ -94,14 +94,14 @@ class LaporanMingguanCreate extends Component
     // Preferensi autosave draft per user (persisten via cache)
     public bool $autoSave = true;
 
-    public function mount(JenisKapal $jenisKapal): void
+    public function mount(DataKapal $dataKapal): void
     {
         $this->authorize('create', LaporanMingguan::class);
-        $this->authorizeJenisKapalAccess($jenisKapal);
+        $this->authorizeDataKapalAccess($dataKapal);
 
-        $this->jenisKapal = $jenisKapal;
-        $this->jenis_kapal_id = $jenisKapal->id;
-        $this->hasKontrak = $jenisKapal->hasKontrak();
+        $this->dataKapal = $dataKapal;
+        $this->data_kapal_id = $dataKapal->id;
+        $this->hasKontrak = $dataKapal->hasKontrak();
         $this->autoSave = Cache::get('lm_draft_autosave:'.auth()->id(), true);
         $this->tanggal_laporan = now()->format('Y-m-d');
         $this->loadAvailableLaporanHarian();
@@ -117,7 +117,7 @@ class LaporanMingguanCreate extends Component
 
     private function loadKurvaSOptions(): void
     {
-        if (! $this->jenis_kapal_id) {
+        if (! $this->data_kapal_id) {
             $this->mingguOptions = [];
             $this->hasKurvaS = false;
             $this->workGroupsForInput = [];
@@ -126,18 +126,18 @@ class LaporanMingguanCreate extends Component
             return;
         }
 
-        $jenisKapal = $this->jenisKapal;
+        $dataKapal = $this->dataKapal;
         $service = app(KurvaSService::class);
 
-        $this->hasKurvaS = $jenisKapal && $service->hasRencana($jenisKapal);
-        $this->mingguOptions = $jenisKapal ? $service->getMingguOptions($jenisKapal, null) : [];
+        $this->hasKurvaS = $dataKapal && $service->hasRencana($dataKapal);
+        $this->mingguOptions = $dataKapal ? $service->getMingguOptions($dataKapal, null) : [];
 
-        if ($jenisKapal && $this->hasKurvaS) {
+        if ($dataKapal && $this->hasKurvaS) {
             $this->workGroupsForInput = $service->getProgressInputData(
-                new \App\Models\LaporanMingguan(['jenis_kapal_id' => $this->jenis_kapal_id])
+                new \App\Models\LaporanMingguan(['data_kapal_id' => $this->data_kapal_id])
             );
             $this->progressPerGroup = array_column($this->workGroupsForInput, 'pct_realisasi', 'work_group_id');
-            $this->progressHistory = $service->getProgressHistory($jenisKapal);
+            $this->progressHistory = $service->getProgressHistory($dataKapal);
         } else {
             $this->workGroupsForInput = [];
             $this->progressPerGroup = [];
@@ -154,7 +154,7 @@ class LaporanMingguanCreate extends Component
     {
         if ($this->hasKontrak) {
             $periode = $this->minggu_ke
-                ? app(KontrakPeriodeService::class)->getMingguPeriode($this->jenisKapal, (int) $this->minggu_ke)
+                ? app(KontrakPeriodeService::class)->getMingguPeriode($this->dataKapal, (int) $this->minggu_ke)
                 : null;
 
             $this->periode_mulai = $periode ? $periode['mulai']->format('Y-m-d') : '';
@@ -170,17 +170,17 @@ class LaporanMingguanCreate extends Component
 
     private function dispatchRealtimeUpdates(): void
     {
-        if (! $this->jenis_kapal_id || ! $this->hasKurvaS) {
+        if (! $this->data_kapal_id || ! $this->hasKurvaS) {
             return;
         }
 
-        $jenisKapal = $this->jenisKapal;
-        if (! $jenisKapal) {
+        $dataKapal = $this->dataKapal;
+        if (! $dataKapal) {
             return;
         }
 
         $previewChartData = app(KurvaSService::class)->getChartData(
-            $jenisKapal,
+            $dataKapal,
             $this->minggu_ke,
             $this->progressPerGroup
         );
@@ -214,8 +214,8 @@ class LaporanMingguanCreate extends Component
             return;
         }
 
-        // Return empty if jenis kapal is not selected
-        if (! $this->jenis_kapal_id) {
+        // Return empty if data kapal is not selected
+        if (! $this->data_kapal_id) {
             $this->availableLaporanHarian = [];
             $this->laporan_harian_ids = [];
 
@@ -223,7 +223,7 @@ class LaporanMingguanCreate extends Component
         }
 
         $this->availableLaporanHarian = app(LaporanMingguanService::class)
-            ->getAvailableHarianForPeriode($this->jenis_kapal_id, $this->periode_mulai, $this->periode_selesai);
+            ->getAvailableHarianForPeriode($this->data_kapal_id, $this->periode_mulai, $this->periode_selesai);
 
         // Only auto-select if laporan_harian_ids is empty (for Create)
         // For Edit, preserve the originally selected laporan harian
@@ -262,11 +262,11 @@ class LaporanMingguanCreate extends Component
     protected function rules(): array
     {
         $maxMinggu = $this->hasKontrak
-            ? app(KontrakPeriodeService::class)->getTotalMinggu($this->jenisKapal)
+            ? app(KontrakPeriodeService::class)->getTotalMinggu($this->dataKapal)
             : 1000;
 
         return [
-            'jenis_kapal_id' => 'required|exists:jenis_kapal,id',
+            'data_kapal_id' => 'required|exists:data_kapal,id',
             'tanggal_laporan' => 'required|date',
             'periode_mulai' => 'required|date|before_or_equal:periode_selesai',
             'periode_selesai' => 'required|date|after_or_equal:periode_mulai',
@@ -287,7 +287,7 @@ class LaporanMingguanCreate extends Component
     public function validationAttributes(): array
     {
         return [
-            'jenis_kapal_id' => 'jenis kapal',
+            'data_kapal_id' => 'data kapal',
             'tanggal_laporan' => 'tanggal laporan',
             'periode_mulai' => 'periode mulai',
             'periode_selesai' => 'periode selesai',
@@ -664,7 +664,7 @@ class LaporanMingguanCreate extends Component
         try {
             $data = [
                 'user_id' => auth()->id(),
-                'jenis_kapal_id' => $this->jenis_kapal_id,
+                'data_kapal_id' => $this->data_kapal_id,
                 'tanggal_laporan' => $this->tanggal_laporan,
                 'periode_mulai' => $this->periode_mulai ?: null,
                 'periode_selesai' => $this->periode_selesai ?: null,
@@ -684,7 +684,7 @@ class LaporanMingguanCreate extends Component
 
             $this->notifySuccess('Laporan mingguan berhasil ditambahkan!');
 
-            $this->redirect(route('laporan-mingguan.index', $this->jenisKapal), navigate: true);
+            $this->redirect(route('laporan-mingguan.index', $this->dataKapal), navigate: true);
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
@@ -705,7 +705,7 @@ class LaporanMingguanCreate extends Component
         // Beri tahu Alpine untuk menghapus draft lokal sebelum navigate
         $this->dispatch('lm-clear-draft');
 
-        return $this->redirect(route('laporan-mingguan.index', $this->jenisKapal), navigate: true);
+        return $this->redirect(route('laporan-mingguan.index', $this->dataKapal), navigate: true);
     }
 
     protected function saveLaporanExternal(LaporanMingguan $laporan): void
@@ -842,10 +842,10 @@ class LaporanMingguanCreate extends Component
                 ? ($fullHistory[$currentWeekIndex]['plans'] ?? [])
                 : [];
 
-            if ($currentWeekIndex === false && $this->jenis_kapal_id) {
-                $jenisKapal = $this->jenisKapal;
-                if ($jenisKapal) {
-                    $existingPlans = app(KurvaSService::class)->getWeekPlans($jenisKapal, $this->minggu_ke);
+            if ($currentWeekIndex === false && $this->data_kapal_id) {
+                $dataKapal = $this->dataKapal;
+                if ($dataKapal) {
+                    $existingPlans = app(KurvaSService::class)->getWeekPlans($dataKapal, $this->minggu_ke);
                 }
             }
 
@@ -871,10 +871,10 @@ class LaporanMingguanCreate extends Component
         });
 
         // Add cumulative totals via service (satu sumber perhitungan)
-        if (! empty($fullHistory) && $this->jenis_kapal_id) {
-            $jenisKapal = $this->jenisKapal;
-            if ($jenisKapal) {
-                $workGroups = \App\Models\KurvaSWorkGroup::where('jenis_kapal_id', $jenisKapal->id)
+        if (! empty($fullHistory) && $this->data_kapal_id) {
+            $dataKapal = $this->dataKapal;
+            if ($dataKapal) {
+                $workGroups = \App\Models\KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)
                     ->orderBy('sort_order')
                     ->get();
                 $fullHistory = app(KurvaSService::class)->addCumulativeTotalsToHistory($fullHistory, $workGroups);
@@ -890,12 +890,12 @@ class LaporanMingguanCreate extends Component
         $totalRencana = null;
         $totalAktual = null;
 
-        if ($this->jenis_kapal_id && $this->hasKurvaS) {
-            $jenisKapal = $this->jenisKapal;
-            if ($jenisKapal) {
+        if ($this->data_kapal_id && $this->hasKurvaS) {
+            $dataKapal = $this->dataKapal;
+            if ($dataKapal) {
                 // Build chart data with current unsaved progress overlaid
                 $kurvaSChartData = $kurvaSService->getChartData(
-                    $jenisKapal,
+                    $dataKapal,
                     $this->minggu_ke,
                     $this->progressPerGroup
                 );

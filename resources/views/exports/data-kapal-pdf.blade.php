@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Data Jenis Kapal</title>
+    <title>Data Data Kapal</title>
     <style>
         body { font-family: Arial, sans-serif; font-size: 12px; }
         h1 { text-align: center; font-size: 18px; margin-bottom: 20px; }
@@ -16,14 +16,14 @@
     </style>
 </head>
 <body>
-    <h1>Data Jenis Kapal</h1>
+    <h1>Data Data Kapal</h1>
     <p>Dicetak pada: {{ now()->format('d/m/Y H:i') }}</p>
     
     <table>
         <thead>
             <tr>
                 <th width="5%">No</th>
-                <th width="20%">Jenis Kapal</th>
+                <th width="20%">Data Kapal</th>
                 <th width="20%">Perusahaan</th>
                 <th width="30%">Deskripsi</th>
                 <th width="5%" class="text-center">Laporan Harian</th>
@@ -33,21 +33,21 @@
             </tr>
         </thead>
         <tbody>
-            @forelse($jenisKapalList as $index => $jenisKapal)
+            @forelse($dataKapalList as $index => $dataKapal)
                 <tr>
                     <td class="text-center">{{ $index + 1 }}</td>
-                    <td>{{ $jenisKapal->nama }}</td>
+                    <td>{{ $dataKapal->nama }}</td>
                     <td>
-                        {{ $jenisKapal->company->name }}<br>
-                        <small>{{ $jenisKapal->company->code }}</small>
+                        {{ $dataKapal->company->name }}<br>
+                        <small>{{ $dataKapal->company->code }}</small>
                     </td>
-                    <td>{{ $jenisKapal->deskripsi ?? '-' }}</td>
-                    <td class="text-center">{{ $jenisKapal->getLaporanCount('harian') }}</td>
-                    <td class="text-center">{{ $jenisKapal->getLaporanCount('mingguan') }}</td>
-                    <td class="text-center">{{ $jenisKapal->getLaporanCount('bulanan') }}</td>
+                    <td>{{ $dataKapal->deskripsi ?? '-' }}</td>
+                    <td class="text-center">{{ $dataKapal->getLaporanCount('harian') }}</td>
+                    <td class="text-center">{{ $dataKapal->getLaporanCount('mingguan') }}</td>
+                    <td class="text-center">{{ $dataKapal->getLaporanCount('bulanan') }}</td>
                     <td class="text-center">
-                        <span class="badge {{ $jenisKapal->status->value === 'active' ? 'badge-success' : 'badge-secondary' }}">
-                            {{ $jenisKapal->status->label() }}
+                        <span class="badge {{ $dataKapal->status->value === 'active' ? 'badge-success' : 'badge-secondary' }}">
+                            {{ $dataKapal->status->label() }}
                         </span>
                     </td>
                 </tr>

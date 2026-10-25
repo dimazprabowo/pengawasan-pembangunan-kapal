@@ -11,7 +11,7 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class RekapJenisKapalExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping, WithStyles
+class RekapDataKapalExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping, WithStyles
 {
     use Exportable;
 
@@ -26,7 +26,7 @@ class RekapJenisKapalExport implements FromCollection, ShouldAutoSize, WithHeadi
     {
         return [
             'No',
-            'Jenis Kapal',
+            'Data Kapal',
             'Perusahaan',
             'Galangan',
             'Laporan Harian',
@@ -36,21 +36,21 @@ class RekapJenisKapalExport implements FromCollection, ShouldAutoSize, WithHeadi
         ];
     }
 
-    public function map($jenisKapal): array
+    public function map($dataKapal): array
     {
         static $no = 0;
         $no++;
 
         return [
             $no,
-            $jenisKapal->nama,
-            $jenisKapal->company->name ?? '-',
-            $jenisKapal->galangan->nama ?? '-',
-            $jenisKapal->laporan_harian_count,
-            $jenisKapal->laporan_mingguan_count,
-            $jenisKapal->progress_aktual !== null ? $jenisKapal->progress_aktual.'%' : '-',
-            $jenisKapal->laporan_harian_max_tanggal_laporan
-                ? \Carbon\Carbon::parse($jenisKapal->laporan_harian_max_tanggal_laporan)->format('d/m/Y')
+            $dataKapal->nama,
+            $dataKapal->company->name ?? '-',
+            $dataKapal->galangan->nama ?? '-',
+            $dataKapal->laporan_harian_count,
+            $dataKapal->laporan_mingguan_count,
+            $dataKapal->progress_aktual !== null ? $dataKapal->progress_aktual.'%' : '-',
+            $dataKapal->laporan_harian_max_tanggal_laporan
+                ? \Carbon\Carbon::parse($dataKapal->laporan_harian_max_tanggal_laporan)->format('d/m/Y')
                 : 'Belum ada',
         ];
     }

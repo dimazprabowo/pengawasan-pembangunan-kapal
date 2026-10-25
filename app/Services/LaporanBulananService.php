@@ -13,11 +13,11 @@ class LaporanBulananService
 {
     public function getFiltered(
         ?string $search = null,
-        ?int $jenisKapalId = null,
+        ?int $dataKapalId = null,
         int $perPage = 15
     ): LengthAwarePaginator {
-        $query = LaporanBulanan::with(['user', 'jenisKapal.company', 'jenisKapal.galangan'])
-            ->byJenisKapal($jenisKapalId);
+        $query = LaporanBulanan::with(['user', 'dataKapal.company', 'dataKapal.galangan'])
+            ->byDataKapal($dataKapalId);
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -39,19 +39,19 @@ class LaporanBulananService
     }
 
     /**
-     * Laporan mingguan yang masuk ke bulan_ke tertentu pada jenis kapal ini
+     * Laporan mingguan yang masuk ke bulan_ke tertentu pada data kapal ini
      * (berdasarkan pengelompokan kontrak), diurutkan per minggu.
      */
     public function getMingguanBulan(LaporanBulanan $laporan): Collection
     {
         $bulan = app(KontrakPeriodeService::class)
-            ->getBulanPeriode($laporan->jenisKapal, (int) $laporan->bulan_ke);
+            ->getBulanPeriode($laporan->dataKapal, (int) $laporan->bulan_ke);
 
         if (! $bulan) {
             return collect();
         }
 
-        return LaporanMingguan::where('jenis_kapal_id', $laporan->jenis_kapal_id)
+        return LaporanMingguan::where('data_kapal_id', $laporan->data_kapal_id)
             ->whereBetween('minggu_ke', [$bulan['minggu_dari'], $bulan['minggu_sampai']])
             ->withSum('laporanProgress as total_progress', 'pct_realisasi')
             ->orderBy('minggu_ke')
@@ -59,11 +59,11 @@ class LaporanBulananService
     }
 
     /**
-     * Cek bulan_ke sudah dipakai laporan bulanan lain pada jenis kapal ini.
+     * Cek bulan_ke sudah dipakai laporan bulanan lain pada data kapal ini.
      */
-    public function bulanTaken(int $jenisKapalId, int $bulanKe, ?int $exceptId = null): bool
+    public function bulanTaken(int $dataKapalId, int $bulanKe, ?int $exceptId = null): bool
     {
-        return LaporanBulanan::where('jenis_kapal_id', $jenisKapalId)
+        return LaporanBulanan::where('data_kapal_id', $dataKapalId)
             ->where('bulan_ke', $bulanKe)
             ->when($exceptId, fn ($q) => $q->where('id', '!=', $exceptId))
             ->exists();

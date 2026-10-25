@@ -12,11 +12,11 @@ class LaporanMingguanService
 {
     public function getFiltered(
         ?string $search = null,
-        ?int $jenisKapalId = null,
+        ?int $dataKapalId = null,
         int $perPage = 15
     ): LengthAwarePaginator {
-        $query = LaporanMingguan::with(['user', 'jenisKapal.company', 'jenisKapal.galangan', 'laporanHarian'])
-            ->byJenisKapal($jenisKapalId);
+        $query = LaporanMingguan::with(['user', 'dataKapal.company', 'dataKapal.galangan', 'laporanHarian'])
+            ->byDataKapal($dataKapalId);
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -41,14 +41,14 @@ class LaporanMingguanService
      * Return: list ['id', 'judul', 'tanggal', 'claimed_label']
      */
     public function getAvailableHarianForPeriode(
-        int $jenisKapalId,
+        int $dataKapalId,
         string $periodeMulai,
         string $periodeSelesai,
         ?int $exceptMingguanId = null
     ): array {
-        $claimLabels = $this->getHarianClaimLabels($jenisKapalId, $exceptMingguanId);
+        $claimLabels = $this->getHarianClaimLabels($dataKapalId, $exceptMingguanId);
 
-        return LaporanHarian::where('jenis_kapal_id', $jenisKapalId)
+        return LaporanHarian::where('data_kapal_id', $dataKapalId)
             ->whereDate('tanggal_laporan', '>=', $periodeMulai)
             ->whereDate('tanggal_laporan', '<=', $periodeSelesai)
             ->orderByDesc('tanggal_laporan')
@@ -100,14 +100,14 @@ class LaporanMingguanService
     }
 
     /**
-     * Label klaim mingguan untuk tiap laporan harian pada sebuah jenis kapal.
+     * Label klaim mingguan untuk tiap laporan harian pada sebuah data kapal.
      * Return: [laporan_harian_id => "Minggu ke-N, ..."]
      */
-    public function getHarianClaimLabels(int $jenisKapalId, ?int $exceptMingguanId = null): array
+    public function getHarianClaimLabels(int $dataKapalId, ?int $exceptMingguanId = null): array
     {
         return DB::table('laporan_mingguan_harian')
             ->join('laporan_mingguan', 'laporan_mingguan.id', '=', 'laporan_mingguan_harian.laporan_mingguan_id')
-            ->where('laporan_mingguan.jenis_kapal_id', $jenisKapalId)
+            ->where('laporan_mingguan.data_kapal_id', $dataKapalId)
             ->when($exceptMingguanId, fn ($q) => $q->where('laporan_mingguan.id', '!=', $exceptMingguanId))
             ->select('laporan_mingguan_harian.laporan_harian_id', 'laporan_mingguan.minggu_ke')
             ->get()

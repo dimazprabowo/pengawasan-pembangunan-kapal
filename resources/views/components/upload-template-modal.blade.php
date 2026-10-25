@@ -19,7 +19,7 @@
                             Upload Template {{ ucfirst($tipe) }}
                         </h3>
                         <p class="text-sm text-gray-500 dark:text-gray-400">
-                            Upload file template laporan {{ $tipe }} untuk jenis kapal ini.
+                            Upload file template laporan {{ $tipe }} untuk data kapal ini.
                         </p>
                     </div>
                     <div class="mb-6">
@@ -42,7 +42,7 @@
                             </div>
                         </div>
                         <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                            {{ get_upload_config_display('template_laporan_jenis_kapal') }}
+                            {{ get_upload_config_display('template_laporan_data_kapal') }}
                         </p>
                         @error('template_file') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
                         @if(isset($this->template_file) && $this->template_file)
