@@ -1,4 +1,4 @@
-@props(['show' => false, 'imageUrl', 'cropData' => []])
+@props(['show' => false, 'imageUrl', 'cropData' => [], 'previewTarget' => null])
 
 @push('cdn-styles')
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" />
@@ -13,6 +13,7 @@
          x-data="{
             cropper: null,
             savedCropData: @js($cropData),
+            previewTarget: @js($previewTarget),
             init() {
                 this.$nextTick(() => {
                     const image = document.getElementById('cropper-image');
@@ -55,6 +56,20 @@
                     height: Math.round(data.height)
                 });
                 $wire.saveCrop();
+                // Pratinjau hasil crop (temp file kecil) agar kartu menampilkan versi ter-crop
+                if (this.previewTarget) {
+                    // Beri sinyal ke kartu agar menampilkan spinner selama preview diunggah
+                    const rk = this.previewTarget.split('.').slice(-2, -1)[0];
+                    window.dispatchEvent(new CustomEvent('lh-crop-pending', { detail: { rowKey: rk } }));
+                    const canvas = this.cropper.getCroppedCanvas({ maxWidth: 800 });
+                    if (canvas) {
+                        canvas.toBlob((blob) => {
+                            if (blob) {
+                                $wire.upload(this.previewTarget, new File([blob], 'crop-preview.jpg', { type: 'image/jpeg' }));
+                            }
+                        }, 'image/jpeg', 0.85);
+                    }
+                }
             }
          }"
          x-init="init()"

@@ -3,18 +3,23 @@
 namespace App\Services;
 
 use App\Models\LaporanHarian;
+use App\Models\LaporanLampiran;
+use PhpOffice\PhpWord\Settings;
 use PhpOffice\PhpWord\TemplateProcessor;
 
 class LaporanHarianWordService
 {
     private const TEMPLATE_PATH = 'templates/laporan-harian/template-laporan-harian.docx';
 
-    private const MAX_ROWS = 30;
+    // Grid lampiran 2x2 → maksimal 4 foto per halaman
+    private const FOTO_PER_HALAMAN = 4;
 
-    private const MAX_LAMPIRAN = 10;
+    // Ukuran kotak foto di sel grid lampiran (rasio asli dipertahankan)
+    private const FOTO_SIZE = '7cm';
 
     public function __construct(
-        private WordImageService $imageService
+        private WordImageService $imageService,
+        private LaporanHarianService $laporanHarianService,
     ) {}
 
     // ────────────────────────────────────────────────────────────────────────────
@@ -40,7 +45,8 @@ class LaporanHarianWordService
             'personel',
             'peralatan',
             'consumable',
-            'aktivitas',
+            'aktivitas.workGroup',
+            'aktivitas.lampiran',
             'lampiran',
         ]);
 
@@ -65,6 +71,8 @@ class LaporanHarianWordService
             }
         }
 
+        // Escape nilai teks (mis. "Engineering & Design") agar XML dokumen tetap valid
+        Settings::setOutputEscapingEnabled(true);
         $processor = new TemplateProcessor($templateFullPath);
 
         // Set single values (basic info, weather, signature)
@@ -128,7 +136,7 @@ class LaporanHarianWordService
         $this->fillPeralatanTable($processor, $laporan);
         $this->fillConsumableTable($processor, $laporan);
         $this->fillAktivitasTable($processor, $laporan);
-        $this->fillLampiranTable($processor, $laporan);
+        $this->fillLampiranSection($processor, $laporan);
     }
 
     private function fillPersonelTable(TemplateProcessor $processor, LaporanHarian $laporan): void
@@ -224,107 +232,133 @@ class LaporanHarianWordService
         }
     }
 
+    /**
+     * Uraian Aktivitas per kategori: blok ${blok_kategori} (judul kategori + tabel)
+     * di-clone per kategori yang memiliki aktivitas; kategori kosong tidak digenerate.
+     */
     private function fillAktivitasTable(TemplateProcessor $processor, LaporanHarian $laporan): void
     {
-        $rows = $laporan->aktivitas->values();
-
-        if ($rows->isEmpty()) {
-            // Jika tidak ada data, isi dengan satu row berisi '-'
-            $processor->setValue('aktivitas_no', '1');
-            $processor->setValue('aktivitas_kategori', '-');
-            $processor->setValue('aktivitas_aktivitas', '-');
-            $processor->setValue('aktivitas_pic', '-');
-
-            return;
-        }
+        $groups = $this->laporanHarianService->aktivitasPerKategori($laporan);
 
         try {
-            $processor->cloneRow('aktivitas_no', $rows->count());
+            if ($groups->isEmpty()) {
+                // Tidak ada aktivitas sama sekali → satu blok berisi '-'
+                $processor->cloneBlock('blok_kategori', 1, true, true);
+                $processor->setValue('aktivitas_kategori#1', '-');
+                $processor->setValue('aktivitas_no#1', '1');
+                $processor->setValue('aktivitas_aktivitas#1', '-');
+                $processor->setValue('aktivitas_pic#1', '-');
 
-            foreach ($rows as $index => $row) {
-                $i = $index + 1;
+                return;
+            }
 
-                $processor->setValue('aktivitas_no#'.$i, (string) $i);
-                $processor->setValue('aktivitas_kategori#'.$i, $row->kategori ?? '-');
-                $processor->setValue('aktivitas_aktivitas#'.$i, $row->aktivitas ?? '-');
-                $processor->setValue('aktivitas_pic#'.$i, $row->pic ?? '-');
+            $processor->cloneBlock('blok_kategori', $groups->count(), true, true);
+
+            foreach ($groups as $g => $group) {
+                $b = $g + 1;
+                $processor->setValue("aktivitas_kategori#{$b}", $group['nama']);
+                $processor->cloneRow("aktivitas_no#{$b}", $group['aktivitas']->count());
+
+                foreach ($group['aktivitas'] as $r => $row) {
+                    $i = $r + 1;
+                    $processor->setValue("aktivitas_no#{$b}#{$i}", (string) $i);
+                    $processor->setValue("aktivitas_aktivitas#{$b}#{$i}", $row->aktivitas ?? '-');
+                    $processor->setValue("aktivitas_pic#{$b}#{$i}", $row->pic ?? '-');
+                }
             }
         } catch (\Exception $e) {
-            \Log::warning('LaporanWordService: Skipping aktivitas table (placeholder not found or contains markup)', [
+            \Log::warning('LaporanWordService: Skipping aktivitas section (template tanpa blok ${blok_kategori}?)', [
                 'error' => $e->getMessage(),
             ]);
         }
     }
 
-    private function fillLampiranTable(TemplateProcessor $processor, LaporanHarian $laporan): void
+    /**
+     * Lampiran dokumentasi: grid 2x2 per halaman (blok ${blok_lampiran}). Tiap slot berisi
+     * kategori (atas), foto, dan uraian aktivitas (bawah). Urutan mengikuti kategori & aktivitas.
+     */
+    private function fillLampiranSection(TemplateProcessor $processor, LaporanHarian $laporan): void
     {
-        $rows = $laporan->lampiran->filter(fn ($l) => $l->isFileCompleted())->values();
+        $fotos = $this->laporanHarianService->aktivitasPerKategori($laporan)
+            ->flatMap(fn ($group) => $group['aktivitas']->map(fn ($a) => ['kategori' => $group['nama'], 'aktivitas' => $a]))
+            ->filter(fn ($slot) => $slot['aktivitas']->lampiran?->isFileCompleted()
+                && $this->imageService->isImageFile($slot['aktivitas']->lampiran->file_path))
+            ->values();
+        $pages = $fotos->chunk(self::FOTO_PER_HALAMAN)->values();
 
-        if ($rows->isEmpty()) {
-            // Jika tidak ada data, isi dengan satu row berisi '-'
-            $processor->setValue('lampiran_no', '1');
-            $processor->setValue('lampiran_gambar', '-');
-            $processor->setValue('lampiran_ket', '-');
+        try {
+            $processor->setValue('lampiran_kosong', $fotos->isEmpty() ? 'Tidak ada dokumentasi foto.' : '');
+            // 0 halaman → blok dihapus
+            $processor->cloneBlock('blok_lampiran', $pages->count(), true, true);
+
+            foreach ($pages as $p => $page) {
+                $b = $p + 1;
+                $page = $page->values();
+
+                // Page break hanya di antara halaman (halaman pertama sudah diawali judul Lampiran)
+                $processor->replaceXmlBlock("lampiran_pemisah#{$b}", $b === 1 ? '' : '<w:p><w:r><w:br w:type="page"/></w:r></w:p>');
+
+                // Halaman dengan ≤ 2 foto: baris pasangan bawah (slot 3-4) dihapus
+                $slotCount = $page->count() <= 2 ? 2 : 4;
+                if ($slotCount === 2) {
+                    foreach (['lp_kategori_3', 'lp_gambar_3', 'lp_uraian_3'] as $macro) {
+                        $processor->deleteRow("{$macro}#{$b}");
+                    }
+                }
+
+                for ($slot = 1; $slot <= $slotCount; $slot++) {
+                    $item = $page->get($slot - 1);
+                    $processor->setValue("lp_kategori_{$slot}#{$b}", $item['kategori'] ?? '');
+                    $processor->setValue("lp_uraian_{$slot}#{$b}", $item ? ($item['aktivitas']->aktivitas ?? '-') : '');
+
+                    if ($item) {
+                        $this->setFotoImage($processor, "lp_gambar_{$slot}#{$b}", $item['aktivitas']->lampiran);
+                    } else {
+                        $processor->setValue("lp_gambar_{$slot}#{$b}", '');
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::warning('LaporanWordService: Skipping lampiran section (template tanpa blok ${blok_lampiran}?)', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function setFotoImage(TemplateProcessor $processor, string $macro, LaporanLampiran $lampiran): void
+    {
+        $imagePath = $this->imageService->resolveLampiranPath($lampiran->file_path);
+
+        if (! $imagePath || ! file_exists($imagePath)) {
+            \Log::warning('LaporanWordService: Image file not found', [
+                'lampiran_id' => $lampiran->id,
+                'file_path' => $lampiran->file_path,
+            ]);
+            $processor->setValue($macro, $lampiran->file_name ?? '-');
 
             return;
         }
 
-        // Clone row sebanyak jumlah data
-        $processor->cloneRow('lampiran_no', $rows->count());
+        try {
+            // Resolusi lebih tinggi dari default karena foto tampil besar di grid 2x2
+            $finalImagePath = $this->imageService->prepareImageForWord($imagePath, 900, 900, 75);
 
-        // Set values untuk setiap row yang sudah di-clone
-        foreach ($rows as $index => $item) {
-            $i = $index + 1;
+            $processor->setImageValue($macro, [
+                'path' => $finalImagePath,
+                'width' => self::FOTO_SIZE,
+                'height' => self::FOTO_SIZE,
+                'ratio' => true,
+            ]);
 
-            // Set nomor
-            $processor->setValue('lampiran_no#'.$i, (string) $i);
-
-            // Set gambar jika file adalah image
-            if ($this->imageService->isImageFile($item->file_path)) {
-                $imagePath = $this->imageService->resolveLampiranPath($item->file_path);
-
-                if (file_exists($imagePath)) {
-                    try {
-                        $finalImagePath = $this->imageService->prepareImageForWord($imagePath);
-
-                        $processor->setImageValue('lampiran_gambar#'.$i, [
-                            'path' => $finalImagePath,
-                            'width' => WordImageService::DEFAULT_WIDTH,
-                            'height' => WordImageService::DEFAULT_HEIGHT,
-                            'ratio' => true,
-                        ]);
-
-                        // Clean up temporary file if it was created
-                        if ($finalImagePath !== $imagePath && file_exists($finalImagePath)) {
-                            @unlink($finalImagePath);
-                        }
-
-                    } catch (\Exception $e) {
-                        // Jika gagal insert image, set nama file saja
-                        \Log::error('LaporanWordService: Failed to insert image', [
-                            'lampiran_id' => $item->id,
-                            'file_path' => $item->file_path,
-                            'full_path' => $imagePath,
-                            'error' => $e->getMessage(),
-                            'trace' => $e->getTraceAsString(),
-                        ]);
-                        $processor->setValue('lampiran_gambar#'.$i, $item->file_name ?? '-');
-                    }
-                } else {
-                    \Log::warning('LaporanWordService: Image file not found', [
-                        'lampiran_id' => $item->id,
-                        'file_path' => $item->file_path,
-                        'full_path' => $imagePath,
-                        'storage_app_exists' => is_dir(storage_path('app')),
-                    ]);
-                    $processor->setValue('lampiran_gambar#'.$i, $item->file_name ?? '-');
-                }
-            } else {
-                // Jika bukan image, tampilkan nama file
-                $processor->setValue('lampiran_gambar#'.$i, $item->file_name ?? '-');
+            if ($finalImagePath !== $imagePath && file_exists($finalImagePath)) {
+                @unlink($finalImagePath);
             }
-            // Set keterangan
-            $processor->setValue('lampiran_ket#'.$i, $item->keterangan ?? '-');
+        } catch (\Exception $e) {
+            \Log::error('LaporanWordService: Failed to insert image', [
+                'lampiran_id' => $lampiran->id,
+                'error' => $e->getMessage(),
+            ]);
+            $processor->setValue($macro, $lampiran->file_name ?? '-');
         }
     }
 

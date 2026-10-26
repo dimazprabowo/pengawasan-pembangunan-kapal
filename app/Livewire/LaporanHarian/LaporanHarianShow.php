@@ -7,6 +7,7 @@ use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
 use App\Models\DataKapal;
 use App\Models\LaporanHarian;
+use App\Services\LaporanHarianService;
 use App\Services\QueueStatusService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Storage;
@@ -56,7 +57,8 @@ class LaporanHarianShow extends Component
             'personel',
             'peralatan',
             'consumable',
-            'aktivitas',
+            'aktivitas.workGroup',
+            'aktivitas.lampiran',
         ]);
     }
 
@@ -200,10 +202,17 @@ class LaporanHarianShow extends Component
         return $this->laporan->lampiran->find($this->previewLampiranId);
     }
 
-    public function render(QueueStatusService $queueStatusService)
+    public function render(QueueStatusService $queueStatusService, LaporanHarianService $service)
     {
         return view('livewire.laporan-harian.laporan-harian-show', [
             'queueStatus' => $queueStatusService->getQueueStatusMessage(),
+            // Uraian aktivitas per kategori (hanya kategori yang berisi) — dipakai section Aktivitas & Lampiran
+            'aktivitasGroups' => $service->aktivitasPerKategori($this->laporan)
+                ->map(fn ($group) => [
+                    'nama' => $group['nama'],
+                    'rows' => $group['aktivitas']->map(fn ($a) => $service->aktivitasRow($a))->all(),
+                ])->all(),
+            'lampiranByAktivitas' => $this->laporan->lampiran->keyBy('laporan_aktivitas_id'),
         ]);
     }
 
@@ -376,9 +385,28 @@ class LaporanHarianShow extends Component
         return $this->getLampiranImageDataUrl($this->previewLampiran->id);
     }
 
+    /**
+     * Data URL foto lampiran selesai (id => dataUrl) — dimuat lazy dari Alpine
+     * agar file tidak dibaca ulang pada tiap render Livewire.
+     *
+     * @return array<int, string>
+     */
+    public function lampiranImageUrls(): array
+    {
+        if (! \Illuminate\Support\Facades\Gate::allows('lampiranPreview', LaporanHarian::class)) {
+            return [];
+        }
+
+        return $this->laporan->lampiran
+            ->filter(fn ($l) => $l->hasFile() && $l->isFileCompleted() && $l->isImage())
+            ->mapWithKeys(fn ($l) => [$l->id => $this->getLampiranImageDataUrl($l->id)])
+            ->all();
+    }
+
     public function refreshLampiranStatus(): void
     {
         $this->laporan->load('lampiran');
+        $this->dispatch('lh-reload-thumbs');
     }
 
     public function hasProcessingLampiran(): bool

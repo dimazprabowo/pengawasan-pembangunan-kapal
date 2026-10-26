@@ -120,7 +120,7 @@ class LaporanMingguanShow extends Component
 
         $laporanHarianIds = $this->laporan->laporanHarian->pluck('id')->toArray();
 
-        $query = LaporanLampiran::with(['laporanHarian'])
+        $query = LaporanLampiran::with(['laporanHarian', 'aktivitas'])
             ->whereHas('laporanHarian', function ($q) use ($laporanHarianIds) {
                 $q->whereIn('id', $laporanHarianIds);
             })

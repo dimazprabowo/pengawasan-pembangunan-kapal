@@ -42,6 +42,7 @@ class LaporanMingguanWordService
             'laporanHarian.consumable',
             'laporanHarian.lampiran',
             'lampiran.laporanHarian',
+            'lampiran.aktivitas',
         ]);
 
         $templateFullPath = $this->resolveTemplate($laporan);

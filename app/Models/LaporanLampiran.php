@@ -14,10 +14,10 @@ class LaporanLampiran extends Model
 
     protected $fillable = [
         'laporan_harian_id',
+        'laporan_aktivitas_id',
         'file_path',
         'file_name',
         'file_size',
-        'keterangan',
         'file_status',
         'file_error',
         'file_processed_at',
@@ -33,6 +33,19 @@ class LaporanLampiran extends Model
     public function laporanHarian(): BelongsTo
     {
         return $this->belongsTo(LaporanHarian::class);
+    }
+
+    public function aktivitas(): BelongsTo
+    {
+        return $this->belongsTo(LaporanAktivitas::class, 'laporan_aktivitas_id');
+    }
+
+    /**
+     * Keterangan foto = uraian aktivitas pemiliknya (tidak disimpan terpisah).
+     */
+    public function getKeteranganAttribute(): ?string
+    {
+        return $this->aktivitas?->aktivitas;
     }
 
     public function isFileProcessing(): bool
@@ -52,24 +65,26 @@ class LaporanLampiran extends Model
 
     public function hasFile(): bool
     {
-        return !empty($this->file_path) && !empty($this->file_name);
+        return ! empty($this->file_path) && ! empty($this->file_name);
     }
 
     public function isImage(): bool
     {
-        if (!$this->file_name) {
+        if (! $this->file_name) {
             return false;
         }
         $extension = strtolower(pathinfo($this->file_name, PATHINFO_EXTENSION));
+
         return in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg']);
     }
 
     public function isPdf(): bool
     {
-        if (!$this->file_name) {
+        if (! $this->file_name) {
             return false;
         }
         $extension = strtolower(pathinfo($this->file_name, PATHINFO_EXTENSION));
+
         return $extension === 'pdf';
     }
 
@@ -80,9 +95,10 @@ class LaporanLampiran extends Model
 
     public function getFileExtensionAttribute(): ?string
     {
-        if (!$this->file_name) {
+        if (! $this->file_name) {
             return null;
         }
+
         return strtolower(pathinfo($this->file_name, PATHINFO_EXTENSION));
     }
 }

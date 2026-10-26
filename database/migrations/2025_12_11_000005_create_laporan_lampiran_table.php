@@ -11,10 +11,11 @@ return new class extends Migration
         Schema::create('laporan_lampiran', function (Blueprint $table) {
             $table->id();
             $table->foreignId('laporan_harian_id')->constrained('laporan_harian')->cascadeOnDelete();
+            // 1 foto per uraian aktivitas; keterangan foto = uraian aktivitas
+            $table->foreignId('laporan_aktivitas_id')->unique()->constrained('laporan_aktivitas')->cascadeOnDelete();
             $table->string('file_path')->nullable();
             $table->string('file_name');
             $table->unsignedBigInteger('file_size')->nullable();
-            $table->text('keterangan')->nullable();
             $table->enum('file_status', ['pending', 'processing', 'completed', 'failed'])->default('pending');
             $table->text('file_error')->nullable();
             $table->timestamp('file_processed_at')->nullable();

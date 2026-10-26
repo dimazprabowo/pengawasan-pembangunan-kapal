@@ -2,7 +2,6 @@
 
 namespace App\Livewire\LaporanHarian;
 
-use App\Jobs\ProcessLaporanLampiran;
 use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
 use App\Models\Cuaca;
@@ -13,6 +12,7 @@ use App\Services\LaporanHarianService;
 use App\Services\QueueStatusService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -53,24 +53,16 @@ class LaporanHarianEdit extends Component
 
     public array $aktivitas = [];
 
-    // Lampiran baru yang akan ditambahkan
-    public array $newLampiran = [];
-
-    // Keterangan untuk existing lampiran yang diedit
-    public array $lampiranKeterangan = [];
+    // Foto baru per uraian aktivitas - struktur: [row_key => ['file' => null, 'cropData' => null, 'is_cropped' => false]]
+    public array $foto = [];
 
     // Preferensi autosave draft per user (persisten via cache)
     public bool $autoSave = true;
 
-    // Delete lampiran confirmation
+    // Delete lampiran (foto tersimpan) confirmation
     public bool $showDeleteLampiranModal = false;
 
     public ?int $deletingLampiranId = null;
-
-    // Delete new (unsaved) lampiran confirmation
-    public bool $showDeleteNewLampiranModal = false;
-
-    public ?int $deletingNewLampiranIndex = null;
 
     // Delete personel confirmation
     public bool $showDeletePersonelModal = false;
@@ -95,7 +87,7 @@ class LaporanHarianEdit extends Component
     // Image cropper modal
     public bool $showCropperModal = false;
 
-    public ?int $croppingLampiranIndex = null;
+    public ?string $croppingRowKey = null;
 
     public ?string $croppingImageUrl = null;
 
@@ -117,21 +109,6 @@ class LaporanHarianEdit extends Component
         $this->data_kapal_id = $laporanHarian->data_kapal_id;
         $this->autoSave = Cache::get('lh_draft_autosave:'.auth()->id(), true);
         $this->tanggal_laporan = $laporanHarian->tanggal_laporan->format('Y-m-d');
-
-        // Load existing lampiran keterangan
-        foreach ($laporanHarian->lampiran as $lampiran) {
-            $this->lampiranKeterangan[$lampiran->id] = $lampiran->keterangan ?? '';
-        }
-
-        // Initialize with 1 empty new lampiran field
-        $this->newLampiran = [
-            [
-                'file' => null,
-                'keterangan' => '',
-                'cropData' => null,
-                'is_cropped' => false,
-            ],
-        ];
 
         $this->suhu = $laporanHarian->suhu;
         $this->cuaca_pagi_id = $laporanHarian->cuaca_pagi_id;
@@ -163,30 +140,29 @@ class LaporanHarianEdit extends Component
             'keterangan' => $c->keterangan ?? '',
         ])->toArray();
 
-        $this->aktivitas = $laporanHarian->aktivitas->map(fn ($a) => [
-            'id' => $a->id,
-            'kategori' => $a->kategori,
-            'aktivitas' => $a->aktivitas,
-            'pic' => $a->pic,
-        ])->toArray();
+        $this->aktivitas = app(LaporanHarianService::class)->aktivitasRowsFrom($laporanHarian);
+        foreach ($this->aktivitas as $row) {
+            $this->foto[$row['row_key']] = $this->emptyFoto();
+        }
+    }
+
+    private function emptyFoto(): array
+    {
+        return ['file' => null, 'preview' => null, 'cropData' => null, 'is_cropped' => false];
+    }
+
+    /**
+     * Foto tersimpan per id aktivitas (untuk tab Lampiran).
+     */
+    private function lampiranByAktivitas(): \Illuminate\Support\Collection
+    {
+        return $this->laporan->lampiran->keyBy('laporan_aktivitas_id');
     }
 
     public function toggleAutoSave(): void
     {
         $this->autoSave = ! $this->autoSave;
         Cache::forever('lh_draft_autosave:'.auth()->id(), $this->autoSave);
-    }
-
-    /**
-     * Daftar tanggal yang sudah memiliki laporan harian lain untuk kapal ini (format Y-m-d).
-     */
-    protected function usedTanggalLaporan(): array
-    {
-        return LaporanHarian::where('data_kapal_id', $this->data_kapal_id)
-            ->where('id', '!=', $this->laporan->id)
-            ->pluck('tanggal_laporan')
-            ->map(fn ($d) => \Carbon\Carbon::parse($d)->format('Y-m-d'))
-            ->all();
     }
 
     public function rules(): array
@@ -207,9 +183,17 @@ class LaporanHarianEdit extends Component
                     }
                 },
             ],
-            'newLampiran.*.file' => file_upload_validation_rule('foto_kapal'),
-            'newLampiran.*.keterangan' => 'nullable|string|max:1000',
-            'lampiranKeterangan.*' => 'nullable|string|max:1000',
+            'foto.*.file' => [
+                ...file_upload_validation_rule('foto_kapal'),
+                // Foto wajib punya uraian aktivitas (keterangan foto = uraian aktivitas)
+                function ($attribute, $value, $fail) {
+                    $row = collect($this->aktivitas)->firstWhere('row_key', explode('.', $attribute)[1]);
+                    if ($value && trim((string) ($row['aktivitas'] ?? '')) === '') {
+                        $fail('Uraian aktivitas untuk foto ini wajib diisi terlebih dahulu di tab Aktivitas.');
+                    }
+                },
+            ],
+            'foto.*.preview' => 'nullable|image|max:5120',
         ];
 
         $rules['suhu'] = 'nullable|numeric|min:-50|max:100';
@@ -232,8 +216,15 @@ class LaporanHarianEdit extends Component
         $rules['consumable.*.jumlah'] = 'nullable|integer|min:1';
         $rules['consumable.*.keterangan'] = 'nullable|string|max:1000';
         $rules['aktivitas'] = 'nullable|array';
-        $rules['aktivitas.*.kategori'] = 'nullable|string|max:255';
+        $rules['aktivitas.*.work_group_id'] = 'nullable|integer';
         $rules['aktivitas.*.aktivitas'] = 'nullable|string';
+        // Aktivitas yang sudah memiliki foto tersimpan tidak boleh dikosongkan uraiannya
+        $lampiranByAktivitas = $this->lampiranByAktivitas();
+        foreach ($this->aktivitas as $i => $row) {
+            if (! empty($row['id']) && $lampiranByAktivitas->has($row['id'])) {
+                $rules["aktivitas.{$i}.aktivitas"] = 'required|string';
+            }
+        }
         $rules['aktivitas.*.pic'] = 'nullable|string|max:255';
 
         return $rules;
@@ -243,6 +234,7 @@ class LaporanHarianEdit extends Component
     {
         return [
             'tanggal_laporan.before_or_equal' => 'Tanggal laporan tidak boleh melebihi hari ini.',
+            'aktivitas.*.aktivitas.required' => 'Uraian aktivitas wajib diisi karena aktivitas ini memiliki foto lampiran.',
         ];
     }
 
@@ -251,9 +243,9 @@ class LaporanHarianEdit extends Component
         $attributes = [
             'data_kapal_id' => 'data kapal',
             'tanggal_laporan' => 'tanggal laporan',
-            'newLampiran.*.file' => 'file lampiran baru',
-            'newLampiran.*.keterangan' => 'keterangan lampiran baru',
-            'lampiranKeterangan.*' => 'keterangan lampiran',
+            'foto.*.file' => 'foto lampiran',
+            'foto.*.preview' => 'pratinjau foto',
+            'aktivitas.*.aktivitas' => 'uraian aktivitas',
         ];
 
         $attributes['suhu'] = 'suhu';
@@ -283,52 +275,38 @@ class LaporanHarianEdit extends Component
             $this->laporan->refresh();
             $this->showDeleteLampiranModal = false;
             $this->deletingLampiranId = null;
-            $this->notifySuccess('Lampiran berhasil dihapus.');
+            $this->notifySuccess('Foto lampiran berhasil dihapus.');
         } catch (\Exception $e) {
-            $this->notifyError('Gagal menghapus lampiran: '.$e->getMessage());
+            Log::error('LaporanHarianEdit: gagal menghapus lampiran', ['error' => $e->getMessage()]);
+            $this->notifyError('Terjadi kesalahan sistem. Silakan coba lagi.');
         }
     }
 
-    public function addLampiran(): void
+    public function removeFoto(string $rowKey): void
     {
-        $this->newLampiran[] = [
-            'file' => null,
-            'keterangan' => '',
-            'cropData' => null,
-            'is_cropped' => false,
-        ];
+        $this->foto[$rowKey] = $this->emptyFoto();
     }
 
-    public function removeNewLampiran(int $index): void
+    /**
+     * File foto baru menggantikan yang lama → pratinjau crop & data crop lama tidak berlaku lagi.
+     */
+    public function updatedFoto($value, ?string $key = null): void
     {
-        if (isset($this->newLampiran[$index])) {
-            unset($this->newLampiran[$index]);
-            $this->newLampiran = array_values($this->newLampiran);
-        }
-    }
-
-    public function confirmRemoveNewLampiran(int $index): void
-    {
-        $this->deletingNewLampiranIndex = $index;
-        $this->showDeleteNewLampiranModal = true;
-    }
-
-    public function removeNewLampiranConfirmed(): void
-    {
-        if ($this->deletingNewLampiranIndex !== null) {
-            $this->removeNewLampiran($this->deletingNewLampiranIndex);
-        }
-        $this->showDeleteNewLampiranModal = false;
-        $this->deletingNewLampiranIndex = null;
-    }
-
-    public function openCropper(int $index): void
-    {
-        if (! isset($this->newLampiran[$index]['file'])) {
+        if (! $key || ! str_ends_with($key, '.file')) {
             return;
         }
 
-        $file = $this->newLampiran[$index]['file'];
+        $rowKey = explode('.', $key)[0];
+        if (isset($this->foto[$rowKey])) {
+            $this->foto[$rowKey]['preview'] = null;
+            $this->foto[$rowKey]['cropData'] = null;
+            $this->foto[$rowKey]['is_cropped'] = false;
+        }
+    }
+
+    public function openCropper(string $rowKey): void
+    {
+        $file = $this->foto[$rowKey]['file'] ?? null;
         if (! $file || ! is_object($file)) {
             $this->notifyWarning('File tidak valid, silakan upload ulang.');
 
@@ -343,46 +321,54 @@ class LaporanHarianEdit extends Component
             return;
         }
 
-        $this->croppingLampiranIndex = $index;
+        $this->croppingRowKey = $rowKey;
         $this->croppingImageUrl = $file->temporaryUrl();
         // Load existing crop data if available to persist last crop settings
-        $this->cropData = $this->newLampiran[$index]['cropData'] ?? [];
+        $this->cropData = $this->foto[$rowKey]['cropData'] ?? [];
         $this->showCropperModal = true;
     }
 
     public function closeCropper(): void
     {
         $this->showCropperModal = false;
-        $this->croppingLampiranIndex = null;
+        $this->croppingRowKey = null;
         $this->croppingImageUrl = null;
         // Don't reset cropData here to preserve it for re-opening
     }
 
     public function saveCrop(): void
     {
-        if ($this->croppingLampiranIndex !== null && ! empty($this->cropData)) {
-            // Save crop data to the lampiran item to persist settings
-            $this->newLampiran[$this->croppingLampiranIndex]['cropData'] = $this->cropData;
-            $this->newLampiran[$this->croppingLampiranIndex]['is_cropped'] = true;
+        if ($this->croppingRowKey !== null && ! empty($this->cropData)) {
+            // Save crop data to the foto item to persist settings
+            $this->foto[$this->croppingRowKey]['cropData'] = $this->cropData;
+            $this->foto[$this->croppingRowKey]['is_cropped'] = true;
             $this->notifySuccess('Crop berhasil disimpan.');
         }
         $this->closeCropper();
     }
 
-    public function updateLampiranKeterangan(int $lampiranId, string $keterangan, LaporanHarianService $service): void
-    {
-        try {
-            $lampiran = $this->laporan->lampiran()->findOrFail($lampiranId);
-            $service->updateLampiranKeterangan($lampiran, $keterangan);
-            $this->notifySuccess('Keterangan lampiran diperbarui.');
-        } catch (\Exception $e) {
-            $this->notifyError('Gagal memperbarui keterangan: '.$e->getMessage());
-        }
-    }
-
     public function refreshLampiranStatus(): void
     {
         $this->laporan->load('lampiran');
+        $this->dispatch('lh-reload-thumbs');
+    }
+
+    /**
+     * Data URL foto lampiran selesai (id => dataUrl) — dimuat lazy dari Alpine
+     * agar file tidak dibaca ulang pada tiap render Livewire.
+     *
+     * @return array<int, string>
+     */
+    public function lampiranImageUrls(): array
+    {
+        if (! \Illuminate\Support\Facades\Gate::allows('lampiranPreview', LaporanHarian::class)) {
+            return [];
+        }
+
+        return $this->laporan->lampiran
+            ->filter(fn ($l) => $l->hasFile() && $l->isFileCompleted() && $l->isImage())
+            ->mapWithKeys(fn ($l) => [$l->id => $this->getLampiranImageDataUrl($l->id)])
+            ->all();
     }
 
     public function hasProcessingLampiran(): bool
@@ -469,49 +455,12 @@ class LaporanHarianEdit extends Component
                 }
             }
 
-            // Sync aktivitas - allow partial data (any field filled)
-            $this->laporan->aktivitas()->delete();
-            foreach ($this->aktivitas as $aktivitasData) {
-                $hasData = ! empty($aktivitasData['kategori']) ||
-                          ! empty($aktivitasData['aktivitas']) ||
-                          ! empty($aktivitasData['pic']);
+            // Uraian aktivitas per kategori + foto lampirannya (update/insert/hapus by id)
+            $fotoCount = $service->syncAktivitas($this->laporan, $this->aktivitas, $this->foto);
 
-                if ($hasData) {
-                    $this->laporan->aktivitas()->create([
-                        'kategori' => $aktivitasData['kategori'] ?: null,
-                        'aktivitas' => $aktivitasData['aktivitas'] ?: null,
-                        'pic' => $aktivitasData['pic'] ?: null,
-                    ]);
-                }
-            }
-
-            // Process new lampiran uploads
-            foreach ($this->newLampiran as $lampiranData) {
-                if (isset($lampiranData['file']) && $lampiranData['file'] && is_object($lampiranData['file'])) {
-                    $file = $lampiranData['file'];
-                    $tempPath = 'laporan-temp/'.uniqid().'_'.$file->getClientOriginalName();
-                    Storage::disk('local')->put($tempPath, file_get_contents($file->getRealPath()));
-
-                    // Create lampiran record
-                    $lampiran = $service->addLampiran($this->laporan, [
-                        'file_name' => $file->getClientOriginalName(),
-                        'file_size' => $file->getSize(),
-                        'keterangan' => $lampiranData['keterangan'] ?? null,
-                    ]);
-
-                    // Dispatch job with crop data
-                    ProcessLaporanLampiran::dispatch(
-                        $lampiran,
-                        $tempPath,
-                        $lampiranData['cropData'] ?? null,
-                    );
-                }
-            }
-
-            $hasNewLampiran = collect($this->newLampiran)->filter(fn ($l) => isset($l['file']) && $l['file'] && is_object($l['file']))->isNotEmpty();
             $message = 'Laporan Harian berhasil diupdate!';
-            if ($hasNewLampiran) {
-                $message .= ' Lampiran baru sedang diproses di background.';
+            if ($fotoCount > 0) {
+                $message .= ' Foto lampiran baru sedang diproses di background.';
             }
 
             $this->notifySuccess($message);
@@ -520,7 +469,8 @@ class LaporanHarianEdit extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk mengupdate laporan ini.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
+            Log::error('LaporanHarianEdit: gagal menyimpan', ['laporan_id' => $this->laporan->id, 'error' => $e->getMessage()]);
+            $this->notifyError('Terjadi kesalahan sistem. Silakan coba lagi.');
         }
     }
 
@@ -662,28 +612,6 @@ class LaporanHarianEdit extends Component
         return Storage::disk('local')->download($lampiran->file_path, $lampiran->file_name);
     }
 
-    public function previewCroppedImage(int $index): void
-    {
-        if (! isset($this->newLampiran[$index]['file'])) {
-            $this->notifyWarning('File tidak ditemukan.');
-
-            return;
-        }
-
-        $file = $this->newLampiran[$index]['file'];
-        if (! $file) {
-            $this->notifyWarning('File tidak ditemukan.');
-
-            return;
-        }
-
-        // Open cropper modal to show the cropped preview
-        $this->croppingLampiranIndex = $index;
-        $this->croppingImageUrl = $file->temporaryUrl();
-        $this->cropData = $this->newLampiran[$index]['cropData'] ?? [];
-        $this->showCropperModal = true;
-    }
-
     // Dynamic input management methods
     public function addPersonel(): void
     {
@@ -784,13 +712,19 @@ class LaporanHarianEdit extends Component
         }
     }
 
-    public function addAktivitas(): void
+    public function addAktivitas(?int $workGroupId = null): void
     {
-        $this->aktivitas[] = [
-            'kategori' => 'New Building',
-            'aktivitas' => '',
-            'pic' => '',
-        ];
+        $row = app(LaporanHarianService::class)->newAktivitasRow($workGroupId);
+        $this->aktivitas[] = $row;
+        $this->foto[$row['row_key']] = $this->emptyFoto();
+    }
+
+    public function getDeletingAktivitasHasFotoProperty(): bool
+    {
+        $row = $this->aktivitas[$this->deletingAktivitasIndex] ?? null;
+
+        return $row && (! empty($this->foto[$row['row_key']]['file'])
+            || ($row['id'] && $this->lampiranByAktivitas()->has($row['id'])));
     }
 
     public function confirmRemoveAktivitas(int $index): void
@@ -812,27 +746,13 @@ class LaporanHarianEdit extends Component
     public function removeAktivitas(int $index): void
     {
         if (isset($this->aktivitas[$index])) {
+            unset($this->foto[$this->aktivitas[$index]['row_key'] ?? '']);
             unset($this->aktivitas[$index]);
             $this->aktivitas = array_values($this->aktivitas);
         }
     }
 
-    /**
-     * Listen for changes in tanggal_laporan
-     * Triggered when tanggal_laporan changes (with .live modifier)
-     */
-    public function updatedTanggalLaporan($value): void
-    {
-        // Peringatan dini jika tanggal di masa depan / sudah dipakai laporan lain
-        // (mis. dari draft autosave basi yang melewati picker)
-        if ($value && \Carbon\Carbon::parse($value)->isFuture()) {
-            $this->notifyWarning('Tanggal laporan tidak boleh melebihi hari ini.');
-        } elseif ($value && in_array($value, $this->usedTanggalLaporan())) {
-            $this->notifyWarning('Tanggal '.\Carbon\Carbon::parse($value)->translatedFormat('d M Y').' sudah memiliki laporan lain untuk kapal ini.');
-        }
-    }
-
-    public function render(QueueStatusService $queueStatusService)
+    public function render(QueueStatusService $queueStatusService, LaporanHarianService $service)
     {
         $cuacaList = Cuaca::active()->orderBy('nama')->get();
         $kelembabanList = Kelembaban::active()->orderBy('nama')->get();
@@ -841,7 +761,8 @@ class LaporanHarianEdit extends Component
             'queueStatus' => $queueStatusService->getQueueStatusMessage(),
             'cuacaList' => $cuacaList,
             'kelembabanList' => $kelembabanList,
-            'usedDates' => $this->usedTanggalLaporan(),
+            'kategoriGroups' => $service->groupRowsByKategori($this->aktivitas, $service->kategoriOptions($this->data_kapal_id)),
+            'lampiranByAktivitas' => $this->lampiranByAktivitas(),
         ]);
     }
 }

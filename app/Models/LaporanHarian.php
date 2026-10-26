@@ -138,7 +138,7 @@ class LaporanHarian extends Model
 
     public function aktivitas(): HasMany
     {
-        return $this->hasMany(LaporanAktivitas::class)->orderBy('created_at', 'asc');
+        return $this->hasMany(LaporanAktivitas::class)->orderBy('id');
     }
 
     public function laporanMingguan(): BelongsToMany

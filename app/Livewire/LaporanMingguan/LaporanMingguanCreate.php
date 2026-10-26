@@ -329,7 +329,7 @@ class LaporanMingguanCreate extends Component
 
         $this->loadingLampiran = true;
 
-        $query = LaporanLampiran::with(['laporanHarian'])
+        $query = LaporanLampiran::with(['laporanHarian', 'aktivitas'])
             ->whereHas('laporanHarian', function ($q) {
                 $q->whereIn('id', $this->laporan_harian_ids);
             })

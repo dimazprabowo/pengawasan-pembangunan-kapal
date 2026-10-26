@@ -11,6 +11,9 @@ return new class extends Migration
         Schema::create('laporan_aktivitas', function (Blueprint $table) {
             $table->id();
             $table->foreignId('laporan_harian_id')->constrained('laporan_harian')->cascadeOnDelete();
+            // Kategori = Work Group Kurva-S data kapal (null = segmen "Lainnya")
+            $table->foreignId('kurva_s_work_group_id')->nullable()->constrained('kurva_s_work_groups')->nullOnDelete();
+            // Snapshot nama kategori saat disimpan agar laporan lama tetap utuh walau work group di-rename/dihapus
             $table->string('kategori')->nullable();
             $table->text('aktivitas')->nullable();
             $table->string('pic')->nullable();
