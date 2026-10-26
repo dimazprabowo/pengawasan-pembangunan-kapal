@@ -23,7 +23,7 @@ class LaporanHarianService
         ?int $dataKapalId = null,
         int $perPage = 15
     ): LengthAwarePaginator {
-        $query = LaporanHarian::with(['user', 'dataKapal.company', 'dataKapal.galangan', 'lampiran'])
+        $query = LaporanHarian::with(['user', 'updatedBy:id,name', 'dataKapal.company', 'dataKapal.galangan', 'lampiran'])
             ->byDataKapal($dataKapalId);
 
         if ($search) {

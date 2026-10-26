@@ -13,6 +13,8 @@ return new class extends Migration
             $table->string('nama');
             $table->text('keterangan')->nullable();
             $table->enum('status', ['active', 'inactive'])->default('active');
+            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
             $table->softDeletes();
 

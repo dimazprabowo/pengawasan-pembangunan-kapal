@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ConfigCategory;
 use App\Enums\ConfigDataType;
+use App\Traits\HasUserStamps;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
@@ -12,6 +13,7 @@ use Illuminate\Support\Facades\Schema;
 class SystemConfiguration extends Model
 {
     use HasFactory;
+    use HasUserStamps;
 
     protected $fillable = [
         'key',

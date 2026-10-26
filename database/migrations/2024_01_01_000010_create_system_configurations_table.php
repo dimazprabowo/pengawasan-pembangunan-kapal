@@ -20,8 +20,10 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->boolean('is_editable')->default(true);
             $table->boolean('is_active')->default(true);
+            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
-            
+
             $table->index('key');
             $table->index('category');
             $table->index('is_active');

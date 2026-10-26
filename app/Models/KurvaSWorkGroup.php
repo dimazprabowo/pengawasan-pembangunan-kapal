@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Traits\HasUserStamps;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class KurvaSWorkGroup extends Model
 {
+    use HasUserStamps;
+
     protected $table = 'kurva_s_work_groups';
 
     protected $fillable = [

@@ -26,6 +26,8 @@ return new class extends Migration
             $table->string('template_path_mingguan')->nullable();
             $table->string('template_path_bulanan')->nullable();
             $table->enum('status', ['active', 'inactive'])->default('active');
+            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
             $table->softDeletes();
 

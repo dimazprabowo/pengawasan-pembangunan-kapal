@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\HasEncryptedRouteKey;
+use App\Traits\HasUserStamps;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,6 +22,11 @@ use Spatie\Activitylog\Traits\LogsActivity;
  */
 class LaporanBulanan extends Model
 {
+    use HasUserStamps;
+
+    /** user_id sudah menjadi creator */
+    protected array $userStamps = ['updated_by'];
+
     use HasEncryptedRouteKey, HasFactory, LogsActivity, SoftDeletes;
 
     /**

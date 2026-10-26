@@ -15,14 +15,14 @@ class SystemConfigurationService
         ?string $isActive = null,
         int $perPage = 15
     ): LengthAwarePaginator {
-        $query = SystemConfiguration::query();
+        $query = SystemConfiguration::with(['createdBy:id,name', 'updatedBy:id,name']);
 
         if ($search) {
             $operator = $this->getLikeOperator();
             $query->where(function ($q) use ($search, $operator) {
                 $q->where('key', $operator, "%{$search}%")
-                  ->orWhere('description', $operator, "%{$search}%")
-                  ->orWhere('value', $operator, "%{$search}%");
+                    ->orWhere('description', $operator, "%{$search}%")
+                    ->orWhere('value', $operator, "%{$search}%");
             });
         }
 
@@ -44,7 +44,7 @@ class SystemConfigurationService
 
     public function toggleActive(SystemConfiguration $config): SystemConfiguration
     {
-        $config->update(['is_active' => !$config->is_active]);
+        $config->update(['is_active' => ! $config->is_active]);
 
         $this->applyRuntimeConfig($config->key, $config->value, $config->is_active);
 

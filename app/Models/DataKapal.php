@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\DataKapalStatus;
 use App\Traits\HasEncryptedRouteKey;
+use App\Traits\HasUserStamps;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class DataKapal extends Model
 {
     use HasEncryptedRouteKey, HasFactory, SoftDeletes;
+    use HasUserStamps;
 
     protected $table = 'data_kapal';
 

@@ -13,7 +13,7 @@ class GalanganService
         string $statusFilter = '',
         int $perPage = 15
     ): LengthAwarePaginator {
-        return Galangan::withCount('dataKapal')
+        return Galangan::with(['createdBy:id,name', 'updatedBy:id,name'])->withCount('dataKapal')
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($q) use ($search) {
                     $q->where('nama', 'like', "%{$search}%")

@@ -13,11 +13,11 @@ class CuacaService
         string $statusFilter = '',
         int $perPage = 15
     ): LengthAwarePaginator {
-        return Cuaca::query()
+        return Cuaca::with(['createdBy:id,name', 'updatedBy:id,name'])
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($q) use ($search) {
                     $q->where('nama', 'like', "%{$search}%")
-                      ->orWhere('keterangan', 'like', "%{$search}%");
+                        ->orWhere('keterangan', 'like', "%{$search}%");
                 });
             })
             ->when($statusFilter !== null && $statusFilter !== '', function ($q) use ($statusFilter) {
@@ -35,6 +35,7 @@ class CuacaService
     public function update(Cuaca $cuaca, array $data): Cuaca
     {
         $cuaca->update($data);
+
         return $cuaca->fresh();
     }
 

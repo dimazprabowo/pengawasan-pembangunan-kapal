@@ -14,6 +14,8 @@ return new class extends Migration
             $table->string('nama');
             $table->decimal('bobot', 8, 2)->default(0);
             $table->unsignedSmallInteger('sort_order')->default(0);
+            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 
             $table->index(['data_kapal_id', 'sort_order']);

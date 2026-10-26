@@ -9,17 +9,17 @@ class QueueStatusService
 {
     /**
      * Check if queue worker is active
-     * 
+     *
      * Detection strategy:
      * 1. Check cache (set by jobs when they execute)
      * 2. Check for jobs being processed (reserved_at within last 60s)
      * 3. Check for very recent pending jobs (created within last 10s) - gives grace period
      * 4. Check for recent failed jobs (indicates worker is running but jobs failing)
-     * 
+     *
      * The 10-second grace period for pending jobs prevents false negatives when:
      * - A job is just dispatched but worker hasn't picked it up yet
      * - User clicks generate and immediately sees the status
-     * 
+     *
      * @return bool True if worker appears to be active, false otherwise
      */
     public function isQueueWorkerActive(): bool
@@ -27,7 +27,7 @@ class QueueStatusService
         try {
             // Check cache first (set by jobs when they run)
             $cachedStatus = Cache::get('queue_worker_active', false);
-            
+
             if ($cachedStatus) {
                 return true;
             }
@@ -39,6 +39,7 @@ class QueueStatusService
 
             if ($recentJobs) {
                 Cache::put('queue_worker_active', true, now()->addMinutes(5));
+
                 return true;
             }
 
@@ -60,7 +61,7 @@ class QueueStatusService
             $recentFailedJobs = DB::table('failed_jobs')
                 ->where('failed_at', '>=', now()->subMinutes(2))
                 ->exists();
-            
+
             if ($recentFailedJobs) {
                 // Worker is active but jobs are failing
                 return true;

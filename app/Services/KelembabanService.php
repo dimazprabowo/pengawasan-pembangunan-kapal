@@ -13,12 +13,12 @@ class KelembabanService
         string $statusFilter = '',
         int $perPage = 15
     ): LengthAwarePaginator {
-        return Kelembaban::query()
+        return Kelembaban::with(['createdBy:id,name', 'updatedBy:id,name'])
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($q) use ($search) {
                     $q->where('nama', 'like', "%{$search}%")
-                      ->orWhere('nilai', 'like', "%{$search}%")
-                      ->orWhere('keterangan', 'like', "%{$search}%");
+                        ->orWhere('nilai', 'like', "%{$search}%")
+                        ->orWhere('keterangan', 'like', "%{$search}%");
                 });
             })
             ->when($statusFilter !== null && $statusFilter !== '', function ($q) use ($statusFilter) {
@@ -36,6 +36,7 @@ class KelembabanService
     public function update(Kelembaban $kelembaban, array $data): Kelembaban
     {
         $kelembaban->update($data);
+
         return $kelembaban->fresh();
     }
 

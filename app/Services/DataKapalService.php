@@ -24,7 +24,7 @@ class DataKapalService
         ?int $galanganFilter = null,
         int $perPage = 15
     ): LengthAwarePaginator {
-        return DataKapal::with(['company', 'galangan'])
+        return DataKapal::with(['company', 'galangan', 'createdBy:id,name', 'updatedBy:id,name'])
             ->withCount('laporanHarian')
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($q) use ($search) {

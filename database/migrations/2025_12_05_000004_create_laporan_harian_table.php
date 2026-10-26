@@ -32,6 +32,7 @@ return new class extends Migration
             $table->foreignId('kelembaban_siang_id')->nullable()->constrained('kelembaban')->nullOnDelete();
             $table->foreignId('cuaca_sore_id')->nullable()->constrained('cuaca')->nullOnDelete();
             $table->foreignId('kelembaban_sore_id')->nullable()->constrained('kelembaban')->nullOnDelete();
+            $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
             $table->softDeletes();
 

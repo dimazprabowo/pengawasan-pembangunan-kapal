@@ -12,7 +12,7 @@ class ImpersonateService
 
     public function start(User $target): void
     {
-        if (!Auth::check() || $this->isImpersonating() || Auth::id() === $target->id) {
+        if (! Auth::check() || $this->isImpersonating() || Auth::id() === $target->id) {
             abort(403, 'Tidak dapat memulai impersonate.');
         }
 
@@ -39,7 +39,7 @@ class ImpersonateService
     {
         $originalId = Session::get(self::SESSION_KEY);
 
-        if (!$originalId) {
+        if (! $originalId) {
             return null;
         }
 

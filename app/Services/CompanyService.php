@@ -15,7 +15,7 @@ class CompanyService
         ?string $statusFilter = null,
         int $perPage = 15
     ): LengthAwarePaginator {
-        $query = Company::withCount(['users', 'dataKapal']);
+        $query = Company::with(['createdBy:id,name', 'updatedBy:id,name'])->withCount(['users', 'dataKapal']);
 
         if ($search) {
             $operator = $this->getLikeOperator();

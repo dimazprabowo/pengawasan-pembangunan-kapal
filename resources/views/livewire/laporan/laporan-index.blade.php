@@ -65,6 +65,7 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Laporan</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Progress</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Laporan Terakhir</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dibuat / Diubah</th>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
                     </tr>
                 </thead>
@@ -140,6 +141,10 @@
                                     <span class="text-sm text-gray-400 dark:text-gray-500">Belum ada</span>
                                 @endif
                             </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                                <div>Dibuat: {{ $dataKapal->createdBy?->name ?? '—' }}</div>
+                                <div class="text-gray-400 dark:text-gray-500">Diubah: {{ $dataKapal->updatedBy?->name ?? '—' }}</div>
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right">
                                 <x-loading-button wire:click="openLaporan({{ $dataKapal->id }})"
                                     target="openLaporan({{ $dataKapal->id }})"
@@ -158,7 +163,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-6 py-12 text-center">
+                            <td colspan="8" class="px-6 py-12 text-center">
                                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                                 </svg>

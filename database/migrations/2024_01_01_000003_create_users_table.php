@@ -23,8 +23,10 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->string('password');
             $table->rememberToken();
+            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
-            
+
             $table->index('company_id');
             $table->index('is_active');
         });

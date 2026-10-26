@@ -29,6 +29,7 @@ return new class extends Migration
             $table->timestamp('doc_generated_at')->nullable();
             $table->text('doc_error')->nullable();
 
+            $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
             $table->softDeletes();
 

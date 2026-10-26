@@ -20,9 +20,11 @@ return new class extends Migration
             $table->string('pic_phone', 20)->nullable();
             $table->string('npwp', 16)->nullable()->unique();
             $table->enum('status', ['active', 'inactive', 'suspended'])->default('active');
+            $table->foreignId('created_by')->nullable()->index();
+            $table->foreignId('updated_by')->nullable()->index();
             $table->timestamps();
             $table->softDeletes();
-            
+
             $table->index('status');
             $table->index('created_at');
         });

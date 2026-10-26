@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\GalanganStatus;
+use App\Traits\HasUserStamps;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Galangan extends Model
 {
     use HasFactory, SoftDeletes;
+    use HasUserStamps;
 
     protected $table = 'galangan';
 

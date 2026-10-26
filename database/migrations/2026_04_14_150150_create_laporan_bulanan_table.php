@@ -22,6 +22,7 @@ return new class extends Migration
             $table->unsignedSmallInteger('bulan_ke')
                 ->comment('Nomor bulan konstruksi (referensi ke kurva_s_rencana)');
 
+            $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
             $table->softDeletes();
 

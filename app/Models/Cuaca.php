@@ -3,14 +3,16 @@
 namespace App\Models;
 
 use App\Enums\CuacaStatus;
+use App\Traits\HasUserStamps;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Cuaca extends Model
 {
     use HasFactory, SoftDeletes;
+    use HasUserStamps;
 
     protected $table = 'cuaca';
 
