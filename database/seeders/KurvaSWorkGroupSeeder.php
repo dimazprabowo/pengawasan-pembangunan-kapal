@@ -82,7 +82,7 @@ class KurvaSWorkGroupSeeder extends Seeder
     private function generateMonths(int $startMonth, int $endMonth, int $totalMonths, int $sigmaMultiplier = 4, float $totalPct = 100.00): array
     {
         $months = array_fill(0, $totalMonths, 0.0);
-        $startMonth = max(1, $startMonth);
+        $startMonth = min(max(1, $startMonth), $totalMonths);
         $endMonth = min($totalMonths, max($startMonth, $endMonth));
         $activeMonths = $endMonth - $startMonth + 1;
 
@@ -109,11 +109,12 @@ class KurvaSWorkGroupSeeder extends Seeder
                 $months[$i] = round(($val / $sum) * $totalPct, 2);
             }
 
-            // Adjust the peak month to ensure exact total = $totalPct
-            $currentSum = array_sum($months);
-            if (abs($currentSum - $totalPct) > 0.01) {
-                $peakIndex = (int) round($peakMonth) - 1;
-                $months[$peakIndex] = round($months[$peakIndex] + ($totalPct - $currentSum), 2);
+            // Koreksi residual pembulatan pada bulan bernilai terbesar
+            // agar total distribusi = $totalPct persis (= bobot group).
+            $diff = round($totalPct - array_sum($months), 2);
+            if ($diff != 0.0) {
+                $peakIndex = array_keys($months, max($months))[0];
+                $months[$peakIndex] = round($months[$peakIndex] + $diff, 2);
             }
         }
 

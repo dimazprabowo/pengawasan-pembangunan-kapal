@@ -102,6 +102,51 @@ document.addEventListener('alpine:init', () => {
         });
     }
 
+    // Freeze panes ala Excel untuk tabel: header & body = 2 tabel dengan colgroup identik.
+    // Header (x-ref="headScroll") sticky tepat di bawah navbar; scroll horizontal
+    // disinkronkan dari body (x-ref="bodyScroll"). Pasang @resize.window & @scroll.window
+    // -> updateNavH(), @scroll.passive body -> syncScroll(), @wheel header -> forwardWheel().
+    Alpine.data('freezeHeader', () => {
+        let resizeObserver = null;
+
+        return {
+            navH: 0,
+
+            init() {
+                this.updateNavH();
+                // Lebar tabel berubah (kolom bertambah/berkurang) -> scrollLeft body bisa ter-clamp
+                const table = this.$refs.bodyScroll?.firstElementChild;
+                if (table && typeof ResizeObserver !== 'undefined') {
+                    resizeObserver = new ResizeObserver(() => this.syncScroll());
+                    resizeObserver.observe(table);
+                }
+            },
+
+            updateNavH() {
+                const nav = document.querySelector('nav.sticky');
+                this.navH = nav ? Math.max(0, Math.round(nav.getBoundingClientRect().bottom)) : 0;
+            },
+
+            syncScroll() {
+                if (this.$refs.headScroll && this.$refs.bodyScroll) {
+                    this.$refs.headScroll.scrollLeft = this.$refs.bodyScroll.scrollLeft;
+                }
+            },
+
+            forwardWheel(e) {
+                const dx = e.deltaX || (e.shiftKey ? e.deltaY : 0);
+                if (!dx) return;
+                e.preventDefault();
+                this.$refs.bodyScroll.scrollLeft += dx;
+            },
+
+            destroy() {
+                resizeObserver?.disconnect();
+                resizeObserver = null;
+            },
+        };
+    });
+
     // Kurva S Chart component for global use
     Alpine.data('kurvaSChart', (chartData = null, canvasId = null) => {
         let chartInstance = null; // Plain closure variable — NOT Alpine-reactive, prevents Proxy recursion

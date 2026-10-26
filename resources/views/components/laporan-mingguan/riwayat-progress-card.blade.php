@@ -15,13 +15,10 @@
         <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Riwayat Progress per Work Group</h3>
     </div>
     <div class="p-5"
-         @resize.window="updateNavH()"
-         @scroll.window.passive="updateNavH()"
          x-data="{
              bobots: @js(collect($workGroups)->mapWithKeys(fn($wg) => [(string)$wg['work_group_id'] => (float)$wg['bobot']])->all()),
              progressHistory: @js($fullProgressHistory ?? $progressHistory),
              unitLabel: @js($unitLabel),
-             navH: 0,
              init() {
                  @isset($fullProgressHistory)
                  this.$watch(
@@ -29,24 +26,9 @@
                      (val) => { if (Array.isArray(val)) this.progressHistory = val; }
                  );
                  @endisset
-                 this.updateNavH();
-                 this.$watch('progressHistory', () => this.$nextTick(() => this.syncScroll()));
              },
              tableWidth() {
                  return 436 + (this.progressHistory.length * 104);
-             },
-             updateNavH() {
-                 const nav = document.querySelector('nav.sticky');
-                 this.navH = nav ? Math.max(0, Math.round(nav.getBoundingClientRect().bottom)) : 0;
-             },
-             syncScroll() {
-                 this.$refs.headScroll.scrollLeft = this.$refs.bodyScroll.scrollLeft;
-             },
-             forwardWheel(e) {
-                 const dx = e.deltaX || (e.shiftKey ? e.deltaY : 0);
-                 if (!dx) return;
-                 e.preventDefault();
-                 this.$refs.bodyScroll.scrollLeft += dx;
              },
              historyKontribusi(wgId, weekIndex) {
                  const hist = this.progressHistory[weekIndex];
@@ -98,6 +80,7 @@
          }"
          @progress-history-updated.window="progressHistory = $event.detail.history">
         {{-- Freeze panes ala Excel: header & body = 2 tabel dengan colgroup identik; header sticky di bawah navbar, scroll horizontal disinkronkan dari body --}}
+        <div x-data="freezeHeader" @resize.window="updateNavH()" @scroll.window.passive="updateNavH()">
         <div class="sticky z-30 bg-slate-100 dark:bg-slate-900 shadow-sm" :style="'top: ' + navH + 'px'">
             <div x-ref="headScroll" class="overflow-hidden" @wheel="forwardWheel($event)">
                 <table class="w-full table-fixed text-xs border-separate border-spacing-0" :style="'min-width: ' + tableWidth() + 'px'">
@@ -233,6 +216,7 @@
                     </tr>
                 </tbody>
             </table>
+        </div>
         </div>
     </div>
 </div>

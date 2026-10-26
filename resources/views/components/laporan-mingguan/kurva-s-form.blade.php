@@ -81,8 +81,6 @@
 
             {{-- Per Work Group Progress Table --}}
             @if(count($workGroupsForInput) > 0)
-            <div class="overflow-x-auto custom-scrollbar">
-
                 {{-- Warning banner when realisasi kumulatif exceeds bobot --}}
                 @if($this->anyExceedsBobot)
                 <div class="mb-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-3 flex items-start gap-2">
@@ -97,15 +95,30 @@
                 @endif
 
                 @php $weekLabel = $minggu_ke ? 'Mgg. ' . $minggu_ke : 'Minggu Ini'; @endphp
-                <table class="min-w-full text-sm">
-                    <thead>
-                        <tr class="bg-blue-100/60 dark:bg-blue-900/30">
-                            <th class="px-3 py-2 text-left text-xs font-medium text-blue-700 dark:text-blue-300 uppercase whitespace-nowrap">Work Group</th>
-                            <th class="px-3 py-2 text-center text-xs font-medium text-blue-700 dark:text-blue-300 uppercase whitespace-nowrap w-24">Bobot (%)</th>
-                            <th class="px-3 py-2 text-left text-xs font-medium text-blue-700 dark:text-blue-300 uppercase whitespace-nowrap w-44">Realisasi {{ $weekLabel }} (%)</th>
-                            <th class="px-3 py-2 text-right text-xs font-medium text-blue-700 dark:text-blue-300 uppercase whitespace-nowrap w-36">Total s/d {{ $weekLabel }} (%)</th>
-                        </tr>
-                    </thead>
+                {{-- Freeze panes: header & body = 2 tabel dengan colgroup identik; header sticky di bawah navbar, scroll horizontal disinkronkan dari body --}}
+                <div x-data="freezeHeader" @resize.window="updateNavH()" @scroll.window.passive="updateNavH()">
+                <div class="sticky z-30 bg-white dark:bg-gray-800 shadow-sm" :style="'top: ' + navH + 'px'">
+                    <div x-ref="headScroll" class="overflow-hidden" @wheel="forwardWheel($event)">
+                        <table class="w-full min-w-[680px] table-fixed text-sm">
+                            <colgroup>
+                                <col><col style="width: 96px"><col style="width: 200px"><col style="width: 200px">
+                            </colgroup>
+                            <thead>
+                                <tr class="bg-blue-100/60 dark:bg-blue-900/30">
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-blue-700 dark:text-blue-300 uppercase whitespace-nowrap">Work Group</th>
+                                    <th class="px-3 py-2 text-center text-xs font-medium text-blue-700 dark:text-blue-300 uppercase whitespace-nowrap">Bobot (%)</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-blue-700 dark:text-blue-300 uppercase whitespace-nowrap">Realisasi {{ $weekLabel }} (%)</th>
+                                    <th class="px-3 py-2 text-right text-xs font-medium text-blue-700 dark:text-blue-300 uppercase whitespace-nowrap">Total s/d {{ $weekLabel }} (%)</th>
+                                </tr>
+                            </thead>
+                        </table>
+                    </div>
+                </div>
+                <div x-ref="bodyScroll" class="overflow-x-auto custom-scrollbar" @scroll.passive="syncScroll()">
+                <table class="w-full min-w-[680px] table-fixed text-sm">
+                    <colgroup>
+                        <col><col style="width: 96px"><col style="width: 200px"><col style="width: 200px">
+                    </colgroup>
                     <tbody class="divide-y divide-blue-100 dark:divide-blue-900/30">
                         @foreach($workGroupsForInput as $wg)
                         <tr class="hover:bg-blue-50/50 dark:hover:bg-blue-900/10">
@@ -168,7 +181,8 @@
                         </tr>
                     </tfoot>
                 </table>
-            </div>
+                </div>
+                </div>
 
             <p class="text-xs text-blue-500 dark:text-blue-400 mt-2">
                 Masukkan kontribusi realisasi masing-masing work group minggu ini dalam satuan % proyek (bukan % group). Total kumulatif per group tidak boleh melebihi bobotnya.

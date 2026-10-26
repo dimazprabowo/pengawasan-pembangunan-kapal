@@ -9,6 +9,7 @@ use App\Models\LaporanMingguan;
 use App\Models\LaporanMingguanProgress;
 use App\Models\User;
 use App\Services\KontrakPeriodeService;
+use App\Services\KurvaSService;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 
@@ -59,6 +60,50 @@ class LaporanMingguanSeeder extends Seeder
             ];
         }
 
+        $workGroups = KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)->get();
+        $kurvaService = app(KurvaSService::class);
+
+        // Matriks rencana mingguan per work group [work_group_id => [minggu_ke => pct]]
+        // (diturunkan dari rencana bulanan — dibagi rata ke minggunya).
+        $planByWg = [];
+        foreach ($mingguList as $minggu) {
+            foreach ($kurvaService->getWeekPlans($dataKapal, $minggu['minggu_ke']) as $wgId => $pct) {
+                $planByWg[$wgId][$minggu['minggu_ke']] = (float) $pct;
+            }
+        }
+
+        // Realisasi mingguan per work group: mengikuti bentuk rencana dengan
+        // variasi acak per minggu, lalu diskala agar total kumulatif per group
+        // tepat = bobot-nya (proyek selesai -> progress 100%).
+        $realisasiByWg = [];
+        foreach ($workGroups as $wg) {
+            $raw = [];
+            foreach ($mingguList as $minggu) {
+                $plan = $planByWg[$wg->id][$minggu['minggu_ke']] ?? 0.0;
+                $raw[$minggu['minggu_ke']] = $plan * (rand(85, 115) / 100);
+            }
+
+            $sumRaw = array_sum($raw);
+            $scale = $sumRaw > 0 ? ((float) $wg->bobot) / $sumRaw : 0.0;
+
+            $realisasi = [];
+            foreach ($raw as $mingguKe => $value) {
+                $realisasi[$mingguKe] = round($value * $scale, 2);
+            }
+
+            // Koreksi residual pembulatan pada minggu bernilai terbesar
+            // agar total realisasi per group = bobot persis.
+            if ($sumRaw > 0) {
+                $diff = round((float) $wg->bobot - array_sum($realisasi), 2);
+                if ($diff != 0.0) {
+                    $maxWeek = array_keys($realisasi, max($realisasi))[0];
+                    $realisasi[$maxWeek] = round($realisasi[$maxWeek] + $diff, 2);
+                }
+            }
+
+            $realisasiByWg[$wg->id] = $realisasi;
+        }
+
         foreach ($laporanData as $data) {
             $laporan = LaporanMingguan::firstOrCreate(
                 [
@@ -75,25 +120,16 @@ class LaporanMingguanSeeder extends Seeder
                 ]
             );
 
-            // Create progress records for each work group
-            $workGroups = KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)->get();
-
-            // Rencana minggu ini diturunkan dari rencana bulanan (dibagi rata ke minggunya)
-            $rencanaMinggu = app(\App\Services\KurvaSService::class)->getWeekPlans($dataKapal, $data['minggu_ke']);
-
+            // Realisasi minggu ini dalam poin % proyek — dari matriks yang sudah
+            // diskala agar total per group = bobot (lihat blok prekomputasi di atas).
             foreach ($workGroups as $wg) {
-                // Realisasi minggu ini dalam poin % proyek — mengikuti rencana minggu tsb
-                // dengan variasi ±15% agar kurva aktual sedikit menyimpang dari rencana.
-                $pctRencana = (float) ($rencanaMinggu[$wg->id] ?? 0);
-                $progress = round(max(0, min((float) $wg->bobot, $pctRencana * (rand(80, 115) / 100))), 2);
-
                 LaporanMingguanProgress::updateOrCreate(
                     [
                         'laporan_mingguan_id' => $laporan->id,
                         'work_group_id' => $wg->id,
                     ],
                     [
-                        'pct_realisasi' => $progress,
+                        'pct_realisasi' => $realisasiByWg[$wg->id][$data['minggu_ke']] ?? 0,
                     ]
                 );
             }
