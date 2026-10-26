@@ -18,6 +18,7 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class DataKapalManagement extends Component
 {
+    use \App\Livewire\Traits\HasTableSorting;
     use AuthorizesRequests, HasNotification, WithFileUploads, WithPagination;
 
     protected $paginationTheme = 'tailwind';
@@ -415,7 +416,9 @@ class DataKapalManagement extends Component
                 $this->statusFilter,
                 $this->companyFilter ? (int) $this->companyFilter : null,
                 $this->galanganFilter ? (int) $this->galanganFilter : null,
-                $this->perPage
+                $this->perPage,
+                $this->sortField,
+                $this->sortDir
             ),
             'statuses' => DataKapalStatus::cases(),
             'companies' => Company::active()->orderBy('name')->get(),

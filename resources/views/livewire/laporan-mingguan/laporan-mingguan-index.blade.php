@@ -77,7 +77,12 @@
                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
         </div>
 
-        <x-filter-popover :per-page="true" />
+        <x-filter-popover :filters="['bulanFilter']" :per-page="true">
+            <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Bulan</label>
+                <x-multi-searchable-select wire:model.live="bulanFilter" :options="$bulanOptions" placeholder="Semua Bulan" searchPlaceholder="Cari bulan..." />
+            </div>
+        </x-filter-popover>
 
         <div class="flex items-center gap-2 flex-wrap">
             @can('exportExcel', \App\Models\LaporanMingguan::class)
@@ -198,12 +203,12 @@
                 <thead class="bg-gray-50 dark:bg-gray-900">
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Judul</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tanggal Laporan</th>
+                        <x-sortable-header field="minggu_ke" :sort-field="$sortField" :sort-dir="$sortDir">Judul</x-sortable-header>
+                        <x-sortable-header field="tanggal_laporan" :sort-field="$sortField" :sort-dir="$sortDir">Tanggal Laporan</x-sortable-header>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tanggal Harian</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Pembuat</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dibuat</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dibuat / Diubah</th>
+                        <x-sortable-header field="updated_at" :sort-field="$sortField" :sort-dir="$sortDir">Dibuat / Diubah</x-sortable-header>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
                     </tr>
                 </thead>

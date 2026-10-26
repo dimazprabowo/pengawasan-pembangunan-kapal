@@ -77,7 +77,16 @@
                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
         </div>
 
-        <x-filter-popover :per-page="true" />
+        <x-filter-popover :filters="['mingguFilter', 'bulanFilter']" :per-page="true">
+            <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Minggu</label>
+                <x-multi-searchable-select wire:model.live="mingguFilter" :options="$mingguOptions" placeholder="Semua Minggu" searchPlaceholder="Cari minggu..." />
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Bulan</label>
+                <x-multi-searchable-select wire:model.live="bulanFilter" :options="$bulanOptions" placeholder="Semua Bulan" searchPlaceholder="Cari bulan..." />
+            </div>
+        </x-filter-popover>
 
         <div class="flex items-center gap-2 flex-wrap">
             @can('exportExcel', \App\Models\LaporanHarian::class)
@@ -120,17 +129,22 @@
                 <thead class="bg-gray-50 dark:bg-gray-900">
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">No</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Judul</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tanggal</th>
+                        <x-sortable-header field="judul" :sort-field="$sortField" :sort-dir="$sortDir">Judul</x-sortable-header>
+                        <x-sortable-header field="tanggal_laporan" :sort-field="$sortField" :sort-dir="$sortDir">Tanggal</x-sortable-header>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Pembuat</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dibuat</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dibuat / Diubah</th>
+                        <x-sortable-header field="updated_at" :sort-field="$sortField" :sort-dir="$sortDir">Dibuat / Diubah</x-sortable-header>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     @forelse($laporanList as $index => $laporan)
-                        <tr wire:key="laporan-harian-{{ $laporan->id }}" class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        @php
+                            $rowClass = $laporan->isDocCompleted()
+                                ? 'bg-emerald-50/70 hover:bg-emerald-100/70 dark:bg-emerald-900/15 dark:hover:bg-emerald-900/25'
+                                : 'hover:bg-gray-50 dark:hover:bg-gray-700';
+                        @endphp
+                        <tr wire:key="laporan-harian-{{ $laporan->id }}" class="{{ $rowClass }} transition-colors">
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                 {{ $laporanList->firstItem() + $index }}
                             </td>

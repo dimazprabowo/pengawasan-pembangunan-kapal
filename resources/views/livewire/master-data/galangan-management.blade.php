@@ -50,12 +50,12 @@
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead class="bg-gray-50 dark:bg-gray-900">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Galangan</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Lokasi</th>
+                        <x-sortable-header field="nama" :sort-field="$sortField" :sort-dir="$sortDir">Galangan</x-sortable-header>
+                        <x-sortable-header field="kota" :sort-field="$sortField" :sort-dir="$sortDir">Lokasi</x-sortable-header>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Kontak</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Data Kapal</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dibuat / Diubah</th>
+                        <x-sortable-header field="data_kapal_count" :sort-field="$sortField" :sort-dir="$sortDir">Data Kapal</x-sortable-header>
+                        <x-sortable-header field="status" :sort-field="$sortField" :sort-dir="$sortDir">Status</x-sortable-header>
+                        <x-sortable-header field="updated_at" :sort-field="$sortField" :sort-dir="$sortDir">Dibuat / Diubah</x-sortable-header>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
                     </tr>
                 </thead>

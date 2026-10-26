@@ -33,8 +33,8 @@ class LaporanHarianSeeder extends Seeder
             return;
         }
 
-        // Rentang tanggal: 14 hari ke belakang s/d 7 hari ke depan agar data demo
-        // mencakup periode berjalan maupun periode yang belum sepenuhnya berlalu.
+        // Rentang tanggal: 14 hari ke belakang s/d hari ini — laporan harian
+        // tidak boleh melebihi tanggal berjalan.
         $tanggalMulai = Carbon::now()->subDays(14);
         $jumlahHari = 21;
 
@@ -44,6 +44,10 @@ class LaporanHarianSeeder extends Seeder
 
             for ($i = 0; $i < $jumlahHari; $i++) {
                 $tanggal = $tanggalMulai->copy()->addDays($i);
+
+                if ($tanggal->isFuture()) {
+                    break;
+                }
 
                 $laporan = LaporanHarian::firstOrCreate(
                     [

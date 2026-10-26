@@ -8,12 +8,16 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class KelembabanService
 {
+    use \App\Traits\SortsQuery;
+
     public function getFiltered(
         string $search = '',
         string $statusFilter = '',
-        int $perPage = 15
+        int $perPage = 15,
+        ?string $sortField = null,
+        string $sortDir = 'asc'
     ): LengthAwarePaginator {
-        return Kelembaban::with(['createdBy:id,name', 'updatedBy:id,name'])
+        $query = Kelembaban::with(['createdBy:id,name', 'updatedBy:id,name'])
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($q) use ($search) {
                     $q->where('nama', 'like', "%{$search}%")
@@ -23,9 +27,15 @@ class KelembabanService
             })
             ->when($statusFilter !== null && $statusFilter !== '', function ($q) use ($statusFilter) {
                 $q->where('status', $statusFilter);
-            })
-            ->orderBy('id', 'desc')
-            ->paginate($perPage);
+            });
+
+        $this->applySorting($query, [
+            'nama' => 'kelembaban.nama',
+            'status' => 'kelembaban.status',
+            'updated_at' => 'kelembaban.updated_at',
+        ], $sortField, $sortDir, 'nama', 'asc', 'kelembaban.id');
+
+        return $query->paginate($perPage);
     }
 
     public function create(array $data): Kelembaban

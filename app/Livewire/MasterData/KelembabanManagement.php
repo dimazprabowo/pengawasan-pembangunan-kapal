@@ -15,6 +15,7 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class KelembabanManagement extends Component
 {
+    use \App\Livewire\Traits\HasTableSorting;
     use AuthorizesRequests, HasNotification, WithPagination;
 
     protected $paginationTheme = 'tailwind';
@@ -258,7 +259,9 @@ class KelembabanManagement extends Component
             'kelembabanList' => $service->getFiltered(
                 $this->search,
                 $this->statusFilter,
-                $this->perPage
+                $this->perPage,
+                $this->sortField,
+                $this->sortDir
             ),
             'statuses' => KelembabanStatus::cases(),
         ]);

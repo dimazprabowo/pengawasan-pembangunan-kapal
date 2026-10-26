@@ -27,9 +27,9 @@ class Dashboard extends Component
         ];
 
         if ($canViewStats) {
-            $data['totalUsers']     = User::count();
+            $data['totalUsers'] = User::count();
             $data['totalCompanies'] = Company::count();
-            $data['totalRoles']     = Role::count();
+            $data['totalRoles'] = Role::count();
         }
 
         return view('livewire.pages.dashboard', $data);

@@ -267,26 +267,49 @@
 
         {{-- Card Body --}}
         <div class="p-5 space-y-5">
-            {{-- Judul (tanggal sudah termasuk di judul hasil generate) --}}
+            {{-- Meta laporan: judul + chip tanggal/periode, lalu audit --}}
             <div>
-                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Judul</label>
-                <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ $laporan->judul }}</p>
+                <p class="text-base font-semibold text-gray-900 dark:text-white leading-snug">{{ $laporan->judul }}</p>
+                <div class="mt-2.5 flex flex-wrap items-center gap-2">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700/60 dark:text-gray-300">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        {{ $laporan->tanggal_laporan->translatedFormat('l, d F Y') }}
+                    </span>
+                    @if($hariKe)
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/25 dark:text-blue-300">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            Hari ke-{{ $hariKe }}
+                        </span>
+                    @endif
+                    @if($mingguKe)
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-indigo-50 text-indigo-700 dark:bg-indigo-900/25 dark:text-indigo-300">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            Minggu ke-{{ $mingguKe }}
+                        </span>
+                    @endif
+                </div>
             </div>
 
-            {{-- Pembuat + Dibuat --}}
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Pembuat</label>
-                    <div class="flex items-center gap-2">
-                        <div class="h-7 w-7 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-xs">
-                            {{ substr($laporan->user->name ?? '-', 0, 1) }}
-                        </div>
-                        <span class="text-sm text-gray-900 dark:text-white">{{ $laporan->user->name ?? '-' }}</span>
+            <div class="pt-4 border-t border-gray-100 dark:border-gray-700/60 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="h-9 w-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-sm shrink-0">
+                        {{ substr($laporan->user->name ?? '-', 0, 1) }}
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dibuat Oleh</p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ $laporan->user->name ?? '-' }}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ $laporan->created_at->translatedFormat('d M Y, H:i') }}</p>
                     </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Dibuat</label>
-                    <p class="text-sm text-gray-900 dark:text-white">{{ $laporan->created_at->translatedFormat('d F Y H:i') }}</p>
+                <div class="flex items-center gap-3">
+                    <div class="h-9 w-9 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-semibold text-sm shrink-0">
+                        {{ substr($laporan->updatedBy->name ?? '-', 0, 1) }}
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Terakhir Diubah</p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ $laporan->updatedBy->name ?? '—' }}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ $laporan->updated_at->translatedFormat('d M Y, H:i') }}</p>
+                    </div>
                 </div>
             </div>
 

@@ -11,10 +11,14 @@ use Illuminate\Support\Facades\Storage;
 
 class LaporanBulananService
 {
+    use \App\Traits\SortsQuery;
+
     public function getFiltered(
         ?string $search = null,
         ?int $dataKapalId = null,
-        int $perPage = 15
+        int $perPage = 15,
+        ?string $sortField = null,
+        string $sortDir = 'asc'
     ): LengthAwarePaginator {
         $query = LaporanBulanan::with(['user', 'updatedBy:id,name', 'dataKapal.company', 'dataKapal.galangan'])
             ->byDataKapal($dataKapalId);
@@ -32,9 +36,13 @@ class LaporanBulananService
             });
         }
 
-        return $query->orderByDesc('bulan_ke')
-            ->orderByDesc('tanggal_laporan')
-            ->orderByDesc('created_at')
+        $this->applySorting($query, [
+            'bulan_ke' => 'laporan_bulanan.bulan_ke',
+            'tanggal_laporan' => 'laporan_bulanan.tanggal_laporan',
+            'updated_at' => 'laporan_bulanan.updated_at',
+        ], $sortField, $sortDir, 'bulan_ke', 'desc', 'laporan_bulanan.created_at', 'desc');
+
+        return $query
             ->paginate($perPage);
     }
 

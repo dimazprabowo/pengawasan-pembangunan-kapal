@@ -146,6 +146,14 @@ class LaporanHarianCreate extends Component
         while (in_array($candidate->format('Y-m-d'), $taken) && $guard++ < 3660) {
             $candidate->subDay();
         }
+
+        $mulaiKontrak = $this->dataKapal->tanggal_mulai_kontrak?->copy()->startOfDay();
+        if ($mulaiKontrak && $candidate->lt($mulaiKontrak)) {
+            $this->notifyWarning('Semua tanggal dalam periode kontrak ('.$mulaiKontrak->translatedFormat('d M Y').' s/d hari ini) sudah memiliki laporan.');
+
+            return;
+        }
+
         $tanggalLaporan = $candidate->format('Y-m-d');
 
         $this->items[] = [
@@ -431,6 +439,12 @@ class LaporanHarianCreate extends Component
                 'date',
                 'before_or_equal:today',
                 'distinct',
+                function ($attribute, $value, $fail) {
+                    $mulaiKontrak = $this->dataKapal->tanggal_mulai_kontrak;
+                    if ($value && $mulaiKontrak && \Carbon\Carbon::parse($value)->lt($mulaiKontrak)) {
+                        $fail('Tanggal laporan tidak boleh sebelum tanggal mulai kontrak ('.$mulaiKontrak->translatedFormat('d M Y').').');
+                    }
+                },
                 // whereDate (bukan Rule::unique) agar perbandingan tanggal konsisten lintas driver DB
                 function ($attribute, $value, $fail) {
                     if ($value && LaporanHarian::where('data_kapal_id', $this->data_kapal_id)
@@ -625,7 +639,11 @@ class LaporanHarianCreate extends Component
 
             $this->notifySuccess($message);
 
-            $this->redirect(route('laporan-harian.index', $this->dataKapal), navigate: true);
+            if (count($createdLaporans) === 1) {
+                $this->redirect(route('laporan-harian.show', [$this->dataKapal, $createdLaporans[0]]), navigate: true);
+            } else {
+                $this->redirect(route('laporan-harian.index', $this->dataKapal), navigate: true);
+            }
         } catch (\Exception $e) {
             Log::error('LaporanHarianCreate: gagal menyimpan', ['error' => $e->getMessage()]);
             $this->notifyError('Terjadi kesalahan sistem. Silakan coba lagi.');

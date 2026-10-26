@@ -8,12 +8,16 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class CuacaService
 {
+    use \App\Traits\SortsQuery;
+
     public function getFiltered(
         string $search = '',
         string $statusFilter = '',
-        int $perPage = 15
+        int $perPage = 15,
+        ?string $sortField = null,
+        string $sortDir = 'asc'
     ): LengthAwarePaginator {
-        return Cuaca::with(['createdBy:id,name', 'updatedBy:id,name'])
+        $query = Cuaca::with(['createdBy:id,name', 'updatedBy:id,name'])
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($q) use ($search) {
                     $q->where('nama', 'like', "%{$search}%")
@@ -22,9 +26,15 @@ class CuacaService
             })
             ->when($statusFilter !== null && $statusFilter !== '', function ($q) use ($statusFilter) {
                 $q->where('status', $statusFilter);
-            })
-            ->orderBy('id', 'desc')
-            ->paginate($perPage);
+            });
+
+        $this->applySorting($query, [
+            'nama' => 'cuaca.nama',
+            'status' => 'cuaca.status',
+            'updated_at' => 'cuaca.updated_at',
+        ], $sortField, $sortDir, 'nama', 'asc', 'cuaca.id');
+
+        return $query->paginate($perPage);
     }
 
     public function create(array $data): Cuaca

@@ -15,6 +15,7 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class GalanganManagement extends Component
 {
+    use \App\Livewire\Traits\HasTableSorting;
     use AuthorizesRequests, HasNotification, WithPagination;
 
     protected $paginationTheme = 'tailwind';
@@ -312,7 +313,9 @@ class GalanganManagement extends Component
             'galanganList' => $service->getFiltered(
                 $this->search,
                 $this->statusFilter,
-                $this->perPage
+                $this->perPage,
+                $this->sortField,
+                $this->sortDir
             ),
             'statuses' => GalanganStatus::cases(),
         ]);

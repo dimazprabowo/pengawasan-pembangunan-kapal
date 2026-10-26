@@ -10,7 +10,7 @@ use Livewire\WithPagination;
 
 class NotificationIndex extends Component
 {
-    use WithPagination, AuthorizesRequests;
+    use AuthorizesRequests, WithPagination;
 
     protected $paginationTheme = 'tailwind';
 

@@ -15,6 +15,7 @@ use Spatie\Permission\Models\Role;
 
 class UserManagement extends Component
 {
+    use \App\Livewire\Traits\HasTableSorting;
     use AuthorizesRequests, HasNotification, WithPagination;
 
     protected $paginationTheme = 'tailwind';
@@ -332,7 +333,9 @@ class UserManagement extends Component
             $this->search,
             $this->roleFilter,
             $this->statusFilter,
-            perPage: 9999
+            perPage: 9999,
+            sortField: $this->sortField,
+            sortDir: $this->sortDir
         );
 
         $pdf = Pdf::loadView('exports.users-pdf', ['users' => $users]);

@@ -18,6 +18,7 @@ use Livewire\WithPagination;
 #[Layout('layouts.app', ['title' => 'Manajemen Laporan Bulanan'])]
 class LaporanBulananIndex extends Component
 {
+    use \App\Livewire\Traits\HasTableSorting;
     use AuthorizesRequests, HasDataKapalFilter, HasNotification, WithPagination;
 
     protected $paginationTheme = 'tailwind';
@@ -176,7 +177,9 @@ class LaporanBulananIndex extends Component
             'laporanList' => $service->getFiltered(
                 $this->search,
                 $this->dataKapalId,
-                $this->perPage
+                $this->perPage,
+                $this->sortField,
+                $this->sortDir
             ),
             'dataKapal' => $this->dataKapal,
             'kurvaSChartData' => $chartData,

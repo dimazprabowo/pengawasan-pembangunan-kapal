@@ -7,6 +7,7 @@ use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
 use App\Models\DataKapal;
 use App\Models\LaporanHarian;
+use App\Services\KontrakPeriodeService;
 use App\Services\LaporanHarianService;
 use App\Services\QueueStatusService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -45,6 +46,7 @@ class LaporanHarianShow extends Component
     {
         $this->laporan = $laporanHarian->load([
             'user',
+            'updatedBy',
             'dataKapal.company',
             'dataKapal.galangan',
             'cuacaPagi',
@@ -202,9 +204,11 @@ class LaporanHarianShow extends Component
         return $this->laporan->lampiran->find($this->previewLampiranId);
     }
 
-    public function render(QueueStatusService $queueStatusService, LaporanHarianService $service)
+    public function render(QueueStatusService $queueStatusService, LaporanHarianService $service, KontrakPeriodeService $periodeService)
     {
         return view('livewire.laporan-harian.laporan-harian-show', [
+            'hariKe' => $periodeService->getHariKeFromDate($this->dataKapal, $this->laporan->tanggal_laporan),
+            'mingguKe' => $periodeService->getMingguKeFromDate($this->dataKapal, $this->laporan->tanggal_laporan),
             'queueStatus' => $queueStatusService->getQueueStatusMessage(),
             // Uraian aktivitas per kategori (hanya kategori yang berisi) — dipakai section Aktivitas & Lampiran
             'aktivitasGroups' => $service->aktivitasPerKategori($this->laporan)

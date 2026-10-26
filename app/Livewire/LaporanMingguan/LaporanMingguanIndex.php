@@ -19,6 +19,7 @@ use Livewire\WithPagination;
 #[Layout('layouts.app', ['title' => 'Manajemen Laporan Mingguan'])]
 class LaporanMingguanIndex extends Component
 {
+    use \App\Livewire\Traits\HasTableSorting;
     use AuthorizesRequests, HasDataKapalFilter, HasNotification, WithPagination;
 
     protected $paginationTheme = 'tailwind';
@@ -31,6 +32,8 @@ class LaporanMingguanIndex extends Component
     public ?int $dataKapalId = null;
 
     public int $perPage = 10;
+
+    public array $bulanFilter = [];
 
     // Kurva S Panel
     public bool $showKurvaS = false;
@@ -120,9 +123,14 @@ class LaporanMingguanIndex extends Component
         $this->resetPage();
     }
 
+    public function updatingBulanFilter(): void
+    {
+        $this->resetPage();
+    }
+
     public function resetFilters(): void
     {
-        $this->reset(['search', 'perPage']);
+        $this->reset(['search', 'bulanFilter', 'perPage']);
         $this->resetPage();
     }
 
@@ -200,7 +208,7 @@ class LaporanMingguanIndex extends Component
         );
     }
 
-    public function render(LaporanMingguanService $service, KurvaSService $kurvaSService)
+    public function render(LaporanMingguanService $service, KurvaSService $kurvaSService, \App\Services\KontrakPeriodeService $periodeService)
     {
         $chartData = [];
         $progressHistory = [];
@@ -257,8 +265,13 @@ class LaporanMingguanIndex extends Component
             'laporanList' => $service->getFiltered(
                 $this->search,
                 $this->dataKapalId,
-                $this->perPage
+                $this->perPage,
+                $this->sortField,
+                $this->sortDir,
+                $this->bulanFilter
             ),
+            'bulanOptions' => collect($periodeService->getBulanList($this->dataKapal))
+                ->map(fn ($b) => ['value' => $b['bulan_ke'], 'label' => 'Bulan ke-'.$b['bulan_ke'].' ('.$b['label'].')'])->all(),
             'dataKapal' => $this->dataKapal,
             'kurvaSChartData' => $chartData,
             'progressHistory' => $progressHistory,

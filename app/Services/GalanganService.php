@@ -8,12 +8,16 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class GalanganService
 {
+    use \App\Traits\SortsQuery;
+
     public function getFiltered(
         string $search = '',
         string $statusFilter = '',
-        int $perPage = 15
+        int $perPage = 15,
+        ?string $sortField = null,
+        string $sortDir = 'asc'
     ): LengthAwarePaginator {
-        return Galangan::with(['createdBy:id,name', 'updatedBy:id,name'])->withCount('dataKapal')
+        $query = Galangan::with(['createdBy:id,name', 'updatedBy:id,name'])->withCount('dataKapal')
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($q) use ($search) {
                     $q->where('nama', 'like', "%{$search}%")
@@ -25,9 +29,17 @@ class GalanganService
             })
             ->when($statusFilter !== null && $statusFilter !== '', function ($q) use ($statusFilter) {
                 $q->where('status', $statusFilter);
-            })
-            ->orderBy('id', 'desc')
-            ->paginate($perPage);
+            });
+
+        $this->applySorting($query, [
+            'nama' => 'galangan.nama',
+            'kota' => 'galangan.kota',
+            'data_kapal_count' => 'data_kapal_count',
+            'status' => 'galangan.status',
+            'updated_at' => 'galangan.updated_at',
+        ], $sortField, $sortDir, 'nama', 'asc', 'galangan.id');
+
+        return $query->paginate($perPage);
     }
 
     public function create(array $data): Galangan

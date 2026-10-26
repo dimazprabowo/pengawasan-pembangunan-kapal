@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Jobs\ProcessLaporanLampiran;
+use App\Models\DataKapal;
 use App\Models\KurvaSWorkGroup;
 use App\Models\LaporanAktivitas;
 use App\Models\LaporanHarian;
@@ -16,15 +17,25 @@ use Illuminate\Support\Str;
 
 class LaporanHarianService
 {
+    use \App\Traits\SortsQuery;
+
     public const KATEGORI_LAINNYA = 'Lainnya';
 
     public function getFiltered(
         ?string $search = null,
         ?int $dataKapalId = null,
-        int $perPage = 15
+        int $perPage = 15,
+        ?string $sortField = null,
+        string $sortDir = 'asc',
+        array $mingguFilter = [],
+        array $bulanFilter = []
     ): LengthAwarePaginator {
         $query = LaporanHarian::with(['user', 'updatedBy:id,name', 'dataKapal.company', 'dataKapal.galangan', 'lampiran'])
             ->byDataKapal($dataKapalId);
+
+        if ($mingguFilter || $bulanFilter) {
+            app(KontrakPeriodeService::class)->applyPeriodeFilter($query, $dataKapalId ? DataKapal::find($dataKapalId) : null, $mingguFilter, $bulanFilter);
+        }
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -35,9 +46,13 @@ class LaporanHarianService
             });
         }
 
-        $paginator = $query->orderByDesc('tanggal_laporan')
-            ->orderByDesc('created_at')
-            ->paginate($perPage);
+        $this->applySorting($query, [
+            'tanggal_laporan' => 'laporan_harian.tanggal_laporan',
+            'judul' => 'laporan_harian.tanggal_laporan',
+            'updated_at' => 'laporan_harian.updated_at',
+        ], $sortField, $sortDir, 'tanggal_laporan', 'desc', 'laporan_harian.created_at', 'desc');
+
+        $paginator = $query->paginate($perPage);
 
         $this->flagDuplicateTanggal($paginator, $dataKapalId);
 

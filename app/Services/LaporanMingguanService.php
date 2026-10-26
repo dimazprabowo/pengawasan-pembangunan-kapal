@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\DataKapal;
 use App\Models\LaporanHarian;
 use App\Models\LaporanMingguan;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -10,13 +11,22 @@ use Illuminate\Support\Facades\DB;
 
 class LaporanMingguanService
 {
+    use \App\Traits\SortsQuery;
+
     public function getFiltered(
         ?string $search = null,
         ?int $dataKapalId = null,
-        int $perPage = 15
+        int $perPage = 15,
+        ?string $sortField = null,
+        string $sortDir = 'asc',
+        array $bulanFilter = []
     ): LengthAwarePaginator {
         $query = LaporanMingguan::with(['user', 'updatedBy:id,name', 'dataKapal.company', 'dataKapal.galangan', 'laporanHarian'])
             ->byDataKapal($dataKapalId);
+
+        if ($bulanFilter) {
+            app(KontrakPeriodeService::class)->applyPeriodeFilter($query, $dataKapalId ? DataKapal::find($dataKapalId) : null, [], $bulanFilter);
+        }
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -31,9 +41,13 @@ class LaporanMingguanService
             });
         }
 
-        return $query->orderByDesc('tanggal_laporan')
-            ->orderByDesc('created_at')
-            ->paginate($perPage);
+        $this->applySorting($query, [
+            'tanggal_laporan' => 'laporan_mingguan.tanggal_laporan',
+            'minggu_ke' => 'laporan_mingguan.minggu_ke',
+            'updated_at' => 'laporan_mingguan.updated_at',
+        ], $sortField, $sortDir, 'tanggal_laporan', 'desc', 'laporan_mingguan.created_at', 'desc');
+
+        return $query->paginate($perPage);
     }
 
     /**

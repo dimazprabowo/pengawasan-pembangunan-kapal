@@ -17,14 +17,18 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class DataKapalService
 {
+    use \App\Traits\SortsQuery;
+
     public function getFiltered(
         string $search = '',
         string $statusFilter = '',
         ?int $companyFilter = null,
         ?int $galanganFilter = null,
-        int $perPage = 15
+        int $perPage = 15,
+        ?string $sortField = null,
+        string $sortDir = 'asc'
     ): LengthAwarePaginator {
-        return DataKapal::with(['company', 'galangan', 'createdBy:id,name', 'updatedBy:id,name'])
+        $query = DataKapal::with(['company', 'galangan', 'createdBy:id,name', 'updatedBy:id,name'])
             ->withCount('laporanHarian')
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($q) use ($search) {
@@ -44,9 +48,16 @@ class DataKapalService
             })
             ->when($galanganFilter, function ($q) use ($galanganFilter) {
                 $q->where('galangan_id', $galanganFilter);
-            })
-            ->orderBy('id', 'desc')
-            ->paginate($perPage);
+            });
+
+        $this->applySorting($query, [
+            'nama' => 'data_kapal.nama',
+            'laporan_harian_count' => 'laporan_harian_count',
+            'status' => 'data_kapal.status',
+            'updated_at' => 'data_kapal.updated_at',
+        ], $sortField, $sortDir, 'nama', 'asc', 'data_kapal.id');
+
+        return $query->paginate($perPage);
     }
 
     public function create(array $data): DataKapal

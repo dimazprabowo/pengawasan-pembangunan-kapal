@@ -7,6 +7,7 @@ use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
 use App\Models\DataKapal;
 use App\Models\LaporanHarian;
+use App\Services\KontrakPeriodeService;
 use App\Services\LaporanHarianService;
 use App\Services\QueueStatusService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -19,6 +20,7 @@ use Livewire\WithPagination;
 #[Layout('layouts.app', ['title' => 'Manajemen Laporan Harian'])]
 class LaporanHarianIndex extends Component
 {
+    use \App\Livewire\Traits\HasTableSorting;
     use AuthorizesRequests, HasDataKapalFilter, HasNotification, WithPagination;
 
     protected $paginationTheme = 'tailwind';
@@ -31,6 +33,10 @@ class LaporanHarianIndex extends Component
     public ?int $dataKapalId = null;
 
     public int $perPage = 10;
+
+    public array $mingguFilter = [];
+
+    public array $bulanFilter = [];
 
     // Delete Modal
     public bool $showDeleteModal = false;
@@ -68,9 +74,19 @@ class LaporanHarianIndex extends Component
         $this->resetPage();
     }
 
+    public function updatingMingguFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingBulanFilter(): void
+    {
+        $this->resetPage();
+    }
+
     public function resetFilters(): void
     {
-        $this->reset(['search', 'perPage']);
+        $this->reset(['search', 'mingguFilter', 'bulanFilter', 'perPage']);
         $this->resetPage();
     }
 
@@ -142,14 +158,22 @@ class LaporanHarianIndex extends Component
         );
     }
 
-    public function render(LaporanHarianService $service, QueueStatusService $queueStatusService)
+    public function render(LaporanHarianService $service, QueueStatusService $queueStatusService, KontrakPeriodeService $periodeService)
     {
         return view('livewire.laporan-harian.laporan-harian-index', [
             'laporanList' => $service->getFiltered(
                 $this->search,
                 $this->dataKapalId,
-                $this->perPage
+                $this->perPage,
+                $this->sortField,
+                $this->sortDir,
+                $this->mingguFilter,
+                $this->bulanFilter
             ),
+            'mingguOptions' => collect($periodeService->getMingguList($this->dataKapal))
+                ->map(fn ($m) => ['value' => $m['minggu_ke'], 'label' => 'Minggu ke-'.$m['minggu_ke'].' ('.$m['label'].')'])->all(),
+            'bulanOptions' => collect($periodeService->getBulanList($this->dataKapal))
+                ->map(fn ($b) => ['value' => $b['bulan_ke'], 'label' => 'Bulan ke-'.$b['bulan_ke'].' ('.$b['label'].')'])->all(),
             'queueStatus' => $queueStatusService->getQueueStatusMessage(),
             'dataKapal' => $this->dataKapal,
         ]);

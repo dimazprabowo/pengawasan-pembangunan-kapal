@@ -14,6 +14,7 @@ use Livewire\WithPagination;
 
 class CompanyManagement extends Component
 {
+    use \App\Livewire\Traits\HasTableSorting;
     use AuthorizesRequests, HasNotification, WithPagination;
 
     protected $paginationTheme = 'tailwind';
@@ -300,7 +301,9 @@ class CompanyManagement extends Component
             'companies' => $service->getFiltered(
                 $this->search,
                 $this->statusFilter,
-                $this->perPage
+                $this->perPage,
+                $this->sortField,
+                $this->sortDir
             ),
             'statuses' => CompanyStatus::cases(),
         ]);

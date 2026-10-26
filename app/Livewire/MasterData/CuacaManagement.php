@@ -15,6 +15,7 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class CuacaManagement extends Component
 {
+    use \App\Livewire\Traits\HasTableSorting;
     use AuthorizesRequests, HasNotification, WithPagination;
 
     protected $paginationTheme = 'tailwind';
@@ -250,7 +251,9 @@ class CuacaManagement extends Component
             'cuacaList' => $service->getFiltered(
                 $this->search,
                 $this->statusFilter,
-                $this->perPage
+                $this->perPage,
+                $this->sortField,
+                $this->sortDir
             ),
             'statuses' => CuacaStatus::cases(),
         ]);

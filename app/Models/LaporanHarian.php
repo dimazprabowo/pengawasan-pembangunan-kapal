@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\KontrakPeriodeService;
 use App\Traits\HasEncryptedRouteKey;
 use App\Traits\HasUserStamps;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -62,13 +63,15 @@ class LaporanHarian extends Model
      */
     public function getJudulAttribute(): string
     {
-        return self::generateJudul($this->tanggal_laporan);
+        return self::generateJudul($this->tanggal_laporan, $this->dataKapal);
     }
 
     /**
      * Generate judul dari tanggal (Carbon|string|null) — dipakai accessor & form.
+     * Format: "Laporan Harian Hari Ke - {n}" jika posisi tanggal dalam kontrak
+     * diketahui, fallback "Laporan Harian {tanggal}".
      */
-    public static function generateJudul($tanggal): string
+    public static function generateJudul($tanggal, ?DataKapal $dataKapal = null): string
     {
         try {
             $tanggal = $tanggal ? \Carbon\Carbon::parse($tanggal) : null;
@@ -76,9 +79,18 @@ class LaporanHarian extends Model
             $tanggal = null;
         }
 
-        return $tanggal
-            ? 'Laporan Harian '.$tanggal->locale('id')->isoFormat('dddd, D MMMM Y')
-            : 'Laporan Harian';
+        if (! $tanggal) {
+            return 'Laporan Harian';
+        }
+
+        if ($dataKapal) {
+            $hariKe = app(KontrakPeriodeService::class)->getHariKeFromDate($dataKapal, $tanggal);
+            if ($hariKe) {
+                return "Laporan Harian Hari Ke - {$hariKe}";
+            }
+        }
+
+        return 'Laporan Harian '.$tanggal->locale('id')->isoFormat('dddd, D MMMM Y');
     }
 
     // Relationships

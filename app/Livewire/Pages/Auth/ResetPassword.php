@@ -17,13 +17,16 @@ class ResetPassword extends Component
 {
     #[Locked]
     public string $token = '';
-    
+
     #[Locked]
     public string $email = '';
-    
+
     public string $password = '';
+
     public string $password_confirmation = '';
+
     public bool $showPassword = false;
+
     public bool $showPasswordConfirmation = false;
 
     public function mount(string $token): void
@@ -34,12 +37,12 @@ class ResetPassword extends Component
 
     public function togglePasswordVisibility(): void
     {
-        $this->showPassword = !$this->showPassword;
+        $this->showPassword = ! $this->showPassword;
     }
 
     public function togglePasswordConfirmationVisibility(): void
     {
-        $this->showPasswordConfirmation = !$this->showPasswordConfirmation;
+        $this->showPasswordConfirmation = ! $this->showPasswordConfirmation;
     }
 
     public function resetPassword(): void
@@ -64,6 +67,7 @@ class ResetPassword extends Component
 
         if ($status != Password::PASSWORD_RESET) {
             $this->addError('email', __($status));
+
             return;
         }
 

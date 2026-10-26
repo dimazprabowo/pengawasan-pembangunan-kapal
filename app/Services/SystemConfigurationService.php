@@ -8,12 +8,15 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 class SystemConfigurationService
 {
+    use \App\Traits\SortsQuery;
     use HasDynamicLike;
 
     public function getFiltered(
         ?string $search = null,
         ?string $isActive = null,
-        int $perPage = 15
+        int $perPage = 15,
+        ?string $sortField = null,
+        string $sortDir = 'asc'
     ): LengthAwarePaginator {
         $query = SystemConfiguration::with(['createdBy:id,name', 'updatedBy:id,name']);
 
@@ -30,7 +33,14 @@ class SystemConfigurationService
             $query->where('is_active', $isActive === '1');
         }
 
-        return $query->orderBy('category')->orderBy('key')->paginate($perPage);
+        $this->applySorting($query, [
+            'key' => 'system_configurations.key',
+            'category' => 'system_configurations.category',
+            'is_active' => 'system_configurations.is_active',
+            'updated_at' => 'system_configurations.updated_at',
+        ], $sortField, $sortDir, 'category', 'asc', 'system_configurations.key', 'asc');
+
+        return $query->paginate($perPage);
     }
 
     public function update(SystemConfiguration $config, array $data): SystemConfiguration

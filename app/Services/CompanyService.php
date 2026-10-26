@@ -8,12 +8,15 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 class CompanyService
 {
+    use \App\Traits\SortsQuery;
     use HasDynamicLike;
 
     public function getFiltered(
         ?string $search = null,
         ?string $statusFilter = null,
-        int $perPage = 15
+        int $perPage = 15,
+        ?string $sortField = null,
+        string $sortDir = 'asc'
     ): LengthAwarePaginator {
         $query = Company::with(['createdBy:id,name', 'updatedBy:id,name'])->withCount(['users', 'dataKapal']);
 
@@ -32,7 +35,18 @@ class CompanyService
             $query->where('status', $statusFilter);
         }
 
-        return $query->orderBy('name')->paginate($perPage);
+        $this->applySorting($query, [
+            'name' => 'companies.name',
+            'npwp' => 'companies.npwp',
+            'email' => 'companies.email',
+            'pic_name' => 'companies.pic_name',
+            'users_count' => 'users_count',
+            'data_kapal_count' => 'data_kapal_count',
+            'status' => 'companies.status',
+            'updated_at' => 'companies.updated_at',
+        ], $sortField, $sortDir, 'name', 'asc', 'companies.id');
+
+        return $query->paginate($perPage);
     }
 
     public function create(array $data): Company

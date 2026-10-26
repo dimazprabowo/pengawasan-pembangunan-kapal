@@ -16,24 +16,36 @@ use Livewire\WithPagination;
 
 class SystemConfiguration extends Component
 {
-    use WithPagination, AuthorizesRequests, HasNotification;
+    use \App\Livewire\Traits\HasTableSorting;
+    use AuthorizesRequests, HasNotification, WithPagination;
 
     protected $paginationTheme = 'tailwind';
 
     public $search = '';
+
     public $isActiveFilter = '';
+
     public $showModal = false;
+
     public $editMode = false;
+
     public bool $filterChanged = false;
-    
+
     // Form fields
     public $configId;
+
     public $key;
+
     public $category = 'general';
+
     public $value;
+
     public $data_type = 'string';
+
     public $description;
+
     public $is_editable = true;
+
     public $is_active = true;
 
     public function mount()
@@ -44,7 +56,7 @@ class SystemConfiguration extends Component
     public function rules()
     {
         $rules = [
-            'key' => ['required', 'string', 'max:100', $this->editMode ? 'unique:system_configurations,key,' . $this->configId : 'unique:system_configurations,key'],
+            'key' => ['required', 'string', 'max:100', $this->editMode ? 'unique:system_configurations,key,'.$this->configId : 'unique:system_configurations,key'],
             'category' => ['required', 'string', Rule::in(ConfigCategory::values())],
             'data_type' => ['required', 'string', Rule::in(ConfigDataType::values())],
             'description' => 'nullable|string',
@@ -92,7 +104,7 @@ class SystemConfiguration extends Component
     {
         $config = SystemConfigModel::findOrFail($id);
         $this->authorize('update', $config);
-        
+
         $this->configId = $config->id;
         $this->key = $config->key;
         $this->category = $config->category instanceof ConfigCategory ? $config->category->value : $config->category;
@@ -101,7 +113,7 @@ class SystemConfiguration extends Component
         $this->description = $config->description;
         $this->is_editable = $config->is_editable;
         $this->is_active = $config->is_active;
-        
+
         $this->editMode = true;
         $this->showModal = true;
     }
@@ -143,7 +155,7 @@ class SystemConfiguration extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk melakukan aksi ini.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -160,7 +172,7 @@ class SystemConfiguration extends Component
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk mengubah status konfigurasi.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: ' . $e->getMessage());
+            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
@@ -182,7 +194,7 @@ class SystemConfiguration extends Component
             'is_editable',
             'is_active',
         ]);
-        
+
         $this->category = ConfigCategory::General->value;
         $this->data_type = ConfigDataType::String->value;
         $this->is_editable = true;
@@ -194,7 +206,7 @@ class SystemConfiguration extends Component
         $this->authorize('exportExcel', SystemConfigModel::class);
 
         return (new SystemConfigurationsExport($this->search, $this->isActiveFilter))
-            ->download('konfigurasi-' . now()->format('Y-m-d-His') . '.xlsx');
+            ->download('konfigurasi-'.now()->format('Y-m-d-His').'.xlsx');
     }
 
     public function exportPdf(SystemConfigurationService $service)
@@ -206,8 +218,8 @@ class SystemConfiguration extends Component
         if ($this->search) {
             $query->where(function ($q) {
                 $q->where('key', 'like', "%{$this->search}%")
-                  ->orWhere('description', 'like', "%{$this->search}%")
-                  ->orWhere('value', 'like', "%{$this->search}%");
+                    ->orWhere('description', 'like', "%{$this->search}%")
+                    ->orWhere('value', 'like', "%{$this->search}%");
             });
         }
 
@@ -221,14 +233,14 @@ class SystemConfiguration extends Component
         $pdf->setPaper('a4', 'landscape');
 
         return response()->streamDownload(
-            fn () => print($pdf->output()),
-            'konfigurasi-' . now()->format('Y-m-d-His') . '.pdf'
+            fn () => print ($pdf->output()),
+            'konfigurasi-'.now()->format('Y-m-d-His').'.pdf'
         );
     }
 
     public function render(SystemConfigurationService $service)
     {
-        $configurations = $service->getFiltered($this->search, $this->isActiveFilter);
+        $configurations = $service->getFiltered($this->search, $this->isActiveFilter, $this->perPage ?? 15, $this->sortField, $this->sortDir);
 
         if ($this->filterChanged) {
             $this->notifyInfo("Ditemukan {$configurations->total()} konfigurasi.");

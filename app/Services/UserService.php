@@ -10,13 +10,16 @@ use Illuminate\Support\Facades\Hash;
 
 class UserService
 {
+    use \App\Traits\SortsQuery;
     use HasDynamicLike;
 
     public function getFilteredUsers(
         ?string $search = null,
         ?string $roleFilter = null,
         ?string $statusFilter = null,
-        int $perPage = 15
+        int $perPage = 15,
+        ?string $sortField = null,
+        string $sortDir = 'asc'
     ): LengthAwarePaginator {
         $query = User::with(['roles', 'company', 'createdBy:id,name', 'updatedBy:id,name']);
 
@@ -38,7 +41,14 @@ class UserService
             $query->where('is_active', $statusFilter === '1');
         }
 
-        return $query->orderBy('name')->paginate($perPage);
+        $this->applySorting($query, [
+            'name' => 'users.name',
+            'email' => 'users.email',
+            'is_active' => 'users.is_active',
+            'updated_at' => 'users.updated_at',
+        ], $sortField, $sortDir, 'name', 'asc', 'users.id');
+
+        return $query->paginate($perPage);
     }
 
     public function create(array $data, array $roles): User

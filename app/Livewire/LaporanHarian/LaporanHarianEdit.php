@@ -465,7 +465,7 @@ class LaporanHarianEdit extends Component
 
             $this->notifySuccess($message);
 
-            $this->redirect(route('laporan-harian.index', $this->dataKapal), navigate: true);
+            $this->redirect(route('laporan-harian.show', [$this->dataKapal, $this->laporan]), navigate: true);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk mengupdate laporan ini.');
         } catch (\Exception $e) {
@@ -754,6 +754,7 @@ class LaporanHarianEdit extends Component
 
     public function render(QueueStatusService $queueStatusService, LaporanHarianService $service)
     {
+        $this->laporan->loadMissing(['user', 'updatedBy']);
         $cuacaList = Cuaca::active()->orderBy('nama')->get();
         $kelembabanList = Kelembaban::active()->orderBy('nama')->get();
 

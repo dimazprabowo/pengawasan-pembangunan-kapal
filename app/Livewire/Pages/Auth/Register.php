@@ -14,8 +14,11 @@ use Livewire\Component;
 class Register extends Component
 {
     public string $name = '';
+
     public string $email = '';
+
     public string $password = '';
+
     public string $password_confirmation = '';
 
     public function register(): void

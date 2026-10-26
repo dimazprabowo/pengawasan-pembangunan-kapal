@@ -11,6 +11,7 @@ use Livewire\Component;
 class UpdateProfileInformationForm extends Component
 {
     public string $name = '';
+
     public string $email = '';
 
     /**
@@ -42,7 +43,7 @@ class UpdateProfileInformationForm extends Component
         $emailChanged = false;
         $currentEmail = $user->email;
         $newEmail = $validated['email'];
-        
+
         if ($newEmail !== $currentEmail) {
             if ($user->pending_email !== $newEmail) {
                 $user->pending_email = $newEmail;
@@ -59,14 +60,14 @@ class UpdateProfileInformationForm extends Component
         if ($emailChanged) {
             $user->sendEmailVerificationNotification();
             Session::flash('status', 'verification-link-sent');
-            
-            $this->dispatch('notify', 
-                type: 'info', 
-                message: 'Email verifikasi telah dikirim ke ' . $newEmail . '. Silakan verifikasi untuk mengaktifkan email baru.'
+
+            $this->dispatch('notify',
+                type: 'info',
+                message: 'Email verifikasi telah dikirim ke '.$newEmail.'. Silakan verifikasi untuk mengaktifkan email baru.'
             );
         } else {
-            $this->dispatch('notify', 
-                type: 'success', 
+            $this->dispatch('notify',
+                type: 'success',
                 message: 'Profil berhasil diperbarui!'
             );
         }
@@ -81,23 +82,24 @@ class UpdateProfileInformationForm extends Component
     {
         $user = Auth::user();
 
-        if (!$user->pending_email && $user->hasVerifiedEmail()) {
-            $this->dispatch('notify', 
-                type: 'info', 
+        if (! $user->pending_email && $user->hasVerifiedEmail()) {
+            $this->dispatch('notify',
+                type: 'info',
                 message: 'Email Anda sudah terverifikasi.'
             );
+
             return;
         }
 
         $user->sendEmailVerificationNotification();
 
         Session::flash('status', 'verification-link-sent');
-        
+
         $emailSentTo = $user->pending_email ?? $user->email;
-        
-        $this->dispatch('notify', 
-            type: 'success', 
-            message: 'Email verifikasi telah dikirim ulang ke ' . $emailSentTo . '!'
+
+        $this->dispatch('notify',
+            type: 'success',
+            message: 'Email verifikasi telah dikirim ulang ke '.$emailSentTo.'!'
         );
     }
 

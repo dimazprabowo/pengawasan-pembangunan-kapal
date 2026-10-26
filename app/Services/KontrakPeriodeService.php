@@ -362,6 +362,59 @@ class KontrakPeriodeService
     }
 
     /**
+     * Hari keberapa sebuah tanggal jatuh dalam periode kontrak. Null jika di luar kontrak.
+     */
+    public function getHariKeFromDate(DataKapal $dataKapal, Carbon $tanggal): ?int
+    {
+        if (! $dataKapal->hasKontrak()
+            || $tanggal->lt($dataKapal->tanggal_mulai_kontrak)
+            || $tanggal->gt($dataKapal->tanggal_selesai_kontrak)) {
+            return null;
+        }
+
+        return (int) $dataKapal->tanggal_mulai_kontrak->diffInDays($tanggal) + 1;
+    }
+
+    /**
+     * Terapkan filter minggu_ke/bulan_ke (multi) ke query berkolom tanggal.
+     * Dipakai index laporan harian & mingguan.
+     */
+    public function applyPeriodeFilter($query, ?DataKapal $dataKapal, array $mingguFilter = [], array $bulanFilter = [], string $dateColumn = 'tanggal_laporan'): void
+    {
+        $mingguFilter = array_filter($mingguFilter, fn ($v) => $v !== null && $v !== '');
+        $bulanFilter = array_filter($bulanFilter, fn ($v) => $v !== null && $v !== '');
+
+        if (! $dataKapal || (! $mingguFilter && ! $bulanFilter)) {
+            return;
+        }
+
+        $ranges = [];
+        foreach ($mingguFilter as $mingguKe) {
+            $periode = $this->getMingguPeriode($dataKapal, (int) $mingguKe);
+            if ($periode) {
+                $ranges[] = [$periode['mulai'], $periode['selesai']];
+            }
+        }
+        foreach ($bulanFilter as $bulanKe) {
+            $periode = $this->getBulanPeriode($dataKapal, (int) $bulanKe);
+            if ($periode) {
+                $ranges[] = [$periode['mulai'], $periode['selesai']];
+            }
+        }
+
+        $query->where(function ($q) use ($ranges, $dateColumn) {
+            if (empty($ranges)) {
+                $q->whereRaw('1 = 0');
+
+                return;
+            }
+            foreach ($ranges as [$mulai, $selesai]) {
+                $q->orWhereBetween($dateColumn, [$mulai->toDateString(), $selesai->toDateString()]);
+            }
+        });
+    }
+
+    /**
      * Label rentang tanggal ringkas ("01 - 07 Mar 2025", "28 Feb - 06 Mar 2025").
      */
     public function formatRange(Carbon $mulai, Carbon $selesai): string

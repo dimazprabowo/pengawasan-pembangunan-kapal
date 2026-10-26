@@ -226,7 +226,7 @@
                             {{-- Tanggal digenerate otomatis (tampil di header tab hari) --}}
                             <div class="md:col-span-2">
                                 <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    {{ \App\Models\LaporanHarian::generateJudul($item['tanggal_laporan'] ?? null) }}
+                                    {{ \App\Models\LaporanHarian::generateJudul($item['tanggal_laporan'] ?? null, $this->dataKapal) }}
                                 </p>
                                 @error("items.{$index}.tanggal_laporan") <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                             </div>

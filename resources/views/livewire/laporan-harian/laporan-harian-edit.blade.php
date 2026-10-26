@@ -154,7 +154,11 @@
                     {{-- Tanggal sudah digenerate saat laporan dibuat — tampilkan sebagai info, bukan input --}}
                     <div>
                         <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            {{ \App\Models\LaporanHarian::generateJudul($tanggal_laporan) }}
+                            {{ \App\Models\LaporanHarian::generateJudul($tanggal_laporan, $this->dataKapal) }}
+                        </p>
+                        <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                            Dibuat oleh {{ $laporan->user?->name ?? '—' }} · {{ $laporan->created_at?->translatedFormat('d M Y H:i') }}
+                            · Terakhir diubah {{ $laporan->updatedBy?->name ?? '—' }} · {{ $laporan->updated_at?->translatedFormat('d M Y H:i') }}
                         </p>
                         @error('tanggal_laporan') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                     </div>
