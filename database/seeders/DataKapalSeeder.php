@@ -68,10 +68,10 @@ class DataKapalSeeder extends Seeder
             ],
         ];
 
-        // Kontrak: mulai 77 hari lalu agar minggu proyek 1-10 sudah lewat (untuk seed laporan),
-        // durasi 700 hari = 100 minggu proyek (sesuai template Kurva-S seeder).
-        $tanggalMulaiKontrak = now()->subDays(77)->toDateString();
-        $durasiKontrakHari = 700;
+        // Kontrak: 100 hari penuh mulai 99 hari lalu, berakhir hari ini — seluruh
+        // minggu/bulan proyek punya laporan ter-seed (simulasi proyek selesai).
+        $tanggalMulaiKontrak = now()->subDays(99)->toDateString();
+        $durasiKontrakHari = 100;
 
         foreach ($companies as $company) {
             foreach ($dataKapalData as $data) {
