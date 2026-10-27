@@ -130,9 +130,8 @@ Pola full-page form:
 | Filter | `<x-filter-popover>` | `components/filter-popover.blade.php` |
 | Notif | `<x-toast>` | `components/toast.blade.php` (auto-render di layout) |
 | Notif | `<x-action-message>` | `components/action-message.blade.php` |
-| Spinner | `<x-loading-spinner>` | `components/loading-spinner.blade.php` |
 | Icon | `<x-icon>` | `components/icon.blade.php` |
-| File | `<x-file-status-indicator>` | `components/file-status-indicator.blade.php` (badge processing/completed/failed) |
+| Toggle | `<x-toggle-switch>` | `components/toggle-switch.blade.php` (status aktif/nonaktif) |
 | Kurva-S | `<x-kurva-s-chart>`, `<x-kurva-s-chart-card>`, `<x-kurva-s-actions>`, `<x-kurva-s-import-modal>` | `components/kurva-s-*.blade.php` |
 | Domain | `components/laporan/`, `components/laporan-mingguan/` | partials form & section laporan — pakai ulang, jangan duplikat |
 | Layout | `<x-app-layout>` | `layouts/app.blade.php` (prop `title`, slot `header`) |
@@ -160,14 +159,14 @@ Jika butuh variant baru (mis. warna/size berbeda), EXTEND komponen yang ada via 
   </button>
   ```
   Konvensi warna: edit=`text-purple-600`/`text-blue-600` (ikuti halaman sejenis), delete=`text-red-600`, view=`text-blue-600`/`text-gray-600`.
-- TOGGLE status (aktif/nonaktif): pola inline toggle yang ada (button `relative inline-flex h-6 w-11 rounded-full` + knob `span` translate-x-1/6). Contoh: `settings/user-management.blade.php`. Tidak ada `<x-toggle-switch>` — reuse pola yang sama.
+- TOGGLE status (aktif/nonaktif): pakai `<x-toggle-switch>` (`components/toggle-switch.blade.php`). Contoh: `settings/user-management.blade.php`.
 - Setiap action button di dalam loop tabel WAJIB `wire:target="action({{ $item->id }})"` + `wire:loading.attr="disabled"`, dan parent row WAJIB `wire:key="row-{{ $item->id }}"` agar Livewire DOM-diff tidak salah mencocokkan elemen setelah delete/reorder.
 - Batal: `<x-cancel-button>`. Hapus: `<x-delete-modal>`/`<x-delete-confirmation-modal>`. Konfirmasi: `<x-confirm-modal>`.
 - Select: `<x-searchable-select>` / `<x-multi-searchable-select>`. Filter: `<x-filter-popover>`.
 - Form field: `<x-input-label>`, `<x-text-input>`, `<x-input-error>`.
   - WAJIB beri `placeholder` deskriptif Bahasa Indonesia di SETIAP `<x-text-input>` (kecuali `type="date"`/`hidden`).
   - Field required (di `rules()`) WAJIB `:required="true"` di `<x-input-label>` agar muncul `*` merah.
-- Upload lampiran foto: tawarkan crop via `<x-image-crop-modal>` bila relevan; status file via `<x-file-status-indicator>`; preview via `<x-lampiran-preview-modal>`.
+- Upload lampiran foto: tawarkan crop via `<x-image-crop-modal>` bila relevan; status file via ikon inline (pola `laporan-mingguan/external-reports-section`: spinner=processing, ikon merah=failed, hijau=completed); preview via `<x-lampiran-preview-modal>`.
 - WAJIB dukung dark mode (kelas `dark:...`), spacing/typography konsisten dengan menu sejenis.
 - String UI berbahasa Indonesia (boleh hardcode, app belum pakai lang files).
 - Breadcrumb WAJIB di full-page form (mis. Laporan Harian > Edit).
@@ -271,7 +270,7 @@ Jika ada ambiguitas yang berdampak besar -> TANYA dulu, jangan berasumsi.
 - Setiap form: validasi realtime (`rules()` + `validationAttributes()` Bahasa Indonesia), disable tombol saat proses.
 - Aksi destruktif: SELALU pakai modal konfirmasi (`x-delete-modal`/`x-delete-confirmation-modal`/`x-confirm-modal`).
 - Feedback: SELALU notifikasi hasil (sukses/gagal) via HasNotification.
-- Upload file: tampilkan status via `<x-file-status-indicator>` (pending/processing/completed/failed) + tombol download/preview bila selesai.
+- Upload file: tampilkan status file (pending/processing/completed/failed) via ikon status inline + tombol download/preview bila selesai.
 - Responsive: uji layout mobile (stack) & desktop.
 
 # Design System & Responsive (WAJIB, bukan opsional)
