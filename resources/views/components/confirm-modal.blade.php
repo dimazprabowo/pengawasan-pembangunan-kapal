@@ -68,7 +68,7 @@
         }, 200); // beri waktu spinner terlihat selama transisi tutup
     }
 }"
-@confirm-modal.window="showModal($event.detail)"
+x-on:{{ $name }}.window="showModal($event.detail)"
 x-show="show"
 x-cloak
 class="fixed inset-0 z-50 overflow-y-auto"

@@ -3,17 +3,20 @@
 namespace App\Exports;
 
 use App\Models\Kelembaban;
+use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class KelembabanExport implements FromCollection, WithHeadings, WithMapping, WithStyles, WithTitle, ShouldAutoSize
+class KelembabanExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping, WithStyles, WithTitle
 {
     protected ?string $search;
+
     protected ?string $statusFilter;
 
     public function __construct(?string $search = null, ?string $statusFilter = null)
@@ -22,14 +25,14 @@ class KelembabanExport implements FromCollection, WithHeadings, WithMapping, Wit
         $this->statusFilter = $statusFilter;
     }
 
-    public function collection()
+    public function collection(): Collection
     {
         return Kelembaban::query()
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
                     $q->where('nama', 'like', "%{$this->search}%")
-                      ->orWhere('nilai', 'like', "%{$this->search}%")
-                      ->orWhere('keterangan', 'like', "%{$this->search}%");
+                        ->orWhere('nilai', 'like', "%{$this->search}%")
+                        ->orWhere('keterangan', 'like', "%{$this->search}%");
                 });
             })
             ->when($this->statusFilter !== null && $this->statusFilter !== '', function ($q) {
@@ -61,13 +64,13 @@ class KelembabanExport implements FromCollection, WithHeadings, WithMapping, Wit
         ];
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         return [
             1 => [
                 'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
                 'fill' => [
-                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'fillType' => Fill::FILL_SOLID,
                     'startColor' => ['rgb' => '2563EB'],
                 ],
             ],

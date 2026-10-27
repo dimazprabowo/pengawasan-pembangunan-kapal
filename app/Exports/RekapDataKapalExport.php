@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\Exportable;
 use Maatwebsite\Excel\Concerns\FromCollection;
@@ -9,6 +10,7 @@ use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class RekapDataKapalExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping, WithStyles
@@ -17,7 +19,7 @@ class RekapDataKapalExport implements FromCollection, ShouldAutoSize, WithHeadin
 
     public function __construct(protected Collection $items) {}
 
-    public function collection()
+    public function collection(): Collection
     {
         return $this->items;
     }
@@ -50,7 +52,7 @@ class RekapDataKapalExport implements FromCollection, ShouldAutoSize, WithHeadin
             $dataKapal->laporan_mingguan_count,
             $dataKapal->progress_aktual !== null ? $dataKapal->progress_aktual.'%' : '-',
             $dataKapal->laporan_harian_max_tanggal_laporan
-                ? \Carbon\Carbon::parse($dataKapal->laporan_harian_max_tanggal_laporan)->format('d/m/Y')
+                ? Carbon::parse($dataKapal->laporan_harian_max_tanggal_laporan)->format('d/m/Y')
                 : 'Belum ada',
         ];
     }
@@ -61,7 +63,7 @@ class RekapDataKapalExport implements FromCollection, ShouldAutoSize, WithHeadin
             1 => [
                 'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
                 'fill' => [
-                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'fillType' => Fill::FILL_SOLID,
                     'startColor' => ['rgb' => '2563EB'],
                 ],
             ],

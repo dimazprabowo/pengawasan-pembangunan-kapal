@@ -10,6 +10,7 @@ use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -162,11 +163,11 @@ class KurvaSRencanaSheet implements FromArray, WithColumnWidths, WithHeadings, W
 
         $colIndex = 6;
         for ($bulan = 1; $bulan <= $maxMonths; $bulan++) {
-            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex);
+            $colLetter = Coordinate::stringFromColumnIndex($colIndex);
             $widths[$colLetter] = 10;
             $colIndex++;
 
-            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex);
+            $colLetter = Coordinate::stringFromColumnIndex($colIndex);
             $widths[$colLetter] = 25;
             $colIndex++;
         }
@@ -174,12 +175,12 @@ class KurvaSRencanaSheet implements FromArray, WithColumnWidths, WithHeadings, W
         return $widths;
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         // Jumlah kolom bulan mengikuti kontrak (fallback data/24)
         $maxMonths = $this->months;
         $lastColIndex = 5 + ($maxMonths * 2);
-        $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($lastColIndex);
+        $lastCol = Coordinate::stringFromColumnIndex($lastColIndex);
         $dataRows = count($this->array());
         $lastDataRow = $dataRows + 1;
 
@@ -233,7 +234,7 @@ class KurvaSRencanaSheet implements FromArray, WithColumnWidths, WithHeadings, W
             $rencanaColStart = 6;
             $rencanaFormulaParts = [];
             for ($bulan = 1; $bulan <= $maxMonths; $bulan++) {
-                $rencanaCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($rencanaColStart);
+                $rencanaCol = Coordinate::stringFromColumnIndex($rencanaColStart);
                 $rencanaFormulaParts[] = "{$rencanaCol}{$row}";
 
                 $sheet->getStyle("{$rencanaCol}{$row}")->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_NUMBER_00);

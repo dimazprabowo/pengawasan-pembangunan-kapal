@@ -20,6 +20,10 @@
                 document.body.style.overflow = '';
             }
         });
+        // Elemen dihapus server-side saat flag show dimatikan, sehingga $watch
+        // tidak sempat jalan — kembalikan cleanup agar scroll body selalu
+        // dipulihkan saat elemen dihancurkan.
+        return () => { document.body.style.overflow = ''; };
     "
     x-on:keydown.escape.window="$wire.{{ $cancelAction }}()"
     class="fixed inset-0 z-50 flex items-center justify-center p-4"

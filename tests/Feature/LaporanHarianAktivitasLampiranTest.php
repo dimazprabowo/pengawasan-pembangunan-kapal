@@ -89,7 +89,7 @@ class LaporanHarianAktivitasLampiranTest extends TestCase
         $this->assertSame('Konstruksi Lambung', $aktivitas[0]->kategori);
         $this->assertNull($aktivitas[1]->kurva_s_work_group_id);
 
-        $lampiran = LaporanLampiran::sole();
+        $lampiran = LaporanLampiran::where('laporan_harian_id', $laporan->id)->sole();
         $this->assertSame($aktivitas[0]->id, $lampiran->laporan_aktivitas_id);
         $this->assertSame($laporan->id, $lampiran->laporan_harian_id);
         $this->assertSame('Fit up blok lambung', $lampiran->keterangan);

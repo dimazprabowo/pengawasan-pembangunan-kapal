@@ -5,6 +5,7 @@
 - Laporan harian: `php artisan test --filter="LaporanHarianAktivitasLampiranTest|LaporanNavigationTest|LaporanTanggalUnikTest"`.
 - `php artisan view:cache`, `npm run build`, `./vendor/bin/pint <file yang diubah>`.
 - Di Windows `view:cache` bisa gagal "Access is denied" (file view terkunci dev server) — jalankan `php artisan view:clear` lalu ulangi.
+- Audit deprecation (PHP 8.5 / Laravel 13 / PHPUnit 12): `LOG_DEPRECATIONS_CHANNEL=single php artisan test` dan `LOG_DEPRECATIONS_CHANNEL=single php artisan migrate:fresh --seed`, lalu pastikan tidak ada baris baru `local.WARNING` di `storage/logs/laravel.log`. Tinker memakai handler psysh sendiri (tidak menulis log) — jangan dipakai untuk validasi.
 
 ## Laporan Harian — Uraian Aktivitas & Lampiran
 - Kategori aktivitas = Work Group Kurva-S data kapal (`laporan_aktivitas.kurva_s_work_group_id`, null = "Lainnya") + snapshot nama di `kategori`.

@@ -3,19 +3,22 @@
 namespace App\Exports;
 
 use App\Models\Company;
-use Maatwebsite\Excel\Concerns\FromQuery;
+use Illuminate\Database\Eloquent\Builder;
 use Maatwebsite\Excel\Concerns\Exportable;
+use Maatwebsite\Excel\Concerns\FromQuery;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class CompaniesExport implements FromQuery, WithHeadings, WithMapping, WithStyles, ShouldAutoSize
+class CompaniesExport implements FromQuery, ShouldAutoSize, WithHeadings, WithMapping, WithStyles
 {
     use Exportable;
 
     protected ?string $search;
+
     protected ?string $statusFilter;
 
     public function __construct(?string $search = null, ?string $statusFilter = null)
@@ -24,17 +27,17 @@ class CompaniesExport implements FromQuery, WithHeadings, WithMapping, WithStyle
         $this->statusFilter = $statusFilter;
     }
 
-    public function query()
+    public function query(): Builder
     {
         $query = Company::withCount('users');
 
         if ($this->search) {
             $query->where(function ($q) {
                 $q->where('code', 'like', "%{$this->search}%")
-                  ->orWhere('name', 'like', "%{$this->search}%")
-                  ->orWhere('email', 'like', "%{$this->search}%")
-                  ->orWhere('phone', 'like', "%{$this->search}%")
-                  ->orWhere('pic_name', 'like', "%{$this->search}%");
+                    ->orWhere('name', 'like', "%{$this->search}%")
+                    ->orWhere('email', 'like', "%{$this->search}%")
+                    ->orWhere('phone', 'like', "%{$this->search}%")
+                    ->orWhere('pic_name', 'like', "%{$this->search}%");
             });
         }
 
@@ -90,7 +93,7 @@ class CompaniesExport implements FromQuery, WithHeadings, WithMapping, WithStyle
             1 => [
                 'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
                 'fill' => [
-                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'fillType' => Fill::FILL_SOLID,
                     'startColor' => ['rgb' => '2563EB'],
                 ],
             ],

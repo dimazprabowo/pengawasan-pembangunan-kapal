@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Livewire\LaporanHarian\LaporanHarianCreate;
 use App\Livewire\LaporanHarian\LaporanHarianEdit;
+use App\Livewire\LaporanHarian\LaporanHarianIndex;
 use App\Livewire\LaporanMingguan\LaporanMingguanCreate;
+use App\Livewire\LaporanMingguan\LaporanMingguanIndex;
 use App\Models\DataKapal;
 use App\Models\LaporanHarian;
 use App\Models\LaporanMingguan;
@@ -35,7 +37,7 @@ class LaporanTanggalUnikTest extends TestCase
         $used = LaporanHarian::pluck('data_kapal_id')->unique();
         $dataKapal = DataKapal::whereNotIn('id', $used)->first();
 
-        return $dataKapal ?? DataKapal::firstOrFail();
+        return $dataKapal ?? DataKapal::create(['nama' => 'Kapal Uji Tanpa Laporan', 'status' => 'active']);
     }
 
     /**
@@ -85,17 +87,10 @@ class LaporanTanggalUnikTest extends TestCase
 
     public function test_create_harian_sukses_untuk_tanggal_yang_belum_dipakai(): void
     {
-        $existing = LaporanHarian::firstOrFail();
-        $dataKapal = $existing->dataKapal;
-
-        // Cari tanggal kosong di masa lalu (tanggal harus <= hari ini)
-        $tanggal = now()->subDay();
-        while (LaporanHarian::where('data_kapal_id', $dataKapal->id)
-            ->whereDate('tanggal_laporan', $tanggal)
-            ->exists()) {
-            $tanggal->subDay();
-        }
-        $tanggalBaru = $tanggal->format('Y-m-d');
+        // Kapal seeded kini punya laporan untuk seluruh 100 hari kontrak —
+        // pakai kapal baru tanpa kontrak agar selalu ada tanggal kosong.
+        $dataKapal = $this->dataKapalTanpaLaporanHarian();
+        $tanggalBaru = now()->subDay()->format('Y-m-d');
 
         Livewire::actingAs($this->admin())
             ->test(LaporanHarianCreate::class, ['dataKapal' => $dataKapal])
@@ -164,7 +159,7 @@ class LaporanTanggalUnikTest extends TestCase
         ]);
 
         Livewire::actingAs($this->admin())
-            ->test(\App\Livewire\LaporanHarian\LaporanHarianIndex::class, ['dataKapal' => $dataKapal])
+            ->test(LaporanHarianIndex::class, ['dataKapal' => $dataKapal])
             ->set('search', $base->tanggal_laporan->format('Y-m-d'))
             ->assertSee('Ganda');
     }
@@ -254,7 +249,7 @@ class LaporanTanggalUnikTest extends TestCase
 
         // Filter index ke mingguan yang dibuat (data seeder mengisi halaman 1)
         Livewire::actingAs($this->admin())
-            ->test(\App\Livewire\LaporanMingguan\LaporanMingguanIndex::class, ['dataKapal' => $dataKapal])
+            ->test(LaporanMingguanIndex::class, ['dataKapal' => $dataKapal])
             ->set('search', '94')
             ->assertSee($harian->tanggal_laporan->translatedFormat('d M'));
     }

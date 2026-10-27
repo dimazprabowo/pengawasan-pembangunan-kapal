@@ -3,12 +3,14 @@
 namespace App\Exports;
 
 use App\Models\LaporanHarian;
+use Illuminate\Database\Eloquent\Builder;
 use Maatwebsite\Excel\Concerns\Exportable;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class LaporanHarianExport implements FromQuery, ShouldAutoSize, WithHeadings, WithMapping, WithStyles
@@ -25,7 +27,7 @@ class LaporanHarianExport implements FromQuery, ShouldAutoSize, WithHeadings, Wi
         $this->dataKapalId = $dataKapalId;
     }
 
-    public function query()
+    public function query(): Builder
     {
         $query = LaporanHarian::with(['user', 'dataKapal.company', 'dataKapal.galangan']);
 
@@ -85,7 +87,7 @@ class LaporanHarianExport implements FromQuery, ShouldAutoSize, WithHeadings, Wi
             1 => [
                 'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
                 'fill' => [
-                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'fillType' => Fill::FILL_SOLID,
                     'startColor' => ['rgb' => '2563EB'],
                 ],
             ],

@@ -19,7 +19,7 @@ class KurvaSRencanaImport implements ToCollection, WithHeadingRow
         $this->parent = $parent;
     }
 
-    public function collection(Collection $rows)
+    public function collection(Collection $rows): void
     {
         $rows = $rows->filter(function ($row) {
             return ! empty($row['work_group']);

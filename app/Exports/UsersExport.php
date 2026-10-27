@@ -4,20 +4,24 @@ namespace App\Exports;
 
 use App\Models\User;
 use App\Traits\HasDynamicLike;
-use Maatwebsite\Excel\Concerns\FromQuery;
+use Illuminate\Database\Eloquent\Builder;
 use Maatwebsite\Excel\Concerns\Exportable;
+use Maatwebsite\Excel\Concerns\FromQuery;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class UsersExport implements FromQuery, WithHeadings, WithMapping, WithStyles, ShouldAutoSize
+class UsersExport implements FromQuery, ShouldAutoSize, WithHeadings, WithMapping, WithStyles
 {
     use Exportable, HasDynamicLike;
 
     protected ?string $search;
+
     protected ?string $roleFilter;
+
     protected ?string $statusFilter;
 
     public function __construct(?string $search = null, ?string $roleFilter = null, ?string $statusFilter = null)
@@ -27,7 +31,7 @@ class UsersExport implements FromQuery, WithHeadings, WithMapping, WithStyles, S
         $this->statusFilter = $statusFilter;
     }
 
-    public function query()
+    public function query(): Builder
     {
         $query = User::with(['roles', 'company']);
 
@@ -35,9 +39,9 @@ class UsersExport implements FromQuery, WithHeadings, WithMapping, WithStyles, S
             $operator = $this->getLikeOperator();
             $query->where(function ($q) use ($operator) {
                 $q->where('name', $operator, "%{$this->search}%")
-                  ->orWhere('email', $operator, "%{$this->search}%")
-                  ->orWhere('phone', $operator, "%{$this->search}%")
-                  ->orWhere('position', $operator, "%{$this->search}%");
+                    ->orWhere('email', $operator, "%{$this->search}%")
+                    ->orWhere('phone', $operator, "%{$this->search}%")
+                    ->orWhere('position', $operator, "%{$this->search}%");
             });
         }
 
@@ -91,7 +95,7 @@ class UsersExport implements FromQuery, WithHeadings, WithMapping, WithStyles, S
             1 => [
                 'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
                 'fill' => [
-                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'fillType' => Fill::FILL_SOLID,
                     'startColor' => ['rgb' => '2563EB'],
                 ],
             ],

@@ -313,11 +313,20 @@
                         <div class="py-1">
                             <a href="{{ route('profile') }}"
                                wire:navigate
+                               x-data="{ loading: false }"
+                               @click="loading = true; setTimeout(() => loading = false, 1500)"
                                class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                                <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                                </svg>
-                                Profil Saya
+                                <span class="relative inline-flex w-4 h-4 mr-3">
+                                    <svg x-show="!loading" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                    </svg>
+                                    <svg x-show="loading" x-cloak class="animate-spin w-4 h-4 absolute inset-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                </span>
+                                <span x-show="!loading">Profil Saya</span>
+                                <span x-show="loading" x-cloak>Memuat...</span>
                             </a>
 
                             @can('users_impersonate')
@@ -364,12 +373,20 @@
                         @endif
 
                         <div class="py-1">
-                            <button wire:click="logout"
+                            <button x-data="{ loading: false }"
+                                    @click="loading = true; setTimeout(() => loading = false, 500); window.dispatchEvent(new CustomEvent('confirm-logout-nav', { detail: { action: 'logout', title: 'Konfirmasi Keluar', message: 'Apakah Anda yakin ingin keluar dari aplikasi?', confirmText: 'Ya, Keluar', type: 'danger' } }))"
                                     class="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                                <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                                </svg>
-                                Keluar
+                                <span class="relative inline-flex w-4 h-4 mr-3">
+                                    <svg x-show="!loading" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                                    </svg>
+                                    <svg x-show="loading" x-cloak class="animate-spin w-4 h-4 absolute inset-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                </span>
+                                <span x-show="!loading">Keluar</span>
+                                <span x-show="loading" x-cloak>Memuat...</span>
                             </button>
                         </div>
                     </div>
@@ -379,4 +396,12 @@
     </div>
 
 </nav>
+
+    {{-- Confirm Logout Modal --}}
+    <x-confirm-modal name="confirm-logout-nav"
+        title="Konfirmasi Keluar"
+        message="Apakah Anda yakin ingin keluar dari aplikasi?"
+        confirmText="Ya, Keluar"
+        cancelText="Batal"
+        type="danger" />
 </div>

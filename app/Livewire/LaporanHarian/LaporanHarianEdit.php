@@ -10,10 +10,14 @@ use App\Models\Kelembaban;
 use App\Models\LaporanHarian;
 use App\Services\LaporanHarianService;
 use App\Services\QueueStatusService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -154,7 +158,7 @@ class LaporanHarianEdit extends Component
     /**
      * Foto tersimpan per id aktivitas (untuk tab Lampiran).
      */
-    private function lampiranByAktivitas(): \Illuminate\Support\Collection
+    private function lampiranByAktivitas(): Collection
     {
         return $this->laporan->lampiran->keyBy('laporan_aktivitas_id');
     }
@@ -361,7 +365,7 @@ class LaporanHarianEdit extends Component
      */
     public function lampiranImageUrls(): array
     {
-        if (! \Illuminate\Support\Facades\Gate::allows('lampiranPreview', LaporanHarian::class)) {
+        if (! Gate::allows('lampiranPreview', LaporanHarian::class)) {
             return [];
         }
 
@@ -384,7 +388,7 @@ class LaporanHarianEdit extends Component
 
         try {
             $this->validate();
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->notifyValidationError($e);
             throw $e;
         }
@@ -466,7 +470,7 @@ class LaporanHarianEdit extends Component
             $this->notifySuccess($message);
 
             $this->redirect(route('laporan-harian.show', [$this->dataKapal, $this->laporan]), navigate: true);
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk mengupdate laporan ini.');
         } catch (\Exception $e) {
             Log::error('LaporanHarianEdit: gagal menyimpan', ['laporan_id' => $this->laporan->id, 'error' => $e->getMessage()]);
@@ -513,7 +517,7 @@ class LaporanHarianEdit extends Component
 
     public function previewLampiran(int $lampiranId)
     {
-        $this->authorize('view', $this->laporan);
+        $this->authorize('lampiranPreview', LaporanHarian::class);
 
         $lampiran = $this->laporan->lampiran->find($lampiranId);
 
@@ -593,7 +597,7 @@ class LaporanHarianEdit extends Component
 
     public function downloadLampiran(int $lampiranId)
     {
-        $this->authorize('view', $this->laporan);
+        $this->authorize('lampiranDownload', LaporanHarian::class);
 
         $lampiran = $this->laporan->lampiran->find($lampiranId);
 

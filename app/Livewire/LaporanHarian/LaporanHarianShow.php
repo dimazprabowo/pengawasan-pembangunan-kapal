@@ -11,6 +11,7 @@ use App\Services\KontrakPeriodeService;
 use App\Services\LaporanHarianService;
 use App\Services\QueueStatusService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -290,7 +291,7 @@ class LaporanHarianShow extends Component
 
     public function downloadLampiran(int $lampiranId)
     {
-        $this->authorize('view', $this->laporan);
+        $this->authorize('lampiranDownload', LaporanHarian::class);
 
         $lampiran = $this->laporan->lampiran->find($lampiranId);
 
@@ -311,7 +312,7 @@ class LaporanHarianShow extends Component
 
     public function previewLampiran(int $lampiranId)
     {
-        $this->authorize('view', $this->laporan);
+        $this->authorize('lampiranPreview', LaporanHarian::class);
 
         $lampiran = $this->laporan->lampiran->find($lampiranId);
 
@@ -397,7 +398,7 @@ class LaporanHarianShow extends Component
      */
     public function lampiranImageUrls(): array
     {
-        if (! \Illuminate\Support\Facades\Gate::allows('lampiranPreview', LaporanHarian::class)) {
+        if (! Gate::allows('lampiranPreview', LaporanHarian::class)) {
             return [];
         }
 

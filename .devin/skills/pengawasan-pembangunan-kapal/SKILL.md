@@ -1,6 +1,6 @@
 ---
 name: pengawasan-pembangunan-kapal
-description: Panduan membangun fitur/aplikasi baru di atas aplikasi pengawasan-pembangunan-kapal (Laravel 12 + Livewire 4) secara konsisten, clean, permission-first, dan UI elegan.
+description: Panduan membangun fitur/aplikasi baru di atas aplikasi pengawasan-pembangunan-kapal (Laravel 13 + Livewire 4) secara konsisten, clean, permission-first, dan UI elegan.
 triggers:
   - user
   - model
@@ -19,17 +19,24 @@ triggers:
 - WAJIB analisis menyeluruh SEBELUM memberi solusi. Tidak ada duplicate logic, tidak ada field mati, tidak menghapus yang masih dipakai, dan hapus yang sudah tidak dipakai agar codebase CLEAN.
 
 # Stack & Versi (JANGAN diganti)
-- PHP ^8.2, Laravel ^12, Livewire ^4.1
+- PHP ^8.5, Laravel ^13, Livewire ^4.1
 - spatie/laravel-permission (role & permission)
 - spatie/laravel-activitylog (audit log — terinstal, belum dipakai model; WAJIB dipakai untuk model penting baru)
-- maatwebsite/excel (export Excel)
+- maatwebsite/excel ^4 (export/import Excel — di atas phpspreadsheet ^5; method concern WAJIB punya return type sesuai interface, mis. `collection(Collection $c): void` untuk import, `collection(): \Illuminate\Support\Collection` untuk export, `styles(Worksheet $s): ?array`, `query(): \Illuminate\Database\Eloquent\Builder`)
 - barryvdh/laravel-dompdf (export PDF)
 - phpoffice/phpword (export Word .docx — khusus Laporan Harian/Mingguan)
 - laravel/reverb + laravel-echo (websocket/broadcast: chat & notifikasi)
 - intervention/image (crop + konversi WebP untuk lampiran)
 - Storage: disk `local` saja (FILESYSTEM_DISK=local). TIDAK ada S3/Flysystem.
 - Frontend: Blade + TailwindCSS + Alpine (bawaan Livewire)
-- Dev tools: laravel/pint (code style), phpunit (test)
+- Dev tools: laravel/pint (code style), phpunit ^12 (test — metadata pakai attribute PHP `#[Test]`/`#[DataProvider]`, BUKAN doc-comment `@test`)
+- Bebas deprecation PHP 8.5 / Laravel 13 (WAJIB dijaga):
+  - Konstanta PDO driver pakai kelas driver (`Pdo\Mysql::ATTR_SSL_CA`), bukan `PDO::MYSQL_ATTR_*`.
+  - Jangan panggil `Reflection*::setAccessible()`, `curl_close()`, `finfo_close()`, `imagedestroy()`; jangan cast `(integer)/(boolean)/(double)/(binary)`; jangan pakai `null` sebagai array key; nullable WAJIB eksplisit `?Type $x = null`.
+  - `Request::get()` deprecated -> pakai `$request->input()`/`query()`/`string()`.
+  - Middleware CSRF bernama `PreventRequestForgery` (alias `VerifyCsrfToken`/`ValidateCsrfToken` deprecated).
+  - `cache.serializable_classes=false` & `session.serialization=json` (hardening Laravel 13): simpan HANYA skalar/array di Cache & Session, JANGAN objek/model.
+  - Cek runtime: `LOG_DEPRECATIONS_CHANNEL=single php artisan test` lalu pastikan tidak ada baris deprecation baru di `storage/logs/laravel.log`.
 
 # Peta Domain (entity -> permission prefix)
 - Master Data: `companies` (perusahaan), `data_kapal` (data kapal + `manage_kurva_s` + template upload/download), `galangan`, `kelembaban`, `cuaca`
@@ -198,6 +205,8 @@ Urutan toolbar: `[search flex-1] → [x-filter-popover] → [action buttons]`.
 5. **`wire:key` WAJIB untuk semua row/action di loop**: `wire:key="row-{id}"` pada `<tr>`/wrapper. Tanpa itu, delete/reorder membuat Livewire DOM-diff mencocokkan elemen yang salah (spinner muter di button lain).
 6. **Stale input antar-entitas pada nested/tab form (morph carryover)**: `wire:model` men-set nilai client-side; saat node dipakai ulang untuk entitas lain, nilai DOM lama "bocor". SOLUSI: `row_key` stabil per baris (`uuid` untuk baru, `'{prefix}-{id}'` untuk persisted) di `wire:key` semua wrapper; untuk layout tab bungkus panel dengan `wire:key="panel-{row_key}"`.
 7. **Stale `wire:model` saat baris di-REORDER**: di Livewire 4 `wire:model` meng-capture expression (mis. `items.0.name`) saat init — tidak dievaluasi ulang saat node pindah posisi. SOLUSI: sertakan index posisi di `wire:key` (`item-{row_key}-{index}`) agar node di-render ulang, ATAU pakai `value="..."` + `wire:blur="updateX(..., $event.target.value)"`.
+8. **Directive Blade di dalam komentar JS/HTML tetap DI-PARSE**: menulis teks `@if(...)`/`@foreach(...)` di komentar `//` atau `<!-- -->` dalam file `.blade.php` membuat counter directive tak seimbang -> ParseError "unexpected end of file, expecting endif". Jangan tulis nama directive di komentar (pakai `{{-- --}}` pun hindari menyebut directive ber-kurung).
+9. **Scroll lock modal yang dibungkus `@if` server-side**: elemen dihapus Livewire morph TANPA memicu `$watch`, sehingga `document.body.style.overflow='hidden'` tertinggal (scroll mati sampai hard refresh). Selalu `return () => { document.body.style.overflow = '' }` dari `x-init` sebagai cleanup (contoh: `x-document-confirm-modal`).
 
 # File Storage & Lampiran (pola WAJIB — async via queue)
 Alur yang ADA (storage `local`, TANPA S3/FileStorageService):

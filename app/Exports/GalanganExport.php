@@ -3,12 +3,14 @@
 namespace App\Exports;
 
 use App\Models\Galangan;
+use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class GalanganExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping, WithStyles, WithTitle
@@ -23,7 +25,7 @@ class GalanganExport implements FromCollection, ShouldAutoSize, WithHeadings, Wi
         $this->statusFilter = $statusFilter;
     }
 
-    public function collection()
+    public function collection(): Collection
     {
         return Galangan::query()
             ->withCount('dataKapal')
@@ -77,13 +79,13 @@ class GalanganExport implements FromCollection, ShouldAutoSize, WithHeadings, Wi
         ];
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         return [
             1 => [
                 'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
                 'fill' => [
-                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'fillType' => Fill::FILL_SOLID,
                     'startColor' => ['rgb' => '2563EB'],
                 ],
             ],

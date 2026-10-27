@@ -39,6 +39,7 @@ class TruncateLivewireUploadFilename
             foreach ($file as $subFile) {
                 $this->processFiles($subFile);
             }
+
             return;
         }
 
@@ -63,9 +64,7 @@ class TruncateLivewireUploadFilename
         $reflection = new \ReflectionClass(\Symfony\Component\HttpFoundation\File\UploadedFile::class);
 
         if ($reflection->hasProperty('originalName')) {
-            $property = $reflection->getProperty('originalName');
-            $property->setAccessible(true);
-            $property->setValue($file, $newFilename);
+            $reflection->getProperty('originalName')->setValue($file, $newFilename);
         }
     }
 }

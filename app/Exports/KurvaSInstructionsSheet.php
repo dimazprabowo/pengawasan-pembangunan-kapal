@@ -104,7 +104,7 @@ class KurvaSInstructionsSheet implements FromArray, WithColumnWidths, WithStyles
         ];
     }
 
-    public function styles(Worksheet $sheet)
+    public function styles(Worksheet $sheet): ?array
     {
         // Title
         $sheet->getStyle('A1:B1')->applyFromArray([
