@@ -6,11 +6,15 @@ use App\Jobs\GenerateLaporanMingguanJob;
 use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
 use App\Models\DataKapal;
+use App\Models\KurvaSWorkGroup;
+use App\Models\LaporanHarian;
 use App\Models\LaporanLampiran;
 use App\Models\LaporanMingguan;
 use App\Services\KurvaSService;
 use App\Services\LaporanMingguanService;
+use App\Services\LaporanNcService;
 use App\Services\QueueStatusService;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
@@ -37,7 +41,7 @@ class LaporanMingguanShow extends Component
     public ?int $previewLampiranId = null;
 
     // Available Laporan Harian
-    public ?\Illuminate\Database\Eloquent\Collection $availableLaporanHarian = null;
+    public ?Collection $availableLaporanHarian = null;
 
     // Word Document Status
     public bool $loadingDoc = false;
@@ -97,7 +101,7 @@ class LaporanMingguanShow extends Component
     {
         $laporanHarianIds = $this->laporan->laporanHarian->pluck('id')->toArray();
 
-        $this->availableLaporanHarian = \App\Models\LaporanHarian::with(['user', 'dataKapal'])
+        $this->availableLaporanHarian = LaporanHarian::with(['user', 'dataKapal'])
             ->whereIn('id', $laporanHarianIds)
             ->orderByDesc('tanggal_laporan')
             ->get();
@@ -506,7 +510,7 @@ class LaporanMingguanShow extends Component
             $progressHistory = $kurvaSService->getProgressHistory($this->laporan->dataKapal);
 
             // Get work groups for history table
-            $workGroupsForHistory = \App\Models\KurvaSWorkGroup::where('data_kapal_id', $this->laporan->data_kapal_id)
+            $workGroupsForHistory = KurvaSWorkGroup::where('data_kapal_id', $this->laporan->data_kapal_id)
                 ->orderBy('sort_order')
                 ->get()
                 ->map(fn ($wg) => [
@@ -518,7 +522,7 @@ class LaporanMingguanShow extends Component
 
             // Calculate totals from progress history using service
             if (! empty($progressHistory)) {
-                $workGroups = \App\Models\KurvaSWorkGroup::where('data_kapal_id', $this->laporan->data_kapal_id)
+                $workGroups = KurvaSWorkGroup::where('data_kapal_id', $this->laporan->data_kapal_id)
                     ->orderBy('sort_order')
                     ->get();
 
@@ -536,6 +540,14 @@ class LaporanMingguanShow extends Component
             'totalAktual' => $totalAktual,
             'progressHistory' => $progressHistory,
             'workGroupsForHistory' => $workGroupsForHistory,
+            // Rekap NC periode ini: open selama periode + closed di periode/minggu sebelumnya
+            'ncRekap' => $this->laporan->periode_mulai && $this->laporan->periode_selesai
+                ? app(LaporanNcService::class)->rekapMingguan(
+                    $this->laporan->data_kapal_id,
+                    $this->laporan->periode_mulai,
+                    $this->laporan->periode_selesai,
+                )
+                : collect(),
         ]);
     }
 }

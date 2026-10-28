@@ -5,12 +5,14 @@ namespace App\Livewire\LaporanHarian;
 use App\Exports\LaporanHarianExport;
 use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
+use App\Livewire\Traits\HasTableSorting;
 use App\Models\DataKapal;
 use App\Models\LaporanHarian;
 use App\Services\KontrakPeriodeService;
 use App\Services\LaporanHarianService;
 use App\Services\QueueStatusService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -20,8 +22,8 @@ use Livewire\WithPagination;
 #[Layout('layouts.app', ['title' => 'Manajemen Laporan Harian'])]
 class LaporanHarianIndex extends Component
 {
-    use \App\Livewire\Traits\HasTableSorting;
     use AuthorizesRequests, HasDataKapalFilter, HasNotification, WithPagination;
+    use HasTableSorting;
 
     protected $paginationTheme = 'tailwind';
 
@@ -33,6 +35,9 @@ class LaporanHarianIndex extends Component
     public ?int $dataKapalId = null;
 
     public int $perPage = 10;
+
+    #[Url(as: 'tab')]
+    public string $tab = 'laporan';
 
     public array $mingguFilter = [];
 
@@ -57,6 +62,12 @@ class LaporanHarianIndex extends Component
             $notify = session('notify');
             $this->dispatch('notify', type: $notify['type'], message: $notify['message']);
         }
+    }
+
+    public function setTab(string $tab): void
+    {
+        $this->tab = in_array($tab, ['laporan', 'nc']) ? $tab : 'laporan';
+        $this->resetPage();
     }
 
     public function gantiKapal()
@@ -84,6 +95,47 @@ class LaporanHarianIndex extends Component
         $this->resetPage();
     }
 
+    /**
+     * Bulan berubah → buang minggu terpilih yang tidak ada di bulan tsb.
+     */
+    public function updatedBulanFilter(): void
+    {
+        if (empty($this->mingguFilter)) {
+            return;
+        }
+
+        $allowed = $this->allowedMingguKe(app(KontrakPeriodeService::class));
+        if ($allowed === null) {
+            return;
+        }
+
+        $this->mingguFilter = array_values(array_intersect(
+            array_map('intval', $this->mingguFilter),
+            $allowed
+        ));
+    }
+
+    /**
+     * Minggu ke- yang valid untuk bulan terpilih; null = semua (tak ada bulan dipilih).
+     */
+    private function allowedMingguKe(KontrakPeriodeService $periodeService): ?array
+    {
+        $bulanKe = array_filter(array_map('intval', $this->bulanFilter));
+        if (empty($bulanKe)) {
+            return null;
+        }
+
+        $allowed = [];
+        foreach ($bulanKe as $ke) {
+            $periode = $periodeService->getBulanPeriode($this->dataKapal, $ke);
+            if ($periode) {
+                $allowed = array_merge($allowed, range($periode['minggu_dari'], $periode['minggu_sampai']));
+            }
+        }
+
+        return array_values(array_unique($allowed));
+    }
+
     public function resetFilters(): void
     {
         $this->reset(['search', 'mingguFilter', 'bulanFilter', 'perPage']);
@@ -109,7 +161,7 @@ class LaporanHarianIndex extends Component
             $this->showDeleteModal = false;
             $this->deletingLaporanId = null;
             $this->deletingLaporanJudul = null;
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk menghapus laporan ini.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
@@ -171,6 +223,7 @@ class LaporanHarianIndex extends Component
                 $this->bulanFilter
             ),
             'mingguOptions' => collect($periodeService->getMingguList($this->dataKapal))
+                ->when($this->allowedMingguKe($periodeService) !== null, fn ($c) => $c->filter(fn ($m) => in_array($m['minggu_ke'], $this->allowedMingguKe($periodeService), true)))
                 ->map(fn ($m) => ['value' => $m['minggu_ke'], 'label' => 'Minggu ke-'.$m['minggu_ke'].' ('.$m['label'].')'])->all(),
             'bulanOptions' => collect($periodeService->getBulanList($this->dataKapal))
                 ->map(fn ($b) => ['value' => $b['bulan_ke'], 'label' => 'Bulan ke-'.$b['bulan_ke'].' ('.$b['label'].')'])->all(),

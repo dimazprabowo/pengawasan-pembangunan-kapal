@@ -69,7 +69,21 @@
         </nav>
     </div>
 
+    {{-- Sub-tabs: Laporan | Kurva S --}}
+    <div class="mb-4 flex gap-1 bg-gray-100 dark:bg-gray-900/60 rounded-lg p-1 w-fit">
+        @foreach(['laporan' => 'Laporan', 'kurva-s' => 'Kurva S'] as $tabKey => $tabLabel)
+            <button type="button" wire:click="setTab('{{ $tabKey }}')" wire:loading.attr="disabled" wire:target="setTab('{{ $tabKey }}')"
+                class="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-medium rounded-md transition-colors disabled:opacity-50 {{ $tab === $tabKey ? 'bg-white dark:bg-gray-800 shadow-sm text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200' }}">
+                <svg wire:loading wire:target="setTab('{{ $tabKey }}')" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+                {{ $tabLabel }}
+            </button>
+        @endforeach
+    </div>
+
     {{-- Search & Actions --}}
+    @if($tab === 'laporan')
     <div class="mb-6 flex flex-col lg:flex-row lg:items-center gap-3">
         <div class="flex-1">
             <input wire:model.live.debounce.300ms="search" type="text"
@@ -80,6 +94,22 @@
         <x-filter-popover :per-page="true" />
 
         <div class="flex items-center gap-2 flex-wrap">
+            @can('exportExcel', \App\Models\LaporanBulanan::class)
+                <x-loading-button wire:click="exportExcel" target="exportExcel" variant="success" size="md" loadingText="Exporting..." title="Export Excel">
+                    <x-slot:icon>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    </x-slot:icon>
+                    Excel
+                </x-loading-button>
+            @endcan
+            @can('exportPdf', \App\Models\LaporanBulanan::class)
+                <x-loading-button wire:click="exportPdf" target="exportPdf" variant="danger" size="md" loadingText="Exporting..." title="Export PDF">
+                    <x-slot:icon>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                    </x-slot:icon>
+                    PDF
+                </x-loading-button>
+            @endcan
             @can('create', \App\Models\LaporanBulanan::class)
                 <a href="{{ route('laporan-bulanan.create', $dataKapal) }}" wire:navigate
                     x-data="{ loading: false }" x-on:click="loading = true"
@@ -94,49 +124,12 @@
                     <span x-show="loading" x-cloak>Memuat...</span>
                 </a>
             @endcan
-            <div class="inline-flex items-center gap-2">
-                <x-toggle-switch wire:click="toggleKurvaS" :active="$showKurvaS" target="toggleKurvaS" activeColor="blue" title="Tampilkan/sembunyikan Grafik Kurva S" />
-                <span class="text-sm font-medium text-gray-900 dark:text-gray-300">Kurva S</span>
-            </div>
         </div>
     </div>
 
-    {{-- Kurva S Loading Skeleton (tampil saat request toggle sedang berjalan) --}}
-    @if(!$showKurvaS)
-        <div wire:loading wire:target="toggleKurvaS" class="mb-6 w-full">
-            <div class="w-full bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div class="px-5 py-3.5 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
-                    <svg class="animate-spin w-4 h-4 text-blue-600 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Memuat Kurva S</h3>
-                    <span class="ms-auto flex items-center gap-1" aria-hidden="true">
-                        <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce" style="animation-delay: 0ms"></span>
-                        <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce" style="animation-delay: 150ms"></span>
-                        <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce" style="animation-delay: 300ms"></span>
-                    </span>
-                </div>
-                <div class="px-5 pt-6 pb-5">
-                    <div class="flex items-end gap-2 sm:gap-3 h-44" aria-hidden="true">
-                        @foreach([38, 52, 45, 63, 58, 74, 68, 86, 79, 92, 71, 84] as $h)
-                            <div class="flex-1 rounded-t-lg bg-gradient-to-t from-blue-200/80 to-blue-100/40 dark:from-blue-800/40 dark:to-blue-900/20 animate-pulse"
-                                style="height: {{ $h }}%; animation-delay: {{ $loop->index * 90 }}ms"></div>
-                        @endforeach
-                    </div>
-                    <div class="mt-3 flex justify-between gap-2" aria-hidden="true">
-                        @foreach(range(1, 6) as $i)
-                            <span class="h-2 w-8 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" style="animation-delay: {{ $i * 100 }}ms"></span>
-                        @endforeach
-                    </div>
-                    <p class="mt-5 text-center text-sm text-gray-500 dark:text-gray-400">Sedang mengambil data progres pembangunan...</p>
-                </div>
-            </div>
-        </div>
-    @endif
-
+    
     {{-- Kurva S Bulanan Chart Panel --}}
-    @if($showKurvaS)
+    @elseif($tab === 'kurva-s')
         <x-kurva-s-chart-card
             :chartData="$kurvaSChartData"
             :dataKapalNama="$dataKapal?->nama"
@@ -177,6 +170,7 @@
     @endif
 
     {{-- Table --}}
+    @if($tab === 'laporan')
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
         <div class="overflow-x-auto custom-scrollbar">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -316,6 +310,7 @@
             </div>
         @endif
     </div>
+    @endif
 
     {{-- Delete Confirmation Modal --}}
     <x-delete-modal

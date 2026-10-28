@@ -2,13 +2,17 @@
 
 namespace App\Livewire\LaporanBulanan;
 
+use App\Exports\LaporanBulananExport;
 use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
+use App\Livewire\Traits\HasTableSorting;
 use App\Models\DataKapal;
 use App\Models\KurvaSWorkGroup;
 use App\Models\LaporanBulanan;
 use App\Services\KurvaSService;
 use App\Services\LaporanBulananService;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -18,8 +22,8 @@ use Livewire\WithPagination;
 #[Layout('layouts.app', ['title' => 'Manajemen Laporan Bulanan'])]
 class LaporanBulananIndex extends Component
 {
-    use \App\Livewire\Traits\HasTableSorting;
     use AuthorizesRequests, HasDataKapalFilter, HasNotification, WithPagination;
+    use HasTableSorting;
 
     protected $paginationTheme = 'tailwind';
 
@@ -33,7 +37,9 @@ class LaporanBulananIndex extends Component
     public int $perPage = 10;
 
     // Kurva S Panel
-    public bool $showKurvaS = false;
+    // Sub-tab: laporan | kurva-s
+    #[Url(as: 'tab')]
+    public string $tab = 'laporan';
 
     // Delete Modal
     public bool $showDeleteModal = false;
@@ -49,7 +55,6 @@ class LaporanBulananIndex extends Component
 
         $this->dataKapal = $dataKapal;
         $this->dataKapalId = $dataKapal->id;
-        $this->showKurvaS = session('laporan_bulanan_show_kurva_s', true);
 
         if (session()->has('notify')) {
             $notify = session('notify');
@@ -62,17 +67,12 @@ class LaporanBulananIndex extends Component
         return $this->redirect(route('laporan.index'), navigate: true);
     }
 
-    public function toggleKurvaS(): void
+    public function setTab(string $tab): void
     {
-        $this->showKurvaS = ! $this->showKurvaS;
-        $this->updatedShowKurvaS($this->showKurvaS);
-    }
+        $this->tab = in_array($tab, ['laporan', 'kurva-s']) ? $tab : 'laporan';
+        $this->resetPage();
 
-    public function updatedShowKurvaS($value): void
-    {
-        session(['laporan_bulanan_show_kurva_s' => $value]);
-
-        if ($value && $this->dataKapalId) {
+        if ($this->tab === 'kurva-s' && $this->dataKapalId) {
             $this->dispatchRealtimeUpdates();
         }
     }
@@ -146,11 +146,57 @@ class LaporanBulananIndex extends Component
             $this->showDeleteModal = false;
             $this->deletingLaporanId = null;
             $this->deletingLaporanJudul = null;
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk menghapus laporan ini.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
+    }
+
+    public function exportExcel()
+    {
+        $this->authorize('exportExcel', LaporanBulanan::class);
+
+        $filename = 'laporan-bulanan-'.now()->format('Y-m-d-His').'.xlsx';
+
+        return (new LaporanBulananExport($this->search, $this->dataKapalId))
+            ->download($filename);
+    }
+
+    public function exportPdf()
+    {
+        $this->authorize('exportPdf', LaporanBulanan::class);
+
+        $laporanList = LaporanBulanan::with(['user', 'dataKapal'])
+            ->when($this->search, function ($q) {
+                $q->where(function ($q) {
+                    $q->where('ringkasan', 'like', "%{$this->search}%")
+                        ->orWhereHas('user', function ($q) {
+                            $q->where('name', 'like', "%{$this->search}%");
+                        });
+
+                    if (is_numeric($this->search)) {
+                        $q->orWhere('bulan_ke', (int) $this->search);
+                    }
+                });
+            })
+            ->when($this->dataKapalId, function ($q) {
+                $q->where('data_kapal_id', $this->dataKapalId);
+            })
+            ->orderByDesc('tanggal_laporan')
+            ->orderByDesc('created_at')
+            ->get();
+
+        $pdf = Pdf::loadView('exports.laporan-bulanan-pdf', [
+            'laporanList' => $laporanList,
+            'tipeLabel' => 'Bulanan',
+        ]);
+        $pdf->setPaper('a4', 'landscape');
+
+        return response()->streamDownload(
+            fn () => print ($pdf->output()),
+            'laporan-bulanan-'.now()->format('Y-m-d-His').'.pdf'
+        );
     }
 
     public function render(LaporanBulananService $service, KurvaSService $kurvaSService)
@@ -161,7 +207,7 @@ class LaporanBulananIndex extends Component
         $totalRencana = null;
         $totalAktual = null;
 
-        if ($this->showKurvaS && $this->dataKapal) {
+        if ($this->tab === 'kurva-s' && $this->dataKapal) {
             $chartData = $kurvaSService->getMonthlyChartData($this->dataKapal);
             $progressHistory = $kurvaSService->getMonthlyProgressHistory($this->dataKapal);
             $workGroupsForHistory = $this->getWorkGroupsForHistory();

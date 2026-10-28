@@ -95,7 +95,7 @@ class LaporanHarianSeeder extends Seeder
                 $laporan->aktivitas()->create([
                     'kurva_s_work_group_id' => $wg->id,
                     'kategori' => $wg->nama,
-                    'aktivitas' => "{$uraian} — {$wg->nama}",
+                    'aktivitas' => $uraian,
                     'pic' => ['QC Galangan', 'Surveyor BKI', 'Owner Surveyor'][($n + $k) % 3],
                 ]);
             }

@@ -5,11 +5,15 @@ namespace App\Livewire\LaporanMingguan;
 use App\Exports\LaporanMingguanExport;
 use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
+use App\Livewire\Traits\HasTableSorting;
 use App\Models\DataKapal;
+use App\Models\KurvaSWorkGroup;
 use App\Models\LaporanMingguan;
+use App\Services\KontrakPeriodeService;
 use App\Services\KurvaSService;
 use App\Services\LaporanMingguanService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -19,8 +23,8 @@ use Livewire\WithPagination;
 #[Layout('layouts.app', ['title' => 'Manajemen Laporan Mingguan'])]
 class LaporanMingguanIndex extends Component
 {
-    use \App\Livewire\Traits\HasTableSorting;
     use AuthorizesRequests, HasDataKapalFilter, HasNotification, WithPagination;
+    use HasTableSorting;
 
     protected $paginationTheme = 'tailwind';
 
@@ -35,8 +39,9 @@ class LaporanMingguanIndex extends Component
 
     public array $bulanFilter = [];
 
-    // Kurva S Panel
-    public bool $showKurvaS = false;
+    // Sub-tab: laporan | kurva-s
+    #[Url(as: 'tab')]
+    public string $tab = 'laporan';
 
     // Delete Modal
     public bool $showDeleteModal = false;
@@ -52,7 +57,6 @@ class LaporanMingguanIndex extends Component
 
         $this->dataKapal = $dataKapal;
         $this->dataKapalId = $dataKapal->id;
-        $this->showKurvaS = session('laporan_mingguan_show_kurva_s', false);
 
         if (session()->has('notify')) {
             $notify = session('notify');
@@ -65,17 +69,12 @@ class LaporanMingguanIndex extends Component
         return $this->redirect(route('laporan.index'), navigate: true);
     }
 
-    public function toggleKurvaS(): void
+    public function setTab(string $tab): void
     {
-        $this->showKurvaS = ! $this->showKurvaS;
-        $this->updatedShowKurvaS($this->showKurvaS);
-    }
+        $this->tab = in_array($tab, ['laporan', 'kurva-s']) ? $tab : 'laporan';
+        $this->resetPage();
 
-    public function updatedShowKurvaS($value): void
-    {
-        session(['laporan_mingguan_show_kurva_s' => $value]);
-
-        if ($value && $this->dataKapalId) {
+        if ($this->tab === 'kurva-s' && $this->dataKapalId) {
             $this->dispatchRealtimeUpdates();
         }
     }
@@ -86,7 +85,7 @@ class LaporanMingguanIndex extends Component
         $progressHistory = app(KurvaSService::class)->getProgressHistory($this->dataKapal);
 
         // Get work groups for history table
-        $workGroupsForHistory = \App\Models\KurvaSWorkGroup::where('data_kapal_id', $this->dataKapalId)
+        $workGroupsForHistory = KurvaSWorkGroup::where('data_kapal_id', $this->dataKapalId)
             ->orderBy('sort_order')
             ->get()
             ->map(function ($wg) {
@@ -153,7 +152,7 @@ class LaporanMingguanIndex extends Component
             $this->showDeleteModal = false;
             $this->deletingLaporanId = null;
             $this->deletingLaporanJudul = null;
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk menghapus laporan ini.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
@@ -208,7 +207,7 @@ class LaporanMingguanIndex extends Component
         );
     }
 
-    public function render(LaporanMingguanService $service, KurvaSService $kurvaSService, \App\Services\KontrakPeriodeService $periodeService)
+    public function render(LaporanMingguanService $service, KurvaSService $kurvaSService, KontrakPeriodeService $periodeService)
     {
         $chartData = [];
         $progressHistory = [];
@@ -216,14 +215,14 @@ class LaporanMingguanIndex extends Component
         $totalRencana = null;
         $totalAktual = null;
 
-        if ($this->showKurvaS) {
+        if ($this->tab === 'kurva-s') {
             $dataKapal = $this->dataKapal;
             if ($dataKapal) {
                 $chartData = $kurvaSService->getChartData($dataKapal);
                 $progressHistory = $kurvaSService->getProgressHistory($dataKapal);
 
                 // Get work groups for history table
-                $workGroupsForHistory = \App\Models\KurvaSWorkGroup::where('data_kapal_id', $this->dataKapalId)
+                $workGroupsForHistory = KurvaSWorkGroup::where('data_kapal_id', $this->dataKapalId)
                     ->orderBy('sort_order')
                     ->get()
                     ->map(function ($wg) {

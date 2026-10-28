@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Services\KontrakPeriodeService;
 use App\Traits\HasEncryptedRouteKey;
 use App\Traits\HasUserStamps;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -74,7 +75,7 @@ class LaporanHarian extends Model
     public static function generateJudul($tanggal, ?DataKapal $dataKapal = null): string
     {
         try {
-            $tanggal = $tanggal ? \Carbon\Carbon::parse($tanggal) : null;
+            $tanggal = $tanggal ? Carbon::parse($tanggal) : null;
         } catch (\Throwable) {
             $tanggal = null;
         }
@@ -157,6 +158,11 @@ class LaporanHarian extends Model
     public function aktivitas(): HasMany
     {
         return $this->hasMany(LaporanAktivitas::class)->orderBy('id');
+    }
+
+    public function ncs(): HasMany
+    {
+        return $this->hasMany(LaporanNc::class, 'laporan_harian_id')->orderBy('id');
     }
 
     public function laporanMingguan(): BelongsToMany

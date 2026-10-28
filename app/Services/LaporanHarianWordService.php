@@ -136,6 +136,14 @@ class LaporanHarianWordService
         $this->fillPeralatanTable($processor, $laporan);
         $this->fillConsumableTable($processor, $laporan);
         $this->fillAktivitasTable($processor, $laporan);
+        // NC sengaja tidak diekspor di dokumen harian — rekap NC hanya di laporan
+        // mingguan. Blok di template dibersihkan (marker ${blok_nc} tidak ikut render).
+        try {
+            $processor->cloneBlock('blok_nc', 0, true, true);
+            $processor->cloneBlock('blok_nc_foto', 0, true, true);
+        } catch (\Exception) {
+            // Template tanpa blok NC — tidak ada yang perlu dihapus
+        }
         $this->fillLampiranSection($processor, $laporan);
     }
 

@@ -42,6 +42,11 @@ return [
             // Uses default configuration
         ],
 
+        'laporan_nc' => [
+            'max_size' => 20480, // 20 MB
+            'mimes' => ['pdf'],
+        ],
+
         'lampiran' => [
             'max_size' => 20480, // 20 MB
             'mimes' => ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg'],

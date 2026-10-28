@@ -69,6 +69,29 @@
         </nav>
     </div>
 
+    {{-- Sub-tabs: Laporan | List NC --}}
+    <div class="mb-4 flex gap-1 bg-gray-100 dark:bg-gray-900/60 rounded-lg p-1 w-fit">
+        <button type="button" wire:click="setTab('laporan')" wire:loading.attr="disabled" wire:target="setTab('laporan')"
+            class="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-medium rounded-md transition-colors disabled:opacity-50 {{ $tab === 'laporan' ? 'bg-white dark:bg-gray-800 shadow-sm text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200' }}">
+            <svg wire:loading wire:target="setTab('laporan')" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+            Laporan
+        </button>
+        <button type="button" wire:click="setTab('nc')" wire:loading.attr="disabled" wire:target="setTab('nc')"
+            class="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-medium rounded-md transition-colors disabled:opacity-50 {{ $tab === 'nc' ? 'bg-white dark:bg-gray-800 shadow-sm text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200' }}">
+            <svg wire:loading wire:target="setTab('nc')" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+            List NC
+        </button>
+    </div>
+
+    @if($tab === 'nc')
+        <livewire:laporan-harian.laporan-nc-list :dataKapal="$dataKapal" />
+    @endif
+
+    @if($tab === 'laporan')
     {{-- Search & Actions --}}
     <div class="mb-6 flex flex-col lg:flex-row lg:items-center gap-3">
         <div class="flex-1">
@@ -77,14 +100,15 @@
                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
         </div>
 
-        <x-filter-popover :filters="['mingguFilter', 'bulanFilter']" :per-page="true">
-            <div>
-                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Minggu</label>
-                <x-multi-searchable-select wire:model.live="mingguFilter" :options="$mingguOptions" placeholder="Semua Minggu" searchPlaceholder="Cari minggu..." />
-            </div>
+        <x-filter-popover :filters="['bulanFilter', 'mingguFilter']" :per-page="true">
             <div>
                 <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Bulan</label>
                 <x-multi-searchable-select wire:model.live="bulanFilter" :options="$bulanOptions" placeholder="Semua Bulan" searchPlaceholder="Cari bulan..." />
+            </div>
+            <div wire:key="minggu-wrap-{{ implode('-', $bulanFilter) }}">
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Minggu</label>
+                {{-- key pada wrapper → subtree diganti saat bulan berubah → options select mengikuti bulan --}}
+                <x-multi-searchable-select wire:model.live="mingguFilter" :options="$mingguOptions" placeholder="{{ $bulanFilter ? 'Minggu pada bulan terpilih' : 'Semua Minggu' }}" searchPlaceholder="Cari minggu..." />
             </div>
         </x-filter-popover>
 
@@ -309,6 +333,7 @@
             </div>
         @endif
     </div>
+    @endif
 
     {{-- Delete Confirmation Modal --}}
     <x-delete-modal

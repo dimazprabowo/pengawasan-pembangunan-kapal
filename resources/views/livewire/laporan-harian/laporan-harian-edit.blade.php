@@ -140,6 +140,7 @@
                         'consumable' => ['label' => 'Consumable', 'icon' => 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4', 'count' => $nonEmptyRows($consumable), 'error' => $errors->has('consumable.*')],
                         'aktivitas' => ['label' => 'Aktivitas', 'icon' => 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-8h.01M9 16h.01', 'count' => $nonEmptyRows($aktivitas), 'error' => $errors->has('aktivitas.*')],
                         'lampiran' => ['label' => 'Lampiran', 'icon' => 'M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13', 'count' => $lampiranByAktivitas->count() + collect($foto)->filter(fn ($f) => ! empty($f['file']))->count(), 'error' => $errors->has('foto.*')],
+                        'nc' => ['label' => 'NC', 'icon' => 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z', 'count' => $nonEmptyRows($nc), 'error' => $errors->has('nc.*')],
                     ];
                     $defaultSection = 'cuaca';
                     foreach ($sectionMeta as $secKey => $meta) {
@@ -226,6 +227,17 @@
                         </div>
 
                         {{-- E. Uraian Aktivitas --}}
+                        <div class="md:col-span-2 mt-4" x-show="section === 'nc'" x-cloak>
+                            <x-laporan.nc-kategori-section
+                                :groups="$ncGroups"
+                                wirePrefix="nc"
+                                argsPrefix=""
+                                addPrefix="addNc("
+                                wireKeyPrefix="nc"
+                                :existing="$laporan->ncs->keyBy('id')"
+                            />
+                        </div>
+
                         <div class="md:col-span-2 mt-4" x-show="section === 'aktivitas'" x-cloak>
                             <x-laporan.aktivitas-kategori-section
                                 :groups="$kategoriGroups"
@@ -309,6 +321,14 @@
     />
 
     {{-- Image Cropper Modal --}}
+    <x-delete-modal
+        :show="$showDeleteNcModal"
+        wire:model="showDeleteNcModal"
+        title="Hapus NC"
+        message="Apakah Anda yakin ingin menghapus data NC ini? File before yang hanya dipakai NC ini ikut terhapus."
+        confirmMethod="removeNcConfirmed"
+    />
+
     <x-image-crop-modal 
         :show="$showCropperModal" 
         :imageUrl="$croppingImageUrl" 

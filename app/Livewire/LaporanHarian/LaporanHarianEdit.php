@@ -9,6 +9,7 @@ use App\Models\DataKapal;
 use App\Models\Kelembaban;
 use App\Models\LaporanHarian;
 use App\Services\LaporanHarianService;
+use App\Services\LaporanNcService;
 use App\Services\QueueStatusService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -56,6 +57,13 @@ class LaporanHarianEdit extends Component
     public array $consumable = [];
 
     public array $aktivitas = [];
+
+    public array $nc = [];
+
+    // Delete NC confirmation
+    public bool $showDeleteNcModal = false;
+
+    public ?int $deletingNcIndex = null;
 
     // Foto baru per uraian aktivitas - struktur: [row_key => ['file' => null, 'cropData' => null, 'is_cropped' => false]]
     public array $foto = [];
@@ -148,6 +156,8 @@ class LaporanHarianEdit extends Component
         foreach ($this->aktivitas as $row) {
             $this->foto[$row['row_key']] = $this->emptyFoto();
         }
+
+        $this->nc = app(LaporanNcService::class)->ncRowsFrom($laporanHarian);
     }
 
     private function emptyFoto(): array
@@ -222,6 +232,11 @@ class LaporanHarianEdit extends Component
         $rules['aktivitas'] = 'nullable|array';
         $rules['aktivitas.*.work_group_id'] = 'nullable|integer';
         $rules['aktivitas.*.aktivitas'] = 'nullable|string';
+        $rules['nc'] = 'nullable|array';
+        $rules['nc.*.work_group_id'] = 'nullable|integer';
+        $rules['nc.*.kendala'] = 'nullable|string|max:2000';
+        $rules['nc.*.tindakan'] = 'nullable|string|max:2000';
+        $rules['nc.*.pic'] = 'nullable|string|max:255';
         // Aktivitas yang sudah memiliki foto tersimpan tidak boleh dikosongkan uraiannya
         $lampiranByAktivitas = $this->lampiranByAktivitas();
         foreach ($this->aktivitas as $i => $row) {
@@ -351,6 +366,37 @@ class LaporanHarianEdit extends Component
         $this->closeCropper();
     }
 
+    // ── NC (Non-Conformity) ──────────────────────────────────────────────
+    public function addNc(?int $workGroupId = null): void
+    {
+        $row = app(LaporanNcService::class)->newNcRow($workGroupId);
+        $this->nc[] = $row;
+    }
+
+    public function confirmRemoveNc(int $ncIndex): void
+    {
+        $this->deletingNcIndex = $ncIndex;
+        $this->showDeleteNcModal = true;
+    }
+
+    public function removeNcConfirmed(): void
+    {
+        if ($this->deletingNcIndex !== null) {
+            $this->removeNc($this->deletingNcIndex);
+        }
+        $this->showDeleteNcModal = false;
+        $this->deletingNcIndex = null;
+        $this->notifySuccess('NC berhasil dihapus');
+    }
+
+    public function removeNc(int $ncIndex): void
+    {
+        if (isset($this->nc[$ncIndex])) {
+            unset($this->nc[$ncIndex]);
+            $this->nc = array_values($this->nc);
+        }
+    }
+
     public function refreshLampiranStatus(): void
     {
         $this->laporan->load('lampiran');
@@ -461,6 +507,9 @@ class LaporanHarianEdit extends Component
 
             // Uraian aktivitas per kategori + foto lampirannya (update/insert/hapus by id)
             $fotoCount = $service->syncAktivitas($this->laporan, $this->aktivitas, $this->foto);
+
+            // NC (bukti before/after diunggah terpisah via List NC)
+            app(LaporanNcService::class)->syncNc($this->laporan, $this->nc);
 
             $message = 'Laporan Harian berhasil diupdate!';
             if ($fotoCount > 0) {
@@ -767,6 +816,7 @@ class LaporanHarianEdit extends Component
             'cuacaList' => $cuacaList,
             'kelembabanList' => $kelembabanList,
             'kategoriGroups' => $service->groupRowsByKategori($this->aktivitas, $service->kategoriOptions($this->data_kapal_id)),
+            'ncGroups' => $service->groupRowsByKategori($this->nc, $service->kategoriOptions($this->data_kapal_id)),
             'lampiranByAktivitas' => $this->lampiranByAktivitas(),
         ]);
     }

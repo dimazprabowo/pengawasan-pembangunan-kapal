@@ -148,6 +148,21 @@ document.addEventListener('alpine:init', () => {
     });
 
     // Kurva S Chart component for global use
+    let chartJsLoader = null; // Shared promise — lazy-load Chart.js once saat komponen muncul via morph Livewire
+    const ensureChartJs = () => {
+        if (typeof Chart !== 'undefined') return Promise.resolve();
+        if (!chartJsLoader) {
+            chartJsLoader = new Promise((resolve) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js';
+                script.onload = () => resolve();
+                script.onerror = () => resolve(); // init() tetap bail aman bila CDN gagal
+                document.head.appendChild(script);
+            });
+        }
+        return chartJsLoader;
+    };
+
     Alpine.data('kurvaSChart', (chartData = null, canvasId = null) => {
         let chartInstance = null; // Plain closure variable — NOT Alpine-reactive, prevents Proxy recursion
 
@@ -203,6 +218,11 @@ document.addEventListener('alpine:init', () => {
 
             init() {
                 if (!this.chartData || !this.chartData.labels || !this.chartData.has_rencana) return;
+                if (typeof Chart === 'undefined') {
+                    // Chart.js belum termuat (script @push termuat async setelah morph Livewire) — load lalu retry sekali
+                    ensureChartJs().then(() => this.init());
+                    return;
+                }
                 this.$nextTick(() => {
                     const ctx = this.canvasId ? document.getElementById(this.canvasId) : this.$el.querySelector('canvas');
                     if (!ctx || typeof Chart === 'undefined') return;

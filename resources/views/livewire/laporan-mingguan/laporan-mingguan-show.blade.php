@@ -435,6 +435,64 @@
     </div>
     @endif
 
+    {{-- Rekap Non-Conformity (NC) periode ini: open selama periode + closed di periode/minggu sebelumnya --}}
+    @if($laporan->periode_mulai && $laporan->periode_selesai)
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mt-6">
+        <div class="px-5 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Rekap Non-Conformity (NC)
+                <span class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                    {{ $ncRekap->where('status.value', 'open')->count() }} open
+                </span>
+                <span class="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+                    {{ $ncRekap->where('status.value', 'closed')->count() }} closed
+                </span>
+            </h3>
+            <p class="mt-0.5 text-xs text-gray-400">NC open selama periode ini + NC yang closed pada periode ini atau minggu sebelumnya.</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700/50">
+                    <tr>
+                        <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">NC</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Kendala</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Tindakan</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">PIC</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Status</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Bukti</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    @forelse($ncRekap as $nc)
+                        <tr wire:key="mw-nc-{{ $nc->id }}" class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                            <td class="px-4 py-3 text-sm">
+                                <div class="font-medium text-gray-900 dark:text-white">{{ $nc->nomor ?? '-' }}</div>
+                                <div class="text-xs text-gray-400">{{ $nc->laporanHarian?->tanggal_laporan?->translatedFormat('d M Y') }}</div>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 max-w-xs"><p class="line-clamp-2" title="{{ $nc->kendala }}">{{ $nc->kendala }}</p></td>
+                            <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 max-w-xs"><p class="line-clamp-2" title="{{ $nc->tindakan }}">{{ $nc->tindakan ?? '-' }}</p></td>
+                            <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ $nc->pic ?? '-' }}</td>
+                            <td class="px-4 py-3">
+                                <span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ $nc->status->badgeClass() }}">{{ $nc->status->label() }}</span>
+                                @if($nc->isClosed() && $nc->closed_at)
+                                    <div class="text-[10px] text-gray-400 mt-0.5">{{ $nc->closed_at->translatedFormat('d M Y') }}{{ $nc->closedBy ? ' · '.$nc->closedBy->name : '' }}</div>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                B: {{ $nc->files->where('pivot.kind', 'before')->count() }} · A: {{ $nc->files->where('pivot.kind', 'after')->count() }}
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="py-8 text-center text-sm text-gray-500 dark:text-gray-400">Tidak ada NC pada periode ini.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+    @endif
+
     {{-- Back button --}}
     <div class="flex items-center mt-6">
         <a href="{{ route('laporan-mingguan.index', $dataKapal) }}" wire:navigate

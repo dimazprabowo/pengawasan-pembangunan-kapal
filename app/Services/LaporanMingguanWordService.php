@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\LaporanMingguan;
+use App\Models\LaporanNcFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpWord\TemplateProcessor;
@@ -22,7 +23,8 @@ class LaporanMingguanWordService
     ];
 
     public function __construct(
-        private WordImageService $imageService
+        private WordImageService $imageService,
+        private LaporanNcService $ncService,
     ) {}
 
     /**
@@ -51,6 +53,7 @@ class LaporanMingguanWordService
         $this->setSingleValues($processor, $laporan);
         $this->fillHarianTable($processor, $laporan);
         $this->fillAktivitasTable($processor, $laporan);
+        $this->fillNcSection($processor, $laporan);
         $this->fillLampiranTable($processor, $laporan);
 
         return $this->saveDocument($processor, $laporan);
@@ -256,6 +259,93 @@ class LaporanMingguanWordService
             }
         } catch (\Exception $e) {
             Log::warning('LaporanMingguanWordService: skip lampiran table', ['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Rekap NC periode mingguan (open selama periode + closed di periode/minggu
+     * sebelumnya). Blok ${blok_nc}: tabel nc_*; blok ${blok_nc_foto} per NC:
+     * ${ncf_nomor}, ${ncf_before}, ${ncf_after}.
+     */
+    private function fillNcSection(TemplateProcessor $processor, LaporanMingguan $laporan): void
+    {
+        try {
+            $ncs = ($laporan->periode_mulai && $laporan->periode_selesai)
+                ? $this->ncService->rekapMingguan($laporan->data_kapal_id, $laporan->periode_mulai, $laporan->periode_selesai)
+                : collect();
+
+            if ($ncs->isEmpty()) {
+                $processor->cloneBlock('blok_nc', 1, true, true);
+                $processor->setValue('nc_kosong#1', 'Tidak ada NC pada periode ini.');
+                $processor->setValue('nc_no#1', '1');
+                foreach (['nc_nomor', 'nc_tanggal', 'nc_kendala', 'nc_tindakan', 'nc_pic', 'nc_status', 'nc_closed'] as $m) {
+                    $processor->setValue("{$m}#1", '-');
+                }
+                $processor->cloneBlock('blok_nc_foto', 0, true, true);
+
+                return;
+            }
+
+            $processor->cloneBlock('blok_nc', 1, true, true);
+            $processor->setValue('nc_kosong#1', '');
+            $processor->cloneRow('nc_no#1', $ncs->count());
+
+            foreach ($ncs as $index => $nc) {
+                $i = $index + 1;
+                $processor->setValue("nc_no#1#{$i}", (string) $i);
+                $processor->setValue("nc_nomor#1#{$i}", $nc->nomor ?? '-');
+                $processor->setValue("nc_tanggal#1#{$i}", $nc->laporanHarian?->tanggal_laporan?->translatedFormat('d M Y') ?? '-');
+                $processor->setValue("nc_kendala#1#{$i}", $nc->kendala ?? '-');
+                $processor->setValue("nc_tindakan#1#{$i}", $nc->tindakan ?? '-');
+                $processor->setValue("nc_pic#1#{$i}", $nc->pic ?? '-');
+                $processor->setValue("nc_status#1#{$i}", $nc->status->label());
+                $processor->setValue("nc_closed#1#{$i}", $nc->closed_at
+                    ? $nc->closed_at->translatedFormat('d M Y').($nc->closedBy ? ' · '.$nc->closedBy->name : '')
+                    : '-');
+            }
+
+            // Blok foto before/after per NC
+            $processor->cloneBlock('blok_nc_foto', $ncs->count(), true, true);
+
+            foreach ($ncs as $index => $nc) {
+                $b = $index + 1;
+                $processor->setValue("ncf_nomor#{$b}", ($nc->nomor ?? 'NC').' — '.$nc->kendala);
+
+                $before = $nc->files->first(fn ($f) => $f->pivot->kind === 'before' && $f->isFileCompleted() && $this->imageService->isImageFile($f->file_path));
+                $after = $nc->files->first(fn ($f) => $f->pivot->kind === 'after' && $f->isFileCompleted() && $this->imageService->isImageFile($f->file_path));
+
+                $this->setNcImage($processor, "ncf_before#{$b}", $before);
+                $this->setNcImage($processor, "ncf_after#{$b}", $after);
+            }
+        } catch (\Exception $e) {
+            Log::warning('LaporanMingguanWordService: skip NC section', ['error' => $e->getMessage()]);
+        }
+    }
+
+    private function setNcImage(TemplateProcessor $processor, string $macro, ?LaporanNcFile $file): void
+    {
+        $imagePath = $file?->file_path ? $this->imageService->resolveLampiranPath($file->file_path) : null;
+
+        if (! $imagePath || ! file_exists($imagePath)) {
+            $processor->setValue($macro, $file ? ($file->file_name ?? '-') : '-');
+
+            return;
+        }
+
+        try {
+            $finalImage = $this->imageService->prepareImageForWord($imagePath);
+            $processor->setImageValue($macro, [
+                'path' => $finalImage,
+                'width' => WordImageService::DEFAULT_WIDTH,
+                'height' => WordImageService::DEFAULT_HEIGHT,
+                'ratio' => true,
+            ]);
+            if ($finalImage !== $imagePath && file_exists($finalImage)) {
+                @unlink($finalImage);
+            }
+        } catch (\Exception $e) {
+            Log::error('LaporanMingguanWordService: failed insert NC image', ['error' => $e->getMessage()]);
+            $processor->setValue($macro, $file->file_name ?? '-');
         }
     }
 

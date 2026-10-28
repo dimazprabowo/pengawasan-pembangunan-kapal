@@ -72,19 +72,20 @@ class LaporanMingguanSeeder extends Seeder
             }
         }
 
-        // Realisasi mingguan per work group: mengikuti bentuk rencana dengan
-        // variasi acak per minggu, lalu diskala agar total kumulatif per group
-        // tepat = bobot-nya (proyek selesai -> progress 100%).
+        // Realisasi mingguan per work group: jitter lebar per minggu (55-150% rencana)
+        // agar deviasi naik-turun terlihat di Kurva-S, lalu diskala ke sebagian bobot
+        // (75-100%) — tiap group punya profil keterlambatan berbeda di akhir kurva.
         $realisasiByWg = [];
         foreach ($workGroups as $wg) {
             $raw = [];
             foreach ($mingguList as $minggu) {
                 $plan = $planByWg[$wg->id][$minggu['minggu_ke']] ?? 0.0;
-                $raw[$minggu['minggu_ke']] = $plan * (rand(85, 115) / 100);
+                $raw[$minggu['minggu_ke']] = $plan * (rand(55, 150) / 100);
             }
 
             $sumRaw = array_sum($raw);
-            $scale = $sumRaw > 0 ? ((float) $wg->bobot) / $sumRaw : 0.0;
+            $target = (float) $wg->bobot * (rand(75, 100) / 100);
+            $scale = $sumRaw > 0 ? $target / $sumRaw : 0.0;
 
             $realisasi = [];
             foreach ($raw as $mingguKe => $value) {
@@ -92,9 +93,9 @@ class LaporanMingguanSeeder extends Seeder
             }
 
             // Koreksi residual pembulatan pada minggu bernilai terbesar
-            // agar total realisasi per group = bobot persis.
+            // agar total realisasi per group = target bobot akhir persis.
             if ($sumRaw > 0) {
-                $diff = round((float) $wg->bobot - array_sum($realisasi), 2);
+                $diff = round($target - array_sum($realisasi), 2);
                 if ($diff != 0.0) {
                     $maxWeek = array_keys($realisasi, max($realisasi))[0];
                     $realisasi[$maxWeek] = round($realisasi[$maxWeek] + $diff, 2);

@@ -49,15 +49,15 @@
                     : v.toFixed(2);
             },
             historyDeviation(wgId, weekIndex) {
-                return Math.round((this.historyKontribusi(wgId, weekIndex) - this.historyPlanKontribusi(wgId, weekIndex)) * 100) / 100;
+                return Math.round((this.historyKontribusi(wgId, weekIndex) - this.historyPlanKontribusi(wgId, weekIndex)) * 1000) / 1000;
             },
             totalHistoryDeviation(wgId) {
-                return Math.round((this.totalHistoryKontribusi(wgId) - this.totalHistoryPlan(wgId)) * 100) / 100;
+                return Math.round((this.totalHistoryKontribusi(wgId) - this.totalHistoryPlan(wgId)) * 1000) / 1000;
             },
             totalHistoryPlan(wgId) {
-                return Math.round(this.progressHistory.reduce((s, h, i) => s + this.historyPlanKontribusi(wgId, i), 0) * 100) / 100;
+                return Math.round(this.progressHistory.reduce((s, h, i) => s + this.historyPlanKontribusi(wgId, i), 0) * 1000) / 1000;
             },
-             totalHistoryKontribusi(wgId) { return Math.round(this.progressHistory.reduce((s, h, i) => s + this.historyKontribusi(wgId, i), 0) * 100) / 100; },
+             totalHistoryKontribusi(wgId) { return Math.round(this.progressHistory.reduce((s, h, i) => s + this.historyKontribusi(wgId, i), 0) * 1000) / 1000; },
              totalWeekPlan(weekIndex) {
                  // TIDAK dibulatkan per minggu — pembulatan sekali di totalAllWeeks* agar konsisten dengan cumulative_* backend
                  return Object.keys(this.bobots).reduce((s, wgId) => s + this.historyPlanKontribusi(wgId, weekIndex), 0);
@@ -66,16 +66,16 @@
                  return Object.keys(this.bobots).reduce((s, wgId) => s + this.historyKontribusi(wgId, weekIndex), 0);
              },
              totalAllWeeksPlan() {
-                 return Math.round(this.progressHistory.reduce((s, h, i) => s + this.totalWeekPlan(i), 0) * 100) / 100;
+                 return Math.round(this.progressHistory.reduce((s, h, i) => s + this.totalWeekPlan(i), 0) * 1000) / 1000;
              },
              totalAllWeeksActual() {
-                 return Math.round(this.progressHistory.reduce((s, h, i) => s + this.totalWeekActual(i), 0) * 100) / 100;
+                 return Math.round(this.progressHistory.reduce((s, h, i) => s + this.totalWeekActual(i), 0) * 1000) / 1000;
              },
              totalAllWeeksDeviation() {
-                return Math.round((this.totalAllWeeksActual() - this.totalAllWeeksPlan()) * 100) / 100;
+                return Math.round((this.totalAllWeeksActual() - this.totalAllWeeksPlan()) * 1000) / 1000;
             },
             totalBobot() {
-                return Math.round(Object.values(this.bobots).reduce((s, b) => s + b, 0) * 100) / 100;
+                return Math.round(Object.values(this.bobots).reduce((s, b) => s + b, 0) * 1000) / 1000;
             }
          }"
          @progress-history-updated.window="progressHistory = $event.detail.history">
@@ -133,15 +133,15 @@
                         <template x-for="(hist, weekIndex) in progressHistory" :key="'p-{{ $wg['work_group_id'] }}-' + weekIndex">
                         <td class="px-2 py-0.5 text-center tabular-nums text-gray-500 dark:text-gray-400 {{ $groupBorder }}" x-text="fmtPlan(historyPlanKontribusi('{{ $wg['work_group_id'] }}', weekIndex)) + '%'"></td>
                         </template>
-                        <td class="sticky right-0 z-10 bg-gray-50 dark:bg-gray-800 px-2 py-0.5 text-center tabular-nums font-medium text-gray-500 dark:text-gray-400 border-l border-gray-200 dark:border-gray-700 {{ $groupBorder }}" x-text="totalHistoryPlan('{{ $wg['work_group_id'] }}').toFixed(2) + '%'"></td>
+                        <td class="sticky right-0 z-10 bg-gray-50 dark:bg-gray-800 px-2 py-0.5 text-center tabular-nums font-medium text-gray-500 dark:text-gray-400 border-l border-gray-200 dark:border-gray-700 {{ $groupBorder }}" x-text="fmtPlan(totalHistoryPlan('{{ $wg['work_group_id'] }}')) + '%'"></td>
                     </tr>
                     {{-- Aktual --}}
                     <tr>
                         <td class="sticky left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">Aktual</td>
                         <template x-for="(hist, weekIndex) in progressHistory" :key="'a-{{ $wg['work_group_id'] }}-' + weekIndex">
-                        <td class="px-2 py-0.5 text-center tabular-nums font-medium text-gray-700 dark:text-gray-300" x-text="historyKontribusi('{{ $wg['work_group_id'] }}', weekIndex).toFixed(2) + '%'"></td>
+                        <td class="px-2 py-0.5 text-center tabular-nums font-medium text-gray-700 dark:text-gray-300" x-text="fmtPlan(historyKontribusi('{{ $wg['work_group_id'] }}', weekIndex)) + '%'"></td>
                         </template>
-                        <td class="sticky right-0 z-10 bg-gray-50 dark:bg-gray-800 px-2 py-0.5 text-center tabular-nums font-medium text-gray-700 dark:text-gray-300 border-l border-gray-200 dark:border-gray-700" x-text="totalHistoryKontribusi('{{ $wg['work_group_id'] }}').toFixed(2) + '%'"></td>
+                        <td class="sticky right-0 z-10 bg-gray-50 dark:bg-gray-800 px-2 py-0.5 text-center tabular-nums font-medium text-gray-700 dark:text-gray-300 border-l border-gray-200 dark:border-gray-700" x-text="fmtPlan(totalHistoryKontribusi('{{ $wg['work_group_id'] }}')) + '%'"></td>
                     </tr>
                     {{-- Deviasi --}}
                     <tr>
@@ -149,11 +149,11 @@
                         <template x-for="(hist, weekIndex) in progressHistory" :key="'d-{{ $wg['work_group_id'] }}-' + weekIndex">
                         <td class="px-2 py-0.5 text-center tabular-nums font-medium"
                             :class="historyDeviation('{{ $wg['work_group_id'] }}', weekIndex) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'"
-                            x-text="(historyDeviation('{{ $wg['work_group_id'] }}', weekIndex) >= 0 ? '+' : '') + historyDeviation('{{ $wg['work_group_id'] }}', weekIndex).toFixed(2) + '%'"></td>
+                            x-text="(historyDeviation('{{ $wg['work_group_id'] }}', weekIndex) >= 0 ? '+' : '') + fmtPlan(historyDeviation('{{ $wg['work_group_id'] }}', weekIndex)) + '%'"></td>
                         </template>
                         <td class="sticky right-0 z-10 bg-gray-50 dark:bg-gray-800 px-2 py-0.5 text-center tabular-nums font-medium border-l border-gray-200 dark:border-gray-700"
                             :class="totalHistoryDeviation('{{ $wg['work_group_id'] }}') >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'"
-                            x-text="(totalHistoryDeviation('{{ $wg['work_group_id'] }}') >= 0 ? '+' : '') + totalHistoryDeviation('{{ $wg['work_group_id'] }}').toFixed(2) + '%'"></td>
+                            x-text="(totalHistoryDeviation('{{ $wg['work_group_id'] }}') >= 0 ? '+' : '') + fmtPlan(totalHistoryDeviation('{{ $wg['work_group_id'] }}')) + '%'"></td>
                     </tr>
                     @endforeach
                     {{-- Per Minggu --}}
@@ -164,25 +164,25 @@
                         <template x-for="(hist, weekIndex) in progressHistory" :key="'wp-' + weekIndex">
                         <td class="px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-t-2 border-gray-300 dark:border-gray-600" x-text="fmtPlan(hist.week_plan || 0) + '%'"></td>
                         </template>
-                        <td class="sticky right-0 z-10 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-l border-t-2 border-l-gray-200 border-t-gray-300 dark:border-l-gray-700 dark:border-t-gray-600" x-text="totalAllWeeksPlan().toFixed(2) + '%'"></td>
+                        <td class="sticky right-0 z-10 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-l border-t-2 border-l-gray-200 border-t-gray-300 dark:border-l-gray-700 dark:border-t-gray-600" x-text="fmtPlan(totalAllWeeksPlan()) + '%'"></td>
                     </tr>
                     <tr>
                         <td class="sticky left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left font-bold text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700">Aktual</td>
                         <template x-for="(hist, weekIndex) in progressHistory" :key="'wa-' + weekIndex">
-                        <td class="px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white" x-text="(hist.week_actual || 0).toFixed(2) + '%'"></td>
+                        <td class="px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white" x-text="fmtPlan(hist.week_actual || 0) + '%'"></td>
                         </template>
-                        <td class="sticky right-0 z-10 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-l border-gray-200 dark:border-gray-700" x-text="totalAllWeeksActual().toFixed(2) + '%'"></td>
+                        <td class="sticky right-0 z-10 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-l border-gray-200 dark:border-gray-700" x-text="fmtPlan(totalAllWeeksActual()) + '%'"></td>
                     </tr>
                     <tr>
                         <td class="sticky left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left font-bold text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700">Deviasi</td>
                         <template x-for="(hist, weekIndex) in progressHistory" :key="'wd-' + weekIndex">
                         <td class="px-2 py-0.5 text-center tabular-nums font-bold"
                             :class="(hist.week_deviation || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'"
-                            x-text="((hist.week_deviation || 0) >= 0 ? '+' : '') + (hist.week_deviation || 0).toFixed(2) + '%'"></td>
+                            x-text="((hist.week_deviation || 0) >= 0 ? '+' : '') + fmtPlan(hist.week_deviation || 0) + '%'"></td>
                         </template>
                         <td class="sticky right-0 z-10 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-center tabular-nums font-bold border-l border-gray-200 dark:border-gray-700"
                             :class="totalAllWeeksDeviation() >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'"
-                            x-text="(totalAllWeeksDeviation() >= 0 ? '+' : '') + totalAllWeeksDeviation().toFixed(2) + '%'"></td>
+                            x-text="(totalAllWeeksDeviation() >= 0 ? '+' : '') + fmtPlan(totalAllWeeksDeviation()) + '%'"></td>
                     </tr>
                     {{-- Total Kumulatif --}}
                     <tr>
@@ -190,29 +190,29 @@
                         <td rowspan="3" class="sticky left-[200px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[64px] min-w-[64px] align-middle text-center tabular-nums font-bold text-gray-900 dark:text-white border-r border-t-2 border-r-gray-200 border-t-gray-300 dark:border-r-gray-700 dark:border-t-gray-600" x-text="totalBobot().toFixed(2) + '%'"></td>
                         <td class="sticky left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left font-bold text-gray-900 dark:text-white border-r border-t-2 border-r-gray-200 border-t-gray-300 dark:border-r-gray-700 dark:border-t-gray-600">Rencana</td>
                         <template x-for="(hist, weekIndex) in progressHistory" :key="'cp-' + weekIndex">
-                        <td class="px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-t-2 border-gray-300 dark:border-gray-600" x-text="(hist.cumulative_plan || 0).toFixed(2) + '%'"></td>
+                        <td class="px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-t-2 border-gray-300 dark:border-gray-600" x-text="fmtPlan(hist.cumulative_plan || 0) + '%'"></td>
                         </template>
                         <td class="sticky right-0 z-10 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-l border-t-2 border-l-gray-200 border-t-gray-300 dark:border-l-gray-700 dark:border-t-gray-600"
-                            x-text="(progressHistory.length > 0 ? (progressHistory[progressHistory.length - 1].cumulative_plan || 0) : 0).toFixed(2) + '%'"></td>
+                            x-text="(progressHistory.length > 0 ? fmtPlan(progressHistory.length > 0 ? (progressHistory[progressHistory.length - 1].cumulative_plan || 0) : 0) + '%'"></td>
                     </tr>
                     <tr>
                         <td class="sticky left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left font-bold text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700">Aktual</td>
                         <template x-for="(hist, weekIndex) in progressHistory" :key="'ca-' + weekIndex">
-                        <td class="px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white" x-text="(hist.cumulative_actual || 0).toFixed(2) + '%'"></td>
+                        <td class="px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white" x-text="fmtPlan(hist.cumulative_actual || 0) + '%'"></td>
                         </template>
                         <td class="sticky right-0 z-10 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-l border-gray-200 dark:border-gray-700"
-                            x-text="(progressHistory.length > 0 ? (progressHistory[progressHistory.length - 1].cumulative_actual || 0) : 0).toFixed(2) + '%'"></td>
+                            x-text="fmtPlan(progressHistory.length > 0 ? (progressHistory[progressHistory.length - 1].cumulative_actual || 0) : 0) + '%'"></td>
                     </tr>
                     <tr>
                         <td class="sticky left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left font-bold text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700">Deviasi</td>
                         <template x-for="(hist, weekIndex) in progressHistory" :key="'cd-' + weekIndex">
                         <td class="px-2 py-0.5 text-center tabular-nums font-bold"
                             :class="(hist.cumulative_deviation || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'"
-                            x-text="((hist.cumulative_deviation || 0) >= 0 ? '+' : '') + (hist.cumulative_deviation || 0).toFixed(2) + '%'"></td>
+                            x-text="((hist.cumulative_deviation || 0) >= 0 ? '+' : '') + fmtPlan(hist.cumulative_deviation || 0) + '%'"></td>
                         </template>
                         <td class="sticky right-0 z-10 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-center tabular-nums font-bold border-l border-gray-200 dark:border-gray-700"
                             :class="(progressHistory.length > 0 && (progressHistory[progressHistory.length - 1].cumulative_deviation || 0) >= 0) ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'"
-                            x-text="(progressHistory.length > 0 ? (((progressHistory[progressHistory.length - 1].cumulative_deviation || 0) >= 0 ? '+' : '') + (progressHistory[progressHistory.length - 1].cumulative_deviation || 0).toFixed(2)) : '0.00') + '%'"></td>
+                            x-text="(progressHistory.length > 0 ? (((progressHistory[progressHistory.length - 1].cumulative_deviation || 0) >= 0 ? '+' : '') + fmtPlan(progressHistory[progressHistory.length - 1].cumulative_deviation || 0)) : '0.000') + '%'"></td>
                     </tr>
                 </tbody>
             </table>

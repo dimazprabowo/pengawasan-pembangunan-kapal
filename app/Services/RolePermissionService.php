@@ -167,6 +167,7 @@ class RolePermissionService
                 ['name' => 'laporan_export_excel',        'label' => 'Export Excel Laporan'],
                 ['name' => 'laporan_export_pdf',          'label' => 'Export PDF Laporan'],
                 ['name' => 'laporan_view_all_data_kapal', 'label' => 'Laporan View All Data Kapal'],
+                ['name' => 'laporan_nc_update',           'label' => 'Kelola NC (status & file)'],
             ],
         ];
 

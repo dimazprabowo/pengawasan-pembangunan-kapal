@@ -9,9 +9,12 @@ use App\Models\DataKapal;
 use App\Models\Kelembaban;
 use App\Models\LaporanHarian;
 use App\Services\LaporanHarianService;
+use App\Services\LaporanNcService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -29,6 +32,15 @@ class LaporanHarianCreate extends Component
 
     // Foto lampiran per uraian aktivitas - struktur: [itemIndex => [row_key => ['file' => null, 'cropData' => null, 'is_cropped' => false]]]
     public array $lampiran = [];
+
+    // Crop hanya untuk foto lampiran aktivitas (bukti NC = dokumen, diunggah via List NC)
+
+    // Delete NC confirmation modal
+    public bool $showDeleteNcModal = false;
+
+    public ?int $deletingNcItemIndex = null;
+
+    public ?int $deletingNcIndex = null;
 
     // Delete card confirmation modal
     public bool $showDeleteCardModal = false;
@@ -109,7 +121,7 @@ class LaporanHarianCreate extends Component
     {
         return LaporanHarian::where('data_kapal_id', $this->data_kapal_id)
             ->pluck('tanggal_laporan')
-            ->map(fn ($d) => \Carbon\Carbon::parse($d)->format('Y-m-d'))
+            ->map(fn ($d) => Carbon::parse($d)->format('Y-m-d'))
             ->all();
     }
 
@@ -137,7 +149,7 @@ class LaporanHarianCreate extends Component
         $today = now()->startOfDay();
 
         $candidate = $lastTanggal
-            ? \Carbon\Carbon::parse($lastTanggal)->addDay()
+            ? Carbon::parse($lastTanggal)->addDay()
             : $today->copy();
         if ($candidate->gt($today)) {
             $candidate = $today->copy();
@@ -169,6 +181,7 @@ class LaporanHarianCreate extends Component
             'peralatan' => [],
             'consumable' => [],
             'aktivitas' => [],
+            'nc' => [],
         ];
         $this->lampiran[] = [];
 
@@ -395,6 +408,39 @@ class LaporanHarianCreate extends Component
         $this->lampiran[$itemIndex][$row['row_key']] = $this->emptyFoto();
     }
 
+    // ── NC (Non-Conformity) ──────────────────────────────────────────────
+    public function addNc(int $itemIndex, ?int $workGroupId = null): void
+    {
+        $row = app(LaporanNcService::class)->newNcRow($workGroupId);
+        $this->items[$itemIndex]['nc'][] = $row;
+    }
+
+    public function confirmRemoveNc(int $itemIndex, int $ncIndex): void
+    {
+        $this->deletingNcItemIndex = $itemIndex;
+        $this->deletingNcIndex = $ncIndex;
+        $this->showDeleteNcModal = true;
+    }
+
+    public function removeNcConfirmed(): void
+    {
+        if ($this->deletingNcItemIndex !== null && $this->deletingNcIndex !== null) {
+            $this->removeNc($this->deletingNcItemIndex, $this->deletingNcIndex);
+        }
+        $this->showDeleteNcModal = false;
+        $this->deletingNcItemIndex = null;
+        $this->deletingNcIndex = null;
+        $this->notifySuccess('NC berhasil dihapus');
+    }
+
+    public function removeNc(int $itemIndex, int $ncIndex): void
+    {
+        if (isset($this->items[$itemIndex]['nc'][$ncIndex])) {
+            unset($this->items[$itemIndex]['nc'][$ncIndex]);
+            $this->items[$itemIndex]['nc'] = array_values($this->items[$itemIndex]['nc']);
+        }
+    }
+
     public function getDeletingAktivitasHasFotoProperty(): bool
     {
         $rowKey = $this->items[$this->deletingAktivitasItemIndex]['aktivitas'][$this->deletingAktivitasIndex]['row_key'] ?? null;
@@ -441,7 +487,7 @@ class LaporanHarianCreate extends Component
                 'distinct',
                 function ($attribute, $value, $fail) {
                     $mulaiKontrak = $this->dataKapal->tanggal_mulai_kontrak;
-                    if ($value && $mulaiKontrak && \Carbon\Carbon::parse($value)->lt($mulaiKontrak)) {
+                    if ($value && $mulaiKontrak && Carbon::parse($value)->lt($mulaiKontrak)) {
                         $fail('Tanggal laporan tidak boleh sebelum tanggal mulai kontrak ('.$mulaiKontrak->translatedFormat('d M Y').').');
                     }
                 },
@@ -491,6 +537,11 @@ class LaporanHarianCreate extends Component
         $rules['items.*.aktivitas.*.work_group_id'] = 'nullable|integer';
         $rules['items.*.aktivitas.*.aktivitas'] = 'nullable|string';
         $rules['items.*.aktivitas.*.pic'] = 'nullable|string|max:255';
+        $rules['items.*.nc'] = 'nullable|array';
+        $rules['items.*.nc.*.work_group_id'] = 'nullable|integer';
+        $rules['items.*.nc.*.kendala'] = 'nullable|string|max:2000';
+        $rules['items.*.nc.*.tindakan'] = 'nullable|string|max:2000';
+        $rules['items.*.nc.*.pic'] = 'nullable|string|max:255';
 
         return $rules;
     }
@@ -535,7 +586,7 @@ class LaporanHarianCreate extends Component
 
         try {
             $this->validate();
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->notifyValidationError($e);
             $firstKey = collect($e->validator->errors()->keys())
                 ->first(fn ($k) => str_starts_with($k, 'items.') || str_starts_with($k, 'lampiran.'));
@@ -629,6 +680,9 @@ class LaporanHarianCreate extends Component
 
                 // Uraian aktivitas per kategori + foto lampirannya
                 $fotoCount += $service->syncAktivitas($laporan, $item['aktivitas'] ?? [], $this->lampiran[$index] ?? []);
+
+                // NC (bukti before/after diunggah terpisah via List NC)
+                app(LaporanNcService::class)->syncNc($laporan, $item['nc'] ?? []);
             }
 
             $count = count($dataItems);
@@ -670,6 +724,11 @@ class LaporanHarianCreate extends Component
             // Segmen uraian aktivitas per kategori untuk setiap tab hari
             'kategoriGroups' => array_map(
                 fn ($item) => $service->groupRowsByKategori($item['aktivitas'] ?? [], $kategoriOptions),
+                $this->items
+            ),
+            // NC per kategori (Work Group) untuk setiap tab hari
+            'ncGroups' => array_map(
+                fn ($item) => $service->groupRowsByKategori($item['nc'] ?? [], $kategoriOptions),
                 $this->items
             ),
         ]);

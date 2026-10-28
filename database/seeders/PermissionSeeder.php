@@ -119,6 +119,7 @@ class PermissionSeeder extends Seeder
             'laporan_export_excel',
             'laporan_export_pdf',
             'laporan_view_all_data_kapal',
+            'laporan_nc_update',
         ];
 
         foreach ($permissions as $permission) {

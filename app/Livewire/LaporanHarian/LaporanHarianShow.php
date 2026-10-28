@@ -9,6 +9,7 @@ use App\Models\DataKapal;
 use App\Models\LaporanHarian;
 use App\Services\KontrakPeriodeService;
 use App\Services\LaporanHarianService;
+use App\Services\LaporanNcService;
 use App\Services\QueueStatusService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Gate;
@@ -62,6 +63,7 @@ class LaporanHarianShow extends Component
             'consumable',
             'aktivitas.workGroup',
             'aktivitas.lampiran',
+            'ncs.files',
         ]);
     }
 
@@ -218,6 +220,14 @@ class LaporanHarianShow extends Component
                     'rows' => $group['aktivitas']->map(fn ($a) => $service->aktivitasRow($a))->all(),
                 ])->all(),
             'lampiranByAktivitas' => $this->laporan->lampiran->keyBy('laporan_aktivitas_id'),
+            // NC readonly — hanya kategori berisi (pola aktivitasGroups)
+            'ncGroups' => array_values(array_filter(
+                $service->groupRowsByKategori(
+                    app(LaporanNcService::class)->ncRowsFrom($this->laporan),
+                    $service->kategoriOptions($this->laporan->data_kapal_id)
+                ),
+                fn ($g) => count($g['rows'] ?? []) > 0
+            )),
         ]);
     }
 

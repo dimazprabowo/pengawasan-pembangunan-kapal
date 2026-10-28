@@ -436,6 +436,15 @@
                     readonly
                 />
             </x-laporan.section-wrapper>
+
+            {{-- NC Section — temuan per kategori (Work Group), diletakkan paling akhir --}}
+                <x-laporan.section-wrapper label="Non-Conformity (NC)" :isEmpty="$laporan->ncs->count() === 0" :count="$laporan->ncs->count()">
+                    <x-laporan.nc-kategori-section
+                        :groups="$ncGroups"
+                        :existing="$laporan->ncs->keyBy('id')"
+                        :readonly="true"
+                    />
+                </x-laporan.section-wrapper>
         </div>
     </div>
 

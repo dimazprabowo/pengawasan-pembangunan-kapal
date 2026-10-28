@@ -8,6 +8,7 @@ use App\Models\KurvaSWorkGroup;
 use App\Models\LaporanAktivitas;
 use App\Models\LaporanHarian;
 use App\Models\LaporanLampiran;
+use App\Traits\SortsQuery;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -17,7 +18,7 @@ use Illuminate\Support\Str;
 
 class LaporanHarianService
 {
-    use \App\Traits\SortsQuery;
+    use SortsQuery;
 
     public const KATEGORI_LAINNYA = 'Lainnya';
 
@@ -130,6 +131,9 @@ class LaporanHarianService
 
         // Delete generated Word document if exists
         $this->deleteDocFile($laporanHarian);
+
+        // NC milik laporan ini + file orphan-nya (file bisa dipakai NC lain)
+        app(LaporanNcService::class)->deleteForLaporan($laporanHarian);
 
         $laporanHarian->delete();
     }
