@@ -57,6 +57,8 @@ triggers:
    - `App\Livewire\Traits\HasDataKapalFilter` -> filter data laporan per data kapal (scope akses user)
    - `App\Traits\HasDynamicLike` -> operator LIKE lintas DB (sqlite/mysql)
    - `App\Traits\HasEncryptedRouteKey` -> route-model-binding ID terenkripsi (cegah ID enumeration/IDOR). Saat ini dipakai `LaporanHarian` & `LaporanMingguan`.
+   - `App\Traits\HasUserStamps` -> auto-fill `created_by`/`updated_by` (relasi `creator()`/`updater()`); model bisa batasi kolom via `protected array $userStamps`.
+   - `App\Traits\SortsQuery` -> `applySorting()` di Service: whitelist field sortable (key=nama field UI, value=kolom/ekspresi SQL), NULL terkecil, tie-break `id`.
    - `App\Services\QueueStatusService` -> `markWorkerActive()` di awal `handle()` Job untuk status worker.
 
 # Permission-First (ikuti pola yang ada)
@@ -104,6 +106,15 @@ Pola full-page form:
 2. Livewire Form Component: `mount($model = null)`, set `$editMode`, load nested data bila edit.
 3. Tombol Save -> `redirect(route(...), navigate: true)` kembali ke index. Tombol Cancel -> sama.
 4. Index (list) tetap pakai modal HANYA untuk delete confirmation (`x-delete-modal`/`x-delete-confirmation-modal`).
+
+## Layout Full-Page Form (WAJIB ikuti pola yang ada, JANGAN deviasi)
+- Root container: `<div class="w-full">` — JANGAN pakai `max-w-*` atau `mx-auto` (form full-width).
+- Main card: `bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700`.
+- Grid form: `grid grid-cols-1 md:grid-cols-2 gap-4`; field full-width tambahkan `md:col-span-2`.
+- Section separator: `border-t border-gray-200 dark:border-gray-700` + heading `text-lg font-semibold ... pb-2 mb-4`.
+- Action bar = CARD TERPISAH di luar main card: `flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 px-5 py-4`
+  dengan `<x-cancel-button>` kiri + `<x-loading-button type="submit" target="save" variant="primary" size="lg" loadingText="Menyimpan...">` kanan (pola `laporan-harian-create`).
+- Breadcrumb WAJIB di header halaman (mis. Laporan Harian > Edit).
 
 # UI/UX Konsisten (pakai reusable components yang SUDAH ADA)
 
@@ -285,6 +296,46 @@ Jika ada ambiguitas yang berdampak besar -> TANYA dulu, jangan berasumsi.
 - Table row: `hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors`.
 - Badge status: pakai method `badgeClass()` dari Enum, JANGAN hardcode warna di Blade.
 
+## Field Height Consistency (WAJIB)
+`<x-text-input>`, `<x-searchable-select>`, dan `<x-multi-searchable-select>` WAJIB punya tinggi & style yang sama saat berdampingan di form.
+- `<x-text-input>` component sudah include `border text-sm px-3 py-2.5 rounded-lg` — JANGAN override padding/border dari usage (`class="mt-1 block w-full"` saja).
+- `<x-searchable-select>` & `<x-multi-searchable-select>` trigger pakai `border text-sm py-2.5 pl-4 pr-10 rounded-lg`.
+- **PENTING:** `border` class WAJIB (untuk border-width 1px). `border-gray-300` saja hanya set warna → border tidak tampil.
+- Textarea WAJIB pakai `border px-3 py-2 text-sm rounded-lg` (jangan tanpa padding/border).
+- JANGAN pakai `rounded-md`/`rounded-xl` atau `focus:ring-indigo-*` di form — WAJIB `rounded-lg` dan `focus:ring-blue-500` untuk konsistensi.
+
+## Dark Mode Color Palette (WAJIB konsisten)
+Semua input field di dark mode WAJIB pakai `dark:bg-gray-700` (abu-abu), BUKAN `dark:bg-gray-900` (hitam) — konsisten dengan searchable-select & textarea.
+
+| Element | Light | Dark | Catatan |
+|---------|-------|------|---------|
+| Input text (`<x-text-input>`) | `bg-white` | `dark:bg-gray-700` | `rounded-lg`, `text-sm`, `px-3 py-2.5` |
+| Textarea (raw) | `bg-white` | `dark:bg-gray-700` | Border: `dark:border-gray-600` |
+| Searchable select trigger | `bg-white` | `dark:bg-gray-700` | Border: `dark:border-gray-600` |
+| Card/panel | `bg-white` | `dark:bg-gray-800` | |
+| Table header | `bg-gray-50` | `dark:bg-gray-700/50` | |
+| Page background | `bg-gray-100` | `dark:bg-gray-900` | Hanya background utama, BUKAN input |
+| Border | `border-gray-200` | `dark:border-gray-700` | Card/section |
+| Border input | `border-gray-300` | `dark:border-gray-600` | Input field |
+| Text primary | `text-gray-900` | `dark:text-white` | |
+| Text secondary | `text-gray-500` | `dark:text-gray-400` | |
+| Focus ring | `focus:ring-blue-500` | `dark:focus:ring-blue-400` | |
+
+## Missing Computed Property (WAJIB dicek sebelum selesai)
+Setiap `$this->xxxOptions` yang dipanggil di Blade (biasanya untuk `<x-searchable-select :options="$this->xxxOptions">`)
+WAJIB punya method `getXxxOptionsProperty()` yang match di Livewire component-nya. Menambah field baru di Blade tapi lupa
+menambah computed property-nya menyebabkan `Livewire\Exceptions\PropertyNotFoundException` RUNTIME (baru ketahuan saat
+modal dibuka). Sebelum task selesai, WAJIB grep `this->\w+Options` di Blade yang diubah dan cross-check ke
+`function get\w+OptionsProperty` di component terkait.
+
+## Policy untuk Aksi Transisi Status (WAJIB konsisten dgn permission di Blade)
+Untuk aksi yang mengubah status entity (approve/reject/submit/dll), method Policy WAJIB:
+1. Cek permission YANG SAMA dengan yang dipakai `@can(...)` di Blade untuk menampilkan tombolnya.
+2. Cek status saat ini valid untuk transisi tersebut.
+JANGAN pakai `$this->authorize('update', $model)` (permission generic) untuk aksi transisi khusus — tombol yang
+terlihat di UI (di-gate permission spesifik) akan gagal saat diklik, atau sebaliknya membuka celah user dengan
+`update` saja bisa memicu transisi yang seharusnya butuh permission khusus.
+
 ## Responsive WAJIB (cek di setiap halaman)
 - Mobile-first: class mobile dulu, lalu `sm:`, `md:`, `lg:`.
 - Tabel: `overflow-x-auto` wrapper di luar `<table>`.
@@ -346,6 +397,8 @@ JANGAN bocorkan pesan exception mentah ke user.
 - [ ] Lampiran gambar (jika ada): crop + WebP q85 agar kompatibel export Word
 - [ ] Export Excel/PDF/Word (jika relevan) + permission-nya
 - [ ] Tidak ada N+1, list paginated, search/filter server-side
+- [ ] Sorting index (jika ada): `sortBy()` di component + whitelist `applySorting()` di Service + `<x-sortable-header>` indikator
+- [ ] Container scrollable pakai `custom-scrollbar` (tabel, dropdown panel, modal body panjang)
 - [ ] Test dasar lulus + Pint bersih
 - [ ] Tidak ada dead code / field mati / duplicate logic
 - [ ] URL aman: ID terenkripsi, tidak ada ID mentah di URL/link
@@ -367,3 +420,83 @@ JANGAN bocorkan pesan exception mentah ke user.
 - Membuat `<x-text-input>` tanpa `placeholder` (kecuali type="date"/"hidden")
 - Membuat field required tanpa `:required="true"` di `<x-input-label>`
 - Menyisipkan gambar non-WebP ke dokumen Word (konversi dulu via intervention/image)
+- Membuat migration dengan timestamp yang SAMA dengan migration lain (konflik di tabel `migrations` → salah satu migration bisa ter-skip & tabel tidak dibuat). WAJIB timestamp unik.
+- Menggunakan `dark:bg-gray-900` untuk input field — WAJIB `dark:bg-gray-700` (konsisten dengan searchable-select & textarea)
+- Menggunakan `rounded-md`/`rounded-xl` atau `focus:ring-indigo-*` di komponen form — WAJIB `rounded-lg` + `focus:ring-blue-500`
+
+# Modal Form Pattern (WAJIB ikuti pola master-data)
+Untuk modal form tambah/edit data di halaman index, JANGAN pakai `<x-modal>` component (yang punya `x-transition` delay).
+Gunakan pola `@if($showModal)` + `@entangle` + custom HTML seperti master-data:
+
+```blade
+@if($showModal)
+    <div class="fixed inset-0 z-50 overflow-y-auto custom-scrollbar" x-data="{ show: @entangle('showModal') }">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75" @click="$wire.closeModal()"></div>
+            <div class="inline-block align-bottom w-full bg-white dark:bg-gray-800 rounded-lg text-left shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+                <form wire:submit="save">
+                    <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                            {{ $editMode ? 'Edit' : 'Tambah' }}
+                        </h3>
+                        {{-- form fields --}}
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-900 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-2">
+                        <x-loading-button type="submit" target="save" variant="primary" size="lg" loadingText="Menyimpan..." class="w-full sm:w-auto">
+                            {{ $editMode ? 'Update' : 'Simpan' }}
+                        </x-loading-button>
+                        <x-cancel-button wire:click="closeModal" target="closeModal" variant="secondary" size="lg" class="mt-3 sm:mt-0 w-full sm:w-auto" />
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+@endif
+```
+
+Alasan: `@if($showModal)` = modal unload instant saat `showModal=false` (di re-render yang sama); `<x-modal>` pakai
+`x-transition` → spinner hilang duluan sebelum modal tertutup. Backdrop click → `$wire.closeModal()`.
+`<x-modal>` tetap boleh dipakai untuk modal NON-form (konfirmasi, preview).
+
+# Sorting di Index (WAJIB pola ini)
+- Component: `public $sortField`, `public $sortDir` + method `sortBy($field)` yang toggle asc/desc + `resetPage()`.
+- Header kolom sortable pakai `<x-sortable-header field="..." :sort-field="$sortField" :sort-dir="$sortDir">Label</x-sortable-header>` (indikator panah built-in).
+- Di Service: WAJIB whitelist via `SortsQuery::applySorting($query, $sortable, $sortField, $sortDir, $defaultField)`
+  — `$sortable` = map `['field_ui' => 'kolom_sql']`; field tak dikenal fallback ke default. NULL dianggap terkecil;
+  tie-break `id desc` menjaga urutan deterministik antar-halaman.
+- Sorting kolom derived/agregat: pakai ekspresi SQL di value `$sortable` (subquery/orderByRaw), BUKAN sort di PHP.
+- JANGAN langsung pakai input user ke `orderBy()` tanpa whitelist.
+
+# Custom Scrollbar (WAJIB dipakai di semua area scroll)
+- CSS `.custom-scrollbar` sudah tersedia di `resources/css/app.css` (light + dark aware).
+- WAJIB tambahkan class `custom-scrollbar` ke container yang scrollable: `overflow-x-auto` (tabel), `overflow-y-auto`
+  (sidebar, dropdown panel, modal body panjang, chat).
+
+# Dropdown Flip Positioning (WAJIB untuk dropdown/popover custom)
+- Dropdown yang membuka ke bawah WAJIB deteksi ruang viewport: jika `spaceBelow < tinggiDropdown` DAN
+  `spaceAbove > spaceBelow` → render dengan `bottom-full mb-2`, selain itu `top-full mt-2`.
+- Pola ada di `<x-searchable-select>`, `<x-multi-searchable-select>` (`dropUp` + `checkPosition()` via
+  `getBoundingClientRect`, re-check `@scroll.window`) dan `<x-filter-popover>` — pakai ulang pola yang sama,
+  jangan bikin varian lain.
+
+# HasUserStamps — created_by / updated_by (WAJIB di semua tabel entity)
+- Trait `App\Traits\HasUserStamps` otomatis mengisi `created_by`/`updated_by` pada create/update dari user login.
+- Migration entity WAJIB sertakan kedua kolom nullable `constrained('users')->nullOnDelete()`.
+- Relasi `creator()` / `updater()` tersedia — pakai untuk tampilan "dibuat oleh / diubah oleh" di detail page & audit;
+  eager load bila dipakai di list.
+- Model bisa membatasi kolom via `protected array $userStamps` (mis. hanya `['updated_by']`).
+
+# History/Recurring Records Pattern (laporan berulang, log aktivitas, dll)
+Untuk data yang berulang/history (mis. log maintenance, aktivitas harian), JANGAN simpan sebagai field di model utama.
+Buat tabel terpisah dengan relasi HasMany, dan kelola CRUD di halaman DETAIL/SHOW (bukan di form create/edit utama).
+
+Pola:
+1. Tabel terpisah dengan `foreignId('parent_id')->cascadeOnDelete()`.
+2. Model terpisah dengan Enum untuk status/hasil.
+3. Relasi HasMany di model utama, di-order by tanggal desc.
+4. Accessor `latest_xxx` (eager-loaded) + derived status untuk index/list.
+5. CRUD di Livewire Show/Detail component (modal form sederhana untuk add/edit, modal konfirmasi untuk delete).
+6. Filter index pakai `whereHas('relasi', ...)`.
+7. Export (Excel/PDF/Word) eager load relasi + pakai accessor derived status.
+8. File terkait (jika ada) async via Job/worker (pola File Storage).
+9. Permission: pakai permission `update` dari model utama (history adalah bagian dari manajemen entity tersebut).

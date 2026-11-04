@@ -397,6 +397,13 @@ class LaporanNcList extends Component
         $this->uploadNcIds = array_values(array_unique(
             $ncId !== null ? [...array_map('intval', $this->selectedNcIds), $ncId] : array_map('intval', $this->selectedNcIds)
         ));
+
+        if ($this->uploadNcIds === []) {
+            $this->notifyWarning('Pilih minimal satu NC di tabel terlebih dahulu sebelum mengunggah file bukti.');
+
+            return;
+        }
+
         $this->uploadKind = 'before';
         $this->uploadFiles = [];
         $this->resetValidation();

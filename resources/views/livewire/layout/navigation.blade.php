@@ -207,6 +207,12 @@
                                               {{ ($item['active'] ?? false) ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
                                         <x-icon name="{{ $item['icon'] }}" class="w-4 h-4 flex-shrink-0" />
                                         <span>{{ $item['name'] }}</span>
+                                        @if(isset($item['badge']) && $item['badge'] > 0)
+                                            <span title="{{ $item['badge'] }} pesan belum dibaca"
+                                                  class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-[11px] font-bold leading-none text-white bg-gradient-to-br from-rose-500 to-red-600 shadow-sm shadow-rose-500/40 ring-1 ring-white/20 dark:ring-white/10">
+                                                {{ $item['badge'] > 99 ? '99+' : $item['badge'] }}
+                                            </span>
+                                        @endif
                                     </a>
                                 @endif
                             @endforeach
