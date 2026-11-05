@@ -7,15 +7,18 @@ use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
 use App\Livewire\Traits\StabilizesSnapshot;
 use App\Models\DataKapal;
+use App\Models\KurvaSWorkGroup;
 use App\Models\LaporanExternal;
 use App\Models\LaporanLampiran;
 use App\Models\LaporanMingguan;
 use App\Services\KontrakPeriodeService;
 use App\Services\KurvaSService;
 use App\Services\LaporanMingguanService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -134,7 +137,7 @@ class LaporanMingguanCreate extends Component
 
         if ($dataKapal && $this->hasKurvaS) {
             $this->workGroupsForInput = $service->getProgressInputData(
-                new \App\Models\LaporanMingguan(['data_kapal_id' => $this->data_kapal_id])
+                new LaporanMingguan(['data_kapal_id' => $this->data_kapal_id])
             );
             $this->progressPerGroup = array_column($this->workGroupsForInput, 'pct_realisasi', 'work_group_id');
             $this->progressHistory = $service->getProgressHistory($dataKapal);
@@ -378,6 +381,7 @@ class LaporanMingguanCreate extends Component
 
         $extension = strtolower(pathinfo($lampiran->file_name, PATHINFO_EXTENSION));
         $mimeTypes = [
+            'pdf' => 'application/pdf',
             'png' => 'image/png',
             'jpg' => 'image/jpeg',
             'jpeg' => 'image/jpeg',
@@ -481,48 +485,6 @@ class LaporanMingguanCreate extends Component
         );
     }
 
-    public function previewLampiran(int $lampiranId)
-    {
-        $this->authorize('lampiranPreview', LaporanMingguan::class);
-
-        $lampiran = LaporanLampiran::with('laporanHarian')->find($lampiranId);
-
-        if (! $lampiran) {
-            $this->notifyError('Lampiran tidak ditemukan.');
-
-            return;
-        }
-
-        // Ownership check: lampiran must belong to user's laporan harian
-        if (! $lampiran->laporanHarian || $lampiran->laporanHarian->user_id !== auth()->id()) {
-            $this->notifyError('Anda tidak memiliki akses ke lampiran ini.');
-
-            return;
-        }
-
-        if (! $lampiran->file_path || ! Storage::disk('local')->exists($lampiran->file_path)) {
-            $this->notifyError('File tidak ditemukan.');
-
-            return;
-        }
-
-        $extension = strtolower(pathinfo($lampiran->file_name, PATHINFO_EXTENSION));
-        $mimeTypes = [
-            'pdf' => 'application/pdf',
-            'png' => 'image/png',
-            'jpg' => 'image/jpeg',
-            'jpeg' => 'image/jpeg',
-            'gif' => 'image/gif',
-            'webp' => 'image/webp',
-        ];
-
-        $mime = $mimeTypes[$extension] ?? 'application/octet-stream';
-
-        return response(Storage::disk('local')->get($lampiran->file_path))
-            ->header('Content-Type', $mime)
-            ->header('Content-Disposition', 'inline; filename="'.$lampiran->file_name.'"');
-    }
-
     // Laporan External Methods
     public function addExternalReport(): void
     {
@@ -621,7 +583,7 @@ class LaporanMingguanCreate extends Component
 
         try {
             $this->validate();
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->notifyValidationError($e);
             throw $e;
         }
@@ -854,8 +816,8 @@ class LaporanMingguanCreate extends Component
                 'progress' => $currentProgress,
                 'plans' => $existingPlans,
                 'created_at' => now()->format('d M Y'),
-                'periode_mulai' => $this->periode_mulai ? \Carbon\Carbon::parse($this->periode_mulai)->format('d M Y') : null,
-                'periode_selesai' => $this->periode_selesai ? \Carbon\Carbon::parse($this->periode_selesai)->format('d M Y') : null,
+                'periode_mulai' => $this->periode_mulai ? Carbon::parse($this->periode_mulai)->format('d M Y') : null,
+                'periode_selesai' => $this->periode_selesai ? Carbon::parse($this->periode_selesai)->format('d M Y') : null,
             ];
 
             if ($currentWeekIndex !== false) {
@@ -874,7 +836,7 @@ class LaporanMingguanCreate extends Component
         if (! empty($fullHistory) && $this->data_kapal_id) {
             $dataKapal = $this->dataKapal;
             if ($dataKapal) {
-                $workGroups = \App\Models\KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)
+                $workGroups = KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)
                     ->orderBy('sort_order')
                     ->get();
                 $fullHistory = app(KurvaSService::class)->addCumulativeTotalsToHistory($fullHistory, $workGroups);

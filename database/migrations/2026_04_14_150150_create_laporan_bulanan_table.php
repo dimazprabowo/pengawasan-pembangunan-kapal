@@ -22,6 +22,13 @@ return new class extends Migration
             $table->unsignedSmallInteger('bulan_ke')
                 ->comment('Nomor bulan konstruksi (referensi ke kurva_s_rencana)');
 
+            // Word document generation
+            $table->string('doc_path')->nullable();
+            $table->string('doc_name')->nullable();
+            $table->enum('doc_status', ['pending', 'processing', 'completed', 'failed'])->nullable();
+            $table->timestamp('doc_generated_at')->nullable();
+            $table->text('doc_error')->nullable();
+
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
             $table->softDeletes();

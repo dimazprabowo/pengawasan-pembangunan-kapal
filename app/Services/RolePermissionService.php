@@ -91,7 +91,7 @@ class RolePermissionService
                 ['name' => 'data_kapal_update',            'label' => 'Edit Data Kapal'],
                 ['name' => 'data_kapal_delete',            'label' => 'Hapus Data Kapal'],
                 ['name' => 'data_kapal_upload_template',   'label' => 'Upload Template Laporan'],
-                ['name' => 'data_kapal_download_template', 'label' => 'Download Template Harian'],
+                ['name' => 'data_kapal_download_template', 'label' => 'Download Template Laporan'],
                 ['name' => 'data_kapal_manage_kurva_s', 'label' => 'Manage Kurva S'],
                 ['name' => 'data_kapal_export_excel',      'label' => 'Export Excel Data Kapal'],
                 ['name' => 'data_kapal_export_pdf',        'label' => 'Export PDF Data Kapal'],

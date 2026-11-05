@@ -22,7 +22,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
             </svg>
             <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300">F. Lampiran Dokumentasi</h4>
-            <span class="text-xs text-gray-400">(opsional, 1 foto per aktivitas — {{ get_upload_config_display('foto_kapal') }})</span>
+            <span class="text-xs text-gray-400">(opsional, 1 foto per aktivitas — {{ get_upload_config_display('foto_kapal') }}, foto otomatis dikompres)</span>
         </div>
     @endunless
 
@@ -218,18 +218,51 @@
                             </div>
                         @else
                             <div class="w-full h-full"
-                                x-data="{ uploading: false, progress: 0 }"
-                                x-on:livewire-upload-start="uploading = true"
-                                x-on:livewire-upload-finish="uploading = false; progress = 0"
-                                x-on:livewire-upload-cancel="uploading = false"
-                                x-on:livewire-upload-error="uploading = false"
-                                x-on:livewire-upload-progress="progress = $event.detail.progress">
+                                x-data="{ uploading: false, progress: 0,
+                                    async compressAndUpload(input) {
+                                        const file = input.files && input.files[0];
+                                        if (!file) return;
+                                        input.value = '';
+                                        this.uploading = true;
+                                        this.progress = 0;
+                                        const send = (f) => {
+                                            $wire.upload('{{ $fotoModel }}.{{ $rowKey }}.file', f,
+                                                () => { this.uploading = false; this.progress = 0 },
+                                                () => { this.uploading = false; this.progress = 0 },
+                                                (e) => { this.progress = e.detail.progress },
+                                            );
+                                        };
+                                        if (!file.type.startsWith('image/')) {
+                                            send(file);
+                                            return;
+                                        }
+                                        try {
+                                            const bitmap = await createImageBitmap(file);
+                                            const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+                                            const canvas = document.createElement('canvas');
+                                            canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+                                            canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+                                            canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+                                            canvas.toBlob((blob) => {
+                                                if (blob && blob.type === 'image/webp') {
+                                                    const name = file.name.replace(/\.[^.]+$/, '') + '.webp';
+                                                    send(new File([blob], name, { type: 'image/webp' }));
+                                                } else {
+                                                    send(file);
+                                                }
+                                            }, 'image/webp', 0.85);
+                                        } catch (e) {
+                                            send(file);
+                                        }
+                                    }
+                                }">
                                 <label class="flex flex-col items-center justify-center w-full h-full border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 transition-colors bg-white dark:bg-gray-800">
                                     <div x-show="!uploading" class="flex flex-col items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
                                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                                         </svg>
                                         <span>Klik untuk unggah foto</span>
+                                        <span class="text-[10px] text-gray-400 dark:text-gray-500">Maks. {{ number_format(get_max_upload_size('foto_kapal') / 1024, 0) }} MB — dikompres otomatis</span>
                                     </div>
                                     <div x-show="uploading" x-cloak class="flex items-center justify-center gap-2">
                                         <svg class="animate-spin w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24">
@@ -238,7 +271,7 @@
                                         </svg>
                                         <span class="text-xs text-blue-600" x-text="progress + '%'"></span>
                                     </div>
-                                    <input type="file" wire:model="{{ $fotoModel }}.{{ $rowKey }}.file" class="hidden"
+                                    <input type="file" class="hidden" x-on:change="compressAndUpload($event.target)"
                                         accept=".{{ implode(',.', get_allowed_mimes_array('foto_kapal')) }}">
                                 </label>
                             </div>
@@ -254,6 +287,15 @@
                         @endif
                         @if(! empty($row['pic']))
                             <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">PIC: {{ $row['pic'] }}</p>
+                        @endif
+                        @if($existingFoto && $existingFoto->file_size)
+                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5" title="{{ $existingFoto->file_name }}">
+                                {{ $existingFoto->file_name }} — {{ $existingFoto->file_size >= 1048576 ? number_format($existingFoto->file_size / 1048576, 2).' MB' : number_format($existingFoto->file_size / 1024, 0).' KB' }}
+                            </p>
+                        @elseif($newFile)
+                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5" title="{{ $newFile->getClientOriginalName() }}">
+                                {{ $newFile->getClientOriginalName() }} — {{ $newFile->getSize() >= 1048576 ? number_format($newFile->getSize() / 1048576, 2).' MB' : number_format($newFile->getSize() / 1024, 0).' KB' }} (hasil kompresi)
+                            </p>
                         @endif
                         @if($fotoError)
                             <p class="text-red-500 text-xs mt-1">{{ $fotoError }}</p>

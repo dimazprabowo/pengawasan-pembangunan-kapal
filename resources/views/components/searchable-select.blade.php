@@ -14,18 +14,21 @@
 ])
 
 @php
-    $componentId = $id ?? 'searchable-select-' . uniqid();
+    $wireModel = $attributes->wire('model')->value();
+    $isLive = $attributes->wire('model')->hasModifier('live');
+    // Deterministic id — uniqid() berubah tiap render dan bisa bikin node ganda saat morph
+    $componentId = $id ?? 'searchable-select-' . md5(($wireModel ?? '') . '|' . $placeholder);
 @endphp
 
-<div 
+<div
     x-data="{
         open: false,
         search: '',
         dropUp: false,
-        value: @entangle($attributes->wire('model')),
+        value: @entangle($wireModel){{ $isLive ? '.live' : '' }},
         options: @js($options),
         placeholder: @js($placeholder),
-        
+
         get filteredOptions() {
             if (!this.search) return this.options;
             const searchLower = this.search.toLowerCase();
@@ -76,13 +79,23 @@
             this.dropUp = spaceBelow < dropdownHeight && spaceAbove > spaceBelow;
         },
         
+        refreshOptions() {
+            const el = this.$refs.optionsData;
+            if (!el) return;
+            try {
+                this.options = JSON.parse(el.textContent || '[]');
+            } catch (e) {}
+        },
+
         toggleDropdown() {
             if (!this.open) {
                 this.checkPosition();
+                this.refreshOptions();
             }
             this.open = !this.open;
         }
     }"
+    x-key="{{ $componentId }}"
     x-on:click.away="closeDropdown()"
     x-on:keydown.escape.window="closeDropdown()"
     x-on:scroll.window="if(open) checkPosition()"
@@ -90,6 +103,9 @@
     class="relative w-full"
     wire:ignore.self
 >
+    {{-- Options snapshot: child of wire:ignore.self tetap ikut morph tiap render, dibaca refreshOptions() --}}
+    <div x-ref="optionsData" class="hidden">{!! json_encode($options, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) !!}</div>
+
     {{-- Trigger Button --}}
     <button
         type="button"

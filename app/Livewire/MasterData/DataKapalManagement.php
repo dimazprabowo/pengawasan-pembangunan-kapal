@@ -5,12 +5,15 @@ namespace App\Livewire\MasterData;
 use App\Enums\DataKapalStatus;
 use App\Exports\DataKapalExport;
 use App\Livewire\Traits\HasNotification;
+use App\Livewire\Traits\HasTableSorting;
 use App\Models\Company;
 use App\Models\DataKapal;
 use App\Models\Galangan;
 use App\Services\DataKapalService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
@@ -18,8 +21,8 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class DataKapalManagement extends Component
 {
-    use \App\Livewire\Traits\HasTableSorting;
     use AuthorizesRequests, HasNotification, WithFileUploads, WithPagination;
+    use HasTableSorting;
 
     protected $paginationTheme = 'tailwind';
 
@@ -133,7 +136,7 @@ class DataKapalManagement extends Component
             $service->delete($dataKapal);
             $this->notifySuccess('Kapal berhasil dihapus! Laporan terkait akan di-set null.');
             $this->showDeleteModal = false;
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak dapat menghapus kapal ini.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
@@ -150,7 +153,7 @@ class DataKapalManagement extends Component
 
             $status = $dataKapal->fresh()->status->label();
             $this->notifySuccess("Status kapal berhasil diubah menjadi {$status}!");
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk mengubah status kapal.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
@@ -252,7 +255,7 @@ class DataKapalManagement extends Component
             ], [
                 'template_file' => 'template laporan '.$this->uploadingTemplateTipe,
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->notifyValidationError($e);
             throw $e;
         }
@@ -267,7 +270,7 @@ class DataKapalManagement extends Component
             }
 
             $this->closeTemplateUploadModal();
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk upload template.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
@@ -299,7 +302,7 @@ class DataKapalManagement extends Component
             $service->deleteTemplate($dataKapal, $this->deletingTemplateTipe);
             $this->notifySuccess('Template laporan '.$this->deletingTemplateTipe.' berhasil dihapus!');
             $this->showDeleteTemplateModal = false;
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk menghapus template.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
@@ -310,7 +313,7 @@ class DataKapalManagement extends Component
     {
         try {
             $dataKapal = DataKapal::findOrFail($id);
-            $this->authorize('uploadTemplate', $dataKapal);
+            $this->authorize('downloadTemplate', $dataKapal);
 
             $templatePath = $service->downloadTemplate($dataKapal, $tipe);
 
@@ -323,7 +326,7 @@ class DataKapalManagement extends Component
             $filename = 'template-'.$tipe.'-'.\Str::slug($dataKapal->nama).'.docx';
 
             return response()->download($templatePath, $filename);
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk mengunduh template.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
@@ -337,7 +340,7 @@ class DataKapalManagement extends Component
             $this->authorize('exportKurvaSTemplate', $dataKapal);
 
             return $service->exportKurvaSTemplate($dataKapal, $withData);
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk export template Kurva S.');
         } catch (\Exception $e) {
             \Log::error('Export Kurva S gagal', ['data_kapal_id' => $id, 'error' => $e->getMessage()]);
@@ -353,7 +356,7 @@ class DataKapalManagement extends Component
 
             $this->kurvaSDataKapalId = $dataKapal->id;
             $this->showKurvaSImportModal = true;
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk import template Kurva S.');
         }
     }
@@ -378,7 +381,7 @@ class DataKapalManagement extends Component
             ], [
                 'kurvaS_file' => 'file template',
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->notifyValidationError($e);
             throw $e;
         }
@@ -400,7 +403,7 @@ class DataKapalManagement extends Component
                 }
                 $this->notifyError($errorMessage);
             }
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk import template Kurva S.');
         } catch (\Exception $e) {
             \Log::error('Import Kurva S gagal', ['data_kapal_id' => $this->kurvaSDataKapalId, 'error' => $e->getMessage()]);

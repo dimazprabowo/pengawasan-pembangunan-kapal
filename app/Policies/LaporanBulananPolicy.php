@@ -80,6 +80,22 @@ class LaporanBulananPolicy
     }
 
     /**
+     * Determine whether the user can generate/regenerate the Word document.
+     */
+    public function generateWord(User $user, LaporanBulanan $laporanBulanan): bool
+    {
+        return $user->can('laporan_download');
+    }
+
+    /**
+     * Determine whether the user can download the generated Word document.
+     */
+    public function downloadWord(User $user, LaporanBulanan $laporanBulanan): bool
+    {
+        return $user->can('laporan_download');
+    }
+
+    /**
      * Determine whether the user can download lampiran/external files.
      */
     public function lampiranDownload(User $user): bool

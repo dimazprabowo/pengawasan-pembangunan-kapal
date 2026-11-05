@@ -59,6 +59,7 @@ triggers:
    - `App\Traits\HasEncryptedRouteKey` -> route-model-binding ID terenkripsi (cegah ID enumeration/IDOR). Saat ini dipakai `LaporanHarian` & `LaporanMingguan`.
    - `App\Traits\HasUserStamps` -> auto-fill `created_by`/`updated_by` (relasi `creator()`/`updater()`); model bisa batasi kolom via `protected array $userStamps`.
    - `App\Traits\SortsQuery` -> `applySorting()` di Service: whitelist field sortable (key=nama field UI, value=kolom/ekspresi SQL), NULL terkecil, tie-break `id`.
+   - `App\Livewire\Traits\HasTableSorting` -> properti `$sortField`/`$sortDir` + `sortBy()` (toggle asc/desc + `resetPage()`) untuk semua tabel index.
    - `App\Services\QueueStatusService` -> `markWorkerActive()` di awal `handle()` Job untuk status worker.
 
 # Permission-First (ikuti pola yang ada)
@@ -139,6 +140,7 @@ Pola full-page form:
 | Select | `<x-searchable-select>` | `components/searchable-select.blade.php` |
 | Select | `<x-multi-searchable-select>` | `components/multi-searchable-select.blade.php` |
 | Filter | `<x-filter-popover>` | `components/filter-popover.blade.php` |
+| Tabel | `<x-sortable-header>` | `components/sortable-header.blade.php` (th sortable: `field`/`sortField`/`sortDir`/`compact`) |
 | Notif | `<x-toast>` | `components/toast.blade.php` (auto-render di layout) |
 | Notif | `<x-action-message>` | `components/action-message.blade.php` |
 | Icon | `<x-icon>` | `components/icon.blade.php` |
@@ -205,6 +207,28 @@ Urutan toolbar: `[search flex-1] → [x-filter-popover] → [action buttons]`.
 - Pengecualian: filter 2-3 opsi mutually-exclusive yang sering diganti cepat (mis. Semua/Belum dibaca/Sudah dibaca di notifikasi) boleh pakai pill-tabs, bukan popover.
 - Filter select di dalam FORM/modal TIDAK masuk popover — aturan ini hanya untuk toolbar index.
 
+## Toast Hasil Filter/Search (pola `filterChanged`)
+Setiap perubahan search/filter menampilkan toast jumlah hasil — pola sudah diterapkan di `UserManagement`, `SystemConfiguration`, `ImpersonateUser`. WAJIB diterapkan saat membuat/menyentuh halaman list:
+
+1. Properti: `public bool $filterChanged = false;`
+2. Set flag di SEMUA hook `updating*` (search + setiap filter) dan `resetFilters()`:
+   ```php
+   public function updatingSearch()
+   {
+       $this->resetPage();
+       $this->filterChanged = true;
+   }
+   ```
+3. Konsumsi flag di `render()` SETELAH query paginator (pakai `->total()`, akurat lintas halaman):
+   ```php
+   if ($this->filterChanged) {
+       $this->notifyInfo("Ditemukan {$items->total()} data {entity}.");
+       $this->filterChanged = false;
+   }
+   ```
+- JANGAN panggil notify di hook `updating*` — hasil belum dihitung saat itu; selalu di `render()` setelah query.
+- Bila halaman punya konteks tambahan (mis. data kapal terpilih), ekstrak penyusunan pesan ke method di component — jangan tulis logic pesan di Blade.
+
 ## Livewire & Blade Gotchas (pelajaran dari bug fix — WAJIB dihindari)
 1. **`wire:loading.class` syntax**: pakai `wire:loading.class="hidden"` (tambah class saat loading) dan `wire:loading.class.remove="..."`. Jangan andalkan modifier `.add` — pola terbukti di tabel memakai `wire:loading.class="hidden"` pada SVG ikon.
 2. **PHP string interpolation TIDAK mendukung expression**:
@@ -217,6 +241,11 @@ Urutan toolbar: `[search flex-1] → [x-filter-popover] → [action buttons]`.
 7. **Stale `wire:model` saat baris di-REORDER**: di Livewire 4 `wire:model` meng-capture expression (mis. `items.0.name`) saat init — tidak dievaluasi ulang saat node pindah posisi. SOLUSI: sertakan index posisi di `wire:key` (`item-{row_key}-{index}`) agar node di-render ulang, ATAU pakai `value="..."` + `wire:blur="updateX(..., $event.target.value)"`.
 8. **Directive Blade di dalam komentar JS/HTML tetap DI-PARSE**: menulis teks `@if(...)`/`@foreach(...)` di komentar `//` atau `<!-- -->` dalam file `.blade.php` membuat counter directive tak seimbang -> ParseError "unexpected end of file, expecting endif". Jangan tulis nama directive di komentar (pakai `{{-- --}}` pun hindari menyebut directive ber-kurung).
 9. **Scroll lock modal yang dibungkus `@if` server-side**: elemen dihapus Livewire morph TANPA memicu `$watch`, sehingga `document.body.style.overflow='hidden'` tertinggal (scroll mati sampai hard refresh). Selalu `return () => { document.body.style.overflow = '' }` dari `x-init` sebagai cleanup (contoh: `x-document-confirm-modal`).
+10. **Options `x-searchable-select`/`x-multi-searchable-select` bisa STALE — SUDAH di-fix, JANGAN regresi**:
+    - `options: @js($options)` di `x-data` hanya dibaca SEKALI saat Alpine init; root `wire:ignore.self` membuat node tidak di-render ulang -> opsi baru server-side tidak pernah masuk dropdown.
+    - FIX yang ADA di komponen: opsi juga di-render ke `<div x-ref="optionsData" class="hidden">{!! json_encode($options, JSON_HEX_*) !!}</div>` — child TETAP ikut morph tiap render (`.self` hanya mengabaikan root). Saat dropdown dibuka, `refreshOptions()` membaca ulang elemen itu -> selalu fresh.
+    - `componentId` deterministik: `md5($wireModel.'|'.$placeholder)` — JANGAN `uniqid()` (berubah tiap render -> node ganda saat morph).
+    - JANGAN andalkan `wire:key` signature di root `wire:ignore.self` untuk refresh opsi — key berubah = node beda, risiko node ganda saat morph.
 
 # File Storage & Lampiran (pola WAJIB — async via queue)
 Alur yang ADA (storage `local`, TANPA S3/FileStorageService):
@@ -275,6 +304,13 @@ Jika ada ambiguitas yang berdampak besar -> TANYA dulu, jangan berasumsi.
 - Event broadcast: `App\Events\NewNotification`, `NewChatMessage`, `UserTyping` — kirim dengan `broadcast(new Xxx(...))->toOthers()` bila perlu.
 - Kanal privat di-authorize di `routes/channels.php` (`user.{id}`, `chat.{chatId}`). Setiap kanal baru WAJIB authorize.
 - Jangan polling jika bisa broadcast.
+
+## Menu Badge Realtime (pola Chat — sudah diterapkan)
+- Item menu boleh punya key `'badge'` (angka unread) di `HasMenuItems::getMenuItems()`: sidebar menampilkan pill (cap `99+`) & navbar menampilkan pill yang sama. Render badge sudah ada di `sidebar.blade.php`/`navigation.blade.php` — cukup ISI key-nya.
+- Hitung via 1 query, BUKAN loop: contoh `Chat::totalUnreadCountForUser($user->id)` (hormati `last_read_at` & `deleted_at` pivot per-user).
+- Listener realtime ada di `HasMenuItems::getListeners()` (diwarisi Sidebar & Navigation): `echo-private:user.{id},NewChatMessage` + event lokal `chat-unread-changed` -> handler `refreshUnreadChatBadge()` (no-op yang memicu re-render; cache `getMenuItems()` per-request).
+- Setiap titik "dibaca" WAJIB dispatch `chat-unread-changed` agar badge turun tanpa reload (contoh: `ChatIndex` saat pesan dibaca/chat dihapus).
+- Menu lain yang butuh badge realtime: isi `'badge'` di item menu + tambahkan listener broadcast/event Livewire yang relevan via `getListeners()` trait yang sama — JANGAN bikin mekanisme badge baru.
 
 # UX Detail (wajib, bukan opsional)
 - Setiap tabel: empty state (ikon + pesan), loading state, dan pagination.
@@ -374,6 +410,11 @@ JANGAN bocorkan pesan exception mentah ke user.
 - Jangan hardcode secret; pakai .env. Hormati fitur SSO/impersonate yang sudah ada.
 - Scope data laporan per data kapal pakai `HasDataKapalFilter` + permission `laporan_view_all_data_kapal` — jangan bypass.
 
+# Integrasi SSO (kontrak dengan sso-server — JANGAN ubah sepihak)
+- Login: OAuth2 Authorization Code ke sso-server (`config('services.sso.*')`, aktif bila `IS_USING_SSO=true`); callback di `App\Http\Controllers\Auth\SsoAuthController` (validasi `state` di session).
+- Endpoint sinkronisasi dari sso-server di `routes/api.php` prefix `/sso` (`ping`, `users`, `users/sync`, `users/remove`, `users/sync-roles`, `roles`, `roles/sync`, `roles/delete`, `permissions`) via `SsoSyncController`, dilindungi `throttle:60,1` + middleware `sso.secret` (`VerifySsoSecret`: header `X-SSO-Secret`, dibandingkan `hash_equals` terhadap `SSO_API_SECRET`).
+- Mengubah path/payload endpoint ini WAJIB diikuti perubahan di sisi sso-server (dan sebaliknya).
+
 # Encrypted Route Model Binding (WAJIB untuk semua model yang tampil di URL)
 - Model di route parameter WAJIB trait `App\Traits\HasEncryptedRouteKey` (sudah dipakai `LaporanHarian` & `LaporanMingguan`).
   Tujuan: ID di URL berupa ciphertext, tidak bisa ditebak/di-enumerate (cegah IDOR).
@@ -397,7 +438,8 @@ JANGAN bocorkan pesan exception mentah ke user.
 - [ ] Lampiran gambar (jika ada): crop + WebP q85 agar kompatibel export Word
 - [ ] Export Excel/PDF/Word (jika relevan) + permission-nya
 - [ ] Tidak ada N+1, list paginated, search/filter server-side
-- [ ] Sorting index (jika ada): `sortBy()` di component + whitelist `applySorting()` di Service + `<x-sortable-header>` indikator
+- [ ] Sorting index (jika ada): trait `HasTableSorting` di component + whitelist `applySorting()` di Service + `<x-sortable-header>` indikator
+- [ ] Halaman list punya toast "Ditemukan N data" saat search/filter berubah (pola `filterChanged`, notify di `render()` setelah paginator)
 - [ ] Container scrollable pakai `custom-scrollbar` (tabel, dropdown panel, modal body panjang)
 - [ ] Test dasar lulus + Pint bersih
 - [ ] Tidak ada dead code / field mati / duplicate logic
@@ -423,6 +465,11 @@ JANGAN bocorkan pesan exception mentah ke user.
 - Membuat migration dengan timestamp yang SAMA dengan migration lain (konflik di tabel `migrations` → salah satu migration bisa ter-skip & tabel tidak dibuat). WAJIB timestamp unik.
 - Menggunakan `dark:bg-gray-900` untuk input field — WAJIB `dark:bg-gray-700` (konsisten dengan searchable-select & textarea)
 - Menggunakan `rounded-md`/`rounded-xl` atau `focus:ring-indigo-*` di komponen form — WAJIB `rounded-lg` + `focus:ring-blue-500`
+- `orderBy` manual/hardcode di Livewire component atau `<th>` sortable inline — WAJIB `HasTableSorting` + `SortsQuery` + `<x-sortable-header>`
+- Sorting tanpa whitelist `$sortable` di Service (field bebas = celah SQL injection di orderByRaw)
+- Memanggil notify hasil filter di hook `updating*` — hasil belum dihitung; notify HANYA di `render()` setelah query paginator
+- Membuat mekanisme badge menu baru — WAJIB pakai key `'badge'` di `HasMenuItems` + listener di `getListeners()` yang sudah ada
+- Mengubah path/payload endpoint `/sso` sepihak — kontrak dengan sso-server, perubahan harus dua sisi
 
 # Modal Form Pattern (WAJIB ikuti pola master-data)
 Untuk modal form tambah/edit data di halaman index, JANGAN pakai `<x-modal>` component (yang punya `x-transition` delay).
@@ -458,14 +505,20 @@ Alasan: `@if($showModal)` = modal unload instant saat `showModal=false` (di re-r
 `x-transition` → spinner hilang duluan sebelum modal tertutup. Backdrop click → `$wire.closeModal()`.
 `<x-modal>` tetap boleh dipakai untuk modal NON-form (konfirmasi, preview).
 
-# Sorting di Index (WAJIB pola ini)
-- Component: `public $sortField`, `public $sortDir` + method `sortBy($field)` yang toggle asc/desc + `resetPage()`.
-- Header kolom sortable pakai `<x-sortable-header field="..." :sort-field="$sortField" :sort-dir="$sortDir">Label</x-sortable-header>` (indikator panah built-in).
+# Sorting di Index (WAJIB pola ini — 3 lapisan, jangan tulis ulang)
+- Component: pakai trait `App\Livewire\Traits\HasTableSorting` — menyediakan `$sortField`, `$sortDir`, dan `sortBy($field)`
+  (klik kolom sama = balik arah, kolom baru = asc, otomatis `resetPage()`). JANGAN tulis ulang properti/method-nya manual.
+  Set default kolom di `mount()` (mis. `$this->sortField = 'name';`), teruskan ke Service di `render()`.
+- Header kolom sortable pakai `<x-sortable-header field="..." :sort-field="$sortField" :sort-dir="$sortDir">Label</x-sortable-header>`
+  (indikator panah + spinner `wire:target="sortBy('...')"` built-in; prop `:compact="true"` untuk tabel `px-4 py-2`).
+  Kolom non-sortable (mis. Aksi) tetap `<th>` biasa.
 - Di Service: WAJIB whitelist via `SortsQuery::applySorting($query, $sortable, $sortField, $sortDir, $defaultField)`
   — `$sortable` = map `['field_ui' => 'kolom_sql']`; field tak dikenal fallback ke default. NULL dianggap terkecil;
   tie-break `id desc` menjaga urutan deterministik antar-halaman.
 - Sorting kolom derived/agregat: pakai ekspresi SQL di value `$sortable` (subquery/orderByRaw), BUKAN sort di PHP.
-- JANGAN langsung pakai input user ke `orderBy()` tanpa whitelist.
+  JANGAN pakai alias `withCount` di ekspresi — Postgres tidak resolve alias di `ORDER BY ... IS NULL`; tulis subquery COUNT-nya.
+- Kolom many-to-many JANGAN dibuat sortable — urutan "item pertama" ambigu & subquery morph-type rapuh lintas DB.
+- JANGAN langsung pakai input user ke `orderBy()` tanpa whitelist (celah SQL injection di orderByRaw).
 
 # Custom Scrollbar (WAJIB dipakai di semua area scroll)
 - CSS `.custom-scrollbar` sudah tersedia di `resources/css/app.css` (light + dark aware).

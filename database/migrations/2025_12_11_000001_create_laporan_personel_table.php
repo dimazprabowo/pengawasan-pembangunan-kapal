@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('laporan_harian_id')->constrained('laporan_harian')->cascadeOnDelete();
             $table->string('jabatan')->nullable();
-            $table->string('status')->nullable();
+            $table->unsignedInteger('jumlah')->nullable();
             $table->text('keterangan')->nullable();
             $table->timestamps();
 

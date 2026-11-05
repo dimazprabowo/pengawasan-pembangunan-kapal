@@ -15,11 +15,12 @@ class LaporanPersonel extends Model
     protected $fillable = [
         'laporan_harian_id',
         'jabatan',
-        'status',
+        'jumlah',
         'keterangan',
     ];
 
     protected $casts = [
+        'jumlah' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

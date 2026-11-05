@@ -2,6 +2,7 @@
 
 namespace App\Livewire\LaporanBulanan;
 
+use App\Jobs\GenerateLaporanBulananJob;
 use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
 use App\Models\DataKapal;
@@ -23,6 +24,10 @@ class LaporanBulananShow extends Component
 
     public DataKapal $dataKapal;
 
+    public bool $showRegenerateConfirm = false;
+
+    public bool $showDeleteDocConfirm = false;
+
     public function mount(DataKapal $dataKapal, LaporanBulanan $laporanBulanan): void
     {
         $this->authorize('view', $laporanBulanan);
@@ -36,6 +41,129 @@ class LaporanBulananShow extends Component
             'dataKapal.galangan',
             'laporanExternal',
         ]);
+    }
+
+    public function confirmRegenerate(): void
+    {
+        $this->authorize('generateWord', $this->laporan);
+
+        if ($this->laporan->isDocCompleted()) {
+            $this->showRegenerateConfirm = true;
+
+            return;
+        }
+
+        $this->generateWord();
+    }
+
+    public function cancelRegenerate(): void
+    {
+        $this->showRegenerateConfirm = false;
+    }
+
+    public function generateWord(): void
+    {
+        $this->showRegenerateConfirm = false;
+        $this->authorize('generateWord', $this->laporan);
+
+        if ($this->laporan->isDocProcessing()) {
+            $this->notifyWarning('Dokumen sedang dalam proses generate. Mohon tunggu.');
+
+            return;
+        }
+
+        try {
+            // Hapus file lama jika ada (untuk generate ulang)
+            if ($this->laporan->doc_path) {
+                $oldPath = storage_path('app/'.$this->laporan->doc_path);
+                if (file_exists($oldPath)) {
+                    @unlink($oldPath);
+                }
+            }
+
+            $this->laporan->update([
+                'doc_status' => 'pending',
+                'doc_error' => null,
+            ]);
+
+            GenerateLaporanBulananJob::dispatch($this->laporan);
+
+            $this->laporan->refresh();
+
+            $this->notifySuccess('Proses generate dokumen Word dimulai. Halaman akan otomatis diperbarui.');
+        } catch (\Exception $e) {
+            $this->notifyError('Gagal memulai proses generate. Silakan coba lagi.');
+        }
+    }
+
+    public function refreshDocStatus(): void
+    {
+        $this->laporan->refresh();
+
+        if ($this->laporan->isDocCompleted()) {
+            $this->notifySuccess('Dokumen Word berhasil digenerate! Silakan download.');
+        } elseif ($this->laporan->isDocFailed()) {
+            $this->notifyError('Generate dokumen gagal. Silakan coba lagi.');
+        }
+    }
+
+    public function confirmDeleteDoc(): void
+    {
+        $this->authorize('generateWord', $this->laporan);
+        $this->showDeleteDocConfirm = true;
+    }
+
+    public function cancelDeleteDoc(): void
+    {
+        $this->showDeleteDocConfirm = false;
+    }
+
+    public function deleteDoc(): void
+    {
+        $this->showDeleteDocConfirm = false;
+        $this->authorize('generateWord', $this->laporan);
+
+        try {
+            if ($this->laporan->doc_path) {
+                $path = storage_path('app/'.$this->laporan->doc_path);
+                if (file_exists($path)) {
+                    @unlink($path);
+                }
+            }
+
+            $this->laporan->update([
+                'doc_path' => null,
+                'doc_name' => null,
+                'doc_status' => null,
+                'doc_generated_at' => null,
+                'doc_error' => null,
+            ]);
+
+            $this->laporan->refresh();
+            $this->notifySuccess('Dokumen Word berhasil dihapus.');
+        } catch (\Exception $e) {
+            $this->notifyError('Gagal menghapus dokumen. Silakan coba lagi.');
+        }
+    }
+
+    public function downloadWord()
+    {
+        $this->authorize('downloadWord', $this->laporan);
+
+        if (! $this->laporan->hasDoc() || ! $this->laporan->isDocCompleted()) {
+            $this->notifyError('Dokumen tidak tersedia.');
+
+            return;
+        }
+
+        $filePath = storage_path('app/'.$this->laporan->doc_path);
+        if (! file_exists($filePath)) {
+            $this->notifyError('File tidak ditemukan.');
+
+            return;
+        }
+
+        return response()->download($filePath, $this->laporan->doc_name);
     }
 
     public function refreshExternalFileStatus(): void

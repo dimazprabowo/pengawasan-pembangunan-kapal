@@ -300,7 +300,7 @@ class LaporanHarianCreate extends Component
     {
         $this->items[$itemIndex]['personel'][] = [
             'jabatan' => '',
-            'status' => '',
+            'jumlah' => '',
             'keterangan' => '',
         ];
     }
@@ -523,7 +523,7 @@ class LaporanHarianCreate extends Component
         $rules['items.*.kelembaban_sore_id'] = 'nullable|exists:kelembaban,id';
         $rules['items.*.personel'] = 'nullable|array';
         $rules['items.*.personel.*.jabatan'] = 'nullable|string|max:255';
-        $rules['items.*.personel.*.status'] = 'nullable|string|max:255';
+        $rules['items.*.personel.*.jumlah'] = 'nullable|integer|min:1';
         $rules['items.*.personel.*.keterangan'] = 'nullable|string|max:1000';
         $rules['items.*.peralatan'] = 'nullable|array';
         $rules['items.*.peralatan.*.jenis'] = 'nullable|string|max:255';
@@ -631,13 +631,13 @@ class LaporanHarianCreate extends Component
                 if (isset($item['personel']) && is_array($item['personel'])) {
                     foreach ($item['personel'] as $personelData) {
                         $hasData = ! empty($personelData['jabatan']) ||
-                                  ! empty($personelData['status']) ||
+                                  ! empty($personelData['jumlah']) ||
                                   ! empty($personelData['keterangan']);
 
                         if ($hasData) {
                             $laporan->personel()->create([
                                 'jabatan' => $personelData['jabatan'] ?: null,
-                                'status' => $personelData['status'] ?: null,
+                                'jumlah' => $personelData['jumlah'] ?: null,
                                 'keterangan' => $personelData['keterangan'] ?: null,
                             ]);
                         }

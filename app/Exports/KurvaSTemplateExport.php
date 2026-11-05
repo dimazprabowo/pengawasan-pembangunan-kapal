@@ -3,9 +3,10 @@
 namespace App\Exports;
 
 use App\Models\DataKapal;
+use Maatwebsite\Excel\Concerns\Export;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
-class KurvaSTemplateExport implements WithMultipleSheets
+class KurvaSTemplateExport implements Export, WithMultipleSheets
 {
     protected DataKapal $dataKapal;
 

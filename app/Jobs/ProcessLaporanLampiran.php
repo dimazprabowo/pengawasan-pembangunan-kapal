@@ -10,14 +10,15 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
-use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\ImageManager;
 
 class ProcessLaporanLampiran implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
     public int $backoff = 10;
 
     public function __construct(
@@ -30,13 +31,17 @@ class ProcessLaporanLampiran implements ShouldQueue
     {
         $queueStatusService->markWorkerActive();
 
+        // Decode + resize foto resolusi tinggi bisa melampaui memory_limit default 128M
+        @ini_set('memory_limit', '512M');
+
         $this->lampiran->update(['file_status' => 'processing']);
 
-        if (!Storage::disk('local')->exists($this->tempPath)) {
+        if (! Storage::disk('local')->exists($this->tempPath)) {
             $this->lampiran->update([
                 'file_status' => 'failed',
                 'file_error' => 'File temporary tidak ditemukan',
             ]);
+
             return;
         }
 
@@ -56,13 +61,13 @@ class ProcessLaporanLampiran implements ShouldQueue
             }
 
             // Generate unique filename
-            $fileName = time() . '_' . uniqid() . '.' . $extension;
-            $destinationPath = 'laporan-lampiran/harian/' . $fileName;
+            $fileName = time().'_'.uniqid().'.'.$extension;
+            $destinationPath = 'laporan-lampiran/harian/'.$fileName;
 
             Storage::disk('local')->put($destinationPath, $fileContent);
 
             // Update file_name to reflect WebP conversion for proper Word generation
-            $finalFileName = $isImage ? $baseFileName . '.webp' : $originalName;
+            $finalFileName = $isImage ? $baseFileName.'.webp' : $originalName;
 
             $this->lampiran->update([
                 'file_path' => $destinationPath,
@@ -89,7 +94,7 @@ class ProcessLaporanLampiran implements ShouldQueue
      */
     private function processImage(string $fileContent, string $extension): string
     {
-        $manager = new ImageManager(new Driver());
+        $manager = new ImageManager(new Driver);
         $image = $manager->read($fileContent);
 
         // Apply crop if crop data is provided
@@ -102,11 +107,15 @@ class ProcessLaporanLampiran implements ShouldQueue
             $image->crop($width, $height, $x, $y);
         }
 
+        // Kompresi ala WhatsApp: downscale sisi terpanjang ke maks 1600px.
+        // scaleDown hanya mengecilkan bila melebihi, rasio tetap terjaga.
+        $image->scaleDown(width: 1600, height: 1600);
+
         // Convert to WebP format with quality compression
         // Quality 85 provides excellent balance between file size and visual quality
         // WebP is fully supported by PhpOffice\PhpWord for Word document generation
         $quality = 85;
-        
+
         return $image->toWebp($quality);
     }
 

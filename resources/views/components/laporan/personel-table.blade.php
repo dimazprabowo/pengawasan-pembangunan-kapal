@@ -34,7 +34,7 @@
                 <tr>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-10">No</th>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Jabatan</th>
-                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Jumlah</th>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Keterangan</th>
                     @if(!$readonly)
                         <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-16">Aksi</th>
@@ -47,7 +47,7 @@
                         <td class="px-3 py-2 text-sm text-center text-gray-500 dark:text-gray-400">{{ $rIndex + 1 }}</td>
                         @if($readonly)
                             <td class="px-3 py-2 text-sm text-gray-900 dark:text-white">{{ $row['jabatan'] ?? '-' }}</td>
-                            <td class="px-3 py-2 text-sm text-gray-900 dark:text-white">{{ $row['status'] ?? '-' }}</td>
+                            <td class="px-3 py-2 text-sm text-gray-900 dark:text-white">{{ $row['jumlah'] ?? '-' }}</td>
                             <td class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">{{ $row['keterangan'] ?? '-' }}</td>
                         @else
                             <td class="px-3 py-2">
@@ -56,9 +56,9 @@
                                     placeholder="Jabatan">
                             </td>
                             <td class="px-3 py-2">
-                                <input type="text" wire:model="{{ $rowsModel }}.{{ $rIndex }}.status"
+                                <input type="number" min="1" wire:model="{{ $rowsModel }}.{{ $rIndex }}.jumlah"
                                     class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                                    placeholder="Status">
+                                    placeholder="Jumlah">
                             </td>
                             <td class="px-3 py-2">
                                 <input type="text" wire:model="{{ $rowsModel }}.{{ $rIndex }}.keterangan"

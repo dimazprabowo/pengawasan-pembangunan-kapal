@@ -155,7 +155,7 @@ class LaporanHarianWordService
             // Jika tidak ada data, isi dengan satu row berisi '-'
             $processor->setValue('personel_no', '1');
             $processor->setValue('personel_jabatan', '-');
-            $processor->setValue('personel_status', '-');
+            $processor->setValue('personel_jumlah', '-');
             $processor->setValue('personel_keterangan', '-');
 
             return;
@@ -171,7 +171,7 @@ class LaporanHarianWordService
             // Format: placeholder#index (misal: personel_no#1, personel_no#2)
             $processor->setValue('personel_no#'.$i, (string) $i);
             $processor->setValue('personel_jabatan#'.$i, $row->jabatan ?? '-');
-            $processor->setValue('personel_status#'.$i, $row->status ?? '-');
+            $processor->setValue('personel_jumlah#'.$i, $row->jumlah !== null ? (string) $row->jumlah : '-');
             $processor->setValue('personel_keterangan#'.$i, $row->keterangan ?? '-');
         }
     }

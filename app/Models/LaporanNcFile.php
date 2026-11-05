@@ -53,19 +53,20 @@ class LaporanNcFile extends Model
     }
 
     /**
-     * Data URL untuk preview gambar yang sudah selesai diproses (disk local).
+     * Data URL untuk preview gambar/PDF yang sudah selesai diproses (disk local).
      */
     public function getDataUrlAttribute(): ?string
     {
-        if (! $this->hasFile() || ! $this->isFileCompleted() || ! $this->isImage()) {
+        if (! $this->hasFile() || ! $this->isFileCompleted() || ! $this->isPreviewable()) {
             return null;
         }
         if (! Storage::disk('local')->exists($this->file_path)) {
             return null;
         }
 
-        $extension = strtolower(pathinfo($this->file_name, PATHINFO_EXTENSION));
-        $mime = 'image/'.($extension === 'jpg' ? 'jpeg' : $extension);
+        $mime = $this->isPdf()
+            ? 'application/pdf'
+            : 'image/'.(strtolower(pathinfo($this->file_name, PATHINFO_EXTENSION)) === 'jpg' ? 'jpeg' : strtolower(pathinfo($this->file_name, PATHINFO_EXTENSION)));
 
         return "data:{$mime};base64,".base64_encode(Storage::disk('local')->get($this->file_path));
     }

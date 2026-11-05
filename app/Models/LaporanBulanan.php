@@ -45,6 +45,11 @@ class LaporanBulanan extends Model
         'periode_selesai',
         'ringkasan',
         'bulan_ke',
+        'doc_path',
+        'doc_name',
+        'doc_status',
+        'doc_generated_at',
+        'doc_error',
     ];
 
     /**
@@ -57,6 +62,7 @@ class LaporanBulanan extends Model
             'periode_mulai' => 'date',
             'periode_selesai' => 'date',
             'bulan_ke' => 'integer',
+            'doc_generated_at' => 'datetime',
         ];
     }
 
@@ -91,6 +97,26 @@ class LaporanBulanan extends Model
     public function laporanExternal(): HasMany
     {
         return $this->hasMany(LaporanExternal::class);
+    }
+
+    public function isDocProcessing(): bool
+    {
+        return in_array($this->doc_status, ['pending', 'processing']);
+    }
+
+    public function isDocCompleted(): bool
+    {
+        return $this->doc_status === 'completed';
+    }
+
+    public function isDocFailed(): bool
+    {
+        return $this->doc_status === 'failed';
+    }
+
+    public function hasDoc(): bool
+    {
+        return ! empty($this->doc_path) && ! empty($this->doc_name);
     }
 
     /**

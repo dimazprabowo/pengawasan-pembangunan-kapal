@@ -134,7 +134,7 @@ class LaporanHarianEdit extends Component
         $this->personel = $laporanHarian->personel->map(fn ($p) => [
             'id' => $p->id,
             'jabatan' => $p->jabatan,
-            'status' => $p->status,
+            'jumlah' => $p->jumlah,
             'keterangan' => $p->keterangan ?? '',
         ])->toArray();
 
@@ -219,7 +219,7 @@ class LaporanHarianEdit extends Component
         $rules['kelembaban_sore_id'] = 'nullable|exists:kelembaban,id';
         $rules['personel'] = 'nullable|array';
         $rules['personel.*.jabatan'] = 'nullable|string|max:255';
-        $rules['personel.*.status'] = 'nullable|string|max:255';
+        $rules['personel.*.jumlah'] = 'nullable|integer|min:1';
         $rules['personel.*.keterangan'] = 'nullable|string|max:1000';
         $rules['peralatan'] = 'nullable|array';
         $rules['peralatan.*.jenis'] = 'nullable|string|max:255';
@@ -461,13 +461,13 @@ class LaporanHarianEdit extends Component
             $this->laporan->personel()->delete();
             foreach ($this->personel as $personelData) {
                 $hasData = ! empty($personelData['jabatan']) ||
-                          ! empty($personelData['status']) ||
+                          ! empty($personelData['jumlah']) ||
                           ! empty($personelData['keterangan']);
 
                 if ($hasData) {
                     $this->laporan->personel()->create([
                         'jabatan' => $personelData['jabatan'] ?: null,
-                        'status' => $personelData['status'] ?: null,
+                        'jumlah' => $personelData['jumlah'] ?: null,
                         'keterangan' => $personelData['keterangan'] ?: null,
                     ]);
                 }
@@ -564,45 +564,6 @@ class LaporanHarianEdit extends Component
         return $this->laporan->lampiran->find($this->previewLampiranId);
     }
 
-    public function previewLampiran(int $lampiranId)
-    {
-        $this->authorize('lampiranPreview', LaporanHarian::class);
-
-        $lampiran = $this->laporan->lampiran->find($lampiranId);
-
-        if (! $lampiran || $lampiran->laporan_harian_id !== $this->laporan->id) {
-            $this->notifyError('Lampiran tidak ditemukan.');
-
-            return;
-        }
-
-        if (! $lampiran->file_path || ! Storage::disk('local')->exists($lampiran->file_path)) {
-            $this->notifyError('File tidak ditemukan.');
-
-            return;
-        }
-
-        $extension = strtolower(pathinfo($lampiran->file_name, PATHINFO_EXTENSION));
-        $mimeTypes = [
-            'pdf' => 'application/pdf',
-            'doc' => 'application/msword',
-            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'xls' => 'application/vnd.ms-excel',
-            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'png' => 'image/png',
-            'jpg' => 'image/jpeg',
-            'jpeg' => 'image/jpeg',
-            'gif' => 'image/gif',
-            'webp' => 'image/webp',
-        ];
-
-        $mime = $mimeTypes[$extension] ?? 'application/octet-stream';
-
-        return response(Storage::disk('local')->get($lampiran->file_path))
-            ->header('Content-Type', $mime)
-            ->header('Content-Disposition', 'inline; filename="'.$lampiran->file_name.'"');
-    }
-
     public function getLampiranImageDataUrl(int $lampiranId): ?string
     {
         $lampiran = $this->laporan->lampiran->find($lampiranId);
@@ -617,6 +578,7 @@ class LaporanHarianEdit extends Component
 
         $extension = strtolower(pathinfo($lampiran->file_name, PATHINFO_EXTENSION));
         $mimeTypes = [
+            'pdf' => 'application/pdf',
             'png' => 'image/png',
             'jpg' => 'image/jpeg',
             'jpeg' => 'image/jpeg',
@@ -670,7 +632,7 @@ class LaporanHarianEdit extends Component
     {
         $this->personel[] = [
             'jabatan' => '',
-            'status' => '',
+            'jumlah' => '',
             'keterangan' => '',
         ];
     }

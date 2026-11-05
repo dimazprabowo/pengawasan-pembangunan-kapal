@@ -29,8 +29,8 @@ return [
     */
     'fields' => [
         'foto_kapal' => [
-            'max_size' => 20480, // 20 MB
-            'mimes' => ['jpg', 'jpeg', 'png'],
+            'max_size' => 5120, // 5 MB (file asli; dikompres client-side ke WebP <=1600px, hasil < 2 MB)
+            'mimes' => ['jpg', 'jpeg', 'png', 'webp'],
         ],
 
         'sertifikat' => [

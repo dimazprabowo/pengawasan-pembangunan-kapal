@@ -3,9 +3,10 @@
 namespace App\Imports;
 
 use App\Models\DataKapal;
+use Maatwebsite\Excel\Concerns\Import;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
-class KurvaSTemplateImport implements WithMultipleSheets
+class KurvaSTemplateImport implements Import, WithMultipleSheets
 {
     protected DataKapal $dataKapal;
 

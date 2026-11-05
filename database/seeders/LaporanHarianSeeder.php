@@ -11,6 +11,8 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
+use Intervention\Image\ImageManager;
 
 class LaporanHarianSeeder extends Seeder
 {
@@ -114,11 +116,11 @@ class LaporanHarianSeeder extends Seeder
     private function seedPersonel(LaporanHarian $laporan, int $hari): void
     {
         foreach ([
-            ['Welders', 'Hadir', null],
-            ['Fitters', 'Hadir', null],
-            ['Supervisor', 'Hadir', $hari % 7 === 6 ? 'Hari libur bersama' : null],
-        ] as [$jabatan, $status, $ket]) {
-            $laporan->personel()->create(['jabatan' => $jabatan, 'status' => $status, 'keterangan' => $ket]);
+            ['Welders', 12 + ($hari % 4), null],
+            ['Fitters', 8 + ($hari % 3), null],
+            ['Supervisor', 2, $hari % 7 === 6 ? 'Hari libur bersama' : null],
+        ] as [$jabatan, $jumlah, $ket]) {
+            $laporan->personel()->create(['jabatan' => $jabatan, 'jumlah' => $jumlah, 'keterangan' => $ket]);
         }
     }
 
@@ -159,11 +161,11 @@ class LaporanHarianSeeder extends Seeder
         $path = 'laporan-lampiran/harian/'.$fileName;
 
         $colors = ['#3b82f6', '#10b981', '#f59e0b', '#6366f1'];
-        $encoded = (string) \Intervention\Image\ImageManager::gd()
+        $encoded = (string) ImageManager::gd()
             ->create(800, 600)
             ->fill($colors[$hari % count($colors)])
             ->toWebp(85);
-        \Illuminate\Support\Facades\Storage::disk('local')->put($path, $encoded);
+        Storage::disk('local')->put($path, $encoded);
 
         $laporan->lampiran()->create([
             'laporan_aktivitas_id' => $aktivitas?->id,

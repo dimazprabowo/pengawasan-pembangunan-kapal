@@ -82,6 +82,7 @@
                         <th class="px-4 py-3 w-10 text-center">
                             @can('laporan_nc_update')
                                 <input type="checkbox" wire:click="toggleSelectAll" @checked($allChecked)
+                                    wire:key="nc-select-all-{{ $allChecked ? 'on' : 'off' }}-{{ implode('-', $pageIds) }}"
                                     class="rounded text-blue-600 focus:ring-blue-500 cursor-pointer" title="Pilih semua di halaman ini">
                             @endcan
                         </th>
@@ -107,6 +108,7 @@
                                 <div class="flex items-center gap-3">
                                     @can('laporan_nc_update')
                                         <input type="checkbox" wire:click="toggleNcGroup('{{ $groupIds }}')" @checked($groupAllChecked)
+                                            wire:key="nc-grp-cb-{{ $laporanId }}-{{ $groupAllChecked ? 'on' : 'off' }}"
                                             class="rounded text-blue-600 focus:ring-blue-500 cursor-pointer" title="Pilih semua NC tanggal ini">
                                     @endcan
                                     <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
@@ -119,11 +121,13 @@
                         @php
                             $before = $nc->files->filter(fn ($f) => $f->pivot->kind === 'before');
                             $after = $nc->files->filter(fn ($f) => $f->pivot->kind === 'after');
+                            $ncChecked = in_array($nc->id, array_map('intval', $selectedNcIds), true);
                         @endphp
-                        <tr wire:key="nc-{{ $nc->id }}" class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors {{ in_array($nc->id, array_map('intval', $selectedNcIds), true) ? 'bg-blue-50/50 dark:bg-blue-900/10' : '' }}">
+                        <tr wire:key="nc-{{ $nc->id }}" class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors {{ $ncChecked ? 'bg-blue-50/50 dark:bg-blue-900/10' : '' }}">
                             <td class="px-4 py-3 text-center">
                                 @can('laporan_nc_update')
-                                    <input type="checkbox" wire:click="toggleNcSelect({{ $nc->id }})" @checked(in_array($nc->id, array_map('intval', $selectedNcIds)))
+                                    <input type="checkbox" wire:click="toggleNcSelect({{ $nc->id }})" @checked($ncChecked)
+                                        wire:key="nc-cb-{{ $nc->id }}-{{ $ncChecked ? 'on' : 'off' }}"
                                         class="rounded text-blue-600 focus:ring-blue-500 cursor-pointer" title="Pilih NC ini">
                                 @endcan
                             </td>
@@ -238,12 +242,17 @@
             </div>
             <div>
                 <x-input-label value="File Bukti (bisa lebih dari satu)" :required="true" />
-                <label class="mt-1 flex flex-col items-center justify-center gap-2 w-full px-4 py-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-colors">
-                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <label class="mt-1 flex flex-col items-center justify-center gap-2 w-full px-4 py-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-colors" wire:loading.class="opacity-60 pointer-events-none" wire:target="uploadFiles">
+                    <svg wire:loading.class="hidden" wire:target="uploadFiles" class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                     </svg>
-                    <span class="text-sm text-gray-500 dark:text-gray-400">Klik untuk pilih file — {{ strtoupper(get_allowed_mimes('laporan_nc')) }}</span>
-                    <span class="text-xs text-gray-400">Maks. {{ get_max_upload_size('laporan_nc') }} MB per file</span>
+                    <svg wire:loading wire:target="uploadFiles" class="animate-spin w-8 h-8 text-blue-500" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                    <span wire:loading.class="hidden" wire:target="uploadFiles" class="text-sm text-gray-500 dark:text-gray-400">Klik untuk pilih file — {{ strtoupper(get_allowed_mimes('laporan_nc')) }}</span>
+                    <span wire:loading.class="hidden" wire:target="uploadFiles" class="text-xs text-gray-400">Maks. {{ get_max_upload_size('laporan_nc') }} MB per file</span>
+                    <span wire:loading wire:target="uploadFiles" class="text-sm font-medium text-blue-600 dark:text-blue-400">Mengunggah file, mohon tunggu...</span>
                     <input type="file" wire:model="uploadFiles" multiple accept=".{{ implode(',.', get_allowed_mimes_array('laporan_nc')) }}" class="hidden">
                 </label>
                 @if($uploadFiles)

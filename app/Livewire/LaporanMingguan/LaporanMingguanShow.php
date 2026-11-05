@@ -173,6 +173,7 @@ class LaporanMingguanShow extends Component
 
         $extension = strtolower(pathinfo($lampiran->file_name, PATHINFO_EXTENSION));
         $mimeTypes = [
+            'pdf' => 'application/pdf',
             'png' => 'image/png',
             'jpg' => 'image/jpeg',
             'jpeg' => 'image/jpeg',
@@ -264,49 +265,6 @@ class LaporanMingguanShow extends Component
         }
 
         return response()->download(Storage::disk('local')->path($lampiran->file_path), $lampiran->file_name);
-    }
-
-    public function previewLampiran(int $lampiranId)
-    {
-        $this->authorize('lampiranPreview', LaporanMingguan::class);
-
-        $lampiran = LaporanLampiran::with('laporanHarian')->find($lampiranId);
-
-        if (! $lampiran || ! $lampiran->file_path || ! Storage::disk('local')->exists($lampiran->file_path)) {
-            $this->notifyError('File tidak ditemukan.');
-
-            return;
-        }
-
-        // Ownership check: lampiran must belong to user's laporan harian or be linked to this laporan mingguan
-        $belongsToUser = $lampiran->laporanHarian && $lampiran->laporanHarian->user_id === $this->laporan->user_id;
-        $isLinkedToReport = $this->laporan->lampiran->contains('id', $lampiran->id);
-
-        if (! $belongsToUser && ! $isLinkedToReport) {
-            $this->notifyError('Anda tidak memiliki akses ke lampiran ini.');
-
-            return;
-        }
-
-        $extension = strtolower(pathinfo($lampiran->file_name, PATHINFO_EXTENSION));
-        $mimeTypes = [
-            'pdf' => 'application/pdf',
-            'doc' => 'application/msword',
-            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'xls' => 'application/vnd.ms-excel',
-            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'png' => 'image/png',
-            'jpg' => 'image/jpeg',
-            'jpeg' => 'image/jpeg',
-            'gif' => 'image/gif',
-            'webp' => 'image/webp',
-        ];
-
-        $mime = $mimeTypes[$extension] ?? 'application/octet-stream';
-
-        return response(Storage::disk('local')->get($lampiran->file_path))
-            ->header('Content-Type', $mime)
-            ->header('Content-Disposition', 'inline; filename="'.$lampiran->file_name.'"');
     }
 
     public function confirmRegenerate(): void
