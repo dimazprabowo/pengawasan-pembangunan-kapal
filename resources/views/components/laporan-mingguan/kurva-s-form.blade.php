@@ -27,58 +27,7 @@
                     Atur jadwal Kurva S terlebih dahulu di menu <strong>Master Data → Data Kapal</strong>.
                 </p>
             </div>
-
-            {{-- Minggu ke- (tetap wajib karena dipakai sebagai identitas laporan) --}}
-            <div class="mt-4 max-w-xs">
-                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-                    Minggu Ke- <span class="text-red-500">*</span>
-                </label>
-                @if(count($mingguOptions) > 0)
-                    <x-searchable-select
-                        wire:model.live="minggu_ke"
-                        :options="$mingguOptions"
-                        placeholder="— Pilih minggu —"
-                        searchPlaceholder="Cari minggu..."
-                        :clearable="false"
-                        :error="$errors->has('minggu_ke')"
-                        class="text-sm"
-                    />
-                @else
-                    <input type="number" wire:model.live="minggu_ke" min="1" max="1000" step="1"
-                        placeholder="Masukkan nomor minggu"
-                        class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white {{ $errors->has('minggu_ke') ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600' }}">
-                @endif
-                @error('minggu_ke')
-                    <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span>
-                @enderror
-            </div>
         @else
-            {{-- Minggu ke- --}}
-            <div class="mb-4 max-w-xs">
-                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-                    Minggu Ke- <span class="text-red-500">*</span>
-                </label>
-                @if(count($mingguOptions) > 0)
-                    <x-searchable-select
-                        wire:model.live="minggu_ke"
-                        :options="$mingguOptions"
-                        placeholder="— Pilih minggu —"
-                        searchPlaceholder="Cari minggu..."
-                        :clearable="false"
-                        :error="$errors->has('minggu_ke')"
-                        class="text-sm"
-                    />
-                @else
-                    {{-- Semua minggu rencana sudah terlaporkan — input manual tetap wajib --}}
-                    <input type="number" wire:model.live="minggu_ke" min="1" max="1000" step="1"
-                        placeholder="Masukkan nomor minggu"
-                        class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white {{ $errors->has('minggu_ke') ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600' }}">
-                @endif
-                @error('minggu_ke')
-                    <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span>
-                @enderror
-            </div>
-
             {{-- Per Work Group Progress Table --}}
             @if(count($workGroupsForInput) > 0)
                 {{-- Warning banner when realisasi kumulatif exceeds bobot --}}
@@ -104,8 +53,8 @@
                                 <col><col style="width: 96px"><col style="width: 200px"><col style="width: 200px">
                             </colgroup>
                             <thead>
-                                <tr class="bg-blue-100/60 dark:bg-blue-900/30">
-                                    <th class="px-3 py-2 text-left text-xs font-medium text-blue-700 dark:text-blue-300 uppercase whitespace-nowrap">Work Group</th>
+                                <tr class="bg-blue-100 dark:bg-blue-950">
+                                    <th class="sticky left-0 z-10 bg-blue-100 dark:bg-blue-950 px-3 py-2 text-left text-xs font-medium text-blue-700 dark:text-blue-300 uppercase whitespace-nowrap">Work Group</th>
                                     <th class="px-3 py-2 text-center text-xs font-medium text-blue-700 dark:text-blue-300 uppercase whitespace-nowrap">Bobot (%)</th>
                                     <th class="px-3 py-2 text-left text-xs font-medium text-blue-700 dark:text-blue-300 uppercase whitespace-nowrap">Realisasi {{ $weekLabel }} (%)</th>
                                     <th class="px-3 py-2 text-right text-xs font-medium text-blue-700 dark:text-blue-300 uppercase whitespace-nowrap">Total s/d {{ $weekLabel }} (%)</th>
@@ -122,7 +71,7 @@
                     <tbody class="divide-y divide-blue-100 dark:divide-blue-900/30">
                         @foreach($workGroupsForInput as $wg)
                         <tr class="hover:bg-blue-50/50 dark:hover:bg-blue-900/10">
-                            <td class="px-3 py-2 font-medium text-gray-800 dark:text-gray-200">{{ $wg['nama'] }}</td>
+                            <td class="sticky left-0 z-10 bg-white dark:bg-gray-800 px-3 py-2 font-medium text-gray-800 dark:text-gray-200">{{ $wg['nama'] }}</td>
                             <td class="px-3 py-2 text-center text-gray-600 dark:text-gray-400">{{ number_format($wg['bobot'], 2) }}</td>
                             <td class="px-3 py-2">
                                 <div class="relative">
@@ -155,8 +104,8 @@
                         @endforeach
                     </tbody>
                     <tfoot>
-                        <tr class="bg-blue-100/60 dark:bg-blue-900/30 font-semibold">
-                            <td class="px-3 py-2 text-xs text-blue-700 dark:text-blue-300 uppercase">Total</td>
+                        <tr class="bg-blue-100 dark:bg-blue-950 font-semibold">
+                            <td class="sticky left-0 z-10 bg-blue-100 dark:bg-blue-950 px-3 py-2 text-xs text-blue-700 dark:text-blue-300 uppercase">Total</td>
                             <td class="px-3 py-2 text-center text-xs text-blue-700 dark:text-blue-300">
                                 {{ number_format(collect($workGroupsForInput)->sum('bobot'), 2) }}%
                             </td>

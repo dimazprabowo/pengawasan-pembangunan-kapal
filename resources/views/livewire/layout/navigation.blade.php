@@ -240,8 +240,8 @@
             </div>
 
             {{-- Center: Page Title (mobile only) --}}
-            <div class="flex-1 lg:hidden">
-                <h1 class="text-lg font-semibold text-gray-900 dark:text-white text-center">
+            <div class="flex-1 lg:hidden min-w-0">
+                <h1 class="text-lg font-semibold text-gray-900 dark:text-white text-center truncate">
                     {{ $title ?? 'Dashboard' }}
                 </h1>
             </div>

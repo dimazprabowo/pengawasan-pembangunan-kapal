@@ -93,8 +93,8 @@
                     <tr>
                         <th class="sticky left-0 z-20 bg-slate-200 dark:bg-slate-950 px-2 py-2 text-center font-semibold text-blue-800 dark:text-blue-300 w-[40px] min-w-[40px] border-r border-b-2 border-r-slate-300 border-b-blue-600 dark:border-r-slate-700 dark:border-b-blue-500">No</th>
                         <th class="sticky left-[40px] z-20 bg-slate-200 dark:bg-slate-950 px-3 py-2 text-center font-semibold text-blue-800 dark:text-blue-300 w-[160px] min-w-[160px] max-w-[160px] border-r border-b-2 border-r-slate-300 border-b-blue-600 dark:border-r-slate-700 dark:border-b-blue-500">Work Group</th>
-                        <th class="sticky left-[200px] z-20 bg-slate-200 dark:bg-slate-950 px-2 py-2 text-center font-semibold text-blue-800 dark:text-blue-300 w-[64px] min-w-[64px] border-r border-b-2 border-r-slate-300 border-b-blue-600 dark:border-r-slate-700 dark:border-b-blue-500">Bobot</th>
-                        <th class="sticky left-[264px] z-20 bg-slate-200 dark:bg-slate-950 px-2 py-0.5 text-center align-middle font-semibold text-blue-800 dark:text-blue-300 w-[84px] min-w-[84px] border-r border-b-2 border-r-slate-300 border-b-blue-600 dark:border-r-slate-700 dark:border-b-blue-500">Physical<br>Progress</th>
+                        <th class="sm:sticky sm:left-[200px] z-20 bg-slate-200 dark:bg-slate-950 px-2 py-2 text-center font-semibold text-blue-800 dark:text-blue-300 w-[64px] min-w-[64px] border-r border-b-2 border-r-slate-300 border-b-blue-600 dark:border-r-slate-700 dark:border-b-blue-500">Bobot</th>
+                        <th class="sm:sticky sm:left-[264px] z-20 bg-slate-200 dark:bg-slate-950 px-2 py-0.5 text-center align-middle font-semibold text-blue-800 dark:text-blue-300 w-[84px] min-w-[84px] border-r border-b-2 border-r-slate-300 border-b-blue-600 dark:border-r-slate-700 dark:border-b-blue-500">Physical<br>Progress</th>
                         <template x-for="(hist, weekIndex) in progressHistory" :key="'head-' + weekIndex">
                         <th class="bg-slate-100 dark:bg-slate-900 px-3 py-2 text-center font-semibold text-blue-800 dark:text-blue-300 min-w-[104px] border-r border-b-2 border-r-slate-200 border-b-blue-600 dark:border-r-slate-800 dark:border-b-blue-500">
                             <div x-text="unitLabel + ' ' + (hist.unit_ke ?? hist.minggu_ke)"></div>
@@ -104,7 +104,7 @@
                             </div>
                         </th>
                         </template>
-                        <th class="sticky right-0 z-20 bg-slate-200 dark:bg-slate-950 px-3 py-2 text-center font-semibold text-blue-800 dark:text-blue-300 w-[88px] min-w-[88px] border-l border-b-2 border-l-slate-300 border-b-blue-600 dark:border-l-slate-700 dark:border-b-blue-500">Total</th>
+                        <th class="sm:sticky sm:right-0 z-20 bg-slate-200 dark:bg-slate-950 px-3 py-2 text-center font-semibold text-blue-800 dark:text-blue-300 w-[88px] min-w-[88px] border-l border-b-2 border-l-slate-300 border-b-blue-600 dark:border-l-slate-700 dark:border-b-blue-500">Total</th>
                     </tr>
                 </thead>
                 </table>
@@ -126,32 +126,32 @@
                         <td rowspan="3" class="sticky left-[40px] z-10 bg-gray-50 dark:bg-gray-900 px-3 py-2 w-[160px] min-w-[160px] align-middle font-medium text-gray-700 dark:text-gray-300 max-w-[160px] border-r border-gray-200 dark:border-gray-700 {{ $groupBorder }}">
                             {{ $wg['nama'] }}
                         </td>
-                        <td rowspan="3" class="sticky left-[200px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[64px] min-w-[64px] align-middle text-center tabular-nums font-medium text-gray-600 dark:text-gray-400 border-r border-gray-200 dark:border-gray-700 {{ $groupBorder }}">
+                        <td rowspan="3" class="sm:sticky sm:left-[200px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[64px] min-w-[64px] align-middle text-center tabular-nums font-medium text-gray-600 dark:text-gray-400 border-r border-gray-200 dark:border-gray-700 {{ $groupBorder }}">
                             {{ rtrim(rtrim(number_format((float) $wg['bobot'], 2), '0'), '.') }}%
                         </td>
-                        <td class="sticky left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left text-gray-500 dark:text-gray-400 border-r border-gray-200 dark:border-gray-700 {{ $groupBorder }}">Rencana</td>
+                        <td class="sm:sticky sm:left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left text-gray-500 dark:text-gray-400 border-r border-gray-200 dark:border-gray-700 {{ $groupBorder }}">Rencana</td>
                         <template x-for="(hist, weekIndex) in progressHistory" :key="'p-{{ $wg['work_group_id'] }}-' + weekIndex">
                         <td class="px-2 py-0.5 text-center tabular-nums text-gray-500 dark:text-gray-400 {{ $groupBorder }}" x-text="fmtPlan(historyPlanKontribusi('{{ $wg['work_group_id'] }}', weekIndex)) + '%'"></td>
                         </template>
-                        <td class="sticky right-0 z-10 bg-gray-50 dark:bg-gray-800 px-2 py-0.5 text-center tabular-nums font-medium text-gray-500 dark:text-gray-400 border-l border-gray-200 dark:border-gray-700 {{ $groupBorder }}" x-text="fmtPlan(totalHistoryPlan('{{ $wg['work_group_id'] }}')) + '%'"></td>
+                        <td class="sm:sticky sm:right-0 z-10 bg-gray-50 dark:bg-gray-800 px-2 py-0.5 text-center tabular-nums font-medium text-gray-500 dark:text-gray-400 border-l border-gray-200 dark:border-gray-700 {{ $groupBorder }}" x-text="fmtPlan(totalHistoryPlan('{{ $wg['work_group_id'] }}')) + '%'"></td>
                     </tr>
                     {{-- Aktual --}}
                     <tr>
-                        <td class="sticky left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">Aktual</td>
+                        <td class="sm:sticky sm:left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">Aktual</td>
                         <template x-for="(hist, weekIndex) in progressHistory" :key="'a-{{ $wg['work_group_id'] }}-' + weekIndex">
                         <td class="px-2 py-0.5 text-center tabular-nums font-medium text-gray-700 dark:text-gray-300" x-text="fmtPlan(historyKontribusi('{{ $wg['work_group_id'] }}', weekIndex)) + '%'"></td>
                         </template>
-                        <td class="sticky right-0 z-10 bg-gray-50 dark:bg-gray-800 px-2 py-0.5 text-center tabular-nums font-medium text-gray-700 dark:text-gray-300 border-l border-gray-200 dark:border-gray-700" x-text="fmtPlan(totalHistoryKontribusi('{{ $wg['work_group_id'] }}')) + '%'"></td>
+                        <td class="sm:sticky sm:right-0 z-10 bg-gray-50 dark:bg-gray-800 px-2 py-0.5 text-center tabular-nums font-medium text-gray-700 dark:text-gray-300 border-l border-gray-200 dark:border-gray-700" x-text="fmtPlan(totalHistoryKontribusi('{{ $wg['work_group_id'] }}')) + '%'"></td>
                     </tr>
                     {{-- Deviasi --}}
                     <tr>
-                        <td class="sticky left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left text-gray-500 dark:text-gray-400 border-r border-gray-200 dark:border-gray-700">Deviasi</td>
+                        <td class="sm:sticky sm:left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left text-gray-500 dark:text-gray-400 border-r border-gray-200 dark:border-gray-700">Deviasi</td>
                         <template x-for="(hist, weekIndex) in progressHistory" :key="'d-{{ $wg['work_group_id'] }}-' + weekIndex">
                         <td class="px-2 py-0.5 text-center tabular-nums font-medium"
                             :class="historyDeviation('{{ $wg['work_group_id'] }}', weekIndex) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'"
                             x-text="(historyDeviation('{{ $wg['work_group_id'] }}', weekIndex) >= 0 ? '+' : '') + fmtPlan(historyDeviation('{{ $wg['work_group_id'] }}', weekIndex)) + '%'"></td>
                         </template>
-                        <td class="sticky right-0 z-10 bg-gray-50 dark:bg-gray-800 px-2 py-0.5 text-center tabular-nums font-medium border-l border-gray-200 dark:border-gray-700"
+                        <td class="sm:sticky sm:right-0 z-10 bg-gray-50 dark:bg-gray-800 px-2 py-0.5 text-center tabular-nums font-medium border-l border-gray-200 dark:border-gray-700"
                             :class="totalHistoryDeviation('{{ $wg['work_group_id'] }}') >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'"
                             x-text="(totalHistoryDeviation('{{ $wg['work_group_id'] }}') >= 0 ? '+' : '') + fmtPlan(totalHistoryDeviation('{{ $wg['work_group_id'] }}')) + '%'"></td>
                     </tr>
@@ -159,58 +159,58 @@
                     {{-- Per Minggu --}}
                     <tr>
                         <td rowspan="3" colspan="2" class="sticky left-0 z-10 bg-gray-50 dark:bg-gray-900 px-3 py-2 align-middle font-bold text-gray-900 dark:text-white border-r border-t-2 border-r-gray-200 border-t-gray-300 dark:border-r-gray-700 dark:border-t-gray-600">Per {{ $unitLabel }}</td>
-                        <td rowspan="3" class="sticky left-[200px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[64px] min-w-[64px] align-middle text-center tabular-nums font-bold text-gray-900 dark:text-white border-r border-t-2 border-r-gray-200 border-t-gray-300 dark:border-r-gray-700 dark:border-t-gray-600" x-text="totalBobot().toFixed(2) + '%'"></td>
-                        <td class="sticky left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left font-bold text-gray-900 dark:text-white border-r border-t-2 border-r-gray-200 border-t-gray-300 dark:border-r-gray-700 dark:border-t-gray-600">Rencana</td>
+                        <td rowspan="3" class="sm:sticky sm:left-[200px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[64px] min-w-[64px] align-middle text-center tabular-nums font-bold text-gray-900 dark:text-white border-r border-t-2 border-r-gray-200 border-t-gray-300 dark:border-r-gray-700 dark:border-t-gray-600" x-text="totalBobot().toFixed(2) + '%'"></td>
+                        <td class="sm:sticky sm:left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left font-bold text-gray-900 dark:text-white border-r border-t-2 border-r-gray-200 border-t-gray-300 dark:border-r-gray-700 dark:border-t-gray-600">Rencana</td>
                         <template x-for="(hist, weekIndex) in progressHistory" :key="'wp-' + weekIndex">
                         <td class="px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-t-2 border-gray-300 dark:border-gray-600" x-text="fmtPlan(hist.week_plan || 0) + '%'"></td>
                         </template>
-                        <td class="sticky right-0 z-10 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-l border-t-2 border-l-gray-200 border-t-gray-300 dark:border-l-gray-700 dark:border-t-gray-600" x-text="fmtPlan(totalAllWeeksPlan()) + '%'"></td>
+                        <td class="sm:sticky sm:right-0 z-10 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-l border-t-2 border-l-gray-200 border-t-gray-300 dark:border-l-gray-700 dark:border-t-gray-600" x-text="fmtPlan(totalAllWeeksPlan()) + '%'"></td>
                     </tr>
                     <tr>
-                        <td class="sticky left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left font-bold text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700">Aktual</td>
+                        <td class="sm:sticky sm:left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left font-bold text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700">Aktual</td>
                         <template x-for="(hist, weekIndex) in progressHistory" :key="'wa-' + weekIndex">
                         <td class="px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white" x-text="fmtPlan(hist.week_actual || 0) + '%'"></td>
                         </template>
-                        <td class="sticky right-0 z-10 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-l border-gray-200 dark:border-gray-700" x-text="fmtPlan(totalAllWeeksActual()) + '%'"></td>
+                        <td class="sm:sticky sm:right-0 z-10 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-l border-gray-200 dark:border-gray-700" x-text="fmtPlan(totalAllWeeksActual()) + '%'"></td>
                     </tr>
                     <tr>
-                        <td class="sticky left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left font-bold text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700">Deviasi</td>
+                        <td class="sm:sticky sm:left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left font-bold text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700">Deviasi</td>
                         <template x-for="(hist, weekIndex) in progressHistory" :key="'wd-' + weekIndex">
                         <td class="px-2 py-0.5 text-center tabular-nums font-bold"
                             :class="(hist.week_deviation || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'"
                             x-text="((hist.week_deviation || 0) >= 0 ? '+' : '') + fmtPlan(hist.week_deviation || 0) + '%'"></td>
                         </template>
-                        <td class="sticky right-0 z-10 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-center tabular-nums font-bold border-l border-gray-200 dark:border-gray-700"
+                        <td class="sm:sticky sm:right-0 z-10 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-center tabular-nums font-bold border-l border-gray-200 dark:border-gray-700"
                             :class="totalAllWeeksDeviation() >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'"
                             x-text="(totalAllWeeksDeviation() >= 0 ? '+' : '') + fmtPlan(totalAllWeeksDeviation()) + '%'"></td>
                     </tr>
                     {{-- Total Kumulatif --}}
                     <tr>
                         <td rowspan="3" colspan="2" class="sticky left-0 z-10 bg-gray-50 dark:bg-gray-900 px-3 py-2 align-middle font-bold text-gray-900 dark:text-white border-r border-t-2 border-r-gray-200 border-t-gray-300 dark:border-r-gray-700 dark:border-t-gray-600">Total Kumulatif</td>
-                        <td rowspan="3" class="sticky left-[200px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[64px] min-w-[64px] align-middle text-center tabular-nums font-bold text-gray-900 dark:text-white border-r border-t-2 border-r-gray-200 border-t-gray-300 dark:border-r-gray-700 dark:border-t-gray-600" x-text="totalBobot().toFixed(2) + '%'"></td>
-                        <td class="sticky left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left font-bold text-gray-900 dark:text-white border-r border-t-2 border-r-gray-200 border-t-gray-300 dark:border-r-gray-700 dark:border-t-gray-600">Rencana</td>
+                        <td rowspan="3" class="sm:sticky sm:left-[200px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[64px] min-w-[64px] align-middle text-center tabular-nums font-bold text-gray-900 dark:text-white border-r border-t-2 border-r-gray-200 border-t-gray-300 dark:border-r-gray-700 dark:border-t-gray-600" x-text="totalBobot().toFixed(2) + '%'"></td>
+                        <td class="sm:sticky sm:left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left font-bold text-gray-900 dark:text-white border-r border-t-2 border-r-gray-200 border-t-gray-300 dark:border-r-gray-700 dark:border-t-gray-600">Rencana</td>
                         <template x-for="(hist, weekIndex) in progressHistory" :key="'cp-' + weekIndex">
                         <td class="px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-t-2 border-gray-300 dark:border-gray-600" x-text="fmtPlan(hist.cumulative_plan || 0) + '%'"></td>
                         </template>
-                        <td class="sticky right-0 z-10 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-l border-t-2 border-l-gray-200 border-t-gray-300 dark:border-l-gray-700 dark:border-t-gray-600"
+                        <td class="sm:sticky sm:right-0 z-10 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-l border-t-2 border-l-gray-200 border-t-gray-300 dark:border-l-gray-700 dark:border-t-gray-600"
                             x-text="(progressHistory.length > 0 ? fmtPlan(progressHistory.length > 0 ? (progressHistory[progressHistory.length - 1].cumulative_plan || 0) : 0) + '%'"></td>
                     </tr>
                     <tr>
-                        <td class="sticky left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left font-bold text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700">Aktual</td>
+                        <td class="sm:sticky sm:left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left font-bold text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700">Aktual</td>
                         <template x-for="(hist, weekIndex) in progressHistory" :key="'ca-' + weekIndex">
                         <td class="px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white" x-text="fmtPlan(hist.cumulative_actual || 0) + '%'"></td>
                         </template>
-                        <td class="sticky right-0 z-10 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-l border-gray-200 dark:border-gray-700"
+                        <td class="sm:sticky sm:right-0 z-10 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-l border-gray-200 dark:border-gray-700"
                             x-text="fmtPlan(progressHistory.length > 0 ? (progressHistory[progressHistory.length - 1].cumulative_actual || 0) : 0) + '%'"></td>
                     </tr>
                     <tr>
-                        <td class="sticky left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left font-bold text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700">Deviasi</td>
+                        <td class="sm:sticky sm:left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left font-bold text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700">Deviasi</td>
                         <template x-for="(hist, weekIndex) in progressHistory" :key="'cd-' + weekIndex">
                         <td class="px-2 py-0.5 text-center tabular-nums font-bold"
                             :class="(hist.cumulative_deviation || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'"
                             x-text="((hist.cumulative_deviation || 0) >= 0 ? '+' : '') + fmtPlan(hist.cumulative_deviation || 0) + '%'"></td>
                         </template>
-                        <td class="sticky right-0 z-10 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-center tabular-nums font-bold border-l border-gray-200 dark:border-gray-700"
+                        <td class="sm:sticky sm:right-0 z-10 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-center tabular-nums font-bold border-l border-gray-200 dark:border-gray-700"
                             :class="(progressHistory.length > 0 && (progressHistory[progressHistory.length - 1].cumulative_deviation || 0) >= 0) ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'"
                             x-text="(progressHistory.length > 0 ? (((progressHistory[progressHistory.length - 1].cumulative_deviation || 0) >= 0 ? '+' : '') + fmtPlan(progressHistory[progressHistory.length - 1].cumulative_deviation || 0)) : '0.000') + '%'"></td>
                     </tr>

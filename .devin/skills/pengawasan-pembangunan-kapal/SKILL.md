@@ -137,6 +137,7 @@ Pola full-page form:
 | Form | `<x-input-label>` (prop `:required`) | `components/input-label.blade.php` |
 | Form | `<x-text-input>` | `components/text-input.blade.php` |
 | Form | `<x-input-error>` | `components/input-error.blade.php` |
+| Form | `<x-tanggal-picker>` | `components/tanggal-picker.blade.php` (datepicker flatpickr — WAJIB untuk semua field tanggal) |
 | Select | `<x-searchable-select>` | `components/searchable-select.blade.php` |
 | Select | `<x-multi-searchable-select>` | `components/multi-searchable-select.blade.php` |
 | Filter | `<x-filter-popover>` | `components/filter-popover.blade.php` |
@@ -177,7 +178,8 @@ Jika butuh variant baru (mis. warna/size berbeda), EXTEND komponen yang ada via 
 - Batal: `<x-cancel-button>`. Hapus: `<x-delete-modal>`/`<x-delete-confirmation-modal>`. Konfirmasi: `<x-confirm-modal>`.
 - Select: `<x-searchable-select>` / `<x-multi-searchable-select>`. Filter: `<x-filter-popover>`.
 - Form field: `<x-input-label>`, `<x-text-input>`, `<x-input-error>`.
-  - WAJIB beri `placeholder` deskriptif Bahasa Indonesia di SETIAP `<x-text-input>` (kecuali `type="date"`/`hidden`).
+  - WAJIB beri `placeholder` deskriptif Bahasa Indonesia di SETIAP `<x-text-input>` (kecuali `type="hidden"`).
+- FIELD TANGGAL: SELALU pakai `<x-tanggal-picker wire:model="field">` (`components/tanggal-picker.blade.php`, flatpickr — sudah global di `resources/js/app.js`). DILARANG raw `<input type="date">`/`type="datetime-local"`/`type="month"`. Props: `placeholder`, `display-format` (mis. `j F Y`), `max-date`, `disabled-dates` (array), plus opsional `exclude-index`/`items-key`/`sibling-key` untuk men-disable tanggal yang sudah dipakai baris lain di repeater. Sinkronisasi dua arah sudah built-in (`$wire.$watch` -> `setDate`).
   - Field required (di `rules()`) WAJIB `:required="true"` di `<x-input-label>` agar muncul `*` merah.
 - Upload lampiran foto: tawarkan crop via `<x-image-crop-modal>` bila relevan; status file via ikon inline (pola `laporan-mingguan/external-reports-section`: spinner=processing, ikon merah=failed, hijau=completed); preview via `<x-lampiran-preview-modal>`.
 - WAJIB dukung dark mode (kelas `dark:...`), spacing/typography konsisten dengan menu sejenis.
@@ -459,7 +461,8 @@ JANGAN bocorkan pesan exception mentah ke user.
 - Hardcode spacing/warna/typography yang inkonsisten dengan design system
 - Membuat tabel tanpa overflow-x-auto (horizontal scroll di mobile)
 - Membuat form grid tanpa breakpoint responsif (harus adaptif 1/2/3 kolom)
-- Membuat `<x-text-input>` tanpa `placeholder` (kecuali type="date"/"hidden")
+- Membuat `<x-text-input>` tanpa `placeholder` (kecuali type="hidden")
+- Menggunakan `<input type="date">`/`type="datetime-local"`/`type="month"` native — WAJIB `<x-tanggal-picker>` (flatpickr)
 - Membuat field required tanpa `:required="true"` di `<x-input-label>`
 - Menyisipkan gambar non-WebP ke dokumen Word (konversi dulu via intervention/image)
 - Membuat migration dengan timestamp yang SAMA dengan migration lain (konflik di tabel `migrations` → salah satu migration bisa ter-skip & tabel tidak dibuat). WAJIB timestamp unik.

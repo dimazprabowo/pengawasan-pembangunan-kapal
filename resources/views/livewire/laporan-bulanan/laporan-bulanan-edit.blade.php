@@ -50,8 +50,10 @@
                     {{-- Tanggal Laporan --}}
                     <div>
                         <x-input-label for="tanggal_laporan" value="Tanggal Laporan" :required="true" />
-                        <x-text-input wire:model="tanggal_laporan" id="tanggal_laporan" type="date" required
-                            class="w-full {{ $errors->has('tanggal_laporan') ? 'border-red-500 dark:border-red-400' : '' }}" />
+                        <x-tanggal-picker wire:model="tanggal_laporan" id="tanggal_laporan"
+                            placeholder="Pilih tanggal laporan"
+                            display-format="j F Y" required
+                            class="{{ $errors->has('tanggal_laporan') ? 'border-red-500 dark:border-red-400' : '' }}" />
                         @error('tanggal_laporan') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                     </div>
 

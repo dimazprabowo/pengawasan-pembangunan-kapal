@@ -64,15 +64,8 @@ class LaporanMingguanCreate extends Component
 
     public array $fullProgressHistory = [];
 
-    // Track previous laporan_harian_ids for filtering lampiran
-    public array $previousLaporanHarianIds = [];
-
-    // Lampiran Harian Modal
-    public bool $showLampiranModal = false;
-
+    // Lampiran dari laporan harian dalam periode (picker inline bertab per harian)
     public array $lampiranHarianList = [];
-
-    public bool $loadingLampiran = false;
 
     public bool $showPreviewModal = false;
 
@@ -233,32 +226,6 @@ class LaporanMingguanCreate extends Component
         if (count($this->laporan_harian_ids) === 0) {
             $this->laporan_harian_ids = collect($this->availableLaporanHarian)->pluck('id')->toArray();
         }
-        $this->previousLaporanHarianIds = $this->laporan_harian_ids;
-        $this->loadLampiranHarian();
-    }
-
-    public function updatedLaporanHarianIds(): void
-    {
-        // Get lampiran IDs that belong to the unchecked laporan harian
-        $removedLaporanHarianIds = array_diff(
-            $this->previousLaporanHarianIds,
-            $this->laporan_harian_ids
-        );
-
-        if (count($removedLaporanHarianIds) > 0) {
-            // Get lampiran IDs that belong to the removed laporan harian
-            $lampiranToRemove = LaporanLampiran::whereHas('laporanHarian', function ($q) use ($removedLaporanHarianIds) {
-                $q->whereIn('id', $removedLaporanHarianIds);
-            })->pluck('id')->toArray();
-
-            // Remove only the lampiran that belong to the unchecked laporan harian
-            $this->lampiran_ids = array_values(array_diff($this->lampiran_ids, $lampiranToRemove));
-        }
-
-        // Update previous state for next change
-        $this->previousLaporanHarianIds = $this->laporan_harian_ids;
-
-        // Reload lampiran list to update the UI
         $this->loadLampiranHarian();
     }
 
@@ -273,7 +240,7 @@ class LaporanMingguanCreate extends Component
             'tanggal_laporan' => 'required|date',
             'periode_mulai' => 'required|date|before_or_equal:periode_selesai',
             'periode_selesai' => 'required|date|after_or_equal:periode_mulai',
-            'ringkasan' => 'nullable|string',
+            'ringkasan' => 'required|string',
             'laporan_harian_ids' => 'required|array|min:1',
             'laporan_harian_ids.*' => 'exists:laporan_harian,id',
             'lampiran_ids' => 'array',
@@ -303,34 +270,14 @@ class LaporanMingguanCreate extends Component
         ];
     }
 
-    public function openLampiranModal(): void
-    {
-        if (count($this->laporan_harian_ids) === 0) {
-            $this->notifyWarning('Silakan pilih laporan harian terlebih dahulu.');
-
-            return;
-        }
-
-        $this->showLampiranModal = true;
-        $this->loadLampiranHarian();
-    }
-
-    public function closeLampiranModal(): void
-    {
-        $this->showLampiranModal = false;
-    }
-
     private function loadLampiranHarian(): void
     {
         // Return empty if no laporan harian selected
         if (count($this->laporan_harian_ids) === 0) {
             $this->lampiranHarianList = [];
-            $this->loadingLampiran = false;
 
             return;
         }
-
-        $this->loadingLampiran = true;
 
         $query = LaporanLampiran::with(['laporanHarian', 'aktivitas'])
             ->whereHas('laporanHarian', function ($q) {
@@ -345,17 +292,18 @@ class LaporanMingguanCreate extends Component
 
             return [
                 'id' => $item->id,
+                'laporan_harian_id' => $item->laporan_harian_id,
                 'file_name' => $item->file_name,
                 'file_size_formatted' => number_format($item->file_size / 1024, 1).' KB',
                 'keterangan' => $item->keterangan,
                 'extension' => $extension,
                 'is_image' => $isImage,
                 'laporan_tanggal' => $item->laporanHarian->tanggal_laporan->format('d M Y'),
+                'kategori' => $item->aktivitas?->kategori ?: 'Lainnya',
+                'thumb_url' => $item->isImage() ? $this->getLampiranImageDataUrl($item) : null,
                 'is_selected' => in_array($item->id, $this->lampiran_ids),
             ];
         })->toArray();
-
-        $this->loadingLampiran = false;
     }
 
     public function getLampiranPreview(int $lampiranId): ?string
@@ -646,7 +594,7 @@ class LaporanMingguanCreate extends Component
 
             $this->notifySuccess('Laporan mingguan berhasil ditambahkan!');
 
-            $this->redirect(route('laporan-mingguan.index', $this->dataKapal), navigate: true);
+            $this->redirect(route('laporan-mingguan.show', [$this->dataKapal, $laporan]), navigate: true);
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
