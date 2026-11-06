@@ -264,7 +264,7 @@ class LaporanHarianWordService
 
             foreach ($groups as $g => $group) {
                 $b = $g + 1;
-                $processor->setValue("aktivitas_kategori#{$b}", $group['nama']);
+                $processor->setValue("aktivitas_kategori#{$b}", "{$b}. {$group['nama']}");
                 $processor->cloneRow("aktivitas_no#{$b}", $group['aktivitas']->count());
 
                 foreach ($group['aktivitas'] as $r => $row) {

@@ -138,7 +138,7 @@ class LaporanNcTest extends TestCase
     }
 
     #[Test]
-    public function rekap_mingguan_open_carry_over_dan_closed_hanya_satu_minggu_tambahan(): void
+    public function rekap_mingguan_open_carry_over_dan_closed_hanya_tampil_di_minggu_closed(): void
     {
         Queue::fake();
 
@@ -149,33 +149,33 @@ class LaporanNcTest extends TestCase
         // Satu syncNc — sync bersifat full-sync (baris yang tidak dikirim dihapus)
         $this->service->syncNc($laporanW0, [
             ['row_key' => 'a', 'kendala' => 'Masih Open'],
-            ['row_key' => 'b', 'kendala' => 'Closed minggu lalu'],
-            ['row_key' => 'c', 'kendala' => 'Closed lama'],
+            ['row_key' => 'b', 'kendala' => 'Closed minggu ini'],
+            ['row_key' => 'c', 'kendala' => 'Closed minggu lalu'],
         ]);
-        [$open, $closedW1, $closedW2] = LaporanNc::orderBy('id')->get()->all();
+        [$open, $closedW, $closedPrev] = LaporanNc::orderBy('id')->get()->all();
 
         // NC open dibuat minggu lalu → tampil minggu ini & seterusnya
         $open->created_at = $mulaiW->copy()->subWeek();
         $open->save();
 
-        // NC closed di W-1 → masih tampil di W
-        $closedW1->created_at = $mulaiW->copy()->subWeek();
-        $closedW1->update(['status' => 'closed', 'closed_at' => $mulaiW->copy()->subDay()]);
+        // NC closed di W → tampil di W
+        $closedW->created_at = $mulaiW->copy()->subWeek();
+        $closedW->update(['status' => 'closed', 'closed_at' => $mulaiW->copy()->addDay()]);
 
-        // NC closed di W-2 → tidak tampil di W
-        $closedW2->created_at = $mulaiW->copy()->subWeeks(3);
-        $closedW2->update(['status' => 'closed', 'closed_at' => $mulaiW->copy()->subDays(9)]);
+        // NC closed di W-1 → tidak tampil lagi di W
+        $closedPrev->created_at = $mulaiW->copy()->subWeeks(2);
+        $closedPrev->update(['status' => 'closed', 'closed_at' => $mulaiW->copy()->subDay()]);
 
         $rekap = $this->service->rekapMingguan($this->dataKapal->id, $mulaiW, $selesaiW)->pluck('id');
 
         $this->assertTrue($rekap->contains($open->id));
-        $this->assertTrue($rekap->contains($closedW1->id));
-        $this->assertFalse($rekap->contains($closedW2->id));
+        $this->assertTrue($rekap->contains($closedW->id));
+        $this->assertFalse($rekap->contains($closedPrev->id));
 
-        // Di W+1: closed W-1 sudah lewat window → hilang, open tetap tampil
+        // Di W+1: closed W hilang, open tetap tampil
         $rekapNext = $this->service->rekapMingguan($this->dataKapal->id, $mulaiW->copy()->addWeek(), $selesaiW->copy()->addWeek())->pluck('id');
         $this->assertTrue($rekapNext->contains($open->id));
-        $this->assertFalse($rekapNext->contains($closedW1->id));
+        $this->assertFalse($rekapNext->contains($closedW->id));
     }
 
     #[Test]

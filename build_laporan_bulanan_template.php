@@ -20,9 +20,6 @@ use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\SimpleType\Jc;
 
 $path = 'storage/app/templates/laporan-bulanan/template-laporan-bulanan.docx';
-if (is_file($path)) {
-    copy($path, $path.'.bak');
-}
 
 $phpWord = new PhpWord;
 $phpWord->setDefaultFontName('Times New Roman');

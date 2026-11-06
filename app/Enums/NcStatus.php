@@ -23,6 +23,17 @@ enum NcStatus: string
         };
     }
 
+    /**
+     * Warna teks (hex) untuk dokumen Word.
+     */
+    public function wordColor(): string
+    {
+        return match ($this) {
+            self::Open => 'C00000',
+            self::Closed => '00703C',
+        };
+    }
+
     public static function values(): array
     {
         return array_column(self::cases(), 'value');

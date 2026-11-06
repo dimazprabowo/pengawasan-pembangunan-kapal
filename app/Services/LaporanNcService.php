@@ -281,9 +281,8 @@ class LaporanNcService
     /**
      * Rekap NC untuk Laporan Mingguan periode [mulai, selesai]:
      * NC yang open kapan pun selama periode (dibuat <= selesai & belum closed
-     * sebelum mulai) + NC yang closed pada periode atau minggu sebelumnya
-     * (closed_at >= mulai - 7 hari) — NC closed minggu ini tetap tampil minggu
-     * depan sebagai bukti penyelesaian, lalu hilang minggu berikutnya.
+     * sebelum mulai) terbawa terus; NC closed hanya tampil SEKALI pada periode
+     * ia di-close (closed_at >= mulai), lalu tidak muncul di periode berikutnya.
      *
      * @return Collection<int, LaporanNc>
      */
@@ -295,10 +294,7 @@ class LaporanNcService
         return LaporanNc::with(['laporanHarian:id,tanggal_laporan', 'files', 'closedBy:id,name'])
             ->where('data_kapal_id', $dataKapalId)
             ->where('created_at', '<=', $selesai)
-            ->where(function ($q) use ($mulai) {
-                $q->whereNull('closed_at')
-                    ->orWhere('closed_at', '>=', $mulai->copy()->subDays(7)->startOfDay());
-            })
+            ->where(fn ($q) => $q->whereNull('closed_at')->orWhere('closed_at', '>=', $mulai))
             ->orderByRaw("CASE WHEN status = 'open' THEN 0 ELSE 1 END")
             ->orderBy('created_at')
             ->get();

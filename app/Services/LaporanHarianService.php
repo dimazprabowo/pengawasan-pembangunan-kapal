@@ -305,7 +305,20 @@ class LaporanHarianService
     {
         $laporan->loadMissing(['aktivitas.workGroup', 'aktivitas.lampiran']);
 
-        return $laporan->aktivitas
+        return $this->groupAktivitasPerKategori($laporan->aktivitas);
+    }
+
+    /**
+     * Kelompokkan kumpulan aktivitas (boleh lintas laporan harian, mis. Laporan
+     * Mingguan) per kategori dengan urutan yang sama seperti aktivitasPerKategori().
+     * Relasi workGroup sebaiknya sudah di-eager load.
+     *
+     * @param  Collection<int, LaporanAktivitas>  $aktivitas
+     * @return Collection<int, array{nama: string, aktivitas: Collection<int, LaporanAktivitas>}>
+     */
+    public function groupAktivitasPerKategori(Collection $aktivitas): Collection
+    {
+        return $aktivitas
             ->groupBy(fn (LaporanAktivitas $a) => $a->kategori ?? self::KATEGORI_LAINNYA)
             ->map(function (Collection $items, string $nama) {
                 $workGroup = $items->first()->workGroup;
