@@ -2,15 +2,15 @@
 
 namespace App\Models;
 
+use App\Traits\HasEncryptedRouteKey;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Support\Facades\Storage;
 
 class LaporanNcFile extends Model
 {
-    use HasFactory;
+    use HasEncryptedRouteKey, HasFactory;
 
     protected $table = 'laporan_nc_file';
 
@@ -44,31 +44,17 @@ class LaporanNcFile extends Model
         return $this->belongsTo(User::class, 'uploaded_by');
     }
 
+    public function dataKapal(): BelongsTo
+    {
+        return $this->belongsTo(DataKapal::class);
+    }
+
     /**
      * Keterangan file = kendala NC pertama yang menautkannya (untuk preview modal).
      */
     public function getKeteranganAttribute(): ?string
     {
         return $this->ncs->first()?->kendala;
-    }
-
-    /**
-     * Data URL untuk preview gambar/PDF yang sudah selesai diproses (disk local).
-     */
-    public function getDataUrlAttribute(): ?string
-    {
-        if (! $this->hasFile() || ! $this->isFileCompleted() || ! $this->isPreviewable()) {
-            return null;
-        }
-        if (! Storage::disk('local')->exists($this->file_path)) {
-            return null;
-        }
-
-        $mime = $this->isPdf()
-            ? 'application/pdf'
-            : 'image/'.(strtolower(pathinfo($this->file_name, PATHINFO_EXTENSION)) === 'jpg' ? 'jpeg' : strtolower(pathinfo($this->file_name, PATHINFO_EXTENSION)));
-
-        return "data:{$mime};base64,".base64_encode(Storage::disk('local')->get($this->file_path));
     }
 
     public function isFileProcessing(): bool

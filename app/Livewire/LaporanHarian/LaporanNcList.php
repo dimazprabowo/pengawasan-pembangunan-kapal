@@ -502,7 +502,9 @@ class LaporanNcList extends Component
 
     public function getPreviewFileImageUrlProperty(): ?string
     {
-        return $this->previewFile?->data_url;
+        return $this->previewFile?->isPreviewable()
+            ? route('laporan-nc-file.file', $this->previewFile)
+            : null;
     }
 
     /**

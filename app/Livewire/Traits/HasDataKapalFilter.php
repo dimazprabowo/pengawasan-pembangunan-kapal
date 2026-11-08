@@ -41,14 +41,11 @@ trait HasDataKapalFilter
 
     /**
      * Check if user may access a specific data kapal (company scope).
+     * Delegasi ke User::canAccessDataKapal() — dipakai juga route file lampiran.
      */
     protected function canAccessDataKapal(DataKapal $dataKapal): bool
     {
-        if ($this->canViewAllDataKapal()) {
-            return true;
-        }
-
-        return $dataKapal->company_id === auth()->user()->company_id;
+        return auth()->user()->canAccessDataKapal($dataKapal);
     }
 
     /**

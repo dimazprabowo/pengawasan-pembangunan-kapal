@@ -404,8 +404,9 @@ class LaporanHarianEdit extends Component
     }
 
     /**
-     * Data URL foto lampiran selesai (id => dataUrl) — dimuat lazy dari Alpine
-     * agar file tidak dibaca ulang pada tiap render Livewire.
+     * URL foto lampiran selesai (id => route file) — dimuat lazy dari Alpine.
+     * File di-serve via route, bukan base64, agar tidak membengkakkan
+     * response/payload Livewire dan bisa di-cache browser.
      *
      * @return array<int, string>
      */
@@ -417,7 +418,7 @@ class LaporanHarianEdit extends Component
 
         return $this->laporan->lampiran
             ->filter(fn ($l) => $l->hasFile() && $l->isFileCompleted() && $l->isImage())
-            ->mapWithKeys(fn ($l) => [$l->id => $this->getLampiranImageDataUrl($l->id)])
+            ->mapWithKeys(fn ($l) => [$l->id => route('laporan-lampiran.file', $l)])
             ->all();
     }
 
@@ -564,46 +565,11 @@ class LaporanHarianEdit extends Component
         return $this->laporan->lampiran->find($this->previewLampiranId);
     }
 
-    public function getLampiranImageDataUrl(int $lampiranId): ?string
-    {
-        $lampiran = $this->laporan->lampiran->find($lampiranId);
-
-        if (! $lampiran || $lampiran->laporan_harian_id !== $this->laporan->id) {
-            return null;
-        }
-
-        if (! $lampiran->file_path || ! Storage::disk('local')->exists($lampiran->file_path)) {
-            return null;
-        }
-
-        $extension = strtolower(pathinfo($lampiran->file_name, PATHINFO_EXTENSION));
-        $mimeTypes = [
-            'pdf' => 'application/pdf',
-            'png' => 'image/png',
-            'jpg' => 'image/jpeg',
-            'jpeg' => 'image/jpeg',
-            'gif' => 'image/gif',
-            'webp' => 'image/webp',
-        ];
-
-        if (! isset($mimeTypes[$extension])) {
-            return null;
-        }
-
-        $fileContent = Storage::disk('local')->get($lampiran->file_path);
-        $base64 = base64_encode($fileContent);
-        $mime = $mimeTypes[$extension];
-
-        return "data:{$mime};base64,{$base64}";
-    }
-
     public function getPreviewLampiranImageUrlProperty(): ?string
     {
-        if (! $this->previewLampiran) {
-            return null;
-        }
-
-        return $this->getLampiranImageDataUrl($this->previewLampiran->id);
+        return $this->previewLampiran?->isPreviewable()
+            ? route('laporan-lampiran.file', $this->previewLampiran)
+            : null;
     }
 
     public function downloadLampiran(int $lampiranId)

@@ -300,56 +300,10 @@ class LaporanMingguanCreate extends Component
                 'is_image' => $isImage,
                 'laporan_tanggal' => $item->laporanHarian->tanggal_laporan->format('d M Y'),
                 'kategori' => $item->aktivitas?->kategori ?: 'Lainnya',
-                'thumb_url' => $item->isImage() ? $this->getLampiranImageDataUrl($item) : null,
+                'thumb_url' => $item->isImage() ? route('laporan-lampiran.file', $item) : null,
                 'is_selected' => in_array($item->id, $this->lampiran_ids),
             ];
         })->toArray();
-    }
-
-    public function getLampiranPreview(int $lampiranId): ?string
-    {
-        $lampiran = LaporanLampiran::find($lampiranId);
-
-        if (! $lampiran || ! $lampiran->file_path || ! Storage::disk('local')->exists($lampiran->file_path)) {
-            return null;
-        }
-
-        if (! $lampiran->isImage()) {
-            return null;
-        }
-
-        return $this->getLampiranImageDataUrl($lampiran);
-    }
-
-    private function getLampiranImageDataUrl(LaporanLampiran $lampiran): ?string
-    {
-        if (! $lampiran->file_path || ! Storage::disk('local')->exists($lampiran->file_path)) {
-            return null;
-        }
-
-        $extension = strtolower(pathinfo($lampiran->file_name, PATHINFO_EXTENSION));
-        $mimeTypes = [
-            'pdf' => 'application/pdf',
-            'png' => 'image/png',
-            'jpg' => 'image/jpeg',
-            'jpeg' => 'image/jpeg',
-            'gif' => 'image/gif',
-            'webp' => 'image/webp',
-        ];
-
-        if (! isset($mimeTypes[$extension])) {
-            return null;
-        }
-
-        try {
-            $fileContent = Storage::disk('local')->get($lampiran->file_path);
-            $base64 = base64_encode($fileContent);
-            $mime = $mimeTypes[$extension];
-
-            return "data:{$mime};base64,{$base64}";
-        } catch (\Exception $e) {
-            return null;
-        }
     }
 
     public function previewLampiranHarian(int $lampiranId): void
@@ -395,11 +349,9 @@ class LaporanMingguanCreate extends Component
 
     public function getPreviewLampiranImageUrlProperty(): ?string
     {
-        if (! $this->previewLampiran) {
-            return null;
-        }
-
-        return $this->getLampiranImageDataUrl($this->previewLampiran);
+        return $this->previewLampiran?->isPreviewable()
+            ? route('laporan-lampiran.file', $this->previewLampiran)
+            : null;
     }
 
     public function downloadLampiran(int $lampiranId)

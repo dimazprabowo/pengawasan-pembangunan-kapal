@@ -1,8 +1,26 @@
 <?php
 
 use App\Livewire\Actions\Logout;
+use App\Livewire\Laporan\LaporanIndex;
+use App\Livewire\LaporanBulanan\LaporanBulananCreate;
+use App\Livewire\LaporanBulanan\LaporanBulananEdit;
+use App\Livewire\LaporanBulanan\LaporanBulananIndex;
+use App\Livewire\LaporanBulanan\LaporanBulananShow;
+use App\Livewire\LaporanHarian\LaporanHarianCreate;
+use App\Livewire\LaporanHarian\LaporanHarianEdit;
+use App\Livewire\LaporanHarian\LaporanHarianIndex;
+use App\Livewire\LaporanHarian\LaporanHarianShow;
+use App\Livewire\LaporanMingguan\LaporanMingguanCreate;
+use App\Livewire\LaporanMingguan\LaporanMingguanEdit;
+use App\Livewire\LaporanMingguan\LaporanMingguanIndex;
+use App\Livewire\LaporanMingguan\LaporanMingguanShow;
+use App\Livewire\MasterData\DataKapalForm;
+use App\Livewire\Pages\Dashboard;
+use App\Models\LaporanLampiran;
+use App\Models\LaporanNcFile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 
 // Public Routes
 Route::redirect('/', '/login');
@@ -18,7 +36,7 @@ Route::post('/logout', function (Request $request, Logout $logout) {
 Route::middleware(['auth', 'verified', 'active'])->group(function () {
 
     // Dashboard
-    Route::get('/dashboard', App\Livewire\Pages\Dashboard::class)->name('dashboard');
+    Route::get('/dashboard', Dashboard::class)->name('dashboard');
 
     // Profile
     Route::view('profile', 'profile')->name('profile');
@@ -33,10 +51,10 @@ Route::middleware(['auth', 'verified', 'active'])->group(function () {
             Route::get('/', function () {
                 return view('master-data.data-kapal');
             })->middleware('can:data_kapal_view')->name('data-kapal');
-            Route::get('/create', App\Livewire\MasterData\DataKapalForm::class)
+            Route::get('/create', DataKapalForm::class)
                 ->middleware('can:data_kapal_create')
                 ->name('data-kapal.create');
-            Route::get('/{dataKapal}/edit', App\Livewire\MasterData\DataKapalForm::class)
+            Route::get('/{dataKapal}/edit', DataKapalForm::class)
                 ->middleware('can:data_kapal_update')
                 ->name('data-kapal.edit');
         });
@@ -70,50 +88,82 @@ Route::middleware(['auth', 'verified', 'active'])->group(function () {
 
     // Manajemen Laporan Harian
     // Manajemen Laporan — pilih data kapal dulu, lalu laporan per kapal
-    Route::get('/laporan', App\Livewire\Laporan\LaporanIndex::class)
+    Route::get('/laporan', LaporanIndex::class)
         ->middleware('can:laporan_view')
         ->name('laporan.index');
 
     Route::prefix('laporan/{dataKapal}')->middleware('can:laporan_view')->group(function () {
         Route::prefix('harian')->name('laporan-harian.')->group(function () {
-            Route::get('/', App\Livewire\LaporanHarian\LaporanHarianIndex::class)->name('index');
-            Route::get('/create', App\Livewire\LaporanHarian\LaporanHarianCreate::class)
+            Route::get('/', LaporanHarianIndex::class)->name('index');
+            Route::get('/create', LaporanHarianCreate::class)
                 ->middleware('can:laporan_create')
                 ->name('create');
-            Route::get('/{laporanHarian}', App\Livewire\LaporanHarian\LaporanHarianShow::class)
+            Route::get('/{laporanHarian}', LaporanHarianShow::class)
                 ->middleware('can:laporan_show')
                 ->name('show');
-            Route::get('/{laporanHarian}/edit', App\Livewire\LaporanHarian\LaporanHarianEdit::class)
+            Route::get('/{laporanHarian}/edit', LaporanHarianEdit::class)
                 ->middleware('can:laporan_update')
                 ->name('edit');
         });
 
         Route::prefix('mingguan')->name('laporan-mingguan.')->group(function () {
-            Route::get('/', App\Livewire\LaporanMingguan\LaporanMingguanIndex::class)->name('index');
-            Route::get('/create', App\Livewire\LaporanMingguan\LaporanMingguanCreate::class)
+            Route::get('/', LaporanMingguanIndex::class)->name('index');
+            Route::get('/create', LaporanMingguanCreate::class)
                 ->middleware('can:laporan_create')
                 ->name('create');
-            Route::get('/{laporanMingguan}', App\Livewire\LaporanMingguan\LaporanMingguanShow::class)
+            Route::get('/{laporanMingguan}', LaporanMingguanShow::class)
                 ->middleware('can:laporan_show')
                 ->name('show');
-            Route::get('/{laporanMingguan}/edit', App\Livewire\LaporanMingguan\LaporanMingguanEdit::class)
+            Route::get('/{laporanMingguan}/edit', LaporanMingguanEdit::class)
                 ->middleware('can:laporan_update')
                 ->name('edit');
         });
 
         Route::prefix('bulanan')->name('laporan-bulanan.')->group(function () {
-            Route::get('/', App\Livewire\LaporanBulanan\LaporanBulananIndex::class)->name('index');
-            Route::get('/create', App\Livewire\LaporanBulanan\LaporanBulananCreate::class)
+            Route::get('/', LaporanBulananIndex::class)->name('index');
+            Route::get('/create', LaporanBulananCreate::class)
                 ->middleware('can:laporan_create')
                 ->name('create');
-            Route::get('/{laporanBulanan}', App\Livewire\LaporanBulanan\LaporanBulananShow::class)
+            Route::get('/{laporanBulanan}', LaporanBulananShow::class)
                 ->middleware('can:laporan_show')
                 ->name('show');
-            Route::get('/{laporanBulanan}/edit', App\Livewire\LaporanBulanan\LaporanBulananEdit::class)
+            Route::get('/{laporanBulanan}/edit', LaporanBulananEdit::class)
                 ->middleware('can:laporan_update')
                 ->name('edit');
         });
     });
+
+    // File lampiran/NC di-serve via route (bukan base64 di payload Livewire):
+    // request HTTP biasa + browser cache. Akses = izin lampiran_preview +
+    // scope data kapal perusahaan (User::canAccessDataKapal). ID terenkripsi.
+    Route::get('/laporan-lampiran/{lampiran}/file', function (LaporanLampiran $lampiran) {
+        $lampiran->loadMissing('laporanHarian.dataKapal');
+        $dataKapal = $lampiran->laporanHarian?->dataKapal;
+
+        abort_unless($dataKapal && auth()->user()->canAccessDataKapal($dataKapal), 403);
+        abort_unless(
+            $lampiran->isFileCompleted() && $lampiran->file_path && Storage::disk('local')->exists($lampiran->file_path),
+            404
+        );
+
+        return Storage::disk('local')->response($lampiran->file_path, $lampiran->file_name, [
+            'Cache-Control' => 'private, max-age=86400, immutable',
+        ]);
+    })->middleware('can:laporan_lampiran_preview')->name('laporan-lampiran.file');
+
+    Route::get('/laporan-nc-file/{file}/file', function (LaporanNcFile $file) {
+        $file->loadMissing('dataKapal');
+
+        abort_unless($file->dataKapal && auth()->user()->canAccessDataKapal($file->dataKapal), 403);
+        abort_unless(
+            $file->isFileCompleted() && $file->file_path && Storage::disk('local')->exists($file->file_path),
+            404
+        );
+
+        return Storage::disk('local')->response($file->file_path, $file->file_name, [
+            'Cache-Control' => 'private, max-age=86400, immutable',
+        ]);
+    })->middleware('can:laporan_lampiran_preview')->name('laporan-nc-file.file');
 
     // Settings Routes - each route checks its own permission
     Route::prefix('settings')->name('settings.')->group(function () {

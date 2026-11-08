@@ -150,48 +150,6 @@ class LaporanMingguanShow extends Component
         $this->loadingLampiran = false;
     }
 
-    public function getLampiranPreview(int $lampiranId): ?string
-    {
-        $lampiran = LaporanLampiran::find($lampiranId);
-
-        if (! $lampiran || ! $lampiran->file_path || ! Storage::disk('local')->exists($lampiran->file_path)) {
-            return null;
-        }
-
-        if (! $lampiran->isImage()) {
-            return null;
-        }
-
-        return $this->getLampiranImageDataUrl($lampiran);
-    }
-
-    private function getLampiranImageDataUrl(LaporanLampiran $lampiran): ?string
-    {
-        if (! $lampiran->file_path || ! Storage::disk('local')->exists($lampiran->file_path)) {
-            return null;
-        }
-
-        $extension = strtolower(pathinfo($lampiran->file_name, PATHINFO_EXTENSION));
-        $mimeTypes = [
-            'pdf' => 'application/pdf',
-            'png' => 'image/png',
-            'jpg' => 'image/jpeg',
-            'jpeg' => 'image/jpeg',
-            'gif' => 'image/gif',
-            'webp' => 'image/webp',
-        ];
-
-        if (! isset($mimeTypes[$extension])) {
-            return null;
-        }
-
-        $fileContent = Storage::disk('local')->get($lampiran->file_path);
-        $base64 = base64_encode($fileContent);
-        $mime = $mimeTypes[$extension];
-
-        return "data:{$mime};base64,{$base64}";
-    }
-
     public function previewLampiranHarian(int $lampiranId): void
     {
         $this->authorize('lampiranPreview', LaporanMingguan::class);
@@ -235,11 +193,9 @@ class LaporanMingguanShow extends Component
 
     public function getPreviewLampiranImageUrlProperty(): ?string
     {
-        if (! $this->previewLampiran) {
-            return null;
-        }
-
-        return $this->getLampiranImageDataUrl($this->previewLampiran);
+        return $this->previewLampiran?->isPreviewable()
+            ? route('laporan-lampiran.file', $this->previewLampiran)
+            : null;
     }
 
     public function downloadLampiran(int $lampiranId)

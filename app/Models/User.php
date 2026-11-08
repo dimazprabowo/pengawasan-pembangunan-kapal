@@ -51,6 +51,16 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsTo(Company::class);
     }
 
+    /**
+     * Scope akses data kapal: semua data kapal bila punya izin
+     * laporan_view_all_data_kapal, selain itu hanya kapal milik perusahaan user.
+     */
+    public function canAccessDataKapal(DataKapal $dataKapal): bool
+    {
+        return $this->can('laporan_view_all_data_kapal')
+            || $dataKapal->company_id === $this->company_id;
+    }
+
     public function userNotifications(): HasMany
     {
         return $this->hasMany(Notification::class);

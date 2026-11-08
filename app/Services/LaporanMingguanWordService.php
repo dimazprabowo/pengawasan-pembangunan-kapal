@@ -80,6 +80,7 @@ class LaporanMingguanWordService
         $processor = new TemplateProcessor($this->resolveTemplate($laporan));
 
         $this->setSingleValues($processor, $laporan);
+        $this->fillRingkasan($processor, $laporan);
         $this->fillKurvaS($processor, $laporan);
         $this->fillUraianKegiatan($processor, $laporan);
         $this->fillNc($processor, $laporan);
@@ -131,11 +132,42 @@ class LaporanMingguanWordService
             'no_kapal' => $laporan->dataKapal?->nama ?? '-',
             'tanggal' => $this->tanggal($laporan->tanggal_laporan),
             'dibuat_oleh' => $laporan->user?->name ?? '-',
-            'ringkasan' => $laporan->ringkasan ?: '-',
             'ttd_kota' => $laporan->dataKapal?->galangan?->kota ?? '-',
             'ttd_tanggal' => $this->tanggal($laporan->tanggal_laporan),
             'ttd_nama' => $laporan->user?->name ?? '-',
         ]);
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // A.1 RINGKASAN — satu <w:p> per baris input
+    // ──────────────────────────────────────────────────────────────────
+    /**
+     * setValue mengubah newline menjadi <w:br/> dalam paragraf yang sama; pada
+     * paragraf justify, baris yang diakhiri <w:br/> ikut di-stretch Word
+     * selebar margin. ${blok_ringkasan} di-clone per baris agar tiap paragraf
+     * logis menjadi <w:p> sendiri — baris terakhir tiap paragraf rata kiri.
+     */
+    private function fillRingkasan(TemplateProcessor $processor, LaporanMingguan $laporan): void
+    {
+        $raw = trim((string) $laporan->ringkasan);
+        $baris = $raw === '' ? [] : preg_split('/\R/', $raw);
+
+        // Template custom lama tanpa ${blok_ringkasan}: pertahankan perilaku lama
+        if ($processor->cloneBlock('blok_ringkasan', max(count($baris), 1), true, true) === null) {
+            $processor->setValue('ringkasan', $baris === [] ? '-' : implode("\n", $baris));
+
+            return;
+        }
+
+        if ($baris === []) {
+            $processor->setValue('ringkasan#1', '-');
+
+            return;
+        }
+
+        foreach ($baris as $i => $teks) {
+            $processor->setValue('ringkasan#'.($i + 1), $teks);
+        }
     }
 
     // ──────────────────────────────────────────────────────────────────
@@ -411,11 +443,20 @@ class LaporanMingguanWordService
 
         $pageBreak = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
 
-        // Halaman sampul "LAPORAN HARIAN" (teks di tengah halaman), lalu tiap
-        // laporan harian dimulai di halaman baru.
-        $body = $pageBreak.'<w:p><w:pPr><w:spacing w:before="5600"/><w:jc w:val="center"/></w:pPr>'
+        // Halaman sampul "LAPORAN HARIAN" terpusat dua sumbu: sel tabel tanpa
+        // garis setinggi (hampir) satu halaman dengan vAlign=center (vertikal)
+        // + jc=center (horizontal). Tinggi 13400 < area konten A4 (13958 twip)
+        // menyisakan ruang untuk paragraf page-break berikutnya agar tidak
+        // tercipta halaman kosong ekstra.
+        $body = $pageBreak.'<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/>'
+            .'<w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/>'
+            .'<w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders></w:tblPr>'
+            .'<w:tblGrid><w:gridCol w:w="9026"/></w:tblGrid>'
+            .'<w:tr w:rsidR="00C0FFEE"><w:trPr><w:trHeight w:val="13400" w:hRule="exact"/><w:cantSplit/></w:trPr>'
+            .'<w:tc><w:tcPr><w:tcW w:w="5000" w:type="pct"/><w:vAlign w:val="center"/></w:tcPr>'
+            .'<w:p><w:pPr><w:jc w:val="center"/></w:pPr>'
             .'<w:r><w:rPr><w:b/><w:color w:val="'.self::NAVY.'"/><w:sz w:val="48"/><w:szCs w:val="48"/></w:rPr>'
-            .'<w:t>LAPORAN HARIAN</w:t></w:r></w:p>';
+            .'<w:t>LAPORAN HARIAN</w:t></w:r></w:p></w:tc></w:tr></w:tbl>';
         foreach ($chunks as $i => $chunk) {
             $n = $i + 1;
             $id = 'rIdAltChunk'.$n;
