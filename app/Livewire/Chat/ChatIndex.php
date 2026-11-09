@@ -217,7 +217,7 @@ class ChatIndex extends Component
         $this->replyToId = null;
     }
 
-    public function sendTyping(): void
+    public function sendTyping(bool $isTyping = true): void
     {
         if (! $this->activeChatId) {
             return;
@@ -228,6 +228,7 @@ class ChatIndex extends Component
                 chatId: $this->activeChatId,
                 userId: Auth::id(),
                 userName: Auth::user()->name,
+                isTyping: $isTyping,
             ))->toOthers();
         } catch (Throwable) {
             // Silently ignore — typing indicator is non-critical
@@ -305,7 +306,7 @@ class ChatIndex extends Component
 
     public function handleTyping($event): void
     {
-        $this->dispatch('user-typing', userId: $event['user_id'], userName: $event['user_name']);
+        $this->dispatch('user-typing', userId: $event['user_id'], userName: $event['user_name'], is_typing: $event['is_typing'] ?? true);
     }
 
     /**

@@ -5,12 +5,12 @@ namespace App\Events;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 
-class UserTyping implements ShouldBroadcast
+class UserTyping implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -18,6 +18,7 @@ class UserTyping implements ShouldBroadcast
         public int $chatId,
         public int $userId,
         public string $userName,
+        public bool $isTyping = true,
     ) {}
 
     public function broadcastOn(): array
@@ -29,7 +30,7 @@ class UserTyping implements ShouldBroadcast
             ->pluck('user_id');
 
         return $participantIds->map(
-            fn ($id) => new PrivateChannel('user.' . $id)
+            fn ($id) => new PrivateChannel('user.'.$id)
         )->all();
     }
 
@@ -38,6 +39,7 @@ class UserTyping implements ShouldBroadcast
         return [
             'user_id' => $this->userId,
             'user_name' => $this->userName,
+            'is_typing' => $this->isTyping,
         ];
     }
 }

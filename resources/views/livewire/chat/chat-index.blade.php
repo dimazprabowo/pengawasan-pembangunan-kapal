@@ -6,9 +6,13 @@
          showMobileList: true,
      }"
      @user-typing.window="
-         typingUser = $event.detail.userName;
-         clearTimeout(typingTimeout);
-         typingTimeout = setTimeout(() => typingUser = null, 3000);
+         if ($event.detail.is_typing) {
+             typingUser = $event.detail.userName;
+             clearTimeout(typingTimeout);
+             typingTimeout = setTimeout(() => typingUser = null, 3000);
+         } else {
+             typingUser = null;
+         }
      ">
 
     {{-- Left Panel: Chat List --}}
@@ -441,7 +445,8 @@
                     <textarea x-ref="msgInput"
                               wire:model.live.debounce.150ms="messageBody"
                               @keydown.ctrl.enter.prevent="send()"
-                              @input.throttle.500ms="$wire.sendTyping()"
+                              @input.throttle.500ms="$wire.sendTyping(true)"
+                              @blur="$wire.sendTyping(false)"
                               @input="resize()"
                               placeholder="Ketik pesan... (Ctrl+Enter untuk kirim)"
                               rows="1"
