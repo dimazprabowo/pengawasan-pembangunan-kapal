@@ -2,18 +2,17 @@
 
 namespace Tests\Feature;
 
-use App\Jobs\ProcessNcFile;
+use App\Jobs\ProcessNcFoto;
 use App\Models\DataKapal;
 use App\Models\LaporanHarian;
 use App\Models\LaporanNc;
-use App\Models\LaporanNcFile;
+use App\Models\LaporanNcFoto;
 use App\Models\User;
 use App\Services\LaporanNcService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -45,11 +44,8 @@ class LaporanNcTest extends TestCase
     }
 
     #[Test]
-    public function sync_menyimpan_nc_dengan_nomor_otomatis_dan_foto_ke_antrian(): void
+    public function sync_menyimpan_nc_dengan_nomor_otomatis(): void
     {
-        Queue::fake();
-        Storage::fake('local');
-
         $laporan = $this->laporan();
         $row = $this->service->newNcRow();
         $row['kendala'] = 'Las tidak sesuai WPS';
@@ -62,17 +58,11 @@ class LaporanNcTest extends TestCase
         $this->assertSame('NC-001', $nc->nomor);
         $this->assertSame($this->dataKapal->id, $nc->data_kapal_id);
         $this->assertSame('open', $nc->status->value);
-
-        // Bukti (dokumen form NC) diunggah via List NC → storeUploads
-        $this->service->storeUploads($this->dataKapal->id, [$nc->id], [UploadedFile::fake()->create('form-nc.pdf', 64, 'application/pdf')], 'before', auth()->id());
-        $this->assertTrue($nc->beforeFiles()->exists());
-        Queue::assertPushed(ProcessNcFile::class);
     }
 
     #[Test]
     public function sync_update_nc_tersimpan_dan_hapus_yang_tidak_dikirim(): void
     {
-        Queue::fake();
         $laporan = $this->laporan();
         $this->service->syncNc($laporan, [['row_key' => 'a', 'kendala' => 'Satu'], ['row_key' => 'b', 'kendala' => 'Dua']]);
 
@@ -84,19 +74,45 @@ class LaporanNcTest extends TestCase
     }
 
     #[Test]
-    public function close_wajib_punya_file_after(): void
+    public function sync_foto_bukti_membuat_foto_1_1_dan_antrian(): void
     {
         Queue::fake();
-        $laporan = $this->laporan();
-        $this->service->syncNc($laporan, [['row_key' => 'a', 'kendala' => 'X']]);
-        $nc = LaporanNc::firstOrFail();
+        Storage::fake('local');
 
-        $this->expectException(ValidationException::class);
-        $this->service->toggleStatus($nc, auth()->id());
+        $laporan = $this->laporan();
+        $row = $this->service->newNcRow();
+        $row['kendala'] = 'Las tidak sesuai WPS';
+
+        $count = $this->service->syncNc($laporan, [$row], [
+            $row['row_key'] => ['file' => UploadedFile::fake()->image('bukti.jpg'), 'cropData' => null],
+        ]);
+
+        $nc = LaporanNc::firstOrFail();
+        $this->assertSame(1, $count);
+        $this->assertSame('pending', $nc->foto->file_status);
+        Queue::assertPushed(ProcessNcFoto::class, fn ($job) => $job->ncFoto->id === $nc->foto->id);
     }
 
     #[Test]
-    public function close_dengan_file_after_dan_reopen_membersihkan_field(): void
+    public function baris_nc_hanya_berisi_foto_tetap_tersimpan(): void
+    {
+        Queue::fake();
+        Storage::fake('local');
+
+        $laporan = $this->laporan();
+        $row = $this->service->newNcRow();
+
+        $this->service->syncNc($laporan, [$row], [
+            $row['row_key'] => ['file' => UploadedFile::fake()->image('bukti.jpg'), 'cropData' => null],
+        ]);
+
+        $nc = LaporanNc::firstOrFail();
+        $this->assertSame('-', $nc->kendala);
+        $this->assertNotNull($nc->foto);
+    }
+
+    #[Test]
+    public function foto_baru_menggantikan_foto_lama_beserta_filenya(): void
     {
         Queue::fake();
         Storage::fake('local');
@@ -105,43 +121,40 @@ class LaporanNcTest extends TestCase
         $this->service->syncNc($laporan, [['row_key' => 'a', 'kendala' => 'X']]);
         $nc = LaporanNc::firstOrFail();
 
-        $this->service->storeUploads($this->dataKapal->id, [$nc->id], [UploadedFile::fake()->image('after.jpg')], 'after', auth()->id());
-        $this->service->toggleStatus($nc->fresh(), auth()->id());
+        Storage::disk('local')->put('laporan-nc/foto/lama.webp', 'x');
+        $lama = $nc->foto()->create(['file_name' => 'lama.webp', 'file_path' => 'laporan-nc/foto/lama.webp', 'file_status' => 'completed']);
 
-        $nc->refresh();
-        $this->assertSame('closed', $nc->status->value);
-        $this->assertNotNull($nc->closed_at);
-        $this->assertSame(auth()->id(), $nc->closed_by);
+        $this->service->syncNc($laporan, [['row_key' => 'c'.$nc->id, 'id' => $nc->id, 'kendala' => 'X']], [
+            'c'.$nc->id => ['file' => UploadedFile::fake()->image('baru.jpg'), 'cropData' => null],
+        ]);
 
-        $this->service->toggleStatus($nc, auth()->id());
+        $this->assertSame(1, LaporanNcFoto::count());
+        $this->assertNull(LaporanNcFoto::find($lama->id));
+        Storage::disk('local')->assertMissing('laporan-nc/foto/lama.webp');
+    }
+
+    #[Test]
+    public function reopen_membersihkan_field_closed(): void
+    {
+        $laporan = $this->laporan();
+        $this->service->syncNc($laporan, [['row_key' => 'a', 'kendala' => 'X']]);
+        $nc = LaporanNc::firstOrFail();
+        $nc->update(['status' => 'closed', 'closed_at' => now(), 'closed_by' => auth()->id()]);
+
+        $this->service->reopen($nc, auth()->id(), 'Salah pilih NC saat generate penutupan');
+
         $nc->refresh();
         $this->assertSame('open', $nc->status->value);
         $this->assertNull($nc->closed_at);
         $this->assertNull($nc->closed_by);
-    }
-
-    #[Test]
-    public function satu_file_bisa_dilink_ke_beberapa_nc(): void
-    {
-        Queue::fake();
-        Storage::fake('local');
-
-        $laporan = $this->laporan();
-        $this->service->syncNc($laporan, [['row_key' => 'a', 'kendala' => 'NC1'], ['row_key' => 'b', 'kendala' => 'NC2']]);
-        $ids = LaporanNc::pluck('id')->all();
-
-        $this->service->storeUploads($this->dataKapal->id, $ids, [UploadedFile::fake()->image('shared.jpg')], 'before', auth()->id());
-
-        $file = LaporanNcFile::firstOrFail();
-        $this->assertSame(1, LaporanNcFile::count());
-        $this->assertSame(2, $file->ncs()->count());
+        $this->assertNotNull($nc->reopened_at);
+        $this->assertSame(auth()->id(), $nc->reopened_by);
+        $this->assertSame('Salah pilih NC saat generate penutupan', $nc->reopen_note);
     }
 
     #[Test]
     public function rekap_mingguan_open_carry_over_dan_closed_hanya_tampil_di_minggu_closed(): void
     {
-        Queue::fake();
-
         $mulaiW = now()->startOfWeek();
         $selesaiW = $mulaiW->copy()->endOfWeek();
         $laporanW0 = $this->laporan($mulaiW->copy()->subWeek()->format('Y-m-d'));
@@ -154,15 +167,12 @@ class LaporanNcTest extends TestCase
         ]);
         [$open, $closedW, $closedPrev] = LaporanNc::orderBy('id')->get()->all();
 
-        // NC open dibuat minggu lalu → tampil minggu ini & seterusnya
         $open->created_at = $mulaiW->copy()->subWeek();
         $open->save();
 
-        // NC closed di W → tampil di W
         $closedW->created_at = $mulaiW->copy()->subWeek();
         $closedW->update(['status' => 'closed', 'closed_at' => $mulaiW->copy()->addDay()]);
 
-        // NC closed di W-1 → tidak tampil lagi di W
         $closedPrev->created_at = $mulaiW->copy()->subWeeks(2);
         $closedPrev->update(['status' => 'closed', 'closed_at' => $mulaiW->copy()->subDay()]);
 
@@ -172,29 +182,28 @@ class LaporanNcTest extends TestCase
         $this->assertTrue($rekap->contains($closedW->id));
         $this->assertFalse($rekap->contains($closedPrev->id));
 
-        // Di W+1: closed W hilang, open tetap tampil
         $rekapNext = $this->service->rekapMingguan($this->dataKapal->id, $mulaiW->copy()->addWeek(), $selesaiW->copy()->addWeek())->pluck('id');
         $this->assertTrue($rekapNext->contains($open->id));
         $this->assertFalse($rekapNext->contains($closedW->id));
     }
 
     #[Test]
-    public function delete_laporan_membersihkan_nc_dan_file_orphan(): void
+    public function delete_laporan_membersihkan_nc_dan_foto(): void
     {
-        Queue::fake();
         Storage::fake('local');
 
         $laporan = $this->laporan();
         $this->service->syncNc($laporan, [['row_key' => 'a', 'kendala' => 'X']]);
         $nc = LaporanNc::firstOrFail();
-        $this->service->storeUploads($this->dataKapal->id, [$nc->id], [UploadedFile::fake()->image('f.jpg')], 'before', auth()->id());
-        $file = LaporanNcFile::firstOrFail();
+        Storage::disk('local')->put('laporan-nc/foto/f.webp', 'x');
+        $nc->foto()->create(['file_name' => 'f.webp', 'file_path' => 'laporan-nc/foto/f.webp', 'file_status' => 'completed']);
 
         $this->service->deleteForLaporan($laporan);
         $laporan->delete();
 
         $this->assertSame(0, LaporanNc::count());
-        $this->assertSame(0, LaporanNcFile::count());
+        $this->assertSame(0, LaporanNcFoto::count());
+        Storage::disk('local')->assertMissing('laporan-nc/foto/f.webp');
     }
 
     #[Test]

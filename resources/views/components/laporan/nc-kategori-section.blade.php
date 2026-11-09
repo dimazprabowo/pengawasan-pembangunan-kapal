@@ -6,6 +6,8 @@
     'wireKeyPrefix' => 'nc',
     'persistKey' => '',      // key localStorage untuk mengingat sub-tab aktif
     'existing' => collect(), // LaporanNc tersimpan keyBy id (edit/show)
+    'fotoModel' => '',       // path upload foto baru: 'ncFoto.0' (create) / 'ncFoto' (edit); kosong = tanpa upload
+    'fotos' => [],           // [row_key => state foto baru]
     'readonly' => false,
 ])
 
@@ -23,7 +25,7 @@
             </svg>
             <p class="text-xs text-amber-700 dark:text-amber-300">
                 <span class="font-semibold">Non-Conformity (NC)</span> — catat temuan pada kategori (Work Group) yang sesuai.
-                Bukti dokumen Before/After diunggah di <span class="font-semibold">List NC</span>.
+                Foto bukti temuan diunggah langsung di kartu NC; Form Temuan &amp; Form Penutupan (scan bertanda tangan) dikelola di <span class="font-semibold">List NC</span>.
             </p>
         </div>
     @endunless
@@ -60,6 +62,8 @@
                     :argsPrefix="$argsPrefix"
                     addMethod="{{ $addPrefix }}{{ $wgArg }})"
                     :existing="$existing"
+                    :fotoModel="$fotoModel"
+                    :fotos="$fotos"
                     :readonly="$readonly"
                 />
             </div>

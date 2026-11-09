@@ -210,7 +210,7 @@ class LaporanBulananWordService
             if ($ncs->isEmpty()) {
                 $processor->cloneBlock('blok_nc', 1, true, true);
                 $processor->setValue('nc_kosong#1', 'Tidak ada NC pada periode ini.');
-                $processor->setValue('nc_no#1', '1');
+                $processor->setValue('nc_no#1', '-');
                 foreach (['nc_nomor', 'nc_tanggal', 'nc_kendala', 'nc_tindakan', 'nc_pic', 'nc_status', 'nc_closed'] as $m) {
                     $processor->setValue("{$m}#1", '-');
                 }
@@ -224,7 +224,10 @@ class LaporanBulananWordService
 
             foreach ($ncs as $index => $nc) {
                 $i = $index + 1;
-                $processor->setValue("nc_no#1#{$i}", (string) $i);
+                // nc_no diisi nomor NC (NC-001); nc_nomor tetap diisi untuk
+                // kompatibilitas template custom lama (kolomnya sudah dihapus
+                // dari template bawaan — setValue ke macro tak ada = no-op).
+                $processor->setValue("nc_no#1#{$i}", $nc->nomor ?? (string) $i);
                 $processor->setValue("nc_nomor#1#{$i}", $nc->nomor ?? '-');
                 $processor->setValue("nc_tanggal#1#{$i}", $nc->laporanHarian?->tanggal_laporan?->translatedFormat('d M Y') ?? '-');
                 $processor->setValue("nc_kendala#1#{$i}", $nc->kendala ?? '-');

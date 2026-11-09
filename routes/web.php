@@ -17,7 +17,8 @@ use App\Livewire\LaporanMingguan\LaporanMingguanShow;
 use App\Livewire\MasterData\DataKapalForm;
 use App\Livewire\Pages\Dashboard;
 use App\Models\LaporanLampiran;
-use App\Models\LaporanNcFile;
+use App\Models\LaporanNcForm;
+use App\Models\LaporanNcFoto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
@@ -151,19 +152,34 @@ Route::middleware(['auth', 'verified', 'active'])->group(function () {
         ]);
     })->middleware('can:laporan_lampiran_preview')->name('laporan-lampiran.file');
 
-    Route::get('/laporan-nc-file/{file}/file', function (LaporanNcFile $file) {
-        $file->loadMissing('dataKapal');
+    Route::get('/laporan-nc-foto/{foto}/file', function (LaporanNcFoto $foto) {
+        $dataKapal = $foto->loadMissing('nc.dataKapal')->nc?->dataKapal;
 
-        abort_unless($file->dataKapal && auth()->user()->canAccessDataKapal($file->dataKapal), 403);
+        abort_unless($dataKapal && auth()->user()->canAccessDataKapal($dataKapal), 403);
         abort_unless(
-            $file->isFileCompleted() && $file->file_path && Storage::disk('local')->exists($file->file_path),
+            $foto->isFileCompleted() && $foto->file_path && Storage::disk('local')->exists($foto->file_path),
             404
         );
 
-        return Storage::disk('local')->response($file->file_path, $file->file_name, [
+        return Storage::disk('local')->response($foto->file_path, $foto->file_name, [
             'Cache-Control' => 'private, max-age=86400, immutable',
         ]);
-    })->middleware('can:laporan_lampiran_preview')->name('laporan-nc-file.file');
+    })->middleware('can:laporan_lampiran_preview')->name('laporan-nc-foto.file');
+
+    // Scan Form NC bertanda tangan (preview inline PDF/gambar)
+    Route::get('/laporan-nc-form/{form}/file', function (LaporanNcForm $form) {
+        $form->loadMissing('dataKapal');
+
+        abort_unless($form->dataKapal && auth()->user()->canAccessDataKapal($form->dataKapal), 403);
+        abort_unless(
+            $form->isFileCompleted() && $form->file_path && Storage::disk('local')->exists($form->file_path),
+            404
+        );
+
+        return Storage::disk('local')->response($form->file_path, $form->file_name, [
+            'Cache-Control' => 'private, no-cache',
+        ]);
+    })->middleware('can:laporan_lampiran_preview')->name('laporan-nc-form.file');
 
     // Settings Routes - each route checks its own permission
     Route::prefix('settings')->name('settings.')->group(function () {

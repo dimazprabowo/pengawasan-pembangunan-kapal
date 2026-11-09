@@ -92,15 +92,14 @@ $section->addText('${blok_nc}');
 $section->addText('${nc_kosong}');
 $table = $section->addTable(['borderSize' => 6, 'borderColor' => '999999', 'cellMargin' => 60]);
 $table->addRow();
-foreach ([600 => 'No', 1400 => 'Nomor', 1600 => 'Tanggal', 3000 => 'Kendala', 2200 => 'Tindakan', 1200 => 'PIC', 1000 => 'Status', 1800 => 'Closed'] as $w => $h) {
+foreach ([1400 => 'No', 1600 => 'Tanggal', 3400 => 'Kendala', 2400 => 'Tindakan', 1200 => 'PIC', 1000 => 'Status', 1800 => 'Closed'] as $w => $h) {
     $table->addCell($w, $cellHead)->addText($h, $headStyle, $center);
 }
 $table->addRow();
-$table->addCell(600, $cellBody)->addText('${nc_no}', [], $center);
-$table->addCell(1400, $cellBody)->addText('${nc_nomor}');
+$table->addCell(1400, $cellBody)->addText('${nc_no}', [], $center);
 $table->addCell(1600, $cellBody)->addText('${nc_tanggal}');
-$table->addCell(3000, $cellBody)->addText('${nc_kendala}');
-$table->addCell(2200, $cellBody)->addText('${nc_tindakan}');
+$table->addCell(3400, $cellBody)->addText('${nc_kendala}');
+$table->addCell(2400, $cellBody)->addText('${nc_tindakan}');
 $table->addCell(1200, $cellBody)->addText('${nc_pic}');
 $table->addCell(1000, $cellBody)->addText('${nc_status}');
 $table->addCell(1800, $cellBody)->addText('${nc_closed}');

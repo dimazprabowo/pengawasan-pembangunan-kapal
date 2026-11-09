@@ -36,7 +36,7 @@
             @forelse($dataKapalList as $index => $dataKapal)
                 <tr>
                     <td class="text-center">{{ $index + 1 }}</td>
-                    <td>{{ $dataKapal->nama }}</td>
+                    <td>{{ $dataKapal->nama }}<br><small>{{ $dataKapal->kode }}</small></td>
                     <td>
                         {{ $dataKapal->company->name }}<br>
                         <small>{{ $dataKapal->company->code }}</small>

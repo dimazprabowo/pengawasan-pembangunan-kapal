@@ -307,14 +307,14 @@ class LaporanMingguanWordService
             return;
         }
 
-        $w = [500, 2926, 2400, 1300, 1100, 800];
+        $w = [900, 2526, 2400, 1300, 1100, 800];
         $table = $this->newTable();
         $this->headerRow($table, $w, ['No', 'Kendala / Temuan', 'Tindakan', 'PIC', 'Tanggal Temuan', 'Status']);
 
         foreach ($ncs->values() as $i => $nc) {
             $table->addRow(null, ['cantSplit' => true]);
             $bg = $i % 2 ? self::ZEBRA : null;
-            $this->bodyCell($table, $w[0], (string) ($i + 1), $bg, Jc::CENTER);
+            $this->bodyCell($table, $w[0], $nc->nomor ?? (string) ($i + 1), $bg, Jc::CENTER);
             $this->bodyCell($table, $w[1], $nc->kendala ?: '-', $bg);
             $this->bodyCell($table, $w[2], $nc->tindakan ?: '-', $bg);
             $this->bodyCell($table, $w[3], $nc->pic ?: '-', $bg);

@@ -25,6 +25,10 @@ return new class extends Migration
             $table->enum('status', ['open', 'closed'])->default('open');
             $table->timestamp('closed_at')->nullable();
             $table->foreignId('closed_by')->nullable()->constrained('users')->nullOnDelete();
+            // Jejak reopen terakhir — form penutupan lama tetap histori (pivot immutable)
+            $table->timestamp('reopened_at')->nullable();
+            $table->foreignId('reopened_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->text('reopen_note')->nullable();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();

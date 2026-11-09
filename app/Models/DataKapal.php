@@ -5,18 +5,32 @@ namespace App\Models;
 use App\Enums\DataKapalStatus;
 use App\Traits\HasEncryptedRouteKey;
 use App\Traits\HasUserStamps;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class DataKapal extends Model
 {
     use HasEncryptedRouteKey, HasFactory, SoftDeletes;
-    use HasUserStamps;
+    use HasUserStamps, LogsActivity;
 
     protected $table = 'data_kapal';
+
+    /**
+     * Jenis template Word per kapal (kolom template_path_{tipe}) → label UI.
+     * Whitelist: tipe di luar daftar ini ditolak saat upload/hapus template.
+     */
+    public const TEMPLATE_TIPES = [
+        'harian' => 'Harian',
+        'mingguan' => 'Mingguan',
+        'bulanan' => 'Bulanan',
+        'nc' => 'Form NC',
+    ];
 
     protected $fillable = [
         'company_id',
@@ -30,8 +44,14 @@ class DataKapal extends Model
         'template_path_harian',
         'template_path_mingguan',
         'template_path_bulanan',
+        'template_path_nc',
         'status',
     ];
+
+    /**
+     * Karakter kode: uppercase + digit tanpa karakter ambigu (0/O, 1/I/L).
+     */
+    private const KODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
     protected $casts = [
         'status' => DataKapalStatus::class,
@@ -43,6 +63,42 @@ class DataKapal extends Model
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (DataKapal $dataKapal) {
+            if (empty($dataKapal->kode)) {
+                $dataKapal->kode = static::generateKode();
+            }
+        });
+    }
+
+    /**
+     * Generate kode unik 6 karakter. withTrashed karena index unik tetap
+     * ditempati record yang sudah soft-deleted.
+     */
+    public static function generateKode(): string
+    {
+        $length = strlen(self::KODE_ALPHABET);
+
+        do {
+            $kode = '';
+            for ($i = 0; $i < 6; $i++) {
+                $kode .= self::KODE_ALPHABET[random_int(0, $length - 1)];
+            }
+        } while (static::withTrashed()->where('kode', $kode)->exists());
+
+        return $kode;
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('data_kapal')
+            ->logOnly(['kode', 'company_id', 'galangan_id', 'nama', 'deskripsi', 'status', 'tanggal_mulai_kontrak', 'durasi_kontrak_hari'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
 
     public function company(): BelongsTo
     {
@@ -100,7 +156,7 @@ class DataKapal extends Model
     /**
      * Tanggal selesai kontrak = tanggal mulai + durasi hari - 1 (hari kalender, inklusif).
      */
-    public function getTanggalSelesaiKontrakAttribute(): ?\Carbon\Carbon
+    public function getTanggalSelesaiKontrakAttribute(): ?Carbon
     {
         if (! $this->hasKontrak()) {
             return null;
@@ -131,7 +187,7 @@ class DataKapal extends Model
 
     public function hasAnyTemplate(): bool
     {
-        return $this->hasTemplate('harian') || $this->hasTemplate('mingguan') || $this->hasTemplate('bulanan');
+        return collect(array_keys(self::TEMPLATE_TIPES))->contains(fn ($tipe) => $this->hasTemplate($tipe));
     }
 
     public function getLaporanCount(string $tipe): int

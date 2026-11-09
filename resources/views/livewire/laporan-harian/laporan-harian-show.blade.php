@@ -2,7 +2,7 @@
     @if($laporan->isDocProcessing())
         wire:poll.4s="refreshDocStatus"
     @endif
-    @if($this->hasProcessingLampiran())
+    @if($this->hasProcessingLampiran() || $this->hasProcessingNcFoto())
         wire:poll.4s="refreshLampiranStatus"
     @endif
 >
@@ -472,6 +472,16 @@
         :lampiran="$this->previewLampiran"
         :laporan="$laporan"
         :imageUrl="$this->previewLampiranImageUrl"
+    />
+
+    {{-- Preview Foto Bukti NC --}}
+    <x-lampiran-preview-modal
+        :show="$showNcPreviewModal"
+        :lampiran="$this->previewNcFoto"
+        :laporan="$laporan"
+        :imageUrl="$this->previewNcFotoImageUrl"
+        downloadMethod="downloadNcFoto"
+        closeMethod="closeNcPreviewModal"
     />
 
     {{-- Regenerate Confirmation Modal --}}

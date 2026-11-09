@@ -479,7 +479,7 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                                B: {{ $nc->files->where('pivot.kind', 'before')->count() }} · A: {{ $nc->files->where('pivot.kind', 'after')->count() }}
+                                {{ $nc->foto ? 'Ada foto temuan' : '-' }}
                             </td>
                         </tr>
                     @empty

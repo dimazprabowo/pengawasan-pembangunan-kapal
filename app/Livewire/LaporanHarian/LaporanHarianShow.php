@@ -4,6 +4,7 @@ namespace App\Livewire\LaporanHarian;
 
 use App\Jobs\GenerateLaporanHarianJob;
 use App\Livewire\Traits\HasDataKapalFilter;
+use App\Livewire\Traits\HasNcFotoPreview;
 use App\Livewire\Traits\HasNotification;
 use App\Models\DataKapal;
 use App\Models\LaporanHarian;
@@ -20,7 +21,7 @@ use Livewire\Component;
 #[Layout('layouts.app', ['title' => 'Detail Laporan Harian'])]
 class LaporanHarianShow extends Component
 {
-    use AuthorizesRequests, HasDataKapalFilter, HasNotification;
+    use AuthorizesRequests, HasDataKapalFilter, HasNcFotoPreview, HasNotification;
 
     public LaporanHarian $laporan;
 
@@ -63,7 +64,7 @@ class LaporanHarianShow extends Component
             'consumable',
             'aktivitas.workGroup',
             'aktivitas.lampiran',
-            'ncs.files',
+            'ncs.foto',
         ]);
     }
 
@@ -209,6 +210,9 @@ class LaporanHarianShow extends Component
 
     public function render(QueueStatusService $queueStatusService, LaporanHarianService $service, KontrakPeriodeService $periodeService)
     {
+        // Rehidrasi Livewire tidak membawa relasi — pastikan files NC tetap eager-loaded
+        $this->laporan->loadMissing('ncs.foto');
+
         return view('livewire.laporan-harian.laporan-harian-show', [
             'hariKe' => $periodeService->getHariKeFromDate($this->dataKapal, $this->laporan->tanggal_laporan),
             'mingguKe' => $periodeService->getMingguKeFromDate($this->dataKapal, $this->laporan->tanggal_laporan),
@@ -348,7 +352,7 @@ class LaporanHarianShow extends Component
 
     public function refreshLampiranStatus(): void
     {
-        $this->laporan->load('lampiran');
+        $this->laporan->load(['lampiran', 'ncs.foto']);
         $this->dispatch('lh-reload-thumbs');
     }
 

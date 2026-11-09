@@ -33,7 +33,8 @@ class LaporanHarianCreate extends Component
     // Foto lampiran per uraian aktivitas - struktur: [itemIndex => [row_key => ['file' => null, 'cropData' => null, 'is_cropped' => false]]]
     public array $lampiran = [];
 
-    // Crop hanya untuk foto lampiran aktivitas (bukti NC = dokumen, diunggah via List NC)
+    // Foto bukti (before) per NC - struktur: [itemIndex => [row_key => ['file' => null, 'cropData' => null, 'is_cropped' => false]]]
+    public array $ncFoto = [];
 
     // Delete NC confirmation modal
     public bool $showDeleteNcModal = false;
@@ -79,6 +80,9 @@ class LaporanHarianCreate extends Component
     public bool $showCropperModal = false;
 
     public ?int $croppingItemIndex = null;
+
+    // Konteks crop: 'lampiran' (foto aktivitas) / 'nc' (foto bukti NC)
+    public ?string $croppingContext = null;
 
     public ?string $croppingRowKey = null;
 
@@ -184,6 +188,7 @@ class LaporanHarianCreate extends Component
             'nc' => [],
         ];
         $this->lampiran[] = [];
+        $this->ncFoto[] = [];
 
         $this->activeTab = count($this->items) - 1;
         $this->dispatch('laporan-item-added', index: $this->activeTab);
@@ -211,8 +216,10 @@ class LaporanHarianCreate extends Component
 
         unset($this->items[$index]);
         unset($this->lampiran[$index]);
+        unset($this->ncFoto[$index]);
         $this->items = array_values($this->items);
         $this->lampiran = array_values($this->lampiran);
+        $this->ncFoto = array_values($this->ncFoto);
 
         if ($this->activeTab > $index) {
             $this->activeTab--;
@@ -270,9 +277,56 @@ class LaporanHarianCreate extends Component
         }
 
         $this->croppingItemIndex = $itemIndex;
+        $this->croppingContext = 'lampiran';
         $this->croppingRowKey = $rowKey;
         $this->croppingImageUrl = $file->temporaryUrl();
         $this->cropData = $this->lampiran[$itemIndex][$rowKey]['cropData'] ?? [];
+        $this->showCropperModal = true;
+    }
+
+    /**
+     * File foto baru menggantikan yang lama → pratinjau crop & data crop lama tidak berlaku lagi.
+     */
+    public function updatedNcFoto($value, ?string $key = null): void
+    {
+        if (! $key || ! str_ends_with($key, '.file')) {
+            return;
+        }
+
+        [$itemIndex, $rowKey] = explode('.', $key);
+        if (isset($this->ncFoto[$itemIndex][$rowKey])) {
+            $this->ncFoto[$itemIndex][$rowKey]['preview'] = null;
+            $this->ncFoto[$itemIndex][$rowKey]['cropData'] = null;
+            $this->ncFoto[$itemIndex][$rowKey]['is_cropped'] = false;
+        }
+    }
+
+    public function removeNcFoto(int $itemIndex, string $rowKey): void
+    {
+        $this->ncFoto[$itemIndex][$rowKey] = $this->emptyFoto();
+    }
+
+    public function openNcCropper(int $itemIndex, string $rowKey): void
+    {
+        $file = $this->ncFoto[$itemIndex][$rowKey]['file'] ?? null;
+        if (! $file || ! is_object($file)) {
+            $this->notifyWarning('File tidak valid, silakan upload ulang.');
+
+            return;
+        }
+
+        $extension = strtolower($file->getClientOriginalExtension());
+        if (! in_array($extension, ['jpg', 'jpeg', 'png', 'webp'])) {
+            $this->notifyWarning('Crop hanya tersedia untuk file gambar (JPG, PNG, WEBP).');
+
+            return;
+        }
+
+        $this->croppingItemIndex = $itemIndex;
+        $this->croppingContext = 'nc';
+        $this->croppingRowKey = $rowKey;
+        $this->croppingImageUrl = $file->temporaryUrl();
+        $this->cropData = $this->ncFoto[$itemIndex][$rowKey]['cropData'] ?? [];
         $this->showCropperModal = true;
     }
 
@@ -280,6 +334,7 @@ class LaporanHarianCreate extends Component
     {
         $this->showCropperModal = false;
         $this->croppingItemIndex = null;
+        $this->croppingContext = null;
         $this->croppingRowKey = null;
         $this->croppingImageUrl = null;
         $this->cropData = [];
@@ -288,8 +343,14 @@ class LaporanHarianCreate extends Component
     public function saveCrop(): void
     {
         if ($this->croppingItemIndex !== null && $this->croppingRowKey !== null && ! empty($this->cropData)) {
-            $this->lampiran[$this->croppingItemIndex][$this->croppingRowKey]['cropData'] = $this->cropData;
-            $this->lampiran[$this->croppingItemIndex][$this->croppingRowKey]['is_cropped'] = true;
+            $target = $this->croppingContext === 'nc' ? $this->ncFoto : $this->lampiran;
+            $target[$this->croppingItemIndex][$this->croppingRowKey]['cropData'] = $this->cropData;
+            $target[$this->croppingItemIndex][$this->croppingRowKey]['is_cropped'] = true;
+            if ($this->croppingContext === 'nc') {
+                $this->ncFoto = $target;
+            } else {
+                $this->lampiran = $target;
+            }
             $this->notifySuccess('Crop berhasil disimpan.');
         }
         $this->closeCropper();
@@ -413,6 +474,7 @@ class LaporanHarianCreate extends Component
     {
         $row = app(LaporanNcService::class)->newNcRow($workGroupId);
         $this->items[$itemIndex]['nc'][] = $row;
+        $this->ncFoto[$itemIndex][$row['row_key']] = $this->emptyFoto();
     }
 
     public function confirmRemoveNc(int $itemIndex, int $ncIndex): void
@@ -436,6 +498,7 @@ class LaporanHarianCreate extends Component
     public function removeNc(int $itemIndex, int $ncIndex): void
     {
         if (isset($this->items[$itemIndex]['nc'][$ncIndex])) {
+            unset($this->ncFoto[$itemIndex][$this->items[$itemIndex]['nc'][$ncIndex]['row_key'] ?? '']);
             unset($this->items[$itemIndex]['nc'][$ncIndex]);
             $this->items[$itemIndex]['nc'] = array_values($this->items[$itemIndex]['nc']);
         }
@@ -512,6 +575,18 @@ class LaporanHarianCreate extends Component
                 },
             ],
             'lampiran.*.*.preview' => 'nullable|image|max:5120',
+            'ncFoto.*.*.file' => [
+                ...file_upload_validation_rule('foto_kapal'),
+                // Foto bukti wajib punya kendala NC (keterangan foto = kendala)
+                function ($attribute, $value, $fail) {
+                    [, $itemIndex, $rowKey] = explode('.', $attribute);
+                    $row = collect($this->items[$itemIndex]['nc'] ?? [])->firstWhere('row_key', $rowKey);
+                    if ($value && trim((string) ($row['kendala'] ?? '')) === '') {
+                        $fail('Kendala NC untuk foto bukti ini wajib diisi terlebih dahulu di tab NC.');
+                    }
+                },
+            ],
+            'ncFoto.*.*.preview' => 'nullable|image|max:5120',
         ];
 
         $rules['items.*.suhu'] = 'nullable|numeric|min:-50|max:100';
@@ -568,6 +643,10 @@ class LaporanHarianCreate extends Component
                 $attributes["lampiran.{$index}.{$rowKey}.file"] = "foto lampiran pada laporan #{$num}";
             }
 
+            foreach (array_keys($this->ncFoto[$index] ?? []) as $rowKey) {
+                $attributes["ncFoto.{$index}.{$rowKey}.file"] = "foto bukti NC pada laporan #{$num}";
+            }
+
             $attributes["items.{$index}.suhu"] = "suhu laporan #{$num}";
             $attributes["items.{$index}.cuaca_pagi_id"] = "cuaca pagi laporan #{$num}";
             $attributes["items.{$index}.kelembaban_pagi_id"] = "kelembaban pagi laporan #{$num}";
@@ -589,8 +668,8 @@ class LaporanHarianCreate extends Component
         } catch (ValidationException $e) {
             $this->notifyValidationError($e);
             $firstKey = collect($e->validator->errors()->keys())
-                ->first(fn ($k) => str_starts_with($k, 'items.') || str_starts_with($k, 'lampiran.'));
-            if ($firstKey && preg_match('/^(items|lampiran)\.(\d+)/', $firstKey, $m)) {
+                ->first(fn ($k) => str_starts_with($k, 'items.') || str_starts_with($k, 'lampiran.') || str_starts_with($k, 'ncFoto.'));
+            if ($firstKey && preg_match('/^(items|lampiran|ncFoto)\.(\d+)/', $firstKey, $m)) {
                 $this->activeTab = (int) $m[2];
             }
             throw $e;
@@ -681,8 +760,8 @@ class LaporanHarianCreate extends Component
                 // Uraian aktivitas per kategori + foto lampirannya
                 $fotoCount += $service->syncAktivitas($laporan, $item['aktivitas'] ?? [], $this->lampiran[$index] ?? []);
 
-                // NC (bukti before/after diunggah terpisah via List NC)
-                app(LaporanNcService::class)->syncNc($laporan, $item['nc'] ?? []);
+                // NC + foto bukti (before); dokumen after tetap diunggah via List NC
+                $fotoCount += app(LaporanNcService::class)->syncNc($laporan, $item['nc'] ?? [], $this->ncFoto[$index] ?? []);
             }
 
             $count = count($dataItems);

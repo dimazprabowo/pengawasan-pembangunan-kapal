@@ -29,7 +29,7 @@
     x-on:lh-clear-draft.window="localStorage.removeItem(draftKey)"
     x-init="
         (function () {
-            let props = ['tanggal_laporan', 'suhu', 'cuaca_pagi_id', 'kelembaban_pagi_id', 'cuaca_siang_id', 'kelembaban_siang_id', 'cuaca_sore_id', 'kelembaban_sore_id', 'personel', 'peralatan', 'consumable', 'aktivitas'];
+            let props = ['tanggal_laporan', 'suhu', 'cuaca_pagi_id', 'kelembaban_pagi_id', 'cuaca_siang_id', 'kelembaban_siang_id', 'cuaca_sore_id', 'kelembaban_sore_id', 'personel', 'peralatan', 'consumable', 'aktivitas', 'nc'];
             let raw = localStorage.getItem(draftKey);
             if (raw && $wire.autoSave) {
                 try {
@@ -39,6 +39,7 @@
                     } else {
                         props.forEach(function (p) { if (d[p] !== undefined) { $wire.set(p, d[p]); dirty = true; } });
                         if (d.foto) { $wire.set('foto', d.foto); }
+                        if (d.ncFoto) { $wire.set('ncFoto', d.ncFoto); }
                     }
                 } catch (e) {}
             }
@@ -55,6 +56,8 @@
                         // File tidak bisa disimpan di draft — hanya struktur slot foto per row_key
                         payload.foto = {};
                         Object.keys($wire.get('foto') || {}).forEach(function (k) { payload.foto[k] = { file: null, cropData: null, is_cropped: false }; });
+                        payload.ncFoto = {};
+                        Object.keys($wire.get('ncFoto') || {}).forEach(function (k) { payload.ncFoto[k] = { file: null, cropData: null, is_cropped: false }; });
                         localStorage.setItem(draftKey, JSON.stringify(payload));
                         draftSavedAt = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
                         draftState = 'saved';
@@ -66,7 +69,7 @@
             $wire.$watch('autoSave', function (v) { if (! v) { localStorage.removeItem(draftKey); draftState = 'idle'; } });
         })();
     "
-    @if($this->hasProcessingLampiran())
+    @if($this->hasProcessingLampiran() || $this->hasProcessingNcFoto())
         wire:poll.4s="refreshLampiranStatus"
     @endif
 >
@@ -235,6 +238,8 @@
                                 addPrefix="addNc("
                                 wireKeyPrefix="nc"
                                 :existing="$laporan->ncs->keyBy('id')"
+                                fotoModel="ncFoto"
+                                :fotos="$ncFoto"
                             />
                         </div>
 
@@ -325,15 +330,24 @@
         :show="$showDeleteNcModal"
         wire:model="showDeleteNcModal"
         title="Hapus NC"
-        message="Apakah Anda yakin ingin menghapus data NC ini? File before yang hanya dipakai NC ini ikut terhapus."
+        message="Apakah Anda yakin ingin menghapus data NC ini? Foto bukti NC ini ikut terhapus saat laporan disimpan."
         confirmMethod="removeNcConfirmed"
+    />
+
+    {{-- Delete Foto Bukti NC Confirmation Modal --}}
+    <x-delete-modal
+        :show="$showDeleteNcFotoModal"
+        wire:model="showDeleteNcFotoModal"
+        title="Hapus Foto Bukti NC"
+        message="Foto bukti tersimpan akan dihapus permanen. Data NC-nya tetap ada. Lanjutkan?"
+        confirmMethod="deleteNcFoto"
     />
 
     <x-image-crop-modal 
         :show="$showCropperModal" 
         :imageUrl="$croppingImageUrl" 
         :cropData="$cropData"
-        :previewTarget="$croppingRowKey ? 'foto.'.$croppingRowKey.'.preview' : null"
+        :previewTarget="$croppingRowKey ? ($croppingContext === 'nc' ? 'ncFoto.'.$croppingRowKey.'.preview' : 'foto.'.$croppingRowKey.'.preview') : null"
     />
 
     {{-- Lampiran Preview Modal --}}
@@ -342,6 +356,16 @@
         :lampiran="$this->previewLampiran"
         :laporan="$laporan"
         :imageUrl="$this->previewLampiranImageUrl"
+    />
+
+    {{-- Preview Foto Bukti NC --}}
+    <x-lampiran-preview-modal
+        :show="$showNcPreviewModal"
+        :lampiran="$this->previewNcFoto"
+        :laporan="$laporan"
+        :imageUrl="$this->previewNcFotoImageUrl"
+        downloadMethod="downloadNcFoto"
+        closeMethod="closeNcPreviewModal"
     />
 
     {{-- Konfirmasi buang perubahan saat Batal --}}

@@ -2,12 +2,13 @@
 
 namespace App\Services;
 
-use App\Jobs\ProcessNcFile;
+use App\Enums\NcStatus;
+use App\Jobs\ProcessNcFoto;
 use App\Models\DataKapal;
 use App\Models\KurvaSWorkGroup;
 use App\Models\LaporanHarian;
 use App\Models\LaporanNc;
-use App\Models\LaporanNcFile;
+use App\Models\LaporanNcFoto;
 use App\Traits\HasDynamicLike;
 use App\Traits\SortsQuery;
 use Carbon\Carbon;
@@ -18,7 +19,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 
 class LaporanNcService
 {
@@ -57,27 +57,33 @@ class LaporanNcService
 
     /**
      * Sinkronkan NC untuk satu laporan harian (pola syncAktivitas):
-     * - Baris tanpa kendala/tindakan/pic diabaikan.
-     * - Baris tersimpan (id milik laporan ini) di-update; yang tidak dikirim dihapus.
-     * - File bukti before/after (dokumen form NC) diunggah via List NC, bukan di sini.
-     * - Status NC tidak diubah di sini — open/closed dikelola di List NC.
+     * - Baris tanpa kendala/tindakan/pic/foto baru diabaikan.
+     * - Baris tersimpan (id milik laporan ini) di-update; yang tidak dikirim dihapus beserta fotonya.
+     * - Foto bukti baru (1 per NC) menggantikan foto lama, disimpan ke temp lalu
+     *   diproses async (crop + WebP) oleh ProcessNcFoto.
+     * - Status NC tidak diubah di sini — close lewat Form Penutupan, reopen di List NC.
      *
      * @param  array  $rows  [['row_key', 'id', 'kendala', 'tindakan', 'pic'], ...]
+     * @param  array  $fotos  [row_key => ['file' => UploadedFile|null, 'cropData' => ?array]]
+     * @return int jumlah foto baru yang diantrikan
      */
-    public function syncNc(LaporanHarian $laporan, array $rows): void
+    public function syncNc(LaporanHarian $laporan, array $rows, array $fotos = []): int
     {
         $workGroups = KurvaSWorkGroup::where('data_kapal_id', $laporan->data_kapal_id)->pluck('nama', 'id');
+        $jobs = [];
 
-        DB::transaction(function () use ($laporan, $rows, $workGroups) {
-            $existing = $laporan->ncs()->with('files')->get()->keyBy('id');
+        DB::transaction(function () use ($laporan, $rows, $fotos, $workGroups, &$jobs) {
+            $existing = $laporan->ncs()->with('foto')->get()->keyBy('id');
             $keepIds = [];
 
             foreach ($rows as $row) {
+                $foto = $fotos[$row['row_key'] ?? ''] ?? [];
+                $file = ($foto['file'] ?? null) instanceof UploadedFile ? $foto['file'] : null;
                 $kendala = trim((string) ($row['kendala'] ?? ''));
                 $tindakan = trim((string) ($row['tindakan'] ?? ''));
                 $pic = trim((string) ($row['pic'] ?? ''));
 
-                if ($kendala === '' && $tindakan === '' && $pic === '') {
+                if ($kendala === '' && $tindakan === '' && $pic === '' && ! $file) {
                     continue;
                 }
 
@@ -101,123 +107,84 @@ class LaporanNcService
                     ]);
                 }
                 $keepIds[] = $nc->id;
-            }
 
-            $existing->except($keepIds)->each(function (LaporanNc $nc) {
-                $this->deleteNc($nc);
-            });
-        });
-    }
+                if ($file) {
+                    if ($nc->foto) {
+                        $this->deleteFoto($nc->foto);
+                    }
 
-    /**
-     * Ubah status open <-> closed. Closed WAJIB punya minimal 1 file after.
-     */
-    public function toggleStatus(LaporanNc $nc, int $userId): void
-    {
-        if ($nc->isOpen()) {
-            $hasAfter = $nc->afterFiles()
-                ->where('file_status', '!=', 'failed')
-                ->exists();
+                    $ncFoto = $nc->foto()->create([
+                        'file_name' => basename($file->getClientOriginalName()),
+                        'file_size' => $file->getSize(),
+                        'file_status' => 'pending',
+                        'uploaded_by' => auth()->id(),
+                    ]);
 
-            if (! $hasAfter) {
-                throw ValidationException::withMessages([
-                    'nc_status' => 'NC tidak bisa ditutup — unggah minimal 1 foto After sebagai bukti penyelesaian.',
-                ]);
-            }
-
-            $nc->update([
-                'status' => 'closed',
-                'closed_at' => now(),
-                'closed_by' => $userId,
-            ]);
-        } else {
-            $nc->update([
-                'status' => 'open',
-                'closed_at' => null,
-                'closed_by' => null,
-            ]);
-        }
-    }
-
-    /**
-     * Upload file bukti lalu link ke beberapa NC sekaligus (checklist) dengan
-     * peran before/after. Return jumlah file yang diantrikan ke worker.
-     *
-     * @param  UploadedFile[]  $files
-     */
-    public function storeUploads(int $dataKapalId, array $ncIds, array $files, string $kind, int $userId): int
-    {
-        $jobs = [];
-
-        DB::transaction(function () use ($dataKapalId, $ncIds, $files, $kind, $userId, &$jobs) {
-            $ncs = LaporanNc::where('data_kapal_id', $dataKapalId)->whereIn('id', $ncIds)->get();
-
-            foreach ($files as $file) {
-                if (! $file instanceof UploadedFile) {
-                    continue;
+                    $jobs[] = [$ncFoto, $file->store('temp/laporan-nc', 'local'), $foto['cropData'] ?? null];
                 }
-
-                $ncFile = $this->createFileRecord($dataKapalId, $file, $userId);
-                $tempPath = $file->store('temp/laporan-nc', 'local');
-
-                foreach ($ncs as $nc) {
-                    $nc->files()->syncWithoutDetaching([$ncFile->id => ['kind' => $kind]]);
-                }
-
-                $jobs[] = [$ncFile, $tempPath];
             }
+
+            $existing->except($keepIds)->each(fn (LaporanNc $nc) => $this->deleteNc($nc));
         });
 
-        foreach ($jobs as [$ncFile, $tempPath]) {
-            ProcessNcFile::dispatch($ncFile, $tempPath);
+        foreach ($jobs as [$ncFoto, $tempPath, $cropData]) {
+            ProcessNcFoto::dispatch($ncFoto, $tempPath, $cropData);
         }
 
         return count($jobs);
     }
 
     /**
-     * Lepas link file dari NC; file record dihapus bila sudah tidak dipakai NC lain.
+     * Buka kembali NC yang sudah closed. Form penutupan yang pernah menutupnya
+     * tetap tersimpan sebagai histori; NC bisa dimasukkan ke form penutupan baru.
+     * Waktu, pengguna & alasan reopen dicatat untuk audit.
      */
-    public function detachFile(LaporanNc $nc, LaporanNcFile $file): void
+    public function reopen(LaporanNc $nc, int $userId, string $note): void
     {
-        DB::transaction(function () use ($nc, $file) {
-            $nc->files()->detach($file->id);
+        $nc->update([
+            'status' => NcStatus::Open,
+            'closed_at' => null,
+            'closed_by' => null,
+            'reopened_at' => now(),
+            'reopened_by' => $userId,
+            'reopen_note' => $note,
+        ]);
+    }
 
-            if (! $file->ncs()->exists()) {
-                $this->deleteNcFile($file);
-            }
-        });
+    public function deleteFoto(LaporanNcFoto $foto): void
+    {
+        if ($foto->file_path && Storage::disk('local')->exists($foto->file_path)) {
+            Storage::disk('local')->delete($foto->file_path);
+        }
+        $foto->delete();
     }
 
     /**
-     * Hapus NC beserta link file-nya (file record dihapus bila jadi orphan).
+     * Hapus NC beserta foto bukti (link Form NC ikut terhapus via cascade).
      */
     public function deleteNc(LaporanNc $nc): void
     {
-        $files = $nc->files()->get();
-        $nc->files()->detach();
-        $nc->delete();
-
-        foreach ($files as $file) {
-            if (! $file->ncs()->exists()) {
-                $this->deleteNcFile($file);
-            }
+        if ($nc->foto) {
+            $this->deleteFoto($nc->foto);
         }
+        $nc->delete();
     }
 
     /**
      * Cleanup saat laporan harian dihapus — dipanggil sebelum $laporan->delete()
-     * agar file orphan ikut dibersihkan (cascade hanya menghapus link).
+     * agar file foto & scan form temuan ikut dibersihkan (cascade DB tidak menghapus file).
      */
     public function deleteForLaporan(LaporanHarian $laporan): void
     {
-        foreach ($laporan->ncs()->with('files')->get() as $nc) {
+        foreach ($laporan->ncs()->with('foto')->get() as $nc) {
             $this->deleteNc($nc);
         }
+
+        app(LaporanNcFormService::class)->deleteForLaporan($laporan);
     }
 
     /**
-     * List NC per data kapal untuk tab List NC — earger load relasi tampilan.
+     * List NC per data kapal untuk tab List NC — eager load relasi tampilan.
      */
     public function getFiltered(
         int $dataKapalId,
@@ -245,7 +212,7 @@ class LaporanNcService
     ): Builder {
         $like = $this->getLikeOperator();
 
-        $query = LaporanNc::with(['laporanHarian:id,tanggal_laporan', 'createdBy:id,name', 'closedBy:id,name', 'files'])
+        $query = LaporanNc::with(['laporanHarian:id,tanggal_laporan', 'createdBy:id,name', 'closedBy:id,name', 'reopenedBy:id,name', 'foto', 'forms:id,jenis,nomor,signed_at,file_status'])
             ->where('data_kapal_id', $dataKapalId)
             ->when($statusFilter, fn ($q) => $q->where('status', $statusFilter))
             ->when($search, function ($q) use ($search, $like) {
@@ -291,7 +258,7 @@ class LaporanNcService
         $mulai = Carbon::parse($periodeMulai)->startOfDay();
         $selesai = Carbon::parse($periodeSelesai)->endOfDay();
 
-        return LaporanNc::with(['laporanHarian:id,tanggal_laporan', 'files', 'closedBy:id,name'])
+        return LaporanNc::with(['laporanHarian:id,tanggal_laporan', 'foto', 'closedBy:id,name'])
             ->where('data_kapal_id', $dataKapalId)
             ->where('created_at', '<=', $selesai)
             ->where(fn ($q) => $q->whereNull('closed_at')->orWhere('closed_at', '>=', $mulai))
@@ -336,24 +303,5 @@ class LaporanNcService
         $next = $last && preg_match('/(\d+)$/', $last, $m) ? (int) $m[1] + 1 : 1;
 
         return 'NC-'.str_pad((string) $next, 3, '0', STR_PAD_LEFT);
-    }
-
-    private function createFileRecord(int $dataKapalId, UploadedFile $file, ?int $userId = null): LaporanNcFile
-    {
-        return LaporanNcFile::create([
-            'data_kapal_id' => $dataKapalId,
-            'file_name' => basename($file->getClientOriginalName()),
-            'file_size' => $file->getSize(),
-            'file_status' => 'pending',
-            'uploaded_by' => $userId ?? auth()->id(),
-        ]);
-    }
-
-    private function deleteNcFile(LaporanNcFile $file): void
-    {
-        if ($file->file_path && Storage::disk('local')->exists($file->file_path)) {
-            Storage::disk('local')->delete($file->file_path);
-        }
-        $file->delete();
     }
 }

@@ -8,12 +8,25 @@ use Symfony\Component\HttpFoundation\Response;
 
 class SecurityHeaders
 {
+    /**
+     * Route file lampiran/NC yang di-preview via <iframe> di dalam aplikasi.
+     * SAMEORIGIN tetap memblokir framing dari origin lain (clickjacking).
+     */
+    private const FRAMEABLE_FILE_ROUTES = [
+        'laporan-lampiran.file',
+        'laporan-nc-foto.file',
+        'laporan-nc-form.file',
+    ];
+
     public function handle(Request $request, Closure $next): Response
     {
         $response = $next($request);
 
         $response->headers->set('X-Content-Type-Options', 'nosniff');
-        $response->headers->set('X-Frame-Options', 'DENY');
+        $response->headers->set(
+            'X-Frame-Options',
+            $request->routeIs(...self::FRAMEABLE_FILE_ROUTES) ? 'SAMEORIGIN' : 'DENY'
+        );
         $response->headers->set('X-XSS-Protection', '1; mode=block');
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');

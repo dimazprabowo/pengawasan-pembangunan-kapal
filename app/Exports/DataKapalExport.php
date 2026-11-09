@@ -35,6 +35,7 @@ class DataKapalExport implements FromCollection, ShouldAutoSize, WithHeadings, W
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
                     $q->where('nama', 'like', "%{$this->search}%")
+                        ->orWhere('kode', 'like', "%{$this->search}%")
                         ->orWhere('deskripsi', 'like', "%{$this->search}%")
                         ->orWhereHas('company', function ($q) {
                             $q->where('name', 'like', "%{$this->search}%")
@@ -56,6 +57,7 @@ class DataKapalExport implements FromCollection, ShouldAutoSize, WithHeadings, W
     {
         return [
             'No',
+            'Kode',
             'Data Kapal',
             'Perusahaan',
             'Kode Perusahaan',
@@ -75,6 +77,7 @@ class DataKapalExport implements FromCollection, ShouldAutoSize, WithHeadings, W
 
         return [
             $no,
+            $dataKapal->kode,
             $dataKapal->nama,
             $dataKapal->company->name,
             $dataKapal->company->code,

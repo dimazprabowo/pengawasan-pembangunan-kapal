@@ -6,7 +6,8 @@ use App\Models\Company;
 use App\Models\LaporanAktivitas;
 use App\Models\LaporanHarian;
 use App\Models\LaporanLampiran;
-use App\Models\LaporanNcFile;
+use App\Models\LaporanNc;
+use App\Models\LaporanNcForm;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -69,6 +70,8 @@ class LampiranFileRouteTest extends TestCase
         $response->assertOk();
         $this->assertStringContainsString('image/webp', $response->headers->get('content-type'));
         $this->assertStringContainsString('immutable', $response->headers->get('cache-control'));
+        // File di-preview via <iframe> — DENY memblokir render (refused to connect).
+        $response->assertHeader('X-Frame-Options', 'SAMEORIGIN');
     }
 
     public function test_file_lampiran_ditolak_tanpa_permission(): void
@@ -123,21 +126,55 @@ class LampiranFileRouteTest extends TestCase
         $this->actingAs($user)->get(route('laporan-lampiran.file', $hilang))->assertNotFound();
     }
 
-    public function test_file_nc_diserve_untuk_user_berizin_dan_scope_sesuai(): void
+    public function test_foto_nc_diserve_untuk_user_berizin_dan_ditolak_beda_perusahaan(): void
     {
-        Storage::disk('local')->put('test/nc.pdf', 'fake-pdf-bytes');
-        $file = LaporanNcFile::create([
+        Storage::disk('local')->put('test/nc.webp', 'fake-webp-bytes');
+        $nc = LaporanNc::create([
+            'laporan_harian_id' => $this->harian->id,
             'data_kapal_id' => $this->harian->data_kapal_id,
-            'file_path' => 'test/nc.pdf',
-            'file_name' => 'nc.pdf',
-            'file_size' => 14,
+            'kendala' => 'Uji foto NC',
+        ]);
+        $foto = $nc->foto()->create([
+            'file_path' => 'test/nc.webp',
+            'file_name' => 'nc.webp',
+            'file_size' => 15,
             'file_status' => 'completed',
         ]);
 
+        $this->actingAs($this->userDenganIzin())
+            ->get(route('laporan-nc-foto.file', $foto))
+            ->assertOk();
+
+        $lain = Company::create(['code' => 'LAIN2', 'name' => 'PT Lain 2', 'status' => 'active']);
+        $this->actingAs($this->userDenganIzin($lain->id))
+            ->get(route('laporan-nc-foto.file', $foto))
+            ->assertForbidden();
+    }
+
+    public function test_scan_form_nc_diserve_untuk_user_berizin(): void
+    {
+        Storage::disk('local')->put('test/ncr.pdf', 'fake-pdf-bytes');
+        $form = LaporanNcForm::create([
+            'data_kapal_id' => $this->harian->data_kapal_id,
+            'jenis' => 'penutupan',
+            'nomor' => $this->harian->dataKapal->kode.'-NCR-001',
+            'tanggal' => now()->toDateString(),
+            'file_path' => 'test/ncr.pdf',
+            'file_name' => 'ncr.pdf',
+            'file_status' => 'completed',
+            'signed_at' => now(),
+        ]);
+
         $response = $this->actingAs($this->userDenganIzin())
-            ->get(route('laporan-nc-file.file', $file));
+            ->get(route('laporan-nc-form.file', $form));
 
         $response->assertOk();
         $this->assertStringContainsString('application/pdf', $response->headers->get('content-type'));
+        $response->assertHeader('X-Frame-Options', 'SAMEORIGIN');
+    }
+
+    public function test_halaman_biasa_tetap_dilindungi_frame_deny(): void
+    {
+        $this->get('/login')->assertHeader('X-Frame-Options', 'DENY');
     }
 }

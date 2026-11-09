@@ -8,11 +8,11 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // File bukti NC (before/after). Satu file bisa di-link ke beberapa NC
-        // lewat tabel pivot laporan_nc_file_link — makanya file berdiri sendiri.
-        Schema::create('laporan_nc_file', function (Blueprint $table) {
+        // Foto bukti temuan NC — 1:1 dengan NC (pola laporan_lampiran ↔ aktivitas).
+        // Diunggah dari form Laporan Harian, diproses async (crop + WebP).
+        Schema::create('laporan_nc_foto', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('data_kapal_id')->constrained('data_kapal')->cascadeOnDelete();
+            $table->foreignId('laporan_nc_id')->unique()->constrained('laporan_nc')->cascadeOnDelete();
             $table->string('file_path')->nullable();
             $table->string('file_name');
             $table->unsignedBigInteger('file_size')->nullable();
@@ -22,13 +22,12 @@ return new class extends Migration
             $table->foreignId('uploaded_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 
-            $table->index('data_kapal_id');
             $table->index('file_status');
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('laporan_nc_file');
+        Schema::dropIfExists('laporan_nc_foto');
     }
 };

@@ -6,6 +6,7 @@ use App\Livewire\MasterData\DataKapalForm;
 use App\Models\DataKapal;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -80,6 +81,29 @@ class DataKapalFormTest extends TestCase
             'nama' => 'KMP Uji Baru',
             'status' => 'active',
         ]);
+    }
+
+    public function test_create_menghasilkan_kode_unik_6_karakter(): void
+    {
+        Livewire::actingAs($this->admin())
+            ->test(DataKapalForm::class)
+            ->set('nama', 'KMP Kode Uji')
+            ->set('status', 'active')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $saved = DataKapal::where('nama', 'KMP Kode Uji')->firstOrFail();
+        $this->assertNotNull($saved->kode);
+        $this->assertSame(6, strlen($saved->kode));
+        $this->assertMatchesRegularExpression('/^[A-Z2-9]{6}$/', $saved->kode);
+    }
+
+    public function test_kode_kapal_selalu_unik(): void
+    {
+        $kodes = collect(range(1, 20))
+            ->map(fn () => DataKapal::create(['nama' => 'KMP Unik '.Str::random(8)])->kode);
+
+        $this->assertSame(20, $kodes->unique()->count());
     }
 
     public function test_form_edit_mengupdate_kapal(): void

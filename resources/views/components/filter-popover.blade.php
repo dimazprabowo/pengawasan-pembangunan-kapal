@@ -1,6 +1,8 @@
 @props([
     'filters' => [],
     'perPage' => false,
+    'perPageModel' => 'perPage',   // wire:model untuk select per halaman (mis. formPerPage)
+    'resetMethod' => 'resetFilters', // method reset filter di component (mis. resetFormFilters)
 ])
 
 <div class="relative w-full md:w-auto" x-data="{ filterOpen: false, dropUp: false,
@@ -46,7 +48,7 @@
                 <div @class(['pt-3 border-t border-gray-200 dark:border-gray-700' => !$slot->isEmpty()])>
                     <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Tampilan per Halaman</label>
                     <x-searchable-select
-                        wire:model.live="perPage"
+                        wire:model.live="{{ $perPageModel }}"
                         :options="[
                             ['value' => '10', 'label' => '10'],
                             ['value' => '25', 'label' => '25'],
@@ -65,12 +67,12 @@
             <button @click="filterOpen = false" type="button" class="text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
                 Tutup
             </button>
-            <button wire:click="resetFilters" wire:loading.attr="disabled" wire:target="resetFilters" type="button"
+            <button wire:click="{{ $resetMethod }}" wire:loading.attr="disabled" wire:target="{{ $resetMethod }}" type="button"
                 class="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 disabled:opacity-50">
-                <svg wire:loading.class="hidden" wire:target="resetFilters" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                <svg wire:loading wire:target="resetFilters" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                <span wire:loading.class="hidden" wire:target="resetFilters">Reset Filter</span>
-                <span wire:loading wire:target="resetFilters">Loading</span>
+                <svg wire:loading.class="hidden" wire:target="{{ $resetMethod }}" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                <svg wire:loading wire:target="{{ $resetMethod }}" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                <span wire:loading.class="hidden" wire:target="{{ $resetMethod }}">Reset Filter</span>
+                <span wire:loading wire:target="{{ $resetMethod }}">Loading</span>
             </button>
         </div>
     </div>

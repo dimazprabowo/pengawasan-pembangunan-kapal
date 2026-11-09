@@ -10,6 +10,8 @@ return new class extends Migration
     {
         Schema::create('data_kapal', function (Blueprint $table) {
             $table->id();
+            $table->string('kode', 6)->unique()
+                ->comment('Kode unik 6 karakter, digenerate otomatis');
             $table->foreignId('company_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('galangan_id')->nullable()->constrained('galangan')->nullOnDelete();
             $table->string('nama', 255);
@@ -25,6 +27,7 @@ return new class extends Migration
             $table->string('template_path_harian')->nullable();
             $table->string('template_path_mingguan')->nullable();
             $table->string('template_path_bulanan')->nullable();
+            $table->string('template_path_nc')->nullable();
             $table->enum('status', ['active', 'inactive'])->default('active');
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();

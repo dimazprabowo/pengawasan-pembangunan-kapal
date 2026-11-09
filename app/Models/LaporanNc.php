@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -29,6 +30,9 @@ class LaporanNc extends Model
         'status',
         'closed_at',
         'closed_by',
+        'reopened_at',
+        'reopened_by',
+        'reopen_note',
         'created_by',
         'updated_by',
     ];
@@ -36,6 +40,7 @@ class LaporanNc extends Model
     protected $casts = [
         'status' => NcStatus::class,
         'closed_at' => 'datetime',
+        'reopened_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -44,7 +49,7 @@ class LaporanNc extends Model
     {
         return LogOptions::defaults()
             ->useLogName('laporan_nc')
-            ->logOnly(['kendala', 'tindakan', 'pic', 'kategori', 'status', 'closed_at', 'closed_by'])
+            ->logOnly(['kendala', 'tindakan', 'pic', 'kategori', 'status', 'closed_at', 'closed_by', 'reopened_at', 'reopened_by', 'reopen_note'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }
@@ -79,21 +84,26 @@ class LaporanNc extends Model
         return $this->belongsTo(User::class, 'closed_by');
     }
 
-    public function files(): BelongsToMany
+    public function reopenedBy(): BelongsTo
     {
-        return $this->belongsToMany(LaporanNcFile::class, 'laporan_nc_file_link', 'laporan_nc_id', 'laporan_nc_file_id')
-            ->withPivot('kind')
+        return $this->belongsTo(User::class, 'reopened_by');
+    }
+
+    /**
+     * Foto bukti temuan (1 foto per NC).
+     */
+    public function foto(): HasOne
+    {
+        return $this->hasOne(LaporanNcFoto::class, 'laporan_nc_id');
+    }
+
+    /**
+     * Form NC (temuan/penutupan) yang memuat NC ini.
+     */
+    public function forms(): BelongsToMany
+    {
+        return $this->belongsToMany(LaporanNcForm::class, 'laporan_nc_form_item', 'laporan_nc_id', 'laporan_nc_form_id')
             ->withTimestamps();
-    }
-
-    public function beforeFiles(): BelongsToMany
-    {
-        return $this->files()->wherePivot('kind', 'before');
-    }
-
-    public function afterFiles(): BelongsToMany
-    {
-        return $this->files()->wherePivot('kind', 'after');
     }
 
     public function isOpen(): bool
@@ -104,5 +114,14 @@ class LaporanNc extends Model
     public function isClosed(): bool
     {
         return $this->status === NcStatus::Closed;
+    }
+
+    /**
+     * NC sudah masuk draft Form Penutupan yang belum ditandatangani —
+     * tidak bisa dipindah ke draft penutupan lain sebelum draft itu dihapus.
+     */
+    public function isInDraftPenutupan(): bool
+    {
+        return $this->forms->contains(fn (LaporanNcForm $f) => $f->isPenutupan() && $f->isDraft());
     }
 }

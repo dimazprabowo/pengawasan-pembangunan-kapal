@@ -9,6 +9,7 @@ use App\Imports\KurvaSTemplateImport;
 use App\Models\DataKapal;
 use App\Models\KurvaSRencana;
 use App\Models\KurvaSWorkGroup;
+use App\Traits\SortsQuery;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -17,7 +18,7 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class DataKapalService
 {
-    use \App\Traits\SortsQuery;
+    use SortsQuery;
 
     public function getFiltered(
         string $search = '',
@@ -33,6 +34,7 @@ class DataKapalService
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($q) use ($search) {
                     $q->where('nama', 'like', "%{$search}%")
+                        ->orWhere('kode', 'like', "%{$search}%")
                         ->orWhere('deskripsi', 'like', "%{$search}%")
                         ->orWhereHas('company', function ($q) use ($search) {
                             $q->where('name', 'like', "%{$search}%")
@@ -112,7 +114,7 @@ class DataKapalService
 
     public function uploadTemplate(DataKapal $dataKapal, TemporaryUploadedFile $file, string $tipe = 'harian'): bool
     {
-        $column = 'template_path_'.$tipe;
+        $column = $this->templateColumn($tipe);
 
         // Delete old template if exists
         if ($dataKapal->$column && Storage::disk('local')->exists($dataKapal->$column)) {
@@ -129,12 +131,25 @@ class DataKapalService
 
     public function deleteTemplate(DataKapal $dataKapal, string $tipe): bool
     {
-        $column = 'template_path_'.$tipe;
+        $column = $this->templateColumn($tipe);
         if ($dataKapal->$column && Storage::disk('local')->exists($dataKapal->$column)) {
             Storage::disk('local')->delete($dataKapal->$column);
         }
 
         return $dataKapal->update([$column => null]);
+    }
+
+    /**
+     * Kolom template_path_{tipe} — tipe wajib ada di DataKapal::TEMPLATE_TIPES
+     * (nama kolom dibangun dari input, jangan biarkan bebas).
+     */
+    private function templateColumn(string $tipe): string
+    {
+        if (! array_key_exists($tipe, DataKapal::TEMPLATE_TIPES)) {
+            throw new \InvalidArgumentException("Jenis template tidak dikenal: {$tipe}");
+        }
+
+        return 'template_path_'.$tipe;
     }
 
     public function downloadTemplate(DataKapal $dataKapal, string $tipe): ?string
@@ -148,6 +163,7 @@ class DataKapalService
 
     public function downloadDefaultTemplate(string $tipe = 'harian'): ?string
     {
+        $this->templateColumn($tipe);
         $templatePath = storage_path('app/templates/laporan-'.$tipe.'/template-laporan-'.$tipe.'.docx');
 
         if (! file_exists($templatePath)) {

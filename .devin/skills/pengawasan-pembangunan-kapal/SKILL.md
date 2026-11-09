@@ -395,7 +395,8 @@ terlihat di UI (di-gate permission spesifik) akan gagal saat diklik, atau sebali
 # Error Handling (pola seragam)
 Bungkus aksi Service call dengan try/catch:
 - catch AuthorizationException -> notifyError("Anda tidak memiliki izin...")
-- catch ValidationException -> notifyValidationError($e) lalu rethrow
+- catch ValidationException -> notifyValidationError($e) lalu rethrow — khusus FIELD VALIDATION ($this->validate / input form)
+- Business-guard exception dari Service (state expected, bukan kegagalan: "tidak ada data", "sudah tergenerate", "tidak eligible", "sudah bertanda tangan") -> notifyWarning(...), BUKAN notifyError — title toast "Peringatan", bukan "Gagal"
 - catch \Exception -> log error + notifyError("Terjadi kesalahan sistem. Silakan coba lagi.")
 
 JANGAN bocorkan pesan exception mentah ke user.

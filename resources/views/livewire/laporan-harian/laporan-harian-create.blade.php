@@ -35,6 +35,7 @@
                     let d = JSON.parse(raw);
                     if (Array.isArray(d.items) && d.items.length) { $wire.set('items', d.items); dirty = true; }
                     if (d.lampiran) { $wire.set('lampiran', d.lampiran); dirty = true; }
+                    if (d.ncFoto) { $wire.set('ncFoto', d.ncFoto); dirty = true; }
                 } catch (e) {}
             }
             let t;
@@ -50,7 +51,12 @@
                             Object.keys(row || {}).forEach(function (k) { out[k] = { file: null, cropData: null, is_cropped: false }; });
                             return out;
                         });
-                        localStorage.setItem(draftKey, JSON.stringify({ ts: Date.now(), items: $wire.get('items'), lampiran: lampiranClean }));
+                        let ncFotoClean = ($wire.get('ncFoto') || []).map(function (row) {
+                            let out = {};
+                            Object.keys(row || {}).forEach(function (k) { out[k] = { file: null, cropData: null, is_cropped: false }; });
+                            return out;
+                        });
+                        localStorage.setItem(draftKey, JSON.stringify({ ts: Date.now(), items: $wire.get('items'), lampiran: lampiranClean, ncFoto: ncFotoClean }));
                         draftSavedAt = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
                         draftState = 'saved';
                     } catch (e) { draftState = 'idle'; }
@@ -58,6 +64,7 @@
             };
             $wire.$watch('items', save);
             $wire.$watch('lampiran', save);
+            $wire.$watch('ncFoto', save);
             $wire.$watch('autoSave', function (v) { if (! v) { localStorage.removeItem(draftKey); draftState = 'idle'; } });
         })();
     ">
@@ -303,6 +310,8 @@
                                         addPrefix="addNc({{ $index }}, "
                                         wireKeyPrefix="nc-{{ $index }}"
                                         persistKey="lh-nc-kat:create-{{ $index }}"
+                                        fotoModel="ncFoto.{{ $index }}"
+                                        :fotos="$ncFoto[$index] ?? []"
                                     />
                                 </div>
 
@@ -412,7 +421,7 @@
         :show="$showCropperModal"
         :imageUrl="$croppingImageUrl"
         :cropData="$cropData"
-        :previewTarget="($croppingItemIndex !== null && $croppingRowKey) ? 'lampiran.'.$croppingItemIndex.'.'.$croppingRowKey.'.preview' : null"
+        :previewTarget="($croppingItemIndex !== null && $croppingRowKey) ? ($croppingContext === 'nc' ? 'ncFoto.'.$croppingItemIndex.'.'.$croppingRowKey.'.preview' : 'lampiran.'.$croppingItemIndex.'.'.$croppingRowKey.'.preview') : null"
     />
 
     {{-- Konfirmasi buang perubahan saat Batal --}}

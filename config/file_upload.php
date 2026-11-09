@@ -42,9 +42,10 @@ return [
             // Uses default configuration
         ],
 
-        'laporan_nc' => [
+        // Scan Form NC bertanda tangan (temuan / penutupan)
+        'laporan_nc_form' => [
             'max_size' => 20480, // 20 MB
-            'mimes' => ['pdf'],
+            'mimes' => ['pdf', 'jpg', 'jpeg', 'png'],
         ],
 
         'lampiran' => [

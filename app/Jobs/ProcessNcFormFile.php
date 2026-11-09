@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Models\LaporanNcFile;
+use App\Models\LaporanNcForm;
 use App\Services\QueueStatusService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -11,7 +11,11 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
 
-class ProcessNcFile implements ShouldQueue
+/**
+ * Pindahkan scan Form NC bertanda tangan (PDF/gambar) dari temp ke folder final.
+ * File disimpan apa adanya (dokumen resmi — tidak dikompres/di-crop).
+ */
+class ProcessNcFormFile implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -20,18 +24,19 @@ class ProcessNcFile implements ShouldQueue
     public int $backoff = 10;
 
     public function __construct(
-        public LaporanNcFile $ncFile,
+        public LaporanNcForm $form,
         public string $tempPath,
+        public ?string $oldPath = null,
     ) {}
 
     public function handle(QueueStatusService $queueStatusService): void
     {
         $queueStatusService->markWorkerActive();
 
-        $this->ncFile->update(['file_status' => 'processing']);
+        $this->form->update(['file_status' => 'processing']);
 
         if (! Storage::disk('local')->exists($this->tempPath)) {
-            $this->ncFile->update([
+            $this->form->update([
                 'file_status' => 'failed',
                 'file_error' => 'File temporary tidak ditemukan',
             ]);
@@ -40,27 +45,25 @@ class ProcessNcFile implements ShouldQueue
         }
 
         try {
-            $fileContent = Storage::disk('local')->get($this->tempPath);
-            $originalName = $this->ncFile->file_name;
-            $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+            $extension = strtolower(pathinfo((string) $this->form->file_name, PATHINFO_EXTENSION));
+            $destinationPath = 'laporan-nc/form/'.time().'_'.uniqid().'.'.$extension;
 
-            $fileName = time().'_'.uniqid().'.'.$extension;
-            $destinationPath = 'laporan-nc/'.$fileName;
+            Storage::disk('local')->move($this->tempPath, $destinationPath);
 
-            Storage::disk('local')->put($destinationPath, $fileContent);
-
-            $this->ncFile->update([
+            $this->form->update([
                 'file_path' => $destinationPath,
-                'file_name' => $originalName,
-                'file_size' => strlen($fileContent),
+                'file_size' => Storage::disk('local')->size($destinationPath),
                 'file_status' => 'completed',
                 'file_processed_at' => now(),
                 'file_error' => null,
             ]);
 
-            Storage::disk('local')->delete($this->tempPath);
+            // Upload ulang: file lama dihapus setelah file baru berhasil dipindah
+            if ($this->oldPath && $this->oldPath !== $destinationPath && Storage::disk('local')->exists($this->oldPath)) {
+                Storage::disk('local')->delete($this->oldPath);
+            }
         } catch (\Exception $e) {
-            $this->ncFile->update([
+            $this->form->update([
                 'file_status' => 'failed',
                 'file_error' => $e->getMessage(),
             ]);
@@ -70,7 +73,7 @@ class ProcessNcFile implements ShouldQueue
 
     public function failed(\Throwable $exception): void
     {
-        $this->ncFile->update([
+        $this->form->update([
             'file_status' => 'failed',
             'file_error' => $exception->getMessage(),
         ]);

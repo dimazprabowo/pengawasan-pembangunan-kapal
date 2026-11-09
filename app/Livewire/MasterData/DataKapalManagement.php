@@ -179,6 +179,7 @@ class DataKapalManagement extends Component
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
                     $q->where('nama', 'like', "%{$this->search}%")
+                        ->orWhere('kode', 'like', "%{$this->search}%")
                         ->orWhere('deskripsi', 'like', "%{$this->search}%")
                         ->orWhereHas('company', function ($q) {
                             $q->where('name', 'like', "%{$this->search}%")
@@ -219,6 +220,7 @@ class DataKapalManagement extends Component
     {
         $this->authorize('downloadTemplate', DataKapal::class);
 
+        abort_unless(array_key_exists($tipe, DataKapal::TEMPLATE_TIPES), 404);
         $templatePath = $service->downloadDefaultTemplate($tipe);
 
         if (! $templatePath) {
@@ -234,6 +236,7 @@ class DataKapalManagement extends Component
     {
         $dataKapal = DataKapal::findOrFail($id);
         $this->authorize('uploadTemplate', $dataKapal);
+        abort_unless(array_key_exists($tipe, DataKapal::TEMPLATE_TIPES), 404);
 
         $this->uploadingDataKapalId = $dataKapal->id;
         $this->uploadingTemplateTipe = $tipe;

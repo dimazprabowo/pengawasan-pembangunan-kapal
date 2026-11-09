@@ -21,7 +21,7 @@ class LaporanNcPolicy
     }
 
     /**
-     * Ubah status open/closed + kelola file bukti di List NC.
+     * Buka kembali NC closed di List NC (close lewat Form Penutupan — LaporanNcFormPolicy).
      */
     public function update(User $user, LaporanNc $nc): bool
     {

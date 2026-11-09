@@ -3,11 +3,13 @@
 namespace App\Livewire\LaporanHarian;
 
 use App\Livewire\Traits\HasDataKapalFilter;
+use App\Livewire\Traits\HasNcFotoPreview;
 use App\Livewire\Traits\HasNotification;
 use App\Models\Cuaca;
 use App\Models\DataKapal;
 use App\Models\Kelembaban;
 use App\Models\LaporanHarian;
+use App\Models\LaporanNcFoto;
 use App\Services\LaporanHarianService;
 use App\Services\LaporanNcService;
 use App\Services\QueueStatusService;
@@ -26,7 +28,7 @@ use Livewire\WithFileUploads;
 #[Layout('layouts.app', ['title' => 'Edit Laporan Harian'])]
 class LaporanHarianEdit extends Component
 {
-    use AuthorizesRequests, HasDataKapalFilter, HasNotification, WithFileUploads;
+    use AuthorizesRequests, HasDataKapalFilter, HasNcFotoPreview, HasNotification, WithFileUploads;
 
     public LaporanHarian $laporan;
 
@@ -65,8 +67,16 @@ class LaporanHarianEdit extends Component
 
     public ?int $deletingNcIndex = null;
 
+    // Delete foto bukti NC tersimpan confirmation
+    public bool $showDeleteNcFotoModal = false;
+
+    public ?int $deletingNcFotoId = null;
+
     // Foto baru per uraian aktivitas - struktur: [row_key => ['file' => null, 'cropData' => null, 'is_cropped' => false]]
     public array $foto = [];
+
+    // Foto bukti (before) baru per NC - struktur: [row_key => ['file' => null, 'cropData' => null, 'is_cropped' => false]]
+    public array $ncFoto = [];
 
     // Preferensi autosave draft per user (persisten via cache)
     public bool $autoSave = true;
@@ -98,6 +108,9 @@ class LaporanHarianEdit extends Component
 
     // Image cropper modal
     public bool $showCropperModal = false;
+
+    // Konteks crop: 'lampiran' (foto aktivitas) / 'nc' (foto bukti NC)
+    public ?string $croppingContext = null;
 
     public ?string $croppingRowKey = null;
 
@@ -158,6 +171,9 @@ class LaporanHarianEdit extends Component
         }
 
         $this->nc = app(LaporanNcService::class)->ncRowsFrom($laporanHarian);
+        foreach ($this->nc as $row) {
+            $this->ncFoto[$row['row_key']] = $this->emptyFoto();
+        }
     }
 
     private function emptyFoto(): array
@@ -237,6 +253,26 @@ class LaporanHarianEdit extends Component
         $rules['nc.*.kendala'] = 'nullable|string|max:2000';
         $rules['nc.*.tindakan'] = 'nullable|string|max:2000';
         $rules['nc.*.pic'] = 'nullable|string|max:255';
+        $rules['ncFoto.*.file'] = [
+            ...file_upload_validation_rule('foto_kapal'),
+            // Foto bukti wajib punya kendala NC (keterangan foto = kendala)
+            function ($attribute, $value, $fail) {
+                $row = collect($this->nc)->firstWhere('row_key', explode('.', $attribute)[1]);
+                if ($value && trim((string) ($row['kendala'] ?? '')) === '') {
+                    $fail('Kendala NC untuk foto bukti ini wajib diisi terlebih dahulu di tab NC.');
+                }
+            },
+        ];
+        $rules['ncFoto.*.preview'] = 'nullable|image|max:5120';
+        // NC yang sudah memiliki foto bukti tersimpan tidak boleh dikosongkan kendalanya
+        $this->laporan->loadMissing('ncs.foto');
+        $ncById = $this->laporan->ncs->keyBy('id');
+        foreach ($this->nc as $i => $row) {
+            $ncRow = ! empty($row['id']) ? $ncById->get($row['id']) : null;
+            if ($ncRow?->foto) {
+                $rules["nc.{$i}.kendala"] = 'required|string|max:2000';
+            }
+        }
         // Aktivitas yang sudah memiliki foto tersimpan tidak boleh dikosongkan uraiannya
         $lampiranByAktivitas = $this->lampiranByAktivitas();
         foreach ($this->aktivitas as $i => $row) {
@@ -254,6 +290,7 @@ class LaporanHarianEdit extends Component
         return [
             'tanggal_laporan.before_or_equal' => 'Tanggal laporan tidak boleh melebihi hari ini.',
             'aktivitas.*.aktivitas.required' => 'Uraian aktivitas wajib diisi karena aktivitas ini memiliki foto lampiran.',
+            'nc.*.kendala.required' => 'Kendala NC wajib diisi karena NC ini memiliki foto bukti.',
         ];
     }
 
@@ -264,7 +301,10 @@ class LaporanHarianEdit extends Component
             'tanggal_laporan' => 'tanggal laporan',
             'foto.*.file' => 'foto lampiran',
             'foto.*.preview' => 'pratinjau foto',
+            'ncFoto.*.file' => 'foto bukti NC',
+            'ncFoto.*.preview' => 'pratinjau foto',
             'aktivitas.*.aktivitas' => 'uraian aktivitas',
+            'nc.*.kendala' => 'kendala NC',
         ];
 
         $attributes['suhu'] = 'suhu';
@@ -340,6 +380,7 @@ class LaporanHarianEdit extends Component
             return;
         }
 
+        $this->croppingContext = 'lampiran';
         $this->croppingRowKey = $rowKey;
         $this->croppingImageUrl = $file->temporaryUrl();
         // Load existing crop data if available to persist last crop settings
@@ -350,6 +391,7 @@ class LaporanHarianEdit extends Component
     public function closeCropper(): void
     {
         $this->showCropperModal = false;
+        $this->croppingContext = null;
         $this->croppingRowKey = null;
         $this->croppingImageUrl = null;
         // Don't reset cropData here to preserve it for re-opening
@@ -359,8 +401,13 @@ class LaporanHarianEdit extends Component
     {
         if ($this->croppingRowKey !== null && ! empty($this->cropData)) {
             // Save crop data to the foto item to persist settings
-            $this->foto[$this->croppingRowKey]['cropData'] = $this->cropData;
-            $this->foto[$this->croppingRowKey]['is_cropped'] = true;
+            if ($this->croppingContext === 'nc') {
+                $this->ncFoto[$this->croppingRowKey]['cropData'] = $this->cropData;
+                $this->ncFoto[$this->croppingRowKey]['is_cropped'] = true;
+            } else {
+                $this->foto[$this->croppingRowKey]['cropData'] = $this->cropData;
+                $this->foto[$this->croppingRowKey]['is_cropped'] = true;
+            }
             $this->notifySuccess('Crop berhasil disimpan.');
         }
         $this->closeCropper();
@@ -371,6 +418,7 @@ class LaporanHarianEdit extends Component
     {
         $row = app(LaporanNcService::class)->newNcRow($workGroupId);
         $this->nc[] = $row;
+        $this->ncFoto[$row['row_key']] = $this->emptyFoto();
     }
 
     public function confirmRemoveNc(int $ncIndex): void
@@ -392,14 +440,87 @@ class LaporanHarianEdit extends Component
     public function removeNc(int $ncIndex): void
     {
         if (isset($this->nc[$ncIndex])) {
+            unset($this->ncFoto[$this->nc[$ncIndex]['row_key'] ?? '']);
             unset($this->nc[$ncIndex]);
             $this->nc = array_values($this->nc);
         }
     }
 
+    /**
+     * File foto baru menggantikan yang lama → pratinjau crop & data crop lama tidak berlaku lagi.
+     */
+    public function updatedNcFoto($value, ?string $key = null): void
+    {
+        if (! $key || ! str_ends_with($key, '.file')) {
+            return;
+        }
+
+        $rowKey = explode('.', $key)[0];
+        if (isset($this->ncFoto[$rowKey])) {
+            $this->ncFoto[$rowKey]['preview'] = null;
+            $this->ncFoto[$rowKey]['cropData'] = null;
+            $this->ncFoto[$rowKey]['is_cropped'] = false;
+        }
+    }
+
+    public function removeNcFoto(string $rowKey): void
+    {
+        $this->ncFoto[$rowKey] = $this->emptyFoto();
+    }
+
+    public function openNcCropper(string $rowKey): void
+    {
+        $file = $this->ncFoto[$rowKey]['file'] ?? null;
+        if (! $file || ! is_object($file)) {
+            $this->notifyWarning('File tidak valid, silakan upload ulang.');
+
+            return;
+        }
+
+        $extension = strtolower($file->getClientOriginalExtension());
+        if (! in_array($extension, ['jpg', 'jpeg', 'png', 'webp'])) {
+            $this->notifyWarning('Crop hanya tersedia untuk file gambar (JPG, PNG, WEBP).');
+
+            return;
+        }
+
+        $this->croppingContext = 'nc';
+        $this->croppingRowKey = $rowKey;
+        $this->croppingImageUrl = $file->temporaryUrl();
+        $this->cropData = $this->ncFoto[$rowKey]['cropData'] ?? [];
+        $this->showCropperModal = true;
+    }
+
+    public function confirmDeleteNcFoto(int $fotoId): void
+    {
+        $this->deletingNcFotoId = $fotoId;
+        $this->showDeleteNcFotoModal = true;
+    }
+
+    /**
+     * Hapus foto bukti NC tersimpan (file + record).
+     */
+    public function deleteNcFoto(LaporanNcService $service): void
+    {
+        $this->authorize('update', $this->laporan);
+
+        try {
+            $foto = LaporanNcFoto::whereHas('nc', fn ($q) => $q->where('laporan_harian_id', $this->laporan->id))
+                ->findOrFail($this->deletingNcFotoId);
+            $service->deleteFoto($foto);
+            $this->laporan->load('ncs.foto');
+            $this->showDeleteNcFotoModal = false;
+            $this->deletingNcFotoId = null;
+            $this->notifySuccess('Foto bukti NC berhasil dihapus.');
+        } catch (\Exception $e) {
+            Log::error('LaporanHarianEdit: gagal menghapus foto NC', ['error' => $e->getMessage()]);
+            $this->notifyError('Terjadi kesalahan sistem. Silakan coba lagi.');
+        }
+    }
+
     public function refreshLampiranStatus(): void
     {
-        $this->laporan->load('lampiran');
+        $this->laporan->load(['lampiran', 'ncs.foto']);
         $this->dispatch('lh-reload-thumbs');
     }
 
@@ -509,8 +630,8 @@ class LaporanHarianEdit extends Component
             // Uraian aktivitas per kategori + foto lampirannya (update/insert/hapus by id)
             $fotoCount = $service->syncAktivitas($this->laporan, $this->aktivitas, $this->foto);
 
-            // NC (bukti before/after diunggah terpisah via List NC)
-            app(LaporanNcService::class)->syncNc($this->laporan, $this->nc);
+            // NC + foto bukti (before); dokumen after tetap diunggah via List NC
+            $fotoCount += app(LaporanNcService::class)->syncNc($this->laporan, $this->nc, $this->ncFoto);
 
             $message = 'Laporan Harian berhasil diupdate!';
             if ($fotoCount > 0) {
@@ -735,7 +856,7 @@ class LaporanHarianEdit extends Component
 
     public function render(QueueStatusService $queueStatusService, LaporanHarianService $service)
     {
-        $this->laporan->loadMissing(['user', 'updatedBy']);
+        $this->laporan->loadMissing(['user', 'updatedBy', 'ncs.foto']);
         $cuacaList = Cuaca::active()->orderBy('nama')->get();
         $kelembabanList = Kelembaban::active()->orderBy('nama')->get();
 

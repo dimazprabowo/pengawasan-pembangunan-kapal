@@ -220,40 +220,15 @@
                             <div class="w-full h-full"
                                 x-data="{ uploading: false, progress: 0,
                                     async compressAndUpload(input) {
-                                        const file = input.files && input.files[0];
+                                        const file = await window.lhCompressUpload(input);
                                         if (!file) return;
-                                        input.value = '';
                                         this.uploading = true;
                                         this.progress = 0;
-                                        const send = (f) => {
-                                            $wire.upload('{{ $fotoModel }}.{{ $rowKey }}.file', f,
-                                                () => { this.uploading = false; this.progress = 0 },
-                                                () => { this.uploading = false; this.progress = 0 },
-                                                (e) => { this.progress = e.detail.progress },
-                                            );
-                                        };
-                                        if (!file.type.startsWith('image/')) {
-                                            send(file);
-                                            return;
-                                        }
-                                        try {
-                                            const bitmap = await createImageBitmap(file);
-                                            const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
-                                            const canvas = document.createElement('canvas');
-                                            canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-                                            canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-                                            canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-                                            canvas.toBlob((blob) => {
-                                                if (blob && blob.type === 'image/webp') {
-                                                    const name = file.name.replace(/\.[^.]+$/, '') + '.webp';
-                                                    send(new File([blob], name, { type: 'image/webp' }));
-                                                } else {
-                                                    send(file);
-                                                }
-                                            }, 'image/webp', 0.85);
-                                        } catch (e) {
-                                            send(file);
-                                        }
+                                        $wire.upload('{{ $fotoModel }}.{{ $rowKey }}.file', file,
+                                            () => { this.uploading = false; this.progress = 0 },
+                                            () => { this.uploading = false; this.progress = 0 },
+                                            (e) => { this.progress = e.detail.progress },
+                                        );
                                     }
                                 }">
                                 <label class="flex flex-col items-center justify-center w-full h-full border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 transition-colors bg-white dark:bg-gray-800">
