@@ -189,7 +189,9 @@ class LaporanTanggalUnikTest extends TestCase
             ->set('periode_mulai', $harian->tanggal_laporan->format('Y-m-d'))
             ->set('periode_selesai', $harian->tanggal_laporan->format('Y-m-d'))
             ->set('laporan_harian_ids', [$harian->id])
+            ->set('ringkasan', 'Ringkasan progres mingguan pengujian.')
             ->call('save')
+            ->assertHasNoErrors()
             ->assertSet('showReassignModal', true);
 
         // Belum ada laporan mingguan baru yang dibuat
@@ -225,7 +227,9 @@ class LaporanTanggalUnikTest extends TestCase
             ->set('periode_mulai', $harian->tanggal_laporan->format('Y-m-d'))
             ->set('periode_selesai', $harian->tanggal_laporan->format('Y-m-d'))
             ->set('laporan_harian_ids', [$harian->id])
+            ->set('ringkasan', 'Ringkasan progres mingguan pengujian.')
             ->call('save')
+            ->assertHasNoErrors()
             ->assertSet('showReassignModal', false);
 
         // Scope ke record yang baru dibuat (seeder bisa punya minggu_ke sama)

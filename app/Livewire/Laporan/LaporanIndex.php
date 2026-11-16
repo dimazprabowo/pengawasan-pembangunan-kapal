@@ -4,12 +4,12 @@ namespace App\Livewire\Laporan;
 
 use App\Exports\RekapDataKapalExport;
 use App\Livewire\Traits\HasDataKapalFilter;
-use App\Models\KurvaSWorkGroup;
 use App\Models\LaporanHarian;
 use App\Services\KurvaSService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -127,33 +127,11 @@ class LaporanIndex extends Component
     }
 
     /**
-     * Enrich a data kapal collection with `progress_aktual` (Kurva-S realization).
-     * Progress only exists once a mingguan report has been made.
+     * Enrich data kapal dengan progress Kurva-S (KurvaSService::attachProgress).
      */
-    private function withProgress(Collection|\Illuminate\Pagination\LengthAwarePaginator $items): Collection|\Illuminate\Pagination\LengthAwarePaginator
+    private function withProgress(Collection|LengthAwarePaginator $items): Collection|LengthAwarePaginator
     {
-        $workGroupBobots = KurvaSWorkGroup::whereIn('data_kapal_id', $items->pluck('id'))
-            ->get(['id', 'data_kapal_id', 'bobot'])
-            ->groupBy('data_kapal_id');
-
-        $kurvaSService = app(KurvaSService::class);
-
-        foreach ($items as $dataKapal) {
-            $dataKapal->progress_aktual = null;
-
-            if ($dataKapal->laporan_mingguan_count > 0) {
-                $workGroups = ($workGroupBobots[$dataKapal->id] ?? collect())
-                    ->map(fn ($wg) => ['work_group_id' => $wg->id, 'bobot' => $wg->bobot])
-                    ->toArray();
-
-                $dataKapal->progress_aktual = $kurvaSService->calculateTotalsFromHistory(
-                    $kurvaSService->getProgressHistory($dataKapal),
-                    $workGroups
-                )['total_aktual'];
-            }
-        }
-
-        return $items;
+        return app(KurvaSService::class)->attachProgress($items);
     }
 
     public function render()

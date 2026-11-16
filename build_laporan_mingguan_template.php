@@ -160,6 +160,8 @@ $section->addPageBreak();
 $section->addTitle('E. LAMPIRAN', 1);
 $section->addTitle('1. Dokumen Eksternal', 2);
 $p('${tabel_external}');
+// Diganti service dengan isi dokumen eksternal (gambar + halaman PDF sebagai gambar)
+$p('${lampiran_external}');
 $section->addTitle('2. Laporan Harian', 2);
 // Diganti service dengan altChunk docx laporan harian (tampilan identik template harian)
 $p('${lampiran_harian}', ['italic' => true, 'color' => '7F7F7F']);

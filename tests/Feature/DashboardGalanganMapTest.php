@@ -1,0 +1,238 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Enums\DataKapalStatus;
+use App\Enums\GalanganStatus;
+use App\Enums\NcStatus;
+use App\Enums\ProgressStatus;
+use App\Livewire\MasterData\GalanganManagement;
+use App\Livewire\Pages\Dashboard;
+use App\Models\Company;
+use App\Models\DataKapal;
+use App\Models\Galangan;
+use App\Models\LaporanHarian;
+use App\Models\LaporanNc;
+use App\Models\User;
+use App\Services\DashboardService;
+use Database\Seeders\PermissionSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
+use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
+
+class DashboardGalanganMapTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private Company $companyA;
+
+    private Company $companyB;
+
+    private Galangan $galangan;
+
+    private DataKapal $kapalA;
+
+    private DataKapal $kapalB;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(PermissionSeeder::class);
+
+        $this->companyA = Company::create(['code' => 'CMP-A', 'name' => 'PT Alfa', 'status' => 'active']);
+        $this->companyB = Company::create(['code' => 'CMP-B', 'name' => 'PT Beta', 'status' => 'active']);
+        $this->galangan = Galangan::factory()->active()->create([
+            'kode' => 'GLG-TEST1', 'nama' => 'Galangan Uji Surabaya', 'latitude' => -7.2, 'longitude' => 112.73,
+        ]);
+        $this->kapalA = DataKapal::create([
+            'company_id' => $this->companyA->id, 'galangan_id' => $this->galangan->id,
+            'nama' => 'Kapal Alfa', 'status' => DataKapalStatus::Active,
+            'tanggal_mulai_kontrak' => today()->subDays(80), 'durasi_kontrak_hari' => 100,
+        ]);
+        $this->kapalB = DataKapal::create([
+            'company_id' => $this->companyB->id, 'galangan_id' => $this->galangan->id,
+            'nama' => 'Kapal Beta', 'status' => DataKapalStatus::Active,
+        ]);
+    }
+
+    private function user(array $permissions, ?Company $company = null): User
+    {
+        $user = User::factory()->create(['company_id' => ($company ?? $this->companyA)->id]);
+        $user->givePermissionTo($permissions);
+
+        return $user;
+    }
+
+    #[Test]
+    public function user_dashboard_view_melihat_peta_dan_kpi(): void
+    {
+        $harian = LaporanHarian::create(['user_id' => $this->user([])->id, 'data_kapal_id' => $this->kapalA->id, 'tanggal_laporan' => today()]);
+        LaporanNc::create(['laporan_harian_id' => $harian->id, 'data_kapal_id' => $this->kapalA->id, 'nomor' => 'NC-001', 'kendala' => 'Las retak', 'status' => NcStatus::Open]);
+
+        $this->actingAs($this->user(['dashboard_view', 'laporan_view_all_data_kapal']));
+
+        Livewire::test(Dashboard::class)
+            ->assertSee('Peta Sebaran Galangan')
+            ->assertSee('Galangan Uji Surabaya')
+            ->assertViewHas('summary', fn (array $s) => $s['kapal'] === 2 && $s['nc_open'] === 1 && $s['laporan_hari_ini'] === 1 && $s['kontrak_segera_berakhir'] === 1)
+            ->assertViewHas('markers', fn (array $m) => collect($m)->firstWhere('kode', 'GLG-TEST1') === [
+                'kode' => 'GLG-TEST1', 'nama' => 'Galangan Uji Surabaya',
+                'kota' => $this->galangan->kota, 'provinsi' => $this->galangan->provinsi,
+                'lat' => -7.2, 'lng' => 112.73, 'kapal' => 2, 'nc' => 1,
+            ]);
+    }
+
+    #[Test]
+    public function user_tanpa_dashboard_view_hanya_welcome_dan_tidak_bisa_memilih_galangan(): void
+    {
+        $this->actingAs($this->user([]));
+
+        Livewire::test(Dashboard::class)
+            ->assertDontSee('Peta Sebaran Galangan')
+            ->assertViewMissing('markers')
+            ->call('selectGalangan', 'GLG-TEST1')
+            ->assertForbidden();
+    }
+
+    #[Test]
+    public function detail_galangan_hanya_menampilkan_kapal_sesuai_scope_perusahaan(): void
+    {
+        $this->actingAs($this->user(['dashboard_view']));
+
+        Livewire::test(Dashboard::class)
+            ->call('selectGalangan', 'GLG-TEST1')
+            ->assertSet('galanganKode', 'GLG-TEST1')
+            ->assertSee('Kapal Alfa')
+            ->assertDontSee('Kapal Beta')
+            ->assertViewHas('detail', fn (array $d) => $d['kapal']->count() === 1
+                && $d['kapal']->first()->progress_status === ProgressStatus::BelumAdaData)
+            ->assertViewHas('markers', fn (array $m) => collect($m)->firstWhere('kode', 'GLG-TEST1')['kapal'] === 1);
+    }
+
+    #[Test]
+    public function kode_galangan_tidak_valid_di_url_direset(): void
+    {
+        $this->actingAs($this->user(['dashboard_view']));
+
+        Livewire::withQueryParams(['galangan' => 'TIDAK-ADA'])
+            ->test(Dashboard::class)
+            ->assertSet('galanganKode', null)
+            ->assertViewHas('detail', null);
+    }
+
+    #[Test]
+    public function open_laporan_mengarah_ke_index_laporan_kapal(): void
+    {
+        $this->actingAs($this->user(['dashboard_view', 'laporan_view']));
+
+        $redirect = Livewire::test(Dashboard::class)
+            ->call('openLaporan', $this->kapalA->id, 'mingguan')
+            ->effects['redirect'];
+
+        // Route key terenkripsi (IV acak) — cocokkan pola URL lalu dekripsi id kapal.
+        $this->assertMatchesRegularExpression('#/laporan/([^/]+)/mingguan$#', $redirect);
+        preg_match('#/laporan/([^/]+)/mingguan$#', $redirect, $match);
+        $this->assertSame((string) $this->kapalA->id, Crypt::decryptString(urldecode($match[1])));
+    }
+
+    #[Test]
+    public function open_laporan_kapal_perusahaan_lain_ditolak(): void
+    {
+        $this->actingAs($this->user(['dashboard_view', 'laporan_view']));
+
+        Livewire::test(Dashboard::class)
+            ->call('openLaporan', $this->kapalB->id, 'harian')
+            ->assertForbidden();
+    }
+
+    #[Test]
+    public function open_laporan_tipe_di_luar_whitelist_ditolak(): void
+    {
+        $this->actingAs($this->user(['dashboard_view', 'laporan_view']));
+
+        Livewire::test(Dashboard::class)
+            ->call('openLaporan', $this->kapalA->id, 'nc')
+            ->assertNotFound();
+    }
+
+    #[Test]
+    public function galangan_nonaktif_tidak_tampil_di_peta(): void
+    {
+        $this->galangan->update(['status' => GalanganStatus::Inactive]);
+
+        $markers = app(DashboardService::class)->markers(collect([$this->kapalA->id]));
+
+        $this->assertNull(collect($markers)->firstWhere('kode', 'GLG-TEST1'));
+    }
+
+    #[Test]
+    public function simpan_galangan_dengan_koordinat_dibulatkan(): void
+    {
+        $this->actingAs($this->user(['galangan_view', 'galangan_update']));
+
+        Livewire::test(GalanganManagement::class)
+            ->call('edit', $this->galangan->id)
+            ->assertSet('latitude', -7.2)
+            ->set('latitude', '-6.123456789')
+            ->set('longitude', '106.987654321')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->galangan->refresh();
+        $this->assertSame(-6.1234568, $this->galangan->latitude);
+        $this->assertSame(106.9876543, $this->galangan->longitude);
+        $this->assertTrue($this->galangan->hasLokasi());
+    }
+
+    #[Test]
+    public function koordinat_kosong_menghapus_lokasi(): void
+    {
+        $this->actingAs($this->user(['galangan_view', 'galangan_update']));
+
+        Livewire::test(GalanganManagement::class)
+            ->call('edit', $this->galangan->id)
+            ->set('latitude', null)
+            ->set('longitude', null)
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertFalse($this->galangan->refresh()->hasLokasi());
+    }
+
+    public static function koordinatTidakValid(): array
+    {
+        return [
+            'latitude di luar rentang' => ['95', '110', 'latitude'],
+            'longitude di luar rentang' => ['-7', '181', 'longitude'],
+            'latitude tanpa longitude' => ['-7', null, 'longitude'],
+            'longitude tanpa latitude' => [null, '110', 'latitude'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('koordinatTidakValid')]
+    public function koordinat_tidak_valid_ditolak(?string $lat, ?string $lng, string $field): void
+    {
+        $this->actingAs($this->user(['galangan_view', 'galangan_update']));
+
+        Livewire::test(GalanganManagement::class)
+            ->call('edit', $this->galangan->id)
+            ->set('latitude', $lat)
+            ->set('longitude', $lng)
+            ->call('save')
+            ->assertHasErrors([$field]);
+    }
+
+    #[Test]
+    public function progress_status_dari_deviasi(): void
+    {
+        $this->assertSame(ProgressStatus::BelumAdaData, ProgressStatus::fromDeviasi(null));
+        $this->assertSame(ProgressStatus::Terlambat, ProgressStatus::fromDeviasi(-5.0));
+        $this->assertSame(ProgressStatus::Waspada, ProgressStatus::fromDeviasi(-3.0));
+        $this->assertSame(ProgressStatus::SesuaiRencana, ProgressStatus::fromDeviasi(0.5));
+        $this->assertSame(ProgressStatus::LebihCepat, ProgressStatus::fromDeviasi(4.0));
+    }
+}

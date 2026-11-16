@@ -62,6 +62,7 @@ class LaporanBulananService
 
         return LaporanMingguan::where('data_kapal_id', $laporan->data_kapal_id)
             ->whereBetween('minggu_ke', [$bulan['minggu_dari'], $bulan['minggu_sampai']])
+            ->with('laporanExternal')
             ->withCount('laporanHarian')
             ->withSum('laporanProgress as total_progress', 'pct_realisasi')
             ->orderBy('minggu_ke')
@@ -103,6 +104,7 @@ class LaporanBulananService
                 if ($external->file_path) {
                     Storage::disk('local')->delete($external->file_path);
                 }
+                Storage::disk('local')->delete($external->rendered_pages ?? []);
                 $external->delete();
             }
 

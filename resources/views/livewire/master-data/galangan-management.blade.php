@@ -78,6 +78,17 @@
                             <td class="px-6 py-4">
                                 <div class="text-sm text-gray-900 dark:text-white">{{ $galangan->kota ?? '-' }}</div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400">{{ $galangan->provinsi ?? '-' }}</div>
+                                @if($galangan->hasLokasi())
+                                    <div class="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 dark:text-blue-400" title="{{ $galangan->latitude }}, {{ $galangan->longitude }}">
+                                        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
+                                        Titik peta tersedia
+                                    </div>
+                                @else
+                                    <div class="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                                        Lokasi belum diatur
+                                    </div>
+                                @endif
                             </td>
                             <td class="px-6 py-4">
                                 <div class="text-sm text-gray-900 dark:text-white">{{ $galangan->pic_name ?? '-' }}</div>
@@ -166,7 +177,7 @@
     </div>
 
     @if($showModal)
-        <div class="fixed inset-0 z-50 overflow-y-auto" x-data="{ show: @entangle('showModal') }">
+        <div class="fixed inset-0 z-50 overflow-y-auto custom-scrollbar" x-data="{ show: @entangle('showModal') }">
             <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
                 <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75" @click="$wire.closeModal()"></div>
 
@@ -211,6 +222,83 @@
                                     <input wire:model="provinsi" type="text"
                                         class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white">
                                     @error('provinsi') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                </div>
+
+                                {{-- Lokasi peta: klik/drag pin, cari alamat (OSM), atau lokasi perangkat --}}
+                                <div class="md:col-span-2" wire:ignore.self
+                                     x-data="galanganLocationPicker({ lat: $wire.entangle('latitude'), lng: $wire.entangle('longitude') })">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Lokasi di Peta</label>
+                                        <span class="text-xs" :class="hasPoint ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'"
+                                              x-text="hasPoint ? 'Titik lokasi sudah dipilih' : 'Klik peta untuk menaruh pin'"></span>
+                                    </div>
+
+                                    <div class="rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
+                                        <div class="flex flex-col sm:flex-row gap-2 p-2 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-600">
+                                            <div class="relative flex-1" x-ref="searchBox" @click.outside="results = []">
+                                                <div class="flex gap-2">
+                                                    <input type="text" x-model="query" @keydown.enter.prevent="search()"
+                                                        placeholder="Cari alamat / nama tempat, lalu tekan Enter"
+                                                        class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                                                    <button type="button" @click="search()" :disabled="searching"
+                                                        class="inline-flex items-center justify-center w-10 shrink-0 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 transition-colors"
+                                                        title="Cari lokasi" aria-label="Cari lokasi">
+                                                        <svg x-show="!searching" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                                        <svg x-show="searching" x-cloak class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                                                    </button>
+                                                </div>
+                                                <ul x-show="results.length" x-cloak
+                                                    :class="dropUp ? 'bottom-full mb-2' : 'top-full mt-2'"
+                                                    class="absolute z-[1000] left-0 right-0 max-h-60 overflow-y-auto custom-scrollbar bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg divide-y divide-gray-100 dark:divide-gray-700">
+                                                    <template x-for="(r, i) in results" :key="i">
+                                                        <li>
+                                                            <button type="button" @click="pick(r)"
+                                                                class="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex gap-2">
+                                                                <svg class="w-4 h-4 mt-0.5 shrink-0 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
+                                                                <span x-text="r.label"></span>
+                                                            </button>
+                                                        </li>
+                                                    </template>
+                                                </ul>
+                                            </div>
+                                            <div class="flex gap-2">
+                                                <button type="button" @click="locate()" :disabled="locating"
+                                                    class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-60 transition-colors"
+                                                    title="Gunakan lokasi perangkat saat ini">
+                                                    <svg :class="locating && 'animate-pulse'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2v3m0 14v3M2 12h3m14 0h3M12 8a4 4 0 100 8 4 4 0 000-8z"/></svg>
+                                                    <span class="hidden sm:inline">Lokasi Saya</span>
+                                                </button>
+                                                <button type="button" @click="clear()" x-show="hasPoint" x-cloak
+                                                    class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 bg-white dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                                    title="Hapus titik lokasi">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                    <span class="hidden sm:inline">Hapus Titik</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="relative isolate">
+                                            <div wire:ignore x-ref="map" class="h-64 w-full z-0"></div>
+                                            <div class="absolute top-2 right-2 z-[500] flex rounded-lg overflow-hidden shadow border border-gray-200 dark:border-gray-600 text-[11px] font-medium" x-data="{ m: 'peta' }">
+                                                <button type="button" @click="m = 'peta'; setMode('peta')" :class="m === 'peta' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200'" class="px-2.5 py-1">Peta</button>
+                                                <button type="button" @click="m = 'satellite'; setMode('satellite')" :class="m === 'satellite' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200'" class="px-2.5 py-1">Satelit</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p x-show="message" x-cloak x-text="message" class="mt-1 text-xs text-amber-600 dark:text-amber-400"></p>
+
+                                    <div class="grid grid-cols-2 gap-3 mt-3">
+                                        <div>
+                                            <x-input-label for="latitude" value="Latitude" />
+                                            <x-text-input id="latitude" type="number" step="any" x-model="lat" class="mt-1 block w-full" placeholder="Contoh: -7.2050000" />
+                                            @error('latitude') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                        </div>
+                                        <div>
+                                            <x-input-label for="longitude" value="Longitude" />
+                                            <x-text-input id="longitude" type="number" step="any" x-model="lng" class="mt-1 block w-full" placeholder="Contoh: 112.7350000" />
+                                            @error('longitude') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                        </div>
+                                    </div>
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Pencarian alamat memakai OpenStreetMap; field alamat/kota/provinsi yang kosong akan terisi otomatis.</p>
                                 </div>
 
                                 <div>

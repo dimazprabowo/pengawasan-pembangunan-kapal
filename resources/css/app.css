@@ -141,3 +141,77 @@ html.dark::-webkit-scrollbar-thumb {
         box-shadow: 0 0 0 0 rgba(52, 211, 153, 0), 0 0 0 rgba(52, 211, 153, 0);
     }
 }
+
+/* ── Peta galangan (Leaflet divIcon — dibuat via JS, di luar scan Tailwind) ── */
+.gm-marker {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 9999px;
+    border: 3px solid #fff;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.35);
+    color: #fff;
+    font: 700 13px/1 Figtree, ui-sans-serif, system-ui, sans-serif;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+}
+.gm-marker:hover { transform: scale(1.12); }
+.gm-marker--active { background: linear-gradient(135deg, #2563eb, #1e3a8a); }
+.gm-marker--empty { background: linear-gradient(135deg, #94a3b8, #475569); }
+.gm-marker--selected {
+    transform: scale(1.22);
+    background: linear-gradient(135deg, #f59e0b, #b45309);
+    box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.35), 0 8px 20px rgba(15, 23, 42, 0.4);
+}
+.gm-marker__count { position: relative; z-index: 1; }
+.gm-marker__pulse {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 14px;
+    height: 14px;
+    border-radius: 9999px;
+    background: #dc2626;
+    border: 2px solid #fff;
+}
+.gm-marker__pulse::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 9999px;
+    background: #dc2626;
+    animation: gm-pulse 1.6s ease-out infinite;
+}
+@keyframes gm-pulse {
+    0% { transform: scale(1); opacity: 0.7; }
+    100% { transform: scale(2.6); opacity: 0; }
+}
+.gm-pin {
+    width: 28px;
+    height: 28px;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    background: linear-gradient(135deg, #2563eb, #1e3a8a);
+    border: 3px solid #fff;
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.4);
+}
+.dark .leaflet-container { background: #1f2937; }
+.dark .leaflet-tooltip {
+    background: #1f2937;
+    color: #f9fafb;
+    border-color: #374151;
+}
+.dark .leaflet-tooltip-top::before { border-top-color: #1f2937; }
+.dark .leaflet-bar a {
+    background: #374151;
+    color: #f9fafb;
+    border-color: #4b5563;
+}
+.dark .leaflet-control-attribution {
+    background: rgba(31, 41, 55, 0.8);
+    color: #d1d5db;
+}
+.dark .leaflet-control-attribution a { color: #93c5fd; }

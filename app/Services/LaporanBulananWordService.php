@@ -75,6 +75,7 @@ class LaporanBulananWordService
         $relativePath = $this->saveDocument($processor, $laporan);
         $path = storage_path('app/'.$relativePath);
         try {
+            app(WordAttachmentService::class)->embedExternals($path, $laporan->laporanExternal);
             $this->embedMingguanDocs($path, $this->resolveMingguanDocs($laporan));
         } catch (\Throwable $e) {
             unlink($path);
@@ -608,7 +609,7 @@ class LaporanBulananWordService
             $harianCount = (int) $mingguan->laporan_harian_count;
             $path = $this->mingguanDocPath($mingguan);
             if (! $path || $this->chunkService->count($path) !== $harianCount
-                || ! app(NcAttachmentWordService::class)->isCurrent($path, $this->ncService->rekapMingguan($mingguan->data_kapal_id, $mingguan->periode_mulai, $mingguan->periode_selesai))) {
+                || ! app(WordAttachmentService::class)->isCurrent($path, $this->ncService->rekapMingguan($mingguan->data_kapal_id, $mingguan->periode_mulai, $mingguan->periode_selesai), $mingguan->laporanExternal)) {
                 try {
                     GenerateLaporanMingguanJob::dispatchSync($mingguan);
                     $mingguan->refresh();
@@ -623,7 +624,7 @@ class LaporanBulananWordService
 
             $path = $this->mingguanDocPath($mingguan);
             if (! $path || $this->chunkService->count($path) !== $harianCount
-                || ! app(NcAttachmentWordService::class)->isCurrent($path, $this->ncService->rekapMingguan($mingguan->data_kapal_id, $mingguan->periode_mulai, $mingguan->periode_selesai))) {
+                || ! app(WordAttachmentService::class)->isCurrent($path, $this->ncService->rekapMingguan($mingguan->data_kapal_id, $mingguan->periode_mulai, $mingguan->periode_selesai), $mingguan->laporanExternal)) {
                 throw new \RuntimeException('Lampiran laporan harian pada dokumen mingguan belum lengkap.');
             }
             $paths[] = $path;

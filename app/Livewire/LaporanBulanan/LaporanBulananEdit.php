@@ -166,6 +166,7 @@ class LaporanBulananEdit extends Component
                 if ($existingRecord->file_path && Storage::disk('local')->exists($existingRecord->file_path)) {
                     Storage::disk('local')->delete($existingRecord->file_path);
                 }
+                Storage::disk('local')->delete($existingRecord->rendered_pages ?? []);
                 $existingRecord->delete();
             }
         }
@@ -362,12 +363,14 @@ class LaporanBulananEdit extends Component
                 if ($laporanExternal->file_path && Storage::disk('local')->exists($laporanExternal->file_path)) {
                     Storage::disk('local')->delete($laporanExternal->file_path);
                 }
+                Storage::disk('local')->delete($laporanExternal->rendered_pages ?? []);
 
                 $tempPath = $external['file']->store('temp/laporan-external', 'local');
                 $laporanExternal->file_name = $external['file']->getClientOriginalName();
                 $laporanExternal->file_status = 'pending';
                 $laporanExternal->file_processed_at = null;
                 $laporanExternal->file_error = null;
+                $laporanExternal->rendered_pages = null;
                 $laporanExternal->save();
 
                 ProcessLaporanExternal::dispatch($laporanExternal->id, $tempPath);

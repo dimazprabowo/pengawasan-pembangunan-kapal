@@ -22,11 +22,13 @@ class LaporanExternal extends Model
         'file_size',
         'file_status',
         'file_error',
+        'rendered_pages',
         'file_processed_at',
     ];
 
     protected $casts = [
         'file_size' => 'integer',
+        'rendered_pages' => 'array',
         'file_processed_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
@@ -69,5 +71,20 @@ class LaporanExternal extends Model
         }
 
         return strtolower(pathinfo($this->file_name, PATHINFO_EXTENSION));
+    }
+
+    public function isImage(): bool
+    {
+        return in_array($this->file_extension ?? '', ['jpg', 'jpeg', 'png', 'webp']);
+    }
+
+    public function isPdf(): bool
+    {
+        return $this->file_extension === 'pdf';
+    }
+
+    public function isPreviewable(): bool
+    {
+        return $this->isImage() || $this->isPdf();
     }
 }

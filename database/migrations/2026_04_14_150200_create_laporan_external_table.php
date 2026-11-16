@@ -19,6 +19,7 @@ return new class extends Migration
             $table->unsignedBigInteger('file_size')->nullable();
             $table->enum('file_status', ['pending', 'processing', 'completed', 'failed'])->default('pending');
             $table->text('file_error')->nullable();
+            $table->json('rendered_pages')->nullable();
             $table->timestamp('file_processed_at')->nullable();
             $table->timestamps();
 

@@ -7,6 +7,7 @@ use App\Models\DataKapal;
 use App\Models\LaporanHarian;
 use App\Models\LaporanMingguan;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -19,7 +20,7 @@ class MingguanReassignReproTest extends TestCase
 
     private DataKapal $dataKapal;
 
-    private \Carbon\Carbon $base;
+    private Carbon $base;
 
     protected function setUp(): void
     {
@@ -52,7 +53,7 @@ class MingguanReassignReproTest extends TestCase
     {
         return $mingguan->laporanHarian()
             ->pluck('tanggal_laporan')
-            ->map(fn ($t) => \Carbon\Carbon::parse($t)->format('d'))
+            ->map(fn ($t) => Carbon::parse($t)->format('d'))
             ->sort()
             ->values()
             ->all();
@@ -79,6 +80,7 @@ class MingguanReassignReproTest extends TestCase
         // Seeder bisa punya minggu_ke sama -> identifikasi via latest id, bukan where('minggu_ke')
         Livewire::actingAs($this->admin)
             ->test(LaporanMingguanCreate::class, ['dataKapal' => $this->dataKapal])
+            ->set('ringkasan', 'Ringkasan progres mingguan pengujian.')
             ->set('minggu_ke', 81)
             ->set('tanggal_laporan', $this->base->copy()->day(10)->format('Y-m-d'))
             ->set('periode_mulai', $this->base->copy()->day(1)->format('Y-m-d'))
@@ -93,6 +95,7 @@ class MingguanReassignReproTest extends TestCase
         // Mingguan 2: periode 2..9 -> konflik -> konfirmasi pemindahan
         $component = Livewire::actingAs($this->admin)
             ->test(LaporanMingguanCreate::class, ['dataKapal' => $this->dataKapal])
+            ->set('ringkasan', 'Ringkasan progres mingguan pengujian.')
             ->set('minggu_ke', 82)
             ->set('tanggal_laporan', $this->base->copy()->day(9)->format('Y-m-d'))
             ->set('periode_mulai', $this->base->copy()->day(2)->format('Y-m-d'))

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\ProgressStatus;
 use App\Models\DataKapal;
 use App\Models\KurvaSRencana;
 use App\Models\KurvaSRencanaMingguan;
@@ -834,6 +835,32 @@ class KurvaSService
                 $workGroupId => round((float) ($weeks[$mingguKe] ?? 0), 3),
             ])
             ->toArray();
+    }
+
+    /**
+     * Isi `progress_aktual`, `progress_rencana`, `progress_deviasi` & `progress_status`
+     * (ProgressStatus) pada tiap data kapal. Progress baru ada setelah laporan mingguan
+     * dibuat — kapal harus memuat `laporan_mingguan_count` (withCount).
+     *
+     * @template T of iterable<DataKapal>
+     *
+     * @param  T  $dataKapals
+     * @return T
+     */
+    public function attachProgress(iterable $dataKapals): iterable
+    {
+        foreach ($dataKapals as $dataKapal) {
+            $totals = ($dataKapal->laporan_mingguan_count ?? 0) > 0
+                ? $this->calculateTotalsFromHistory($this->getProgressHistory($dataKapal), [])
+                : null;
+
+            $dataKapal->progress_aktual = $totals['total_aktual'] ?? null;
+            $dataKapal->progress_rencana = $totals['total_rencana'] ?? null;
+            $dataKapal->progress_deviasi = $totals['total_deviasi'] ?? null;
+            $dataKapal->progress_status = ProgressStatus::fromDeviasi($dataKapal->progress_deviasi);
+        }
+
+        return $dataKapals;
     }
 
     /**

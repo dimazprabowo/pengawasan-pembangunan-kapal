@@ -90,10 +90,16 @@ class LaporanMingguanWordService
         $relativePath = $this->saveDocument($processor, $laporan);
         try {
             $this->embedHarianDocs(storage_path('app/'.$relativePath), $this->resolveHarianDocs($laporan));
-            app(NcAttachmentWordService::class)->append(
+            $attachmentService = app(WordAttachmentService::class);
+            $attachmentService->append(
                 storage_path('app/'.$relativePath),
                 $this->ncService->rekapMingguan($laporan->data_kapal_id, $laporan->periode_mulai, $laporan->periode_selesai),
                 true,
+                $laporan->laporanExternal,
+            );
+            $attachmentService->embedExternals(
+                storage_path('app/'.$relativePath),
+                $laporan->laporanExternal,
             );
         } catch (\Throwable $e) {
             @unlink(storage_path('app/'.$relativePath));
@@ -383,7 +389,7 @@ class LaporanMingguanWordService
             $this->bodyCell($table, $w[0], (string) ($i + 1), $bg, Jc::CENTER);
             $this->bodyCell($table, $w[1], $ext->judul ?: '-', $bg);
             $this->bodyCell($table, $w[2], $ext->file_name ?: '-', $bg);
-            $this->bodyCell($table, $w[3], 'Terlampir (file terpisah)', $bg);
+            $this->bodyCell($table, $w[3], 'Terlampir', $bg);
         }
 
         WordStyleService::setComplexBlock($processor, 'tabel_external', $table);

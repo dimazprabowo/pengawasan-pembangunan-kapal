@@ -4,8 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\LaporanNc;
 use App\Models\LaporanNcFoto;
-use App\Services\NcAttachmentWordService;
 use App\Services\PdfPageService;
+use App\Services\WordAttachmentService;
 use App\Services\WordStyleService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
@@ -47,7 +47,7 @@ class NcAttachmentProcessingTest extends TestCase
         WordStyleService::prepare($document);
         $path = Storage::disk('local')->path('output.docx');
         IOFactory::createWriter($document, 'Word2007')->save($path);
-        app(NcAttachmentWordService::class)->append($path, collect([$nc]));
+        app(WordAttachmentService::class)->append($path, collect([$nc]));
         $zip = new ZipArchive;
         $this->assertTrue($zip->open($path));
         try {
@@ -62,13 +62,13 @@ class NcAttachmentProcessingTest extends TestCase
             $this->assertStringContainsString('After', $xml);
             $this->assertStringContainsString('Las &amp; sambungan', $xml);
             $this->assertStringNotContainsString('altChunk', $xml);
-            $this->assertSame(2, count(array_filter(range(0, $zip->numFiles - 1), fn ($i) => str_starts_with($zip->getNameIndex($i), 'word/media/nc_'))));
+            $this->assertSame(2, count(array_filter(range(0, $zip->numFiles - 1), fn ($i) => str_starts_with($zip->getNameIndex($i), 'word/media/att_'))));
         } finally {
             $zip->close();
         }
-        $this->assertTrue(app(NcAttachmentWordService::class)->isCurrent($path, collect([$nc])));
+        $this->assertTrue(app(WordAttachmentService::class)->isCurrent($path, collect([$nc])));
         $nc->setRelation('foto', collect());
-        $this->assertFalse(app(NcAttachmentWordService::class)->isCurrent($path, collect([$nc])));
+        $this->assertFalse(app(WordAttachmentService::class)->isCurrent($path, collect([$nc])));
     }
 
     #[Test]

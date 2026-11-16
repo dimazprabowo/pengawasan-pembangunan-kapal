@@ -11,7 +11,7 @@ use Symfony\Component\Process\Process;
 
 class PdfPageService
 {
-    public function render(string $source): array
+    public function render(string $source, string $directory = 'laporan-nc/pages'): array
     {
         $memoryLimit = ini_parse_quantity(ini_get('memory_limit'));
         if ($memoryLimit > 0 && $memoryLimit < 512 * 1024 * 1024) {
@@ -30,7 +30,7 @@ class PdfPageService
             throw new RuntimeException('Jumlah halaman PDF melebihi batas pemrosesan.');
         }
 
-        $directory = 'laporan-nc/pages/'.Str::uuid();
+        $directory = trim($directory, '/').'/'.Str::uuid();
         $disk->makeDirectory($directory);
         $pages = [];
         $manager = new ImageManager(new Driver);

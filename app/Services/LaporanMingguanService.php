@@ -5,13 +5,15 @@ namespace App\Services;
 use App\Models\DataKapal;
 use App\Models\LaporanHarian;
 use App\Models\LaporanMingguan;
+use App\Traits\SortsQuery;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class LaporanMingguanService
 {
-    use \App\Traits\SortsQuery;
+    use SortsQuery;
 
     public function getFiltered(
         ?string $search = null,
@@ -194,6 +196,13 @@ class LaporanMingguanService
 
     public function delete(LaporanMingguan $laporanMingguan): void
     {
+        foreach ($laporanMingguan->laporanExternal as $external) {
+            if ($external->file_path) {
+                Storage::disk('local')->delete($external->file_path);
+            }
+            Storage::disk('local')->delete($external->rendered_pages ?? []);
+        }
+
         $laporanMingguan->delete();
     }
 

@@ -5,18 +5,22 @@ namespace App\Livewire\MasterData;
 use App\Enums\GalanganStatus;
 use App\Exports\GalanganExport;
 use App\Livewire\Traits\HasNotification;
+use App\Livewire\Traits\HasTableSorting;
 use App\Models\Galangan;
 use App\Services\GalanganService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Maatwebsite\Excel\Facades\Excel;
 
 class GalanganManagement extends Component
 {
-    use \App\Livewire\Traits\HasTableSorting;
     use AuthorizesRequests, HasNotification, WithPagination;
+    use HasTableSorting;
 
     protected $paginationTheme = 'tailwind';
 
@@ -25,6 +29,8 @@ class GalanganManagement extends Component
     public $statusFilter = '';
 
     public int $perPage = 10;
+
+    public bool $filterChanged = false;
 
     public $showModal = false;
 
@@ -41,6 +47,10 @@ class GalanganManagement extends Component
     public $kota;
 
     public $provinsi;
+
+    public $latitude = null;
+
+    public $longitude = null;
 
     public $telepon;
 
@@ -75,6 +85,8 @@ class GalanganManagement extends Component
             'alamat' => 'nullable|string',
             'kota' => 'nullable|string|max:100',
             'provinsi' => 'nullable|string|max:100',
+            'latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_with:longitude'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_with:latitude'],
             'telepon' => 'nullable|string|max:20',
             'email' => 'nullable|email',
             'pic_name' => 'nullable|string|max:255',
@@ -92,6 +104,8 @@ class GalanganManagement extends Component
             'alamat' => 'alamat',
             'kota' => 'kota',
             'provinsi' => 'provinsi',
+            'latitude' => 'latitude',
+            'longitude' => 'longitude',
             'telepon' => 'telepon',
             'email' => 'email',
             'pic_name' => 'nama PIC',
@@ -104,11 +118,13 @@ class GalanganManagement extends Component
     public function updatingSearch()
     {
         $this->resetPage();
+        $this->filterChanged = true;
     }
 
     public function updatingStatusFilter()
     {
         $this->resetPage();
+        $this->filterChanged = true;
     }
 
     public function updatingPerPage()
@@ -120,6 +136,7 @@ class GalanganManagement extends Component
     {
         $this->reset(['search', 'statusFilter', 'perPage']);
         $this->resetPage();
+        $this->filterChanged = true;
     }
 
     public function create()
@@ -142,6 +159,8 @@ class GalanganManagement extends Component
         $this->alamat = $galangan->alamat;
         $this->kota = $galangan->kota;
         $this->provinsi = $galangan->provinsi;
+        $this->latitude = $galangan->latitude;
+        $this->longitude = $galangan->longitude;
         $this->telepon = $galangan->telepon;
         $this->email = $galangan->email;
         $this->pic_name = $galangan->pic_name;
@@ -157,7 +176,7 @@ class GalanganManagement extends Component
     {
         try {
             $this->validate();
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->notifyValidationError($e);
             throw $e;
         }
@@ -169,6 +188,8 @@ class GalanganManagement extends Component
                 'alamat' => $this->alamat,
                 'kota' => $this->kota,
                 'provinsi' => $this->provinsi,
+                'latitude' => $this->latitude,
+                'longitude' => $this->longitude,
                 'telepon' => $this->telepon,
                 'email' => $this->email,
                 'pic_name' => $this->pic_name,
@@ -192,10 +213,11 @@ class GalanganManagement extends Component
 
             $this->notifySuccess($message);
             $this->closeModal();
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk melakukan aksi ini.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
+            Log::error('GalanganManagement: aksi gagal', ['error' => $e->getMessage()]);
+            $this->notifyError('Terjadi kesalahan sistem. Silakan coba lagi.');
         }
     }
 
@@ -216,10 +238,11 @@ class GalanganManagement extends Component
             $service->delete($galangan);
             $this->notifySuccess('Galangan berhasil dihapus! Kapal terkait akan di-set null.');
             $this->showDeleteModal = false;
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak dapat menghapus galangan ini.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
+            Log::error('GalanganManagement: aksi gagal', ['error' => $e->getMessage()]);
+            $this->notifyError('Terjadi kesalahan sistem. Silakan coba lagi.');
         }
     }
 
@@ -233,10 +256,11 @@ class GalanganManagement extends Component
 
             $status = $galangan->fresh()->status->label();
             $this->notifySuccess("Status galangan berhasil diubah menjadi {$status}!");
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk mengubah status galangan.');
         } catch (\Exception $e) {
-            $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
+            Log::error('GalanganManagement: aksi gagal', ['error' => $e->getMessage()]);
+            $this->notifyError('Terjadi kesalahan sistem. Silakan coba lagi.');
         }
     }
 
@@ -256,6 +280,8 @@ class GalanganManagement extends Component
             'alamat',
             'kota',
             'provinsi',
+            'latitude',
+            'longitude',
             'telepon',
             'email',
             'pic_name',
@@ -309,14 +335,21 @@ class GalanganManagement extends Component
 
     public function render(GalanganService $service)
     {
+        $galanganList = $service->getFiltered(
+            $this->search,
+            $this->statusFilter,
+            $this->perPage,
+            $this->sortField,
+            $this->sortDir
+        );
+
+        if ($this->filterChanged) {
+            $this->notifyInfo("Ditemukan {$galanganList->total()} data galangan.");
+            $this->filterChanged = false;
+        }
+
         return view('livewire.master-data.galangan-management', [
-            'galanganList' => $service->getFiltered(
-                $this->search,
-                $this->statusFilter,
-                $this->perPage,
-                $this->sortField,
-                $this->sortDir
-            ),
+            'galanganList' => $galanganList,
             'statuses' => GalanganStatus::cases(),
         ]);
     }

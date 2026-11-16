@@ -1,5 +1,6 @@
 import './bootstrap';
 import './alpine-stores';
+import './maps';
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
 

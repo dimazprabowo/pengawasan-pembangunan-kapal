@@ -130,6 +130,11 @@ class DataKapal extends Model
         return $this->hasMany(LaporanBulanan::class);
     }
 
+    public function laporanNc(): HasMany
+    {
+        return $this->hasMany(LaporanNc::class);
+    }
+
     public function kurvaSWorkGroups(): HasMany
     {
         return $this->hasMany(KurvaSWorkGroup::class)->orderBy('sort_order');
@@ -210,6 +215,16 @@ class DataKapal extends Model
         }
 
         return $this->tanggal_mulai_kontrak->copy()->addDays($this->durasi_kontrak_hari - 1);
+    }
+
+    /**
+     * Sisa hari kalender sampai kontrak selesai (negatif = lewat kontrak, null = kontrak belum diisi).
+     */
+    public function sisaHariKontrak(): ?int
+    {
+        return $this->tanggal_selesai_kontrak
+            ? (int) now()->startOfDay()->diffInDays($this->tanggal_selesai_kontrak, false)
+            : null;
     }
 
     public function hasTemplate(string $tipe): bool

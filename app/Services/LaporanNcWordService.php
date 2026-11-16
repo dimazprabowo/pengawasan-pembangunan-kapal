@@ -65,7 +65,7 @@ class LaporanNcWordService
         $path = sys_get_temp_dir().DIRECTORY_SEPARATOR.uniqid('ncform_', true).'.docx';
         $processor->saveAs($path);
         try {
-            app(NcAttachmentWordService::class)->append($path, $attachmentNcs);
+            app(WordAttachmentService::class)->append($path, $attachmentNcs);
         } catch (\Throwable $e) {
             @unlink($path);
             throw $e;

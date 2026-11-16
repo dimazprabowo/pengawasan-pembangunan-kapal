@@ -59,7 +59,7 @@ return [
 
         'laporan_external' => [
             'max_size' => 20480, // 20 MB
-            'mimes' => ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'png', 'jpg', 'jpeg'],
+            'mimes' => ['pdf', 'png', 'jpg', 'jpeg'],
         ],
 
         'template_laporan_data_kapal' => [

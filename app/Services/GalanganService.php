@@ -4,11 +4,12 @@ namespace App\Services;
 
 use App\Enums\GalanganStatus;
 use App\Models\Galangan;
+use App\Traits\SortsQuery;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class GalanganService
 {
-    use \App\Traits\SortsQuery;
+    use SortsQuery;
 
     public function getFiltered(
         string $search = '',
@@ -44,14 +45,30 @@ class GalanganService
 
     public function create(array $data): Galangan
     {
-        return Galangan::create($data);
+        return Galangan::create($this->normalize($data));
     }
 
     public function update(Galangan $galangan, array $data): Galangan
     {
-        $galangan->update($data);
+        $galangan->update($this->normalize($data));
 
         return $galangan->fresh();
+    }
+
+    /**
+     * Koordinat: kosong → null, dibulatkan 7 desimal (presisi kolom decimal(10,7)).
+     */
+    private function normalize(array $data): array
+    {
+        foreach (['latitude', 'longitude'] as $field) {
+            if (array_key_exists($field, $data)) {
+                $data[$field] = $data[$field] === null || $data[$field] === ''
+                    ? null
+                    : round((float) $data[$field], 7);
+            }
+        }
+
+        return $data;
     }
 
     public function delete(Galangan $galangan): bool

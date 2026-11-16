@@ -107,4 +107,19 @@ class ChatUnreadBadgeTest extends TestCase
         $this->assertNotNull($chatItem);
         $this->assertSame(2, $chatItem['badge'] ?? 0);
     }
+
+    public function test_menu_cache_does_not_leak_between_requests_for_same_user(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+        $sidebar = new Sidebar;
+        $this->assertNull(collect($sidebar->getMenuItems())->firstWhere('name', 'Chat'));
+
+        $user->givePermissionTo(Permission::firstOrCreate(['name' => 'chat_view', 'guard_name' => 'web']));
+        $request = request()->duplicate();
+        $request->attributes->replace([]);
+        $this->app->instance('request', $request);
+
+        $this->assertNotNull(collect($sidebar->getMenuItems())->firstWhere('name', 'Chat'));
+    }
 }

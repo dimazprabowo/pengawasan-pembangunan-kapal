@@ -23,10 +23,10 @@ trait HasMenuItems
         $user = Auth::user();
 
         // Cache per request — Sidebar and Navigation both call this, avoid double DB hit
-        static $cache = [];
+        $request = request();
         $cacheKey = 'menu_'.$user->id;
-        if (isset($cache[$cacheKey])) {
-            return $cache[$cacheKey];
+        if ($request->attributes->has($cacheKey)) {
+            return $request->attributes->get($cacheKey);
         }
 
         // All checks go through Gate → policies (respects Gate::before super-admin bypass)
@@ -195,7 +195,7 @@ trait HasMenuItems
         }
 
         $result = array_filter($items);
-        $cache[$cacheKey] = $result;
+        $request->attributes->set($cacheKey, $result);
 
         return $result;
     }

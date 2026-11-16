@@ -15,6 +15,8 @@ return new class extends Migration
             $table->text('alamat')->nullable();
             $table->string('kota', 100)->nullable();
             $table->string('provinsi', 100)->nullable();
+            $table->decimal('latitude', 10, 7)->nullable();
+            $table->decimal('longitude', 10, 7)->nullable();
             $table->string('telepon', 20)->nullable();
             $table->string('email')->nullable();
             $table->string('pic_name')->nullable();
