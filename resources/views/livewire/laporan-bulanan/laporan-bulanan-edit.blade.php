@@ -30,6 +30,16 @@
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
             <div class="p-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {{-- Tanggal Laporan --}}
+                    <div>
+                        <x-input-label for="tanggal_laporan" value="Tanggal Laporan" :required="true" />
+                        <x-tanggal-picker wire:model="tanggal_laporan" id="tanggal_laporan"
+                            placeholder="Pilih tanggal laporan"
+                            display-format="j F Y" required
+                            class="{{ $errors->has('tanggal_laporan') ? 'border-red-500 dark:border-red-400' : '' }}" />
+                        @error('tanggal_laporan') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                    </div>
+
                     {{-- Bulan ke- --}}
                     <div>
                         <x-input-label for="bulan_ke" value="Bulan Ke-" :required="true" />
@@ -47,36 +57,35 @@
                         @enderror
                     </div>
 
-                    {{-- Tanggal Laporan --}}
-                    <div>
-                        <x-input-label for="tanggal_laporan" value="Tanggal Laporan" :required="true" />
-                        <x-tanggal-picker wire:model="tanggal_laporan" id="tanggal_laporan"
-                            placeholder="Pilih tanggal laporan"
-                            display-format="j F Y" required
-                            class="{{ $errors->has('tanggal_laporan') ? 'border-red-500 dark:border-red-400' : '' }}" />
-                        @error('tanggal_laporan') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                    </div>
-
-                    {{-- Periode (terkunci — otomatis dari kontrak) --}}
+                    {{-- Periode (informasi — otomatis dari kontrak) --}}
                     <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Periode Bulanan <span class="text-red-500">*</span>
-                        </label>
-                        <div class="w-full min-h-[42px] px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border rounded-lg text-sm flex items-center gap-2 cursor-not-allowed {{ $errors->has('periode_mulai') || $errors->has('periode_selesai') ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600' }}">
+                        <div wire:loading.class.remove="hidden" wire:target="bulan_ke" class="w-full px-3.5 py-2.5 bg-blue-50/60 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/40 rounded-lg hidden flex items-center gap-2.5 text-sm">
+                            <svg class="animate-spin w-4 h-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span class="text-gray-500 dark:text-gray-400">Memuat periode...</span>
+                        </div>
+                        <div wire:loading.remove wire:target="bulan_ke"
+                             class="w-full px-3.5 py-2.5 bg-blue-50/60 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/40 rounded-lg flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                            <svg class="w-4 h-4 text-blue-500 dark:text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
                             @if($periode_mulai && $periode_selesai)
-                                <svg class="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                </svg>
-                                <span class="font-medium text-gray-900 dark:text-white">
+                                <span class="text-sm text-gray-600 dark:text-gray-300">Periode Bulanan:</span>
+                                <span class="text-sm font-semibold text-gray-900 dark:text-white">
                                     {{ \Illuminate\Support\Carbon::parse($periode_mulai)->translatedFormat('d M Y') }} – {{ \Illuminate\Support\Carbon::parse($periode_selesai)->translatedFormat('d M Y') }}
                                 </span>
-                                <span class="text-xs text-gray-500 dark:text-gray-400">(otomatis dari kontrak)</span>
+                                <span class="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                                    {{ \Illuminate\Support\Carbon::parse($periode_mulai)->diffInDays(\Illuminate\Support\Carbon::parse($periode_selesai)) + 1 }} hari
+                                </span>
+                                <span class="text-xs text-gray-400 dark:text-gray-500">(otomatis)</span>
                             @else
-                                <span class="text-gray-500 dark:text-gray-400">Pilih bulan ke- terlebih dahulu — periode terisi otomatis dari kontrak</span>
+                                <span class="text-sm text-gray-500 dark:text-gray-400">Pilih bulan ke- untuk menampilkan periode</span>
                             @endif
                         </div>
-                        <input type="hidden" wire:model.live="periode_mulai">
-                        <input type="hidden" wire:model.live="periode_selesai">
+                        <input type="hidden" wire:model.live="periode_mulai" required>
+                        <input type="hidden" wire:model.live="periode_selesai" required>
                         @error('periode_mulai') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                         @error('periode_selesai') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                     </div>
@@ -92,6 +101,8 @@
                 </div>
 
                 {{-- Laporan External Section --}}
+                @include('livewire.laporan-bulanan.partials.repeaters')
+
                 <x-laporan-mingguan.external-reports-section
                     :laporanExternal="$laporanExternal"
                     :deletingExternalId="$deletingExternalId"

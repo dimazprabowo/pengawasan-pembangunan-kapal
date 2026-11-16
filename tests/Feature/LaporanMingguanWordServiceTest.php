@@ -7,6 +7,7 @@ use App\Models\LaporanHarian;
 use App\Models\LaporanMingguan;
 use App\Models\User;
 use App\Services\LaporanMingguanWordService;
+use App\Services\WordStyleService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpWord\PhpWord;
@@ -145,6 +146,7 @@ class LaporanMingguanWordServiceTest extends TestCase
         $phpWord = new PhpWord;
         $phpWord->addSection()->addText('${ringkasan}');
         $tmp = tempnam(sys_get_temp_dir(), 'tpl').'.docx';
+        WordStyleService::prepare($phpWord);
         $phpWord->save($tmp, 'Word2007');
         Storage::disk('local')->put('templates/test-custom-mingguan.docx', file_get_contents($tmp));
         @unlink($tmp);

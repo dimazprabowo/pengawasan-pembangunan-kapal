@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\LaporanBulanan;
 use App\Models\LaporanMingguan;
+use App\Traits\SortsQuery;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -11,7 +12,7 @@ use Illuminate\Support\Facades\Storage;
 
 class LaporanBulananService
 {
-    use \App\Traits\SortsQuery;
+    use SortsQuery;
 
     public function getFiltered(
         ?string $search = null,
@@ -61,6 +62,7 @@ class LaporanBulananService
 
         return LaporanMingguan::where('data_kapal_id', $laporan->data_kapal_id)
             ->whereBetween('minggu_ke', [$bulan['minggu_dari'], $bulan['minggu_sampai']])
+            ->withCount('laporanHarian')
             ->withSum('laporanProgress as total_progress', 'pct_realisasi')
             ->orderBy('minggu_ke')
             ->get();

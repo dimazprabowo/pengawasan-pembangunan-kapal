@@ -3,9 +3,11 @@
 namespace App\Livewire\Notifications;
 
 use App\Livewire\Traits\HasNotification;
+use App\Models\Notification;
 use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -35,7 +37,15 @@ class SendNotification extends Component
     public string $historySearch = '';
 
     // Tab
+    #[Url(as: 'tab')]
     public string $activeTab = 'compose';
+
+    private const TABS = ['compose', 'history'];
+
+    public function mount(): void
+    {
+        $this->activeTab = in_array($this->activeTab, self::TABS, true) ? $this->activeTab : 'compose';
+    }
 
     protected function rules(): array
     {
@@ -138,7 +148,7 @@ class SendNotification extends Component
 
     public function setTab(string $tab): void
     {
-        $this->activeTab = $tab;
+        $this->activeTab = in_array($tab, self::TABS, true) ? $tab : 'compose';
     }
 
     public function render()
@@ -157,7 +167,7 @@ class SendNotification extends Component
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
 
-        $history = \App\Models\Notification::with('user:id,name')
+        $history = Notification::with('user:id,name')
             ->when($this->historySearch, fn ($q) => $q->where(function ($q) {
                 $q->where('title', 'like', "%{$this->historySearch}%")
                     ->orWhere('message', 'like', "%{$this->historySearch}%");
@@ -165,7 +175,7 @@ class SendNotification extends Component
             ->latest()
             ->paginate(15, pageName: 'historyPage');
 
-        $historyStats = \App\Models\Notification::selectRaw('type, count(*) as count')
+        $historyStats = Notification::selectRaw('type, count(*) as count')
             ->groupBy('type')
             ->pluck('count', 'type')
             ->toArray();

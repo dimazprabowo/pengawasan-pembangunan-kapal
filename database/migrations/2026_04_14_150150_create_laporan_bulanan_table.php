@@ -19,6 +19,9 @@ return new class extends Migration
             $table->date('periode_mulai')->nullable();
             $table->date('periode_selesai')->nullable();
             $table->text('ringkasan')->nullable();
+            $table->json('realisasi_progress')->nullable()
+                ->comment('Milestone realisasi BAB 2.3 [{uraian, tanggal, keterangan}]');
+            // BAB 3.2 problem & rekomendasi = tarikan otomatis dari rekap NC (tidak disimpan).
             $table->unsignedSmallInteger('bulan_ke')
                 ->comment('Nomor bulan konstruksi (referensi ke kurva_s_rencana)');
 

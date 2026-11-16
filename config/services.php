@@ -14,6 +14,12 @@ return [
     |
     */
 
+    'poppler' => [
+        'pdftoppm' => env('PDFTOPPM_BINARY', 'pdftoppm'),
+        'pdfinfo' => env('PDFINFO_BINARY', 'pdfinfo'),
+        'max_pages' => 200,
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],

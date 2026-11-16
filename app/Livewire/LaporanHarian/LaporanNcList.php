@@ -2,6 +2,7 @@
 
 namespace App\Livewire\LaporanHarian;
 
+use App\Enums\NcFileKategori;
 use App\Enums\NcFormJenis;
 use App\Enums\NcFormStatus;
 use App\Enums\NcStatus;
@@ -22,6 +23,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -34,6 +36,107 @@ class LaporanNcList extends Component
     protected $paginationTheme = 'tailwind';
 
     public DataKapal $dataKapal;
+
+    public array $ncUploads = [];
+
+    public bool $showDeleteFileModal = false;
+
+    public ?int $deleteFileId = null;
+
+    public bool $showCropperModal = false;
+
+    public ?string $croppingImageUrl = null;
+
+    public ?string $croppingFileKey = null;
+
+    public array $cropData = [];
+
+    public function openNcFileCropper(int $ncId, string $kategori, string $key): void
+    {
+        $nc = $this->findFileNc($ncId);
+        $this->authorize('update', $nc);
+        validator(['kategori' => $kategori], ['kategori' => [Rule::enum(NcFileKategori::class)]])->validate();
+        $path = $ncId.'.'.$kategori.'.'.$key;
+        $entry = data_get($this->ncUploads, $path);
+        $file = $entry['file'] ?? null;
+        validator(['file' => $file], ['file' => ['required', 'image', 'max:20480']])->validate();
+        $this->croppingFileKey = $path;
+        $this->croppingImageUrl = $file->temporaryUrl();
+        $this->cropData = $entry['cropData'] ?? [];
+        $this->showCropperModal = true;
+    }
+
+    public function saveCrop(): void
+    {
+        if ($this->croppingFileKey !== null) {
+            data_set($this->ncUploads, $this->croppingFileKey.'.cropData', $this->cropData);
+        }
+        $this->closeCropper();
+    }
+
+    public function closeCropper(): void
+    {
+        $this->reset(['showCropperModal', 'croppingImageUrl', 'croppingFileKey', 'cropData']);
+    }
+
+    private function findFileNc(int $ncId): LaporanNc
+    {
+        $this->authorizeDataKapalAccess($this->dataKapal);
+
+        return LaporanNc::where('data_kapal_id', $this->dataKapal->id)->findOrFail($ncId);
+    }
+
+    public function uploadNcFiles(int $ncId, string $kategori, LaporanNcService $service): void
+    {
+        try {
+            $nc = $this->findFileNc($ncId);
+            $this->authorize('update', $nc);
+            validator(['kategori' => $kategori], ['kategori' => [Rule::enum(NcFileKategori::class)]])->validate();
+            $category = NcFileKategori::from($kategori);
+            $prefix = 'ncUploads.'.$ncId.'.'.$kategori;
+            $this->validate([
+                $prefix => ['required', 'array', 'min:1'],
+                $prefix.'.*.file' => file_upload_validation_rule('laporan_nc_file', true),
+            ], [], [$prefix => 'file NC', $prefix.'.*.file' => 'file NC']);
+            $service->addFiles($nc, data_get($this->ncUploads, $ncId.'.'.$kategori, []), $category);
+            unset($this->ncUploads[$ncId][$kategori]);
+            $this->notifySuccess('File NC ditambahkan dan sedang diproses.');
+        } catch (AuthorizationException) {
+            $this->notifyError('Anda tidak memiliki izin untuk menambah file NC.');
+        } catch (ValidationException $e) {
+            $this->notifyValidationError($e);
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('LaporanNcList: upload file gagal', ['error' => $e->getMessage()]);
+            $this->notifyError('Terjadi kesalahan sistem. Silakan coba lagi.');
+        }
+    }
+
+    public function confirmDeleteFile(int $id): void
+    {
+        $file = LaporanNcFoto::with('nc')->findOrFail($id);
+        $nc = $this->findFileNc($file->laporan_nc_id);
+        $this->authorize('update', $nc);
+        $this->deleteFileId = $file->id;
+        $this->showDeleteFileModal = true;
+    }
+
+    public function deleteNcFile(LaporanNcService $service): void
+    {
+        try {
+            $file = LaporanNcFoto::findOrFail($this->deleteFileId);
+            $nc = $this->findFileNc($file->laporan_nc_id);
+            $this->authorize('update', $nc);
+            $service->deleteFoto($file);
+            $this->reset(['showDeleteFileModal', 'deleteFileId']);
+            $this->notifySuccess('File NC berhasil dihapus.');
+        } catch (AuthorizationException) {
+            $this->notifyError('Anda tidak memiliki izin untuk menghapus file NC.');
+        } catch (\Exception $e) {
+            Log::error('LaporanNcList: hapus file gagal', ['error' => $e->getMessage()]);
+            $this->notifyError('Terjadi kesalahan sistem. Silakan coba lagi.');
+        }
+    }
 
     public string $search = '';
 
@@ -687,7 +790,7 @@ class LaporanNcList extends Component
             'ncList' => $ncList,
             'formList' => $formList,
             'temuanByLaporan' => $formService->temuanByLaporan($ncList->getCollection()->pluck('laporan_harian_id')->unique()->all()),
-            'hasProcessing' => $ncList->getCollection()->contains(fn ($nc) => $nc->foto?->isFileProcessing())
+            'hasProcessing' => $ncList->getCollection()->contains(fn ($nc) => $nc->foto->contains(fn ($file) => $file->isFileProcessing()))
                 || $formList->getCollection()->contains->isFileProcessing(),
             'hariOptions' => $service->tanggalOptions(
                 $this->dataKapal->id,

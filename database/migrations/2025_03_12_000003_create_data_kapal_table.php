@@ -16,6 +16,13 @@ return new class extends Migration
             $table->foreignId('galangan_id')->nullable()->constrained('galangan')->nullOnDelete();
             $table->string('nama', 255);
             $table->text('deskripsi')->nullable();
+            $table->string('nama_pekerjaan')->nullable()
+                ->comment('Judul pekerjaan kontrak — tampil di cover/pengesahan laporan');
+            $table->string('nomor_kontrak', 150)->nullable();
+            $table->string('nomor_pembangunan', 100)->nullable()
+                ->comment('Nomor pembangunan / hull number dari galangan');
+            $table->json('penandatangan')->nullable()
+                ->comment('Daftar penandatangan laporan [{label, nama, jabatan, instansi}] — urutan = urutan TTD');
             $table->json('spesifikasi')->nullable()
                 ->comment('Daftar spesifikasi dinamis [{item, keterangan}]');
             $table->date('tanggal_mulai_kontrak')->nullable()

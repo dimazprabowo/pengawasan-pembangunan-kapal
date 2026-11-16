@@ -26,7 +26,7 @@ trait HasNcFotoPreview
     {
         $this->laporan->loadMissing('ncs.foto');
 
-        return $this->laporan->ncs->pluck('foto')->filter()->values();
+        return $this->laporan->ncs->flatMap(fn ($nc) => $nc->foto)->values();
     }
 
     /**
@@ -53,6 +53,8 @@ trait HasNcFotoPreview
 
     public function openNcFotoPreview(int $fotoId): void
     {
+        $this->authorize('lampiranPreview', LaporanHarian::class);
+        $this->authorizeDataKapalAccess($this->laporan->dataKapal);
         $foto = $this->ncFotos()->firstWhere('id', $fotoId);
 
         if (! $foto || ! $foto->hasFile() || ! $foto->isFileCompleted()) {

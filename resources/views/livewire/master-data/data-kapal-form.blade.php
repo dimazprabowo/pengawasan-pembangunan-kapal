@@ -29,7 +29,7 @@
     x-on:dk-clear-draft.window="localStorage.removeItem(draftKey)"
     x-init="
         (function () {
-            let props = ['company_id', 'galangan_id', 'nama', 'deskripsi', 'spesifikasi', 'status'];
+            let props = ['company_id', 'galangan_id', 'nama', 'deskripsi', 'nama_pekerjaan', 'nomor_kontrak', 'nomor_pembangunan', 'penandatangan', 'spesifikasi', 'status'];
             let staleBefore = {{ ($editMode && $dataKapal?->updated_at) ? $dataKapal->updated_at->getTimestamp() * 1000 : 0 }};
             let raw = localStorage.getItem(draftKey);
             if (raw && $wire.autoSave) {
@@ -181,6 +181,126 @@
                         @error('deskripsi') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                     </div>
 
+                    {{-- Informasi Pekerjaan & Kontrak --}}
+                    <div class="md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-4">
+                        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Informasi Pekerjaan &amp; Kontrak</h4>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Dipakai pada cover, lembar pengesahan, dan informasi umum laporan bulanan</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="md:col-span-2">
+                                <x-input-label for="nama_pekerjaan" value="Nama Pekerjaan" />
+                                <x-text-input wire:model="nama_pekerjaan" id="nama_pekerjaan" type="text"
+                                    placeholder="Contoh: Jasa Konsultansi Pengawas Pembangunan 1 Unit Kapal Penyeberangan"
+                                    class="mt-1 block w-full {{ $errors->has('nama_pekerjaan') ? 'border-red-500 dark:border-red-400' : '' }}" />
+                                @error('nama_pekerjaan') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+                            <div>
+                                <x-input-label for="nomor_kontrak" value="Nomor Kontrak" />
+                                <x-text-input wire:model="nomor_kontrak" id="nomor_kontrak" type="text"
+                                    placeholder="Contoh: Sperj.270/UM.301/ASDP-2020"
+                                    class="mt-1 block w-full {{ $errors->has('nomor_kontrak') ? 'border-red-500 dark:border-red-400' : '' }}" />
+                                @error('nomor_kontrak') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+                            <div>
+                                <x-input-label for="nomor_pembangunan" value="Nomor Pembangunan" />
+                                <x-text-input wire:model="nomor_pembangunan" id="nomor_pembangunan" type="text"
+                                    placeholder="Contoh: Hull No. 531 / NB-123 (opsional)"
+                                    class="mt-1 block w-full {{ $errors->has('nomor_pembangunan') ? 'border-red-500 dark:border-red-400' : '' }}" />
+                                @error('nomor_pembangunan') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Penandatangan (dinamis) --}}
+                    <div class="md:col-span-2">
+                        <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                            <div class="flex items-center justify-between gap-3 mb-3">
+                                <div class="min-w-0">
+                                    <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Penandatangan Laporan</h4>
+                                    <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Urutan baris = urutan pada lembar pengesahan (contoh: Dipersiapkan, Diketahui)</p>
+                                </div>
+                                <button type="button"
+                                    wire:click="addPenandatangan"
+                                    wire:loading.attr="disabled"
+                                    wire:target="addPenandatangan"
+                                    class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 rounded-lg transition-colors disabled:opacity-50 flex-shrink-0">
+                                    <svg wire:loading.class="hidden" wire:target="addPenandatangan" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                    </svg>
+                                    <svg wire:loading wire:target="addPenandatangan" class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                                    </svg>
+                                    <span>Tambah Penandatangan</span>
+                                </button>
+                            </div>
+
+                            <div class="overflow-x-auto custom-scrollbar rounded-lg border border-gray-200 dark:border-gray-700">
+                                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                    <thead class="bg-gray-50 dark:bg-gray-900">
+                                        <tr>
+                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-10">No</th>
+                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-36">Label</th>
+                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama</th>
+                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Jabatan</th>
+                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Instansi</th>
+                                            <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-16">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                        @forelse($penandatangan as $index => $row)
+                                            <tr wire:key="ttd-{{ $row['row_key'] ?? $index }}-{{ $index }}">
+                                                <td class="px-3 py-2 text-sm text-center text-gray-500 dark:text-gray-400 align-top">{{ $index + 1 }}</td>
+                                                <td class="px-3 py-2 align-top">
+                                                    <input type="text" wire:model="penandatangan.{{ $index }}.label"
+                                                        class="w-full px-2 py-1.5 text-sm border rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white {{ $errors->has("penandatangan.{$index}.label") ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600' }}"
+                                                        placeholder="Dipersiapkan">
+                                                    @error("penandatangan.{$index}.label") <span class="text-red-500 text-xs mt-0.5 block">{{ $message }}</span> @enderror
+                                                </td>
+                                                <td class="px-3 py-2 align-top">
+                                                    <input type="text" wire:model="penandatangan.{{ $index }}.nama"
+                                                        class="w-full px-2 py-1.5 text-sm border rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white {{ $errors->has("penandatangan.{$index}.nama") ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600' }}"
+                                                        placeholder="Nama lengkap">
+                                                    @error("penandatangan.{$index}.nama") <span class="text-red-500 text-xs mt-0.5 block">{{ $message }}</span> @enderror
+                                                </td>
+                                                <td class="px-3 py-2 align-top">
+                                                    <input type="text" wire:model="penandatangan.{{ $index }}.jabatan"
+                                                        class="w-full px-2 py-1.5 text-sm border rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white {{ $errors->has("penandatangan.{$index}.jabatan") ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600' }}"
+                                                        placeholder="Mis. Project Manager">
+                                                    @error("penandatangan.{$index}.jabatan") <span class="text-red-500 text-xs mt-0.5 block">{{ $message }}</span> @enderror
+                                                </td>
+                                                <td class="px-3 py-2 align-top">
+                                                    <input type="text" wire:model="penandatangan.{{ $index }}.instansi"
+                                                        class="w-full px-2 py-1.5 text-sm border rounded focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white {{ $errors->has("penandatangan.{$index}.instansi") ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600' }}"
+                                                        placeholder="Mis. PT BKI / Owner">
+                                                    @error("penandatangan.{$index}.instansi") <span class="text-red-500 text-xs mt-0.5 block">{{ $message }}</span> @enderror
+                                                </td>
+                                                <td class="px-3 py-2 text-center align-middle">
+                                                    <button type="button"
+                                                        wire:click="confirmRemovePenandatangan({{ $index }})"
+                                                        wire:loading.attr="disabled"
+                                                        wire:target="confirmRemovePenandatangan({{ $index }})"
+                                                        class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50" title="Hapus penandatangan">
+                                                        <svg wire:loading.class="hidden" wire:target="confirmRemovePenandatangan({{ $index }})" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                        </svg>
+                                                        <svg wire:loading wire:target="confirmRemovePenandatangan({{ $index }})" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                                                        </svg>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="6" class="px-3 py-6 text-center text-sm text-gray-400 dark:text-gray-500">Belum ada penandatangan. Klik "Tambah Penandatangan" untuk menambahkan.</td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
                     {{-- Spesifikasi Kapal (dinamis) --}}
                     <div class="md:col-span-2">
                         <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
@@ -278,6 +398,15 @@
         title="Hapus Item Spesifikasi"
         message="Apakah Anda yakin ingin menghapus item spesifikasi ini?"
         confirmMethod="removeSpesifikasiConfirmed"
+    />
+
+    {{-- Delete Penandatangan Confirmation Modal --}}
+    <x-delete-modal
+        :show="$showDeletePenandatanganModal"
+        wire:model="showDeletePenandatanganModal"
+        title="Hapus Penandatangan"
+        message="Apakah Anda yakin ingin menghapus penandatangan ini?"
+        confirmMethod="removePenandatanganConfirmed"
     />
 
     {{-- Konfirmasi buang perubahan saat Batal --}}

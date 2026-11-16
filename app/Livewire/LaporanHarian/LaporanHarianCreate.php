@@ -498,7 +498,8 @@ class LaporanHarianCreate extends Component
     public function removeNc(int $itemIndex, int $ncIndex): void
     {
         if (isset($this->items[$itemIndex]['nc'][$ncIndex])) {
-            unset($this->ncFoto[$itemIndex][$this->items[$itemIndex]['nc'][$ncIndex]['row_key'] ?? '']);
+            $rowKey = $this->items[$itemIndex]['nc'][$ncIndex]['row_key'];
+            $this->ncFoto[$itemIndex] = array_filter($this->ncFoto[$itemIndex] ?? [], fn ($key) => $key !== $rowKey && ! str_starts_with($key, $rowKey.'_'), ARRAY_FILTER_USE_KEY);
             unset($this->items[$itemIndex]['nc'][$ncIndex]);
             $this->items[$itemIndex]['nc'] = array_values($this->items[$itemIndex]['nc']);
         }
@@ -576,11 +577,11 @@ class LaporanHarianCreate extends Component
             ],
             'lampiran.*.*.preview' => 'nullable|image|max:5120',
             'ncFoto.*.*.file' => [
-                ...file_upload_validation_rule('foto_kapal'),
+                ...file_upload_validation_rule('laporan_nc_file'),
                 // Foto bukti wajib punya kendala NC (keterangan foto = kendala)
                 function ($attribute, $value, $fail) {
                     [, $itemIndex, $rowKey] = explode('.', $attribute);
-                    $row = collect($this->items[$itemIndex]['nc'] ?? [])->firstWhere('row_key', $rowKey);
+                    $row = collect($this->items[$itemIndex]['nc'] ?? [])->firstWhere('row_key', explode('_', $rowKey)[0]);
                     if ($value && trim((string) ($row['kendala'] ?? '')) === '') {
                         $fail('Kendala NC untuk foto bukti ini wajib diisi terlebih dahulu di tab NC.');
                     }

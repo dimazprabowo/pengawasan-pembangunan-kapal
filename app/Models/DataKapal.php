@@ -37,6 +37,10 @@ class DataKapal extends Model
         'galangan_id',
         'nama',
         'deskripsi',
+        'nama_pekerjaan',
+        'nomor_kontrak',
+        'nomor_pembangunan',
+        'penandatangan',
         'spesifikasi',
         'tanggal_mulai_kontrak',
         'durasi_kontrak_hari',
@@ -56,6 +60,7 @@ class DataKapal extends Model
     protected $casts = [
         'status' => DataKapalStatus::class,
         'spesifikasi' => 'array',
+        'penandatangan' => 'array',
         'tanggal_mulai_kontrak' => 'date',
         'durasi_kontrak_hari' => 'integer',
         'minggu_bulan_map' => 'array',
@@ -95,7 +100,7 @@ class DataKapal extends Model
     {
         return LogOptions::defaults()
             ->useLogName('data_kapal')
-            ->logOnly(['kode', 'company_id', 'galangan_id', 'nama', 'deskripsi', 'status', 'tanggal_mulai_kontrak', 'durasi_kontrak_hari'])
+            ->logOnly(['kode', 'company_id', 'galangan_id', 'nama', 'nama_pekerjaan', 'nomor_kontrak', 'nomor_pembangunan', 'deskripsi', 'status', 'tanggal_mulai_kontrak', 'durasi_kontrak_hari'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }
@@ -128,6 +133,48 @@ class DataKapal extends Model
     public function kurvaSWorkGroups(): HasMany
     {
         return $this->hasMany(KurvaSWorkGroup::class)->orderBy('sort_order');
+    }
+
+    public function drawingRegisters(): HasMany
+    {
+        return $this->hasMany(DrawingRegister::class)->orderBy('nomor');
+    }
+
+    public function projectVendors(): HasMany
+    {
+        return $this->hasMany(ProjectVendor::class)->orderBy('nama');
+    }
+
+    public function projectMaterials(): HasMany
+    {
+        return $this->hasMany(ProjectMaterial::class)->orderBy('kategori')->orderBy('nama_item');
+    }
+
+    public function pengujians(): HasMany
+    {
+        return $this->hasMany(Pengujian::class)->orderBy('tanggal');
+    }
+
+    public function rapats(): HasMany
+    {
+        return $this->hasMany(Rapat::class)->orderBy('tanggal');
+    }
+
+    /**
+     * Penandatangan ke-N (1-based) untuk lembar pengesahan laporan.
+     *
+     * @return array{label: string, nama: string, jabatan: string, instansi: string}
+     */
+    public function getPenandatangan(int $ke): array
+    {
+        $row = collect($this->penandatangan ?? [])->values()->get($ke - 1) ?? [];
+
+        return [
+            'label' => $row['label'] ?? '',
+            'nama' => $row['nama'] ?? '',
+            'jabatan' => $row['jabatan'] ?? '',
+            'instansi' => $row['instansi'] ?? '',
+        ];
     }
 
     public function scopeActive($query)

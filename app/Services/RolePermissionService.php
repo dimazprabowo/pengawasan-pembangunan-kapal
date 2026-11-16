@@ -96,6 +96,12 @@ class RolePermissionService
                 ['name' => 'data_kapal_export_excel',      'label' => 'Export Excel Data Kapal'],
                 ['name' => 'data_kapal_export_pdf',        'label' => 'Export PDF Data Kapal'],
             ],
+            'Data Proyek' => [
+                ['name' => 'proyek_data_view',   'label' => 'Lihat Data Proyek'],
+                ['name' => 'proyek_data_create', 'label' => 'Tambah Data Proyek'],
+                ['name' => 'proyek_data_update', 'label' => 'Edit Data Proyek'],
+                ['name' => 'proyek_data_delete', 'label' => 'Hapus Data Proyek'],
+            ],
             'Galangan' => [
                 ['name' => 'galangan_view',         'label' => 'Lihat Galangan'],
                 ['name' => 'galangan_create',       'label' => 'Tambah Galangan'],

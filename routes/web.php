@@ -15,6 +15,7 @@ use App\Livewire\LaporanMingguan\LaporanMingguanEdit;
 use App\Livewire\LaporanMingguan\LaporanMingguanIndex;
 use App\Livewire\LaporanMingguan\LaporanMingguanShow;
 use App\Livewire\MasterData\DataKapalForm;
+use App\Livewire\MasterData\DataProyekManagement;
 use App\Livewire\Pages\Dashboard;
 use App\Models\LaporanLampiran;
 use App\Models\LaporanNcForm;
@@ -58,6 +59,9 @@ Route::middleware(['auth', 'verified', 'active'])->group(function () {
             Route::get('/{dataKapal}/edit', DataKapalForm::class)
                 ->middleware('can:data_kapal_update')
                 ->name('data-kapal.edit');
+            Route::get('/{dataKapal}/proyek', DataProyekManagement::class)
+                ->middleware('can:proyek_data_view')
+                ->name('data-kapal.proyek');
         });
 
         Route::get('/galangan', function () {

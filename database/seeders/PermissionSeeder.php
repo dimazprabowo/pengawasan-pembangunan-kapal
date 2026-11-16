@@ -48,6 +48,12 @@ class PermissionSeeder extends Seeder
             'data_kapal_download_template',
             'data_kapal_manage_kurva_s',
 
+            // Master Data — Data Proyek (drawing, vendor, material, pengujian, rapat)
+            'proyek_data_view',
+            'proyek_data_create',
+            'proyek_data_update',
+            'proyek_data_delete',
+
             // Master Data — Galangan
             'galangan_view',
             'galangan_create',

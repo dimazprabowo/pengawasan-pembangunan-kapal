@@ -15,6 +15,7 @@
 
 require __DIR__.'/vendor/autoload.php';
 
+use App\Services\WordStyleService;
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\Settings;
 use PhpOffice\PhpWord\SimpleType\Jc;
@@ -163,6 +164,7 @@ $section->addTitle('2. Laporan Harian', 2);
 // Diganti service dengan altChunk docx laporan harian (tampilan identik template harian)
 $p('${lampiran_harian}', ['italic' => true, 'color' => '7F7F7F']);
 
+WordStyleService::prepare($phpWord);
 $phpWord->save($path, 'Word2007');
 
 // Beri atribut pada <w:tr> agar TemplateProcessor::findRowStart()

@@ -254,10 +254,10 @@ class LaporanHarianEdit extends Component
         $rules['nc.*.tindakan'] = 'nullable|string|max:2000';
         $rules['nc.*.pic'] = 'nullable|string|max:255';
         $rules['ncFoto.*.file'] = [
-            ...file_upload_validation_rule('foto_kapal'),
+            ...file_upload_validation_rule('laporan_nc_file'),
             // Foto bukti wajib punya kendala NC (keterangan foto = kendala)
             function ($attribute, $value, $fail) {
-                $row = collect($this->nc)->firstWhere('row_key', explode('.', $attribute)[1]);
+                $row = collect($this->nc)->firstWhere('row_key', explode('_', explode('.', $attribute)[1])[0]);
                 if ($value && trim((string) ($row['kendala'] ?? '')) === '') {
                     $fail('Kendala NC untuk foto bukti ini wajib diisi terlebih dahulu di tab NC.');
                 }
@@ -269,7 +269,7 @@ class LaporanHarianEdit extends Component
         $ncById = $this->laporan->ncs->keyBy('id');
         foreach ($this->nc as $i => $row) {
             $ncRow = ! empty($row['id']) ? $ncById->get($row['id']) : null;
-            if ($ncRow?->foto) {
+            if ($ncRow?->foto->isNotEmpty()) {
                 $rules["nc.{$i}.kendala"] = 'required|string|max:2000';
             }
         }
@@ -440,7 +440,8 @@ class LaporanHarianEdit extends Component
     public function removeNc(int $ncIndex): void
     {
         if (isset($this->nc[$ncIndex])) {
-            unset($this->ncFoto[$this->nc[$ncIndex]['row_key'] ?? '']);
+            $rowKey = $this->nc[$ncIndex]['row_key'];
+            $this->ncFoto = array_filter($this->ncFoto, fn ($key) => $key !== $rowKey && ! str_starts_with($key, $rowKey.'_'), ARRAY_FILTER_USE_KEY);
             unset($this->nc[$ncIndex]);
             $this->nc = array_values($this->nc);
         }

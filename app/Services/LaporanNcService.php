@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\NcFileKategori;
 use App\Enums\NcStatus;
 use App\Jobs\ProcessNcFoto;
 use App\Models\DataKapal;
@@ -59,12 +60,13 @@ class LaporanNcService
      * Sinkronkan NC untuk satu laporan harian (pola syncAktivitas):
      * - Baris tanpa kendala/tindakan/pic/foto baru diabaikan.
      * - Baris tersimpan (id milik laporan ini) di-update; yang tidak dikirim dihapus beserta fotonya.
-     * - Foto bukti baru (1 per NC) menggantikan foto lama, disimpan ke temp lalu
-     *   diproses async (crop + WebP) oleh ProcessNcFoto.
+     * - File bukti baru ditambahkan tanpa mengganti file lama, disimpan ke temp lalu
+     *   diproses async (crop + WebP / halaman PDF) oleh ProcessNcFoto.
      * - Status NC tidak diubah di sini — close lewat Form Penutupan, reopen di List NC.
      *
      * @param  array  $rows  [['row_key', 'id', 'kendala', 'tindakan', 'pic'], ...]
-     * @param  array  $fotos  [row_key => ['file' => UploadedFile|null, 'cropData' => ?array]]
+     * @param  array  $fotos  [row_key|row_key_{uuid}|row_key_after_{uuid} => ['file' => UploadedFile|null, 'cropData' => ?array]]
+     *                        Key ber-marker "_after_" disimpan sebagai kategori After; sisanya Before.
      * @return int jumlah foto baru yang diantrikan
      */
     public function syncNc(LaporanHarian $laporan, array $rows, array $fotos = []): int
@@ -77,13 +79,15 @@ class LaporanNcService
             $keepIds = [];
 
             foreach ($rows as $row) {
-                $foto = $fotos[$row['row_key'] ?? ''] ?? [];
-                $file = ($foto['file'] ?? null) instanceof UploadedFile ? $foto['file'] : null;
+                $rowKey = $row['row_key'] ?? '';
+                $files = collect($fotos)->filter(fn ($entry, $key) => $rowKey !== ''
+                    && ($key === $rowKey || str_starts_with($key, $rowKey.'_'))
+                    && ($entry['file'] ?? null) instanceof UploadedFile);
                 $kendala = trim((string) ($row['kendala'] ?? ''));
                 $tindakan = trim((string) ($row['tindakan'] ?? ''));
                 $pic = trim((string) ($row['pic'] ?? ''));
 
-                if ($kendala === '' && $tindakan === '' && $pic === '' && ! $file) {
+                if ($kendala === '' && $tindakan === '' && $pic === '' && $files->isEmpty()) {
                     continue;
                 }
 
@@ -108,19 +112,9 @@ class LaporanNcService
                 }
                 $keepIds[] = $nc->id;
 
-                if ($file) {
-                    if ($nc->foto) {
-                        $this->deleteFoto($nc->foto);
-                    }
-
-                    $ncFoto = $nc->foto()->create([
-                        'file_name' => basename($file->getClientOriginalName()),
-                        'file_size' => $file->getSize(),
-                        'file_status' => 'pending',
-                        'uploaded_by' => auth()->id(),
-                    ]);
-
-                    $jobs[] = [$ncFoto, $file->store('temp/laporan-nc', 'local'), $foto['cropData'] ?? null];
+                foreach ($files as $key => $entry) {
+                    $kategori = str_starts_with((string) $key, $rowKey.'_after_') ? NcFileKategori::After : NcFileKategori::Before;
+                    $jobs[] = $this->prepareFile($nc, $entry['file'], $kategori, $entry['cropData'] ?? null);
                 }
             }
 
@@ -128,7 +122,7 @@ class LaporanNcService
         });
 
         foreach ($jobs as [$ncFoto, $tempPath, $cropData]) {
-            ProcessNcFoto::dispatch($ncFoto, $tempPath, $cropData);
+            ProcessNcFoto::dispatch($ncFoto, $tempPath, $cropData)->afterCommit();
         }
 
         return count($jobs);
@@ -151,8 +145,35 @@ class LaporanNcService
         ]);
     }
 
+    public function addFiles(LaporanNc $nc, array $entries, NcFileKategori $kategori): void
+    {
+        $jobs = DB::transaction(function () use ($nc, $entries, $kategori) {
+            return collect($entries)->map(fn ($entry) => $this->prepareFile($nc, $entry['file'], $kategori, $entry['cropData'] ?? null))->all();
+        });
+
+        foreach ($jobs as [$record, $tempPath, $cropData]) {
+            ProcessNcFoto::dispatch($record, $tempPath, $cropData)->afterCommit();
+        }
+    }
+
+    private function prepareFile(LaporanNc $nc, UploadedFile $file, NcFileKategori $kategori, ?array $cropData): array
+    {
+        validator(['file' => $file], ['file' => file_upload_validation_rule('laporan_nc_file', true)])->validate();
+        $tempPath = $file->store('temp/laporan-nc', 'local');
+        $record = $nc->foto()->create([
+            'kategori' => $kategori,
+            'file_name' => basename($file->getClientOriginalName()),
+            'file_size' => $file->getSize(),
+            'file_status' => 'pending',
+            'uploaded_by' => auth()->id(),
+        ]);
+
+        return [$record, $tempPath, $cropData];
+    }
+
     public function deleteFoto(LaporanNcFoto $foto): void
     {
+        Storage::disk('local')->delete($foto->rendered_pages ?? []);
         if ($foto->file_path && Storage::disk('local')->exists($foto->file_path)) {
             Storage::disk('local')->delete($foto->file_path);
         }
@@ -164,8 +185,8 @@ class LaporanNcService
      */
     public function deleteNc(LaporanNc $nc): void
     {
-        if ($nc->foto) {
-            $this->deleteFoto($nc->foto);
+        foreach ($nc->foto as $file) {
+            $this->deleteFoto($file);
         }
         $nc->delete();
     }

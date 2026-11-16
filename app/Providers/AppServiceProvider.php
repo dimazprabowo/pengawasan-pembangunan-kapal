@@ -6,6 +6,7 @@ use App\Models\Chat;
 use App\Models\ChatMessage;
 use App\Models\Company;
 use App\Models\Cuaca;
+use App\Models\DrawingRegister;
 use App\Models\Kelembaban;
 use App\Models\LaporanBulanan;
 use App\Models\LaporanHarian;
@@ -13,12 +14,17 @@ use App\Models\LaporanMingguan;
 use App\Models\LaporanNc;
 use App\Models\LaporanNcForm;
 use App\Models\Notification;
+use App\Models\Pengujian;
+use App\Models\ProjectMaterial;
+use App\Models\ProjectVendor;
+use App\Models\Rapat;
 use App\Models\SystemConfiguration;
 use App\Models\User;
 use App\Policies\ChatPolicy;
 use App\Policies\CompanyPolicy;
 use App\Policies\CuacaPolicy;
 use App\Policies\DashboardPolicy;
+use App\Policies\DataProyekPolicy;
 use App\Policies\KelembabanPolicy;
 use App\Policies\LaporanBulananPolicy;
 use App\Policies\LaporanHarianPolicy;
@@ -64,6 +70,11 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(LaporanBulanan::class, LaporanBulananPolicy::class);
         Gate::policy(Kelembaban::class, KelembabanPolicy::class);
         Gate::policy(Cuaca::class, CuacaPolicy::class);
+        Gate::policy(DrawingRegister::class, DataProyekPolicy::class);
+        Gate::policy(ProjectVendor::class, DataProyekPolicy::class);
+        Gate::policy(ProjectMaterial::class, DataProyekPolicy::class);
+        Gate::policy(Pengujian::class, DataProyekPolicy::class);
+        Gate::policy(Rapat::class, DataProyekPolicy::class);
 
         // Dashboard policy — bound to a string key (no Eloquent model)
         Gate::define('viewStats', [DashboardPolicy::class, 'viewStats']);

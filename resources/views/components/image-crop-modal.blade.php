@@ -9,7 +9,7 @@
 @endpush
 
 @if($show && $imageUrl)
-    <div class="fixed inset-0 z-50 overflow-y-auto"
+    <div class="fixed inset-0 z-50 overflow-y-auto custom-scrollbar"
          x-data="{
             cropper: null,
             savedCropData: @js($cropData),

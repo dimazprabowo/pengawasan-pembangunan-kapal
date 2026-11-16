@@ -8,6 +8,7 @@ use App\Livewire\Traits\HasNotification;
 use App\Livewire\Traits\HasTableSorting;
 use App\Models\Company;
 use App\Models\DataKapal;
+use App\Models\DrawingRegister;
 use App\Models\Galangan;
 use App\Services\DataKapalService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -117,6 +118,14 @@ class DataKapalManagement extends Component
         $this->authorize('update', $dataKapal);
 
         return $this->redirect(route('master-data.data-kapal.edit', $dataKapal), navigate: true);
+    }
+
+    public function proyek($id)
+    {
+        $dataKapal = DataKapal::findOrFail($id);
+        $this->authorize('viewAny', DrawingRegister::class);
+
+        return $this->redirect(route('master-data.data-kapal.proyek', $dataKapal), navigate: true);
     }
 
     public function confirmDelete($id)

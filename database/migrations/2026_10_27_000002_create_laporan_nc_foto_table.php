@@ -8,11 +8,15 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Foto bukti temuan NC — 1:1 dengan NC (pola laporan_lampiran ↔ aktivitas).
+        // Lampiran NC — banyak file Before/After untuk setiap NC.
         // Diunggah dari form Laporan Harian, diproses async (crop + WebP).
         Schema::create('laporan_nc_foto', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('laporan_nc_id')->unique()->constrained('laporan_nc')->cascadeOnDelete();
+            $table->foreignId('laporan_nc_id')->constrained('laporan_nc')->cascadeOnDelete();
+            $table->string('kategori')->default('before');
+            $table->json('rendered_pages')->nullable();
+            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('file_path')->nullable();
             $table->string('file_name');
             $table->unsignedBigInteger('file_size')->nullable();

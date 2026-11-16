@@ -576,6 +576,24 @@ class KurvaSService
     }
 
     /**
+     * Total rencana (Σ pct_rencana semua work group) per bulan_ke dari
+     * kurva_s_rencana — untuk kolom "Rencana" tabel exec summary laporan
+     * bulanan (termasuk bulan yang belum ada laporannya).
+     *
+     * @return array<int, float> map bulan_ke → total pct rencana
+     */
+    public function getMonthlyPlanTotals(DataKapal $dataKapal): array
+    {
+        $workGroups = KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)
+            ->with('kurvaSRencana')
+            ->get();
+
+        return collect($this->getMonthlyPlanMap($workGroups))
+            ->map(fn ($byWg) => round(array_sum($byWg), 2))
+            ->all();
+    }
+
+    /**
      * History progress per BULAN untuk seluruh bulan kontrak yang sudah
      * memiliki laporan mingguan berprogress. plans[] = rencana bulan,
      * progress[] = Σ realisasi minggu dalam bulan; kumulatif ditambahkan

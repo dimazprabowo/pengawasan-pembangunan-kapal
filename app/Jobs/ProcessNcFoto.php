@@ -3,12 +3,14 @@
 namespace App\Jobs;
 
 use App\Models\LaporanNcFoto;
+use App\Services\PdfPageService;
 use App\Services\QueueStatusService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Drivers\Gd\Driver;
 use Intervention\Image\ImageManager;
@@ -20,6 +22,10 @@ class ProcessNcFoto implements ShouldQueue
     public int $tries = 3;
 
     public int $backoff = 10;
+
+    public int $timeout = 60;
+
+    public bool $deleteWhenMissingModels = true;
 
     public function __construct(
         public LaporanNcFoto $ncFoto,
@@ -48,8 +54,12 @@ class ProcessNcFoto implements ShouldQueue
         try {
             $fileContent = Storage::disk('local')->get($this->tempPath);
             $originalName = $this->ncFoto->file_name;
-            $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
-            $isImage = in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp']);
+            $mime = (new \finfo(FILEINFO_MIME_TYPE))->buffer($fileContent);
+            $extension = $mime === 'application/pdf' ? 'pdf' : 'webp';
+            $isImage = str_starts_with((string) $mime, 'image/');
+            if (! $isImage && $mime !== 'application/pdf') {
+                throw new \RuntimeException('Tipe file NC tidak didukung.');
+            }
 
             $baseFileName = pathinfo($originalName, PATHINFO_FILENAME);
 
@@ -62,12 +72,24 @@ class ProcessNcFoto implements ShouldQueue
             $fileName = time().'_'.uniqid().'.'.$extension;
             $destinationPath = 'laporan-nc/foto/'.$fileName;
 
-            Storage::disk('local')->put($destinationPath, $fileContent);
+            $pages = $isImage ? [] : app(PdfPageService::class)->render($this->tempPath);
+            if (! Storage::disk('local')->put($destinationPath, $fileContent)) {
+                Storage::disk('local')->delete($pages);
+                throw new \RuntimeException('Gagal menyimpan file NC.');
+            }
+            if (! $this->ncFoto->fresh()) {
+                Storage::disk('local')->delete(array_merge([$destinationPath], $pages));
+                Storage::disk('local')->delete($this->tempPath);
 
-            $finalFileName = $isImage ? $baseFileName.'.webp' : $originalName;
+                return;
+            }
+            Storage::disk('local')->delete($this->ncFoto->rendered_pages ?? []);
+
+            $finalFileName = $baseFileName.'.'.$extension;
 
             $this->ncFoto->update([
                 'file_path' => $destinationPath,
+                'rendered_pages' => $pages,
                 'file_name' => $finalFileName,
                 'file_size' => strlen($fileContent),
                 'file_status' => 'completed',
@@ -79,7 +101,7 @@ class ProcessNcFoto implements ShouldQueue
         } catch (\Exception $e) {
             $this->ncFoto->update([
                 'file_status' => 'failed',
-                'file_error' => $e->getMessage(),
+                'file_error' => 'File NC gagal diproses. Silakan unggah ulang.',
             ]);
             throw $e;
         }
@@ -110,9 +132,10 @@ class ProcessNcFoto implements ShouldQueue
 
     public function failed(\Throwable $exception): void
     {
+        Log::error('ProcessNcFoto gagal', ['file_id' => $this->ncFoto->id, 'error' => $exception->getMessage()]);
         $this->ncFoto->update([
             'file_status' => 'failed',
-            'file_error' => $exception->getMessage(),
+            'file_error' => 'File NC gagal diproses. Silakan unggah ulang.',
         ]);
 
         if (Storage::disk('local')->exists($this->tempPath)) {

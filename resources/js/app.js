@@ -35,5 +35,15 @@ window.lhCompressUpload = async function (input) {
     return file;
 };
 
+window.lhUploadFiles = async function (wire, input, prefix, onProgress) {
+    const files = Array.from(input.files || []);
+    input.value = '';
+    for (const original of files) {
+        const file = await window.lhCompressUpload({ files: [original], value: '' });
+        const key = prefix + crypto.randomUUID().replaceAll('-', '') + '.file';
+        await new Promise((resolve, reject) => wire.upload(key, file, resolve, reject, onProgress));
+    }
+};
+
 // Note: Alpine.js is already included in Livewire
 // No need to import it separately to avoid multiple instances

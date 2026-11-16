@@ -65,6 +65,7 @@ class DataKapalService
     public function create(array $data): DataKapal
     {
         $data['spesifikasi'] = $this->normalizeSpesifikasi($data['spesifikasi'] ?? null);
+        $data['penandatangan'] = $this->normalizePenandatangan($data['penandatangan'] ?? null);
 
         return DataKapal::create($data);
     }
@@ -72,6 +73,7 @@ class DataKapalService
     public function update(DataKapal $dataKapal, array $data): bool
     {
         $data['spesifikasi'] = $this->normalizeSpesifikasi($data['spesifikasi'] ?? null);
+        $data['penandatangan'] = $this->normalizePenandatangan($data['penandatangan'] ?? null);
 
         return $dataKapal->update($data);
     }
@@ -93,6 +95,36 @@ class DataKapalService
             ])
             ->filter(fn ($row) => $row['item'] !== '' || $row['keterangan'] !== '')
             ->values()
+            ->all();
+
+        return $normalized === [] ? null : $normalized;
+    }
+
+    /**
+     * Normalisasi input penandatangan: trim, buang baris tanpa nama,
+     * hapus key internal (row_key), reindex. Label kosong diisi
+     * default urutan (Dipersiapkan, Diketahui, Menyetujui, ...).
+     */
+    private function normalizePenandatangan(?array $rows): ?array
+    {
+        if (empty($rows)) {
+            return null;
+        }
+
+        $defaultLabels = ['Dipersiapkan', 'Diketahui', 'Menyetujui', 'Disahkan'];
+
+        $normalized = collect($rows)
+            ->map(fn ($row) => [
+                'label' => trim((string) ($row['label'] ?? '')),
+                'nama' => trim((string) ($row['nama'] ?? '')),
+                'jabatan' => trim((string) ($row['jabatan'] ?? '')),
+                'instansi' => trim((string) ($row['instansi'] ?? '')),
+            ])
+            ->filter(fn ($row) => $row['nama'] !== '')
+            ->values()
+            ->map(fn ($row, $i) => $row['label'] === ''
+                ? $row + ['label' => $defaultLabels[$i] ?? 'Penandatangan '.($i + 1)]
+                : $row)
             ->all();
 
         return $normalized === [] ? null : $normalized;

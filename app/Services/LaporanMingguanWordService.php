@@ -88,7 +88,17 @@ class LaporanMingguanWordService
         $this->fillExternal($processor, $laporan);
 
         $relativePath = $this->saveDocument($processor, $laporan);
-        $this->embedHarianDocs(storage_path('app/'.$relativePath), $this->resolveHarianDocs($laporan));
+        try {
+            $this->embedHarianDocs(storage_path('app/'.$relativePath), $this->resolveHarianDocs($laporan));
+            app(NcAttachmentWordService::class)->append(
+                storage_path('app/'.$relativePath),
+                $this->ncService->rekapMingguan($laporan->data_kapal_id, $laporan->periode_mulai, $laporan->periode_selesai),
+                true,
+            );
+        } catch (\Throwable $e) {
+            @unlink(storage_path('app/'.$relativePath));
+            throw $e;
+        }
 
         return $relativePath;
     }
@@ -250,7 +260,7 @@ class LaporanMingguanWordService
         $table->addCell($w[7], ['bgColor' => self::LIGHT, 'valign' => 'center'])
             ->addText($this->pct($totals[4] - $totals[3], true), $totalFont, ['alignment' => Jc::CENTER]);
 
-        $processor->setComplexBlock('tabel_kurva_s', $table);
+        WordStyleService::setComplexBlock($processor, 'tabel_kurva_s', $table);
     }
 
     // ──────────────────────────────────────────────────────────────────
@@ -289,7 +299,7 @@ class LaporanMingguanWordService
             }
         }
 
-        $processor->setComplexBlock('tabel_uraian', $table);
+        WordStyleService::setComplexBlock($processor, 'tabel_uraian', $table);
     }
 
     // ──────────────────────────────────────────────────────────────────
@@ -323,7 +333,7 @@ class LaporanMingguanWordService
                 ->addText($nc->status->label(), ['bold' => true, 'size' => 9, 'color' => $nc->status->wordColor()], ['alignment' => Jc::CENTER]);
         }
 
-        $processor->setComplexBlock('tabel_nc', $table);
+        WordStyleService::setComplexBlock($processor, 'tabel_nc', $table);
     }
 
     // ──────────────────────────────────────────────────────────────────
@@ -376,7 +386,7 @@ class LaporanMingguanWordService
             $this->bodyCell($table, $w[3], 'Terlampir (file terpisah)', $bg);
         }
 
-        $processor->setComplexBlock('tabel_external', $table);
+        WordStyleService::setComplexBlock($processor, 'tabel_external', $table);
     }
 
     // ──────────────────────────────────────────────────────────────────

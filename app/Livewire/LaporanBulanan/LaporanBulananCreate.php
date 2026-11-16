@@ -10,7 +10,10 @@ use App\Models\LaporanBulanan;
 use App\Models\LaporanExternal;
 use App\Services\KontrakPeriodeService;
 use App\Services\LaporanBulananService;
+use App\Services\LaporanNcService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -31,6 +34,9 @@ class LaporanBulananCreate extends Component
     public string $periode_selesai = '';
 
     public string $ringkasan = '';
+
+    /** BAB 2.3 — milestone realisasi pekerjaan [{row_key, uraian, tanggal, keterangan}] */
+    public array $realisasiProgress = [];
 
     public array $bulanOptions = [];
 
@@ -64,6 +70,9 @@ class LaporanBulananCreate extends Component
             'periode_mulai' => 'required|date',
             'periode_selesai' => 'required|date|after_or_equal:periode_mulai',
             'ringkasan' => 'nullable|string|max:5000',
+            'realisasiProgress.*.uraian' => 'required|string|max:500',
+            'realisasiProgress.*.tanggal' => 'nullable|date',
+            'realisasiProgress.*.keterangan' => 'nullable|string|max:255',
             'laporanExternal.*.judul' => 'required|string|max:255',
             'laporanExternal.*.deskripsi' => 'nullable|string|max:1000',
             'laporanExternal.*.file' => file_upload_validation_rule('laporan_external'),
@@ -78,6 +87,9 @@ class LaporanBulananCreate extends Component
             'periode_mulai' => 'periode mulai',
             'periode_selesai' => 'periode selesai',
             'ringkasan' => 'ringkasan',
+            'realisasiProgress.*.uraian' => 'uraian realisasi',
+            'realisasiProgress.*.tanggal' => 'tanggal realisasi',
+            'realisasiProgress.*.keterangan' => 'keterangan realisasi',
             'laporanExternal.*.judul' => 'judul laporan external',
             'laporanExternal.*.deskripsi' => 'deskripsi laporan external',
             'laporanExternal.*.file' => 'file laporan external',
@@ -95,6 +107,40 @@ class LaporanBulananCreate extends Component
 
         $this->periode_mulai = $periode ? $periode['mulai']->format('Y-m-d') : '';
         $this->periode_selesai = $periode ? $periode['selesai']->format('Y-m-d') : '';
+    }
+
+    // ─── Repeater: Realisasi Progress (BAB 2.3) ───
+    // BAB 3.2 Problem & Rekomendasi bukan input — otomatis dari rekap NC periode.
+
+    public function addRealisasiProgress(): void
+    {
+        $this->realisasiProgress[] = [
+            'row_key' => (string) Str::uuid(),
+            'uraian' => '',
+            'tanggal' => '',
+            'keterangan' => '',
+        ];
+    }
+
+    public function removeRealisasiProgress(int $index): void
+    {
+        unset($this->realisasiProgress[$index]);
+        $this->realisasiProgress = array_values($this->realisasiProgress);
+    }
+
+    /** Normalisasi repeater realisasi → payload kolom JSON (buang row_key & baris kosong). */
+    private function normalizedRealisasi(): array
+    {
+        $realisasi = collect($this->realisasiProgress)
+            ->map(fn ($r) => [
+                'uraian' => trim((string) ($r['uraian'] ?? '')),
+                'tanggal' => $r['tanggal'] ?: null,
+                'keterangan' => trim((string) ($r['keterangan'] ?? '')) ?: null,
+            ])
+            ->filter(fn ($r) => $r['uraian'] !== '')
+            ->values()->all();
+
+        return ['realisasi_progress' => $realisasi ?: null];
     }
 
     // Laporan External Methods
@@ -153,7 +199,7 @@ class LaporanBulananCreate extends Component
 
         try {
             $this->validate();
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->notifyValidationError($e);
             throw $e;
         }
@@ -173,13 +219,13 @@ class LaporanBulananCreate extends Component
                 'periode_selesai' => $this->periode_selesai ?: null,
                 'ringkasan' => $this->ringkasan ?: null,
                 'bulan_ke' => $this->bulan_ke,
-            ]);
+            ] + $this->normalizedRealisasi());
 
             $this->saveLaporanExternal($laporan);
 
             $this->notifySuccess('Laporan bulanan berhasil ditambahkan!');
 
-            $this->redirect(route('laporan-bulanan.index', $this->dataKapal), navigate: true);
+            $this->redirect(route('laporan-bulanan.show', [$this->dataKapal, $laporan]), navigate: true);
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
@@ -224,6 +270,11 @@ class LaporanBulananCreate extends Component
 
     public function render()
     {
-        return view('livewire.laporan-bulanan.laporan-bulanan-create');
+        // Preview rekap NC (open terbawa + closed dalam periode) = isi BAB 3.2.
+        $ncRekap = ($this->periode_mulai && $this->periode_selesai)
+            ? app(LaporanNcService::class)->rekapMingguan($this->dataKapal->id, $this->periode_mulai, $this->periode_selesai)
+            : collect();
+
+        return view('livewire.laporan-bulanan.laporan-bulanan-create', compact('ncRekap'));
     }
 }

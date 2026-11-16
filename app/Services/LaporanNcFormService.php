@@ -246,7 +246,7 @@ class LaporanNcFormService
 
     public function downloadName(LaporanNcForm $form, bool $signed = false): string
     {
-        $base = str($form->jenis->label().' '.$form->nomor.' '.($form->dataKapal?->nama ?? ''))->slug();
+        $base = str($form->jenis->judulDokumen().' '.$form->nomor.' '.($form->dataKapal?->nama ?? ''))->slug();
 
         return $signed
             ? $base.'-ttd.'.strtolower(pathinfo((string) $form->file_name, PATHINFO_EXTENSION))

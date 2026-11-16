@@ -8,9 +8,11 @@ use App\Models\Company;
 use App\Models\DataKapal;
 use App\Models\Galangan;
 use App\Services\DataKapalService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -31,11 +33,23 @@ class DataKapalForm extends Component
 
     public $deskripsi;
 
+    public $nama_pekerjaan;
+
+    public $nomor_kontrak;
+
+    public $nomor_pembangunan;
+
+    public array $penandatangan = [];
+
     public array $spesifikasi = [];
 
     public bool $showDeleteSpesifikasiModal = false;
 
     public ?int $deletingSpesifikasiIndex = null;
+
+    public bool $showDeletePenandatanganModal = false;
+
+    public ?int $deletingPenandatanganIndex = null;
 
     public $status = 'active';
 
@@ -54,6 +68,17 @@ class DataKapalForm extends Component
             $this->galangan_id = $dataKapal->galangan_id;
             $this->nama = $dataKapal->nama;
             $this->deskripsi = $dataKapal->deskripsi;
+            $this->nama_pekerjaan = $dataKapal->nama_pekerjaan;
+            $this->nomor_kontrak = $dataKapal->nomor_kontrak;
+            $this->nomor_pembangunan = $dataKapal->nomor_pembangunan;
+            $this->penandatangan = collect($dataKapal->penandatangan ?? [])
+                ->map(fn ($row) => [
+                    'row_key' => (string) Str::uuid(),
+                    'label' => $row['label'] ?? '',
+                    'nama' => $row['nama'] ?? '',
+                    'jabatan' => $row['jabatan'] ?? '',
+                    'instansi' => $row['instansi'] ?? '',
+                ])->all();
             $this->spesifikasi = collect($dataKapal->spesifikasi ?? [])
                 ->map(fn ($row) => [
                     'row_key' => (string) Str::uuid(),
@@ -73,6 +98,14 @@ class DataKapalForm extends Component
             'galangan_id' => 'nullable|exists:galangan,id',
             'nama' => 'required|string|max:255',
             'deskripsi' => 'nullable|string',
+            'nama_pekerjaan' => 'nullable|string|max:255',
+            'nomor_kontrak' => 'nullable|string|max:150',
+            'nomor_pembangunan' => 'nullable|string|max:100',
+            'penandatangan' => 'array',
+            'penandatangan.*.label' => 'nullable|string|max:100',
+            'penandatangan.*.nama' => 'required|string|max:255',
+            'penandatangan.*.jabatan' => 'nullable|string|max:255',
+            'penandatangan.*.instansi' => 'nullable|string|max:255',
             'spesifikasi' => 'array',
             'spesifikasi.*.item' => 'required|string|max:100|distinct',
             'spesifikasi.*.keterangan' => 'required|string|max:255',
@@ -87,6 +120,13 @@ class DataKapalForm extends Component
             'galangan_id' => 'galangan',
             'nama' => 'nama kapal',
             'deskripsi' => 'deskripsi',
+            'nama_pekerjaan' => 'nama pekerjaan',
+            'nomor_kontrak' => 'nomor kontrak',
+            'nomor_pembangunan' => 'nomor pembangunan',
+            'penandatangan.*.label' => 'label penandatangan',
+            'penandatangan.*.nama' => 'nama penandatangan',
+            'penandatangan.*.jabatan' => 'jabatan penandatangan',
+            'penandatangan.*.instansi' => 'instansi penandatangan',
             'spesifikasi.*.item' => 'item spesifikasi',
             'spesifikasi.*.keterangan' => 'keterangan spesifikasi',
             'status' => 'status',
@@ -100,6 +140,41 @@ class DataKapalForm extends Component
             'item' => '',
             'keterangan' => '',
         ];
+    }
+
+    public function addPenandatangan(): void
+    {
+        $this->penandatangan[] = [
+            'row_key' => (string) Str::uuid(),
+            'label' => '',
+            'nama' => '',
+            'jabatan' => '',
+            'instansi' => '',
+        ];
+    }
+
+    public function confirmRemovePenandatangan(int $index): void
+    {
+        $this->deletingPenandatanganIndex = $index;
+        $this->showDeletePenandatanganModal = true;
+    }
+
+    public function removePenandatanganConfirmed(): void
+    {
+        if ($this->deletingPenandatanganIndex !== null) {
+            $this->removePenandatangan($this->deletingPenandatanganIndex);
+        }
+        $this->showDeletePenandatanganModal = false;
+        $this->deletingPenandatanganIndex = null;
+        $this->notifySuccess('Penandatangan berhasil dihapus');
+    }
+
+    public function removePenandatangan(int $index): void
+    {
+        if (isset($this->penandatangan[$index])) {
+            unset($this->penandatangan[$index]);
+            $this->penandatangan = array_values($this->penandatangan);
+        }
     }
 
     public function confirmRemoveSpesifikasi(int $index): void
@@ -135,9 +210,15 @@ class DataKapalForm extends Component
             ->values()
             ->all();
 
+        // Buang baris penandatangan tanpa nama (nama wajib bila baris diisi)
+        $this->penandatangan = collect($this->penandatangan)
+            ->filter(fn ($row) => trim((string) ($row['nama'] ?? '')) !== '')
+            ->values()
+            ->all();
+
         try {
             $this->validate();
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->notifyValidationError($e);
             throw $e;
         }
@@ -148,6 +229,10 @@ class DataKapalForm extends Component
                 'galangan_id' => $this->galangan_id ?: null,
                 'nama' => $this->nama,
                 'deskripsi' => $this->deskripsi,
+                'nama_pekerjaan' => $this->nama_pekerjaan,
+                'nomor_kontrak' => $this->nomor_kontrak,
+                'nomor_pembangunan' => $this->nomor_pembangunan,
+                'penandatangan' => $this->penandatangan,
                 'spesifikasi' => $this->spesifikasi,
                 'status' => $this->status,
             ];
@@ -165,7 +250,7 @@ class DataKapalForm extends Component
             $this->notifySuccess($message);
 
             return $this->redirect(route('master-data.data-kapal'), navigate: true);
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk melakukan aksi ini.');
         } catch (\Exception $e) {
             \Log::error('Simpan data kapal gagal', ['error' => $e->getMessage()]);

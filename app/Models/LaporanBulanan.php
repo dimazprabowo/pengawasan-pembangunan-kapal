@@ -44,6 +44,7 @@ class LaporanBulanan extends Model
         'periode_mulai',
         'periode_selesai',
         'ringkasan',
+        'realisasi_progress',
         'bulan_ke',
         'doc_path',
         'doc_name',
@@ -62,6 +63,7 @@ class LaporanBulanan extends Model
             'periode_mulai' => 'date',
             'periode_selesai' => 'date',
             'bulan_ke' => 'integer',
+            'realisasi_progress' => 'array',
             'doc_generated_at' => 'datetime',
         ];
     }

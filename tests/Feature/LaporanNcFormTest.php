@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\LaporanNcFormService;
 use App\Services\LaporanNcService;
 use App\Services\LaporanNcWordService;
+use App\Services\WordImageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
@@ -156,6 +157,65 @@ class LaporanNcFormTest extends TestCase
 
         $this->expectException(ValidationException::class);
         $this->forms->deleteDraft($form->fresh());
+    }
+
+    #[Test]
+    public function ncr_close_hanya_memuat_foto_dan_halaman_pdf_after(): void
+    {
+        Storage::fake('local');
+        $this->partialMock(WordImageService::class, function ($mock) {
+            $mock->shouldReceive('resolveLampiranPath')->andReturnUsing(fn ($path) => Storage::disk('local')->path($path));
+        });
+        $laporan = $this->laporanDenganNc(now()->subDays(3)->toDateString(), ['Las porositas']);
+        $nc = $laporan->ncs()->firstOrFail();
+        foreach (['before', 'after'] as $kategori) {
+            $imagePath = $kategori.'/foto.png';
+            Storage::disk('local')->put($imagePath, UploadedFile::fake()->image('foto.png')->getContent());
+            Storage::disk('local')->put($kategori.'/scan.pdf', '%PDF-1.4');
+            $nc->foto()->create(['kategori' => $kategori, 'file_name' => 'foto.png', 'file_path' => $imagePath, 'file_status' => 'completed']);
+            $nc->foto()->create(['kategori' => $kategori, 'file_name' => $kategori.'-scan.pdf', 'file_path' => $kategori.'/scan.pdf', 'file_status' => 'completed', 'rendered_pages' => [$imagePath]]);
+        }
+        [$form] = $this->forms->createPenutupan($this->dataKapal->id, [$nc->id]);
+        $form->load('ncs.foto');
+        $path = app(LaporanNcWordService::class)->generate($form);
+        $zip = new \ZipArchive;
+        try {
+            $this->assertTrue($zip->open($path));
+            $xml = $zip->getFromName('word/document.xml');
+            $this->assertStringContainsString('NCR - CLOSE', $xml);
+            $this->assertStringContainsString('After', $xml);
+            $this->assertStringContainsString('after-scan.pdf', $xml);
+            $this->assertStringNotContainsString('— Before —', $xml);
+            $this->assertStringNotContainsString('before-scan.pdf', $xml);
+            $document = new \DOMDocument;
+            $this->assertTrue($document->loadXML($xml, LIBXML_NONET));
+            $this->assertSame(2, substr_count($document->textContent, '— After —'));
+            $this->assertCount(4, $form->ncs->first()->foto);
+        } finally {
+            $zip->close();
+            @unlink($path);
+        }
+    }
+
+    #[Test]
+    public function ncr_close_tanpa_after_tidak_memakai_before_sebagai_pengganti(): void
+    {
+        $laporan = $this->laporanDenganNc(now()->subDays(3)->toDateString(), ['Las porositas']);
+        $nc = $laporan->ncs()->firstOrFail();
+        $nc->foto()->create(['kategori' => 'before', 'file_name' => 'before.pdf', 'file_status' => 'pending']);
+        [$form] = $this->forms->createPenutupan($this->dataKapal->id, [$nc->id]);
+        $path = app(LaporanNcWordService::class)->generate($form);
+        $zip = new \ZipArchive;
+        try {
+            $this->assertTrue($zip->open($path));
+            $xml = $zip->getFromName('word/document.xml');
+            $this->assertStringContainsString('NCR - CLOSE', $xml);
+            $this->assertStringNotContainsString('— Before —', $xml);
+            $this->assertStringNotContainsString('Lampiran', $xml);
+        } finally {
+            $zip->close();
+            @unlink($path);
+        }
     }
 
     #[Test]

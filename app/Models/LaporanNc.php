@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -90,11 +90,11 @@ class LaporanNc extends Model
     }
 
     /**
-     * Foto bukti temuan (1 foto per NC).
+     * Koleksi file gambar/PDF Before/After NC.
      */
-    public function foto(): HasOne
+    public function foto(): HasMany
     {
-        return $this->hasOne(LaporanNcFoto::class, 'laporan_nc_id');
+        return $this->hasMany(LaporanNcFoto::class, 'laporan_nc_id')->orderBy('id');
     }
 
     /**

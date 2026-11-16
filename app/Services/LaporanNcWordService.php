@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Enums\NcFileKategori;
 use App\Enums\NcFormJenis;
 use App\Models\LaporanNc;
 use App\Models\LaporanNcForm;
+use App\Models\LaporanNcFoto;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpWord\Settings;
@@ -53,11 +55,21 @@ class LaporanNcWordService
             'judul_form' => $form->jenis->judulDokumen(),
         ]);
 
+        $attachmentNcs = $form->ncs->map(fn (LaporanNc $nc) => (clone $nc)->setRelation(
+            'foto',
+            $nc->foto->filter(fn ($file) => $form->jenis !== NcFormJenis::Penutupan || $file->kategori === NcFileKategori::After)->values(),
+        ));
         $this->fillNcTable($processor, $form);
-        $this->fillLampiran($processor, $form->ncs);
+        $this->fillLampiran($processor, $attachmentNcs);
 
         $path = sys_get_temp_dir().DIRECTORY_SEPARATOR.uniqid('ncform_', true).'.docx';
         $processor->saveAs($path);
+        try {
+            app(NcAttachmentWordService::class)->append($path, $attachmentNcs);
+        } catch (\Throwable $e) {
+            @unlink($path);
+            throw $e;
+        }
 
         return $path;
     }
@@ -116,7 +128,9 @@ class LaporanNcWordService
      */
     private function fillLampiran(TemplateProcessor $processor, Collection $ncs): void
     {
-        $withFoto = $ncs->filter(fn (LaporanNc $nc) => $nc->foto?->isFileCompleted() && $nc->foto->isImage())->values();
+        $withFoto = $ncs->flatMap(fn (LaporanNc $nc) => $nc->foto
+            ->filter(fn ($file) => $file->isFileCompleted() && $file->isImage())
+            ->map(fn ($file) => ['nc' => $nc, 'file' => $file]))->values();
 
         try {
             if ($withFoto->isEmpty()) {
@@ -128,32 +142,31 @@ class LaporanNcWordService
             $processor->cloneBlock('blok_lampiran', 1, true, false);
             $processor->cloneRow('foto_no', $withFoto->count());
 
-            foreach ($withFoto as $i => $nc) {
+            foreach ($withFoto as $i => $entry) {
                 $n = $i + 1;
                 $processor->setValue("foto_no#{$n}", (string) $n);
-                $processor->setValue("foto_keterangan#{$n}", trim((string) $nc->kendala) ?: '-');
-                $this->setFoto($processor, "foto_gambar#{$n}", $nc);
+                $processor->setValue("foto_keterangan#{$n}", $entry['nc']->nomor.' — '.$entry['file']->kategori->label().' — '.$entry['nc']->kendala);
+                $this->setFoto($processor, "foto_gambar#{$n}", $entry['file']);
             }
         } catch (\Exception $e) {
             Log::warning('LaporanNcWordService: skip lampiran (template tanpa blok ${blok_lampiran}?)', ['error' => $e->getMessage()]);
+            throw $e;
         }
     }
 
-    private function setFoto(TemplateProcessor $processor, string $macro, LaporanNc $nc): void
+    private function setFoto(TemplateProcessor $processor, string $macro, LaporanNcFoto $file): void
     {
-        $imagePath = $this->imageService->resolveLampiranPath($nc->foto->file_path);
+        $imagePath = $this->imageService->resolveLampiranPath($file->file_path);
         if (! $imagePath) {
-            $processor->setValue($macro, $nc->foto->file_name ?? '-');
-
-            return;
+            throw new \RuntimeException('Gambar lampiran NC tidak ditemukan.');
         }
 
         $finalPath = $this->imageService->prepareImageForWord($imagePath, 900, 900, 75);
         try {
             $processor->setImageValue($macro, ['path' => $finalPath, 'width' => self::FOTO_SIZE, 'height' => self::FOTO_SIZE, 'ratio' => true]);
         } catch (\Exception $e) {
-            Log::error('LaporanNcWordService: gagal sisipkan foto', ['nc_id' => $nc->id, 'error' => $e->getMessage()]);
-            $processor->setValue($macro, $nc->foto->file_name ?? '-');
+            Log::error('LaporanNcWordService: gagal sisipkan foto', ['nc_id' => $file->laporan_nc_id, 'error' => $e->getMessage()]);
+            throw $e;
         } finally {
             if ($finalPath !== $imagePath && file_exists($finalPath)) {
                 @unlink($finalPath);

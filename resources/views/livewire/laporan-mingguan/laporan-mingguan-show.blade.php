@@ -479,7 +479,7 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                                {{ $nc->foto ? 'Ada foto temuan' : '-' }}
+                                {{ $nc->foto->isNotEmpty() ? $nc->foto->count().' file NC' : '-' }}
                             </td>
                         </tr>
                     @empty

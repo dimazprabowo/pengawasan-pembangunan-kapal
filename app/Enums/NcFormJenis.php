@@ -29,8 +29,8 @@ enum NcFormJenis: string
     public function judulDokumen(): string
     {
         return match ($this) {
-            self::Temuan => 'NON CONFORMANCE REPORT',
-            self::Penutupan => 'NON CONFORMANCE REPORT (PENUTUPAN)',
+            self::Temuan => 'NCR - OPEN',
+            self::Penutupan => 'NCR - CLOSE',
         };
     }
 

@@ -2,22 +2,37 @@
 
 namespace App\Models;
 
+use App\Enums\NcFileKategori;
 use App\Traits\HasEncryptedRouteKey;
+use App\Traits\HasUserStamps;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
- * Foto bukti temuan NC (1:1 dengan LaporanNc).
+ * Lampiran gambar/PDF Before/After NC (banyak file per LaporanNc).
  */
 class LaporanNcFoto extends Model
 {
-    use HasEncryptedRouteKey, HasFactory;
+    use HasEncryptedRouteKey, HasFactory, HasUserStamps, LogsActivity;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('laporan_nc_file')
+            ->logOnly(['laporan_nc_id', 'kategori', 'file_name', 'file_status', 'file_path'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
 
     protected $table = 'laporan_nc_foto';
 
     protected $fillable = [
         'laporan_nc_id',
+        'kategori',
+        'rendered_pages',
         'file_path',
         'file_name',
         'file_size',
@@ -25,9 +40,13 @@ class LaporanNcFoto extends Model
         'file_error',
         'file_processed_at',
         'uploaded_by',
+        'created_by',
+        'updated_by',
     ];
 
     protected $casts = [
+        'kategori' => NcFileKategori::class,
+        'rendered_pages' => 'array',
         'file_size' => 'integer',
         'file_processed_at' => 'datetime',
     ];

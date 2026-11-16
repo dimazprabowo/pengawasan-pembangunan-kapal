@@ -248,6 +248,17 @@ Setiap perubahan search/filter menampilkan toast jumlah hasil — pola sudah dit
     - FIX yang ADA di komponen: opsi juga di-render ke `<div x-ref="optionsData" class="hidden">{!! json_encode($options, JSON_HEX_*) !!}</div>` — child TETAP ikut morph tiap render (`.self` hanya mengabaikan root). Saat dropdown dibuka, `refreshOptions()` membaca ulang elemen itu -> selalu fresh.
     - `componentId` deterministik: `md5($wireModel.'|'.$placeholder)` — JANGAN `uniqid()` (berubah tiap render -> node ganda saat morph).
     - JANGAN andalkan `wire:key` signature di root `wire:ignore.self` untuk refresh opsi — key berubah = node beda, risiko node ganda saat morph.
+11. **Tab state hilang saat refresh**: properti tab biasa (`public string $tab`) selalu reset ke default tiap mount -> refresh browser mengembalikan user ke tab pertama. SOLUSI (pola `LaporanHarianIndex`/`LaporanMingguanIndex`/`LaporanBulananIndex`/`DataProyekManagement`/`SendNotification`):
+    - `#[Url(as: 'tab')] public string $tab = 'default';` (import `Livewire\Attributes\Url`) -> tab persist di query string, refresh/back button aman.
+    - WAJIB whitelist value-nya di `mount()` (`#[Url]` terisi SEBELUM `mount()` jalan) dan di `setTab()` — `?tab=asal` dari URL tidak boleh menghasilkan panel kosong:
+      ```php
+      private const TABS = ['drawing', 'vendor', 'material', 'pengujian', 'rapat'];
+
+      public function mount(...): void
+      {
+          $this->tab = in_array($this->tab, self::TABS, true) ? $this->tab : 'drawing';
+      }
+      ```
 
 # File Storage & Lampiran (pola WAJIB — async via queue)
 Alur yang ADA (storage `local`, TANPA S3/FileStorageService):
@@ -333,6 +344,12 @@ Jika ada ambiguitas yang berdampak besar -> TANYA dulu, jangan berasumsi.
 - Table header: `bg-gray-50 dark:bg-gray-700/50 text-xs font-semibold uppercase tracking-wider`.
 - Table row: `hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors`.
 - Badge status: pakai method `badgeClass()` dari Enum, JANGAN hardcode warna di Blade.
+
+## Enum badgeClass() & Tailwind Content Scan (WAJIB — penyebab "badge tampil hitam polos")
+- `tailwind.config.js` `content` HANYA meng-scan `resources/views/**/*.blade.php`, `storage/framework/views`, pagination vendor, **dan `./app/Enums/*.php`** (sudah ditambahkan — JANGAN dihapus).
+- String class di `badgeClass()`/`color()` Enum TIDAK ada literal di Blade, jadi warna badge hanya ter-generate bila file Enum ikut di-scan. Kalau warna enum tidak muncul di tempat lain di Blade, badge render tanpa warna (teks hitam polos) — pernah terjadi pada `sky-*` (`RapatJenis::Mingguan`, `MaterialStatus::Tiba`) dan `slate-*` (`MaterialKategori::SteelPlate`).
+- Gejala "badge hitam" JANGAN di-fix dengan hardcode class di Blade — itu melanggar aturan badge-via-Enum dan menyembunyikan root cause. Fix yang benar: pastikan file sumber class ada di `content` lalu `npm run build`.
+- Menambah/mengubah warna di Enum (atau file PHP lain yang menyusun class Tailwind) WAJIB `npm run build` — dan bila sumber class-nya di luar `app/Enums` (mis. config/service), tambahkan path-nya ke `content`, jangan duplikat class di Blade.
 
 ## Field Height Consistency (WAJIB)
 `<x-text-input>`, `<x-searchable-select>`, dan `<x-multi-searchable-select>` WAJIB punya tinggi & style yang sama saat berdampingan di form.
