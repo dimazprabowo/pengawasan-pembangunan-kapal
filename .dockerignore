@@ -1,0 +1,53 @@
+# VCS & IDE
+.git
+.devin
+.idea
+.vscode
+.fleet
+.phpactor.json
+
+# Environment & secrets — JANGAN pernah masuk image
+.env
+.env.backup
+.env.production
+.env.*.local
+auth.json
+
+# Dependencies — di-install di dalam image
+/vendor
+/node_modules
+
+# Frontend build artifacts — dibangun ulang di stage assets
+/public/build
+/public/hot
+/public/storage
+
+# Storage runtime data — dipersist via volume di produksi.
+# KECUALI storage/app/templates (template docx default ikut image).
+/storage/logs/*
+/storage/pail
+/storage/app/private
+/storage/app/laporan
+/storage/app/public
+/storage/app/temp
+/storage/app/tools
+/storage/app/test-output.docx
+/storage/*.key
+
+# Compiled bootstrap cache — bisa stale (mis. provider package dev seperti Pail)
+# package:discover di-build ulang di dalam image
+/bootstrap/cache/*
+
+# Test & QA artifacts
+/.phpunit.cache
+.phpunit.result.cache
+
+# Docs & one-off scripts (tidak dibutuhkan runtime/test image)
+*.md
+INSTALLATION.md
+
+# Docker & CI config itu sendiri
+Dockerfile
+.dockerignore
+docker-compose*.yml
+.gitlab-ci.yml

@@ -380,7 +380,7 @@ class LaporanNcList extends Component
 
         return (new LaporanNcExport(
             $this->dataKapal->id, $this->search, $this->statusFilter ?: null, $this->mingguFilter, $this->bulanFilter, $this->hariFilter
-        ))->download('list-nc-'.now()->format('Y-m-d-His').'.xlsx');
+        ))->download(($this->dataKapal->kode ?: 'nc').'-list-nc-'.now()->format('Y-m-d-His').'.xlsx');
     }
 
     public function exportPdf()
@@ -399,7 +399,7 @@ class LaporanNcList extends Component
 
         return response()->streamDownload(
             fn () => print ($pdf->output()),
-            'list-nc-'.now()->format('Y-m-d-His').'.pdf'
+            ($this->dataKapal->kode ?: 'nc').'-list-nc-'.now()->format('Y-m-d-His').'.pdf'
         );
     }
 

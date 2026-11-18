@@ -279,6 +279,13 @@ Alur yang ADA (storage `local`, TANPA S3/FileStorageService):
 - Export Excel (maatwebsite) di `App\Exports`, PDF (dompdf) di `resources/views/exports/*-pdf.blade.php`, import Excel di `App\Imports`.
 - Setiap aksi export/download WAJIB permission-nya sendiri (`*_export_excel`, `*_export_pdf`, `laporan_download`).
 
+## Hierarki Lampiran Lintas Laporan (WAJIB — rantai harian→mingguan→bulanan)
+- Lampiran laporan bulanan = DOCX laporan **mingguan** utuh (bukan ringkasan), dan lampiran mingguan = DOCX **harian** utuh — jadi bulanan membawa SELURUH isi rantai (potensi puluhan-ratusan halaman). Jangan ganti mekanisme ini dengan tabel/teks.
+- Word **tidak mendukung altChunk bertingkat** (altChunk di dalam altChunk diabaikan). Karena itu bulanan WAJIB meratakan docx mingguan via `WordChunkService::flatten()` menjadi paket altChunk SATU TINGKAT (segmen konten mingguan + tiap docx harian tetap berurutan, page-break pembatas dibersihkan oleh flatten). DILARANG men-embed docx mingguan mentah langsung sebagai altChunk bulanan.
+- `WordChunkService::count()` menghitung altChunk top-level = jumlah lampiran harian; `resolveMingguanDocs()` di `LaporanBulananWordService` memverifikasi count == `laporan_harian_count` + signature lampiran (`WordAttachmentService::isCurrent`) dan meregenerasi mingguan via `GenerateLaporanMingguanJob::dispatchSync` bila tidak sinkron — batas kedalaman flatten 8.
+- Kegagalan/ketidaklengkapan lampiran WAJIB menggagalkan generate (throw), JANGAN di-skip diam-diam.
+- Pola serupa dipakai bulanan untuk halaman NC (signature ZIP archive comment memicu regenerasi mingguan bila file NC berubah).
+
 # Protokol Kerja AI (WAJIB DIIKUTI URUT)
 FASE 1 - ANALISIS (tampilkan dulu, sebelum menulis kode):
 - Ringkas dampak: file/model/migration/permission/menu apa yang tersentuh.

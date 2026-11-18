@@ -50,7 +50,8 @@ class GenerateLaporanBulananJob implements ShouldQueue
 
             $this->laporan->update([
                 'doc_path' => $storagePath,
-                'doc_name' => 'Laporan-Bulanan-'.$this->laporan->id.'-'.now()->format('YmdHis').'.docx',
+                'doc_name' => ($this->laporan->dataKapal?->kode ?? 'BKI')
+                    .'-Laporan-Bulanan-Bulan-ke-'.($this->laporan->bulan_ke ?? $this->laporan->id).'.docx',
                 'doc_status' => 'completed',
                 'doc_generated_at' => now(),
                 'doc_error' => null,

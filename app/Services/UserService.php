@@ -4,14 +4,15 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Traits\HasDynamicLike;
+use App\Traits\SortsQuery;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class UserService
 {
-    use \App\Traits\SortsQuery;
     use HasDynamicLike;
+    use SortsQuery;
 
     public function getFilteredUsers(
         ?string $search = null,

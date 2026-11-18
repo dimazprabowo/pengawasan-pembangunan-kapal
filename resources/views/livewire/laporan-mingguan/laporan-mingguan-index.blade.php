@@ -8,6 +8,8 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                 </svg>
                 <span class="font-medium text-gray-700 dark:text-gray-300 truncate">{{ $dataKapal->nama }}</span>
+                <span class="px-1.5 py-0.5 rounded text-xs font-mono font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                    title="Kode proyek">{{ $dataKapal->kode }}</span>
             </div>
             <h2 class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">Laporan Mingguan</h2>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">

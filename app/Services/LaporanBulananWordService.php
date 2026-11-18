@@ -71,11 +71,12 @@ class LaporanBulananWordService
         $this->fillRapat($processor, $laporan);
         $this->fillNc($processor, $laporan);
         $this->fillExternal($processor, $laporan);
+        $this->fillLampiranMingguan($processor, $laporan);
 
         $relativePath = $this->saveDocument($processor, $laporan);
         $path = storage_path('app/'.$relativePath);
         try {
-            app(WordAttachmentService::class)->embedExternals($path, $laporan->laporanExternal);
+            app(WordAttachmentService::class)->embedExternals($path, $laporan->laporanExternal, 'DOKUMEN PENDUKUNG');
             $this->embedMingguanDocs($path, $this->resolveMingguanDocs($laporan));
         } catch (\Throwable $e) {
             unlink($path);
@@ -212,6 +213,7 @@ class LaporanBulananWordService
         $rows = [
             'NAMA PEKERJAAN' => $dk?->nama_pekerjaan ?: ($dk?->nama ?? '-'),
             'KAPAL YANG DISUPERVISI' => $dk?->nama ?? '-',
+            'KODE PROYEK' => $dk?->kode ?: '-',
             'NOMOR PEMBANGUNAN' => $dk?->nomor_pembangunan ?: '-',
             'PEMILIK' => trim(($dk?->company?->name ?? '-').' '.($dk?->company?->address ?? '')),
             'KONSULTANSI' => 'PT. BIRO KLASIFIKASI INDONESIA (PERSERO) SBU Marine & Offshore Migas',
@@ -593,6 +595,34 @@ class LaporanBulananWordService
     }
 
     // ──────────────────────────────────────────────────────────────────
+    // BAB 4.2 — daftar laporan mingguan yang dilampirkan
+    // ──────────────────────────────────────────────────────────────────
+    private function fillLampiranMingguan(TemplateProcessor $processor, LaporanBulanan $laporan): void
+    {
+        $rows = $this->bulananService->getMingguanBulan($laporan)->values();
+
+        if ($rows->isEmpty()) {
+            $processor->setValue('tabel_lampiran_mingguan', 'Tidak ada laporan mingguan pada periode ini.');
+
+            return;
+        }
+
+        $t = $this->newTable();
+        $this->headerRow($t, [800, 1800, 6426], ['No', 'Minggu Ke', 'Periode']);
+        foreach ($rows as $i => $m) {
+            $t->addRow();
+            $t->addCell(800, $this->bodyCell())->addText((string) ($i + 1), $this->smallFont(), $this->center());
+            $t->addCell(1800, $this->bodyCell())->addText((string) ($m->minggu_ke ?? '-'), $this->smallFont(), $this->center());
+            $t->addCell(6426, $this->bodyCell())->addText(
+                $this->tanggal($m->periode_mulai).' s.d. '.$this->tanggal($m->periode_selesai),
+                $this->smallFont()
+            );
+        }
+
+        WordStyleService::setComplexBlock($processor, 'tabel_lampiran_mingguan', $t);
+    }
+
+    // ──────────────────────────────────────────────────────────────────
     // BAB 4.2 — LAMPIRAN LAPORAN MINGGUAN via w:altChunk
     // ──────────────────────────────────────────────────────────────────
     /**
@@ -663,16 +693,8 @@ class LaporanBulananWordService
 
         $pageBreak = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
 
-        // Halaman sampul "LAPORAN MINGGUAN" terpusat dua sumbu (pola harian).
-        $body = $pageBreak.'<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/>'
-            .'<w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/>'
-            .'<w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders></w:tblPr>'
-            .'<w:tblGrid><w:gridCol w:w="9026"/></w:tblGrid>'
-            .'<w:tr w:rsidR="00C0FFEE"><w:trPr><w:trHeight w:val="13400" w:hRule="exact"/><w:cantSplit/></w:trPr>'
-            .'<w:tc><w:tcPr><w:tcW w:w="5000" w:type="pct"/><w:vAlign w:val="center"/></w:tcPr>'
-            .'<w:p><w:pPr><w:jc w:val="center"/></w:pPr>'
-            .'<w:r><w:rPr><w:b/><w:color w:val="'.self::NAVY.'"/><w:sz w:val="48"/><w:szCs w:val="48"/></w:rPr>'
-            .'<w:t>LAPORAN MINGGUAN</w:t></w:r></w:p></w:tc></w:tr></w:tbl>';
+        // Halaman pembatas "LAPORAN MINGGUAN" terpusat dua sumbu (pola harian).
+        $body = WordAttachmentService::coverPageXml('LAPORAN MINGGUAN', self::NAVY);
         $n = 0;
         try {
             foreach ($chunks as $chunk) {

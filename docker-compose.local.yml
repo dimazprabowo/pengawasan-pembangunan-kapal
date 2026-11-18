@@ -1,0 +1,62 @@
+# ============================================================================
+# OVERRIDE LOKAL — PostgreSQL di container untuk dev/testing.
+#
+# Pakai: docker compose -f docker-compose.yml -f docker-compose.local.yml up -d
+# DB_* default override mengarah ke service `postgres` di bawah.
+# ============================================================================
+
+x-local-env: &local-env
+  DB_CONNECTION: pgsql
+  DB_HOST: postgres
+  DB_PORT: 5432
+  # .env menunjuk Poppler portable Windows (storage/app/tools/poppler) —
+  # tidak ada di container. Di image poppler-utils sudah terinstall di PATH.
+  PDFINFO_BINARY: pdfinfo
+  PDFTOPPM_BINARY: pdftoppm
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-simpro}
+      POSTGRES_USER: ${DB_USERNAME:-simpro}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT_EXTERNAL:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-simpro} -d ${DB_DATABASE:-simpro}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - simpro
+
+  app:
+    environment:
+      <<: *local-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    environment:
+      <<: *local-env
+
+  reverb:
+    environment:
+      <<: *local-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  scheduler:
+    environment:
+      <<: *local-env
+
+volumes:
+  postgres_data:
+
+networks:
+  simpro:

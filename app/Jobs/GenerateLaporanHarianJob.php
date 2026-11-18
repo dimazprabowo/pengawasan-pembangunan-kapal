@@ -51,7 +51,8 @@ class GenerateLaporanHarianJob implements ShouldQueue
 
             $this->laporan->update([
                 'doc_path' => $storagePath,
-                'doc_name' => 'Laporan-Harian-'.$this->laporan->tanggal_laporan->format('Y-m-d').'.docx',
+                'doc_name' => ($this->laporan->dataKapal?->kode ?? 'BKI')
+                    .'-Laporan-Harian-'.$this->laporan->tanggal_laporan->format('Y-m-d').'.docx',
                 'doc_status' => 'completed',
                 'doc_generated_at' => now(),
                 'doc_error' => null,

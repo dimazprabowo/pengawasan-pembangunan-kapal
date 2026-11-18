@@ -173,6 +173,16 @@ if ($info) {
     $xml = preg_replace('/(<w:body>)(?:(?!<w:tbl\b).)*?Hull Number.*?<\/w:p>/s', '$1'.$table, $xml, 1);
 }
 
+// Baris "Kode Proyek" disuntik ke tabel info (tabel pertama di body) bila
+// belum ada — aman untuk run ulang maupun tabel yang sudah ter-normalisasi.
+if (! str_contains($xml, 'kode_proyek')) {
+    $kodeCell = fn (int $w, string $s, bool $bold = false, string $jc = 'left') => '<w:tc><w:tcPr><w:tcW w:w="'.$w.'" w:type="dxa"/></w:tcPr>'
+        .'<w:p><w:pPr><w:spacing w:before="40" w:after="40"/><w:jc w:val="'.$jc.'"/></w:pPr>'
+        .'<w:r><w:rPr>'.($bold ? '<w:b/>' : '').'<w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve">'.htmlspecialchars($s, ENT_XML1).'</w:t></w:r></w:p></w:tc>';
+    $kodeRow = '<w:tr w:rsidR="00C0FFEE">'.$kodeCell(2600, 'Kode Proyek', true).$kodeCell(300, ':', false, 'center').$kodeCell(6126, '${kode_proyek}').'</w:tr>';
+    $xml = preg_replace('/(<w:tbl>(?:(?!<w:tbl\b).)*?)(<\/w:tbl>)/s', '$1'.$kodeRow.'$2', $xml, 1);
+}
+
 $z->addFromString('word/document.xml', $xml);
 $z->addFromString('word/styles.xml', $styles);
 $z->addFromString('word/header1.xml', $header);

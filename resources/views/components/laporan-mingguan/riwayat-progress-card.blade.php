@@ -193,7 +193,7 @@
                         <td class="px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-t-2 border-gray-300 dark:border-gray-600" x-text="fmtPlan(hist.cumulative_plan || 0) + '%'"></td>
                         </template>
                         <td class="sm:sticky sm:right-0 z-10 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-center tabular-nums font-bold text-gray-900 dark:text-white border-l border-t-2 border-l-gray-200 border-t-gray-300 dark:border-l-gray-700 dark:border-t-gray-600"
-                            x-text="(progressHistory.length > 0 ? fmtPlan(progressHistory.length > 0 ? (progressHistory[progressHistory.length - 1].cumulative_plan || 0) : 0) + '%'"></td>
+                            x-text="fmtPlan(progressHistory.length > 0 ? (progressHistory[progressHistory.length - 1].cumulative_plan || 0) : 0) + '%'"></td>
                     </tr>
                     <tr>
                         <td class="sm:sticky sm:left-[264px] z-10 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 w-[84px] min-w-[84px] text-left font-bold text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700">Aktual</td>

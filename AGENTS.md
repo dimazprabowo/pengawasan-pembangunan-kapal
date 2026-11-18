@@ -1,5 +1,11 @@
 # Project notes
 
+## Docker & CI/CD
+- `Dockerfile` multi-stage: `base` (php:8.5-fpm + nginx + supervisor + poppler-utils) → `vendor` → `assets` (node:22, VITE_* di-bake via build-arg) → `test` (`php artisan test` saat build) → `production`. Satu image dipakai service `app`/`worker`/`reverb`/`scheduler` di `docker-compose.yml`; DB PostgreSQL eksternal; `docker-compose.local.yml` menambah postgres untuk dev.
+- `entrypoint` menjalankan `config:cache` + `view:cache` sebagai www-data; `route:cache` SENGAJA tidak dipakai (routes/web.php berisi closure). Migrasi via `MIGRATE_ON_START=true` (hanya di service `app`).
+- `.dockerignore` wajib mengecualikan `storage/app/tools` (164MB Poppler portable Windows — Linux pakai `poppler-utils`), `storage/app/{private,laporan,public,temp}`, `.env*`, `vendor`, `node_modules`, `public/build`. Volume `storage_app` di-seed dari image sehingga template docx di `storage/app/templates` tetap ada.
+- `.gitlab-ci.yml`: test → build&push registry → deploy SSH (manual di main). Variabel CI/CD: `DEPLOY_HOST/USER/SSH_KEY/DIR` + `VITE_REVERB_*` (lihat DEPLOYMENT.md).
+
 ## Verification
 - `php artisan migrate:fresh --seed` (DB lokal PostgreSQL; PHPUnit memakai SQLite `:memory:`).
 - Laporan harian: `php artisan test --filter="LaporanHarianAktivitasLampiranTest|LaporanNavigationTest|LaporanTanggalUnikTest"`.

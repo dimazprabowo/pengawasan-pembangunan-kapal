@@ -294,10 +294,11 @@ $section->addPageBreak();
 $section->addText('LAMPIRAN', 'JudulBabF1', 'JudulBab1');
 $section->addText('DOKUMEN PENDUKUNG', 'JudulBabF2', 'JudulBab2');
 $p('${tabel_external}');
-// Diganti service dengan isi dokumen eksternal (gambar + halaman PDF sebagai gambar)
-$p('${lampiran_external}');
 $section->addText('LAPORAN MINGGUAN', 'JudulBabF2', 'JudulBab2');
-// Diganti service dengan altChunk docx laporan mingguan (tampilan identik template mingguan)
+$p('${tabel_lampiran_mingguan}');
+// Diganti service dengan halaman pembatas + isi dokumen eksternal (gambar + halaman PDF)
+$p('${lampiran_external}');
+// Diganti service dengan halaman pembatas + altChunk docx laporan mingguan (tampilan identik template mingguan)
 $p('${lampiran_mingguan}', ['italic' => true, 'color' => '7F7F7F']);
 
 WordStyleService::prepare($phpWord);

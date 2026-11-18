@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Log;
+use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\ImageManager;
 
 class WordImageService
 {
@@ -30,7 +32,7 @@ class WordImageService
         $quality = $quality ?? self::DEFAULT_QUALITY;
 
         try {
-            $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver);
+            $manager = new ImageManager(new Driver);
             $image = $manager->read($imagePath);
 
             // Resize image to target dimensions

@@ -4,12 +4,13 @@ namespace App\Services;
 
 use App\Models\SystemConfiguration;
 use App\Traits\HasDynamicLike;
+use App\Traits\SortsQuery;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class SystemConfigurationService
 {
-    use \App\Traits\SortsQuery;
     use HasDynamicLike;
+    use SortsQuery;
 
     public function getFiltered(
         ?string $search = null,

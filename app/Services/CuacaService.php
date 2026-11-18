@@ -4,11 +4,12 @@ namespace App\Services;
 
 use App\Enums\CuacaStatus;
 use App\Models\Cuaca;
+use App\Traits\SortsQuery;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class CuacaService
 {
-    use \App\Traits\SortsQuery;
+    use SortsQuery;
 
     public function getFiltered(
         string $search = '',

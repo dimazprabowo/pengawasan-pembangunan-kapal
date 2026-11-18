@@ -80,7 +80,11 @@
                                         </div>
                                     </div>
                                     <div class="ml-4">
-                                        <div class="text-sm font-medium text-gray-900 dark:text-white">{{ $dataKapal->nama }}</div>
+                                        <div class="flex items-center gap-2">
+                                            <div class="text-sm font-medium text-gray-900 dark:text-white">{{ $dataKapal->nama }}</div>
+                                            <span class="px-1.5 py-0.5 rounded text-xs font-mono font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                                                title="Kode proyek">{{ $dataKapal->kode }}</span>
+                                        </div>
                                     </div>
                                 </div>
                             </td>

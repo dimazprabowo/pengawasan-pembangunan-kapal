@@ -1,0 +1,117 @@
+# ============================================================================
+# SIMPRO — Pengawasan Pembangunan Kapal (PRODUKSI)
+#
+# Satu image dipakai 4 service: app (nginx+php-fpm), worker (queue),
+# reverb (websocket), scheduler. Database PostgreSQL EKSTERNAL — diatur
+# lewat DB_HOST/DB_PORT/DB_DATABASE/DB_USERNAME/DB_PASSWORD di .env.
+#
+# Setup server:
+#   1. Copy docker-compose.yml + .env ke server (mis. /opt/simpro).
+#   2. Isi .env (lihat DEPLOYMENT.md — APP_KEY, DB_*, SSO_*, REVERB_*).
+#   3. APP_IMAGE=<registry/image:tag> docker compose up -d
+#
+# Build lokal tanpa registry: docker compose build && docker compose up -d
+# ============================================================================
+
+x-app-image: &app-image
+  image: ${APP_IMAGE:-pengawasan-pembangunan-kapal:latest}
+
+x-app-common: &app-common
+  env_file:
+    # .env opsional — tanpa file ini container tetap boot (entrypoint membuat
+    # .env dari .env.example + generate APP_KEY). Produksi sebaiknya tetap
+    # menyediakan .env dengan APP_KEY stabil, DB_*, dan SSO_*.
+    - path: .env
+      required: false
+  restart: unless-stopped
+  environment:
+    # Host internal untuk koneksi PHP -> Reverb (pusher client di
+    # config/broadcasting.php). 127.0.0.1 di dalam container menunjuk
+    # container itu sendiri, bukan service reverb. Browser tetap pakai
+    # VITE_REVERB_HOST (localhost/domain) yang di-bake saat build.
+    REVERB_BROADCAST_HOST: ${REVERB_BROADCAST_HOST:-reverb}
+  volumes:
+    # storage/app: lampiran, template per data kapal, docx hasil generate.
+    # Named volume di-seed dari isi image saat pertama dibuat (template
+    # docx default yang ter-track git tetap tersedia).
+    - storage_app:/var/www/html/storage/app
+    - storage_logs:/var/www/html/storage/logs
+  networks:
+    - simpro
+
+services:
+  app:
+    <<: [*app-image, *app-common]
+    build:
+      context: .
+      args:
+        # Nilai VITE_* di-bake ke bundle JS saat build image — samakan dengan
+        # host websocket yang dapat diakses browser (bukan nama container).
+        VITE_APP_NAME: ${VITE_APP_NAME:-SIMPRO}
+        VITE_REVERB_APP_KEY: ${REVERB_APP_KEY:-}
+        VITE_REVERB_HOST: ${VITE_REVERB_HOST:-localhost}
+        VITE_REVERB_PORT: ${VITE_REVERB_PORT:-8080}
+        VITE_REVERB_SCHEME: ${VITE_REVERB_SCHEME:-http}
+    ports:
+      - "${APP_PORT:-8000}:80"
+    environment:
+      # Migrasi dijalankan sekali dari container app saat start
+      MIGRATE_ON_START: "true"
+      # Seed data inti (permission, role, user default, konfigurasi, cuaca,
+      # kelembaban) — idempotent, aman tiap boot. Data demo laporan tidak
+      # ikut; jalankan `php artisan db:seed` manual bila perlu.
+      SEED_ON_START: "true"
+      REVERB_BROADCAST_HOST: ${REVERB_BROADCAST_HOST:-reverb}
+
+  worker:
+    <<: [*app-image, *app-common]
+    # Jalan sebagai www-data (sama dengan php-fpm) agar file di volume shared
+    # (laravel.log, livewire-tmp, dll) tidak jadi milik root dan memblokir app.
+    user: www-data
+    # Healthcheck image mengecek HTTP /up (nginx) — hanya ada di service app
+    healthcheck:
+      disable: true
+    command:
+      - php
+      - artisan
+      - queue:work
+      - --sleep=3
+      - --tries=3
+      - --timeout=120
+      - --backoff=5
+      - --max-jobs=500
+      - --max-time=3600
+    depends_on:
+      app:
+        condition: service_started
+
+  reverb:
+    <<: [*app-image, *app-common]
+    user: www-data
+    healthcheck:
+      disable: true
+    command:
+      - php
+      - artisan
+      - reverb:start
+      - --host=0.0.0.0
+      - --port=8080
+    ports:
+      - "${REVERB_PORT:-8080}:8080"
+
+  scheduler:
+    <<: [*app-image, *app-common]
+    user: www-data
+    healthcheck:
+      disable: true
+    command:
+      - php
+      - artisan
+      - schedule:work
+
+volumes:
+  storage_app:
+  storage_logs:
+
+networks:
+  simpro:

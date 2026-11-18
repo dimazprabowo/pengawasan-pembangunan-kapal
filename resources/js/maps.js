@@ -64,6 +64,7 @@ function createBaseLayers(map) {
 window.galanganMap = function ({ markers = [], selected = null } = {}) {
     let map = null;
     let base = null;
+    let resizeObserver = null;
     const layers = {};
 
     return {
@@ -105,7 +106,24 @@ window.galanganMap = function ({ markers = [], selected = null } = {}) {
             this.$watch('mode', (value) => base.setMode(value));
 
             const current = this.markers.find((m) => m.kode === this.selected);
-            current && current.lat !== null ? this.focus(current, false) : this.fitAll();
+            const applyInitialView = () => current && current.lat !== null ? this.focus(current, false) : this.fitAll();
+            applyInitialView();
+
+            // Container sering belum punya ukuran final saat init (layout/sidebar
+            // masih settling) — fitBounds di ukuran salah menghasilkan zoom
+            // yang tidak menampilkan semua marker. Re-fit saat ukuran settle,
+            // berhenti setelah user berinteraksi atau ukuran stabil.
+            let userInteracted = false;
+            let resizeStreak = 0;
+            map.on('dragstart zoomstart', () => { userInteracted = true; });
+            resizeObserver = new ResizeObserver(() => {
+                map.invalidateSize();
+                if (!userInteracted && resizeStreak < 5) {
+                    resizeStreak += 1;
+                    applyInitialView();
+                }
+            });
+            resizeObserver.observe(this.$refs.map);
         },
 
         icon(m) {
@@ -166,6 +184,7 @@ window.galanganMap = function ({ markers = [], selected = null } = {}) {
 
         destroy() {
             document.body.style.overflow = '';
+            resizeObserver?.disconnect();
             base?.destroy();
             map?.remove();
         },

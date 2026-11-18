@@ -163,7 +163,7 @@ class LaporanMingguanIndex extends Component
     {
         $this->authorize('exportExcel', LaporanMingguan::class);
 
-        $filename = 'laporan-mingguan-'.now()->format('Y-m-d-His').'.xlsx';
+        $filename = ($this->dataKapal->kode ?: 'laporan').'-laporan-mingguan-'.now()->format('Y-m-d-His').'.xlsx';
 
         return (new LaporanMingguanExport($this->search, $this->dataKapalId))
             ->download($filename);
@@ -199,7 +199,7 @@ class LaporanMingguanIndex extends Component
         ]);
         $pdf->setPaper('a4', 'landscape');
 
-        $filename = 'laporan-mingguan-'.now()->format('Y-m-d-His').'.pdf';
+        $filename = ($this->dataKapal->kode ?: 'laporan').'-laporan-mingguan-'.now()->format('Y-m-d-His').'.pdf';
 
         return response()->streamDownload(
             fn () => print ($pdf->output()),

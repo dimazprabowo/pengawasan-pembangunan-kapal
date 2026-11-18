@@ -97,6 +97,7 @@ class LaporanHarianWordService
         $values['judul'] = $laporan->judul ?? '-';
         $values['lokasi'] = $laporan->dataKapal?->galangan?->nama ?? '-';
         $values['no_kapal'] = $laporan->dataKapal?->nama ?? '-';
+        $values['kode_proyek'] = $laporan->dataKapal?->kode ?? '-';
         $values['perusahaan'] = $laporan->dataKapal?->company?->name ?? '-';
         $values['tanggal'] = $laporan->tanggal_laporan ? $laporan->tanggal_laporan->translatedFormat('d F Y') : '-';
         $values['dibuat_oleh'] = $laporan->user?->name ?? '-';

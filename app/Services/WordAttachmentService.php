@@ -14,6 +14,31 @@ class WordAttachmentService
 {
     private const EXTERNAL_ANCHOR = '${lampiran_external}';
 
+    /**
+     * Halaman pembatas lampiran terpusat dua sumbu: page break + sel tabel
+     * tanpa garis setinggi (hampir) satu halaman dengan vAlign=center
+     * (vertikal) + jc=center (horizontal). Tinggi 13400 < area konten A4
+     * (13958 twip) menyisakan ruang untuk paragraf page-break berikutnya
+     * agar tidak tercipta halaman kosong ekstra.
+     */
+    public static function coverPageXml(string $title, string $color = '1F3864'): string
+    {
+        $title = htmlspecialchars($title, ENT_XML1 | ENT_QUOTES, 'UTF-8');
+
+        $ns = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
+
+        return '<w:p '.$ns.'><w:r><w:br w:type="page"/></w:r></w:p>'
+            .'<w:tbl '.$ns.'><w:tblPr><w:tblW w:w="5000" w:type="pct"/>'
+            .'<w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/>'
+            .'<w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders></w:tblPr>'
+            .'<w:tblGrid><w:gridCol w:w="9026"/></w:tblGrid>'
+            .'<w:tr w:rsidR="00C0FFEE"><w:trPr><w:trHeight w:val="13400" w:hRule="exact"/><w:cantSplit/></w:trPr>'
+            .'<w:tc><w:tcPr><w:tcW w:w="5000" w:type="pct"/><w:vAlign w:val="center"/></w:tcPr>'
+            .'<w:p><w:pPr><w:jc w:val="center"/></w:pPr>'
+            .'<w:r><w:rPr><w:b/><w:color w:val="'.$color.'"/><w:sz w:val="48"/><w:szCs w:val="48"/></w:rPr>'
+            .'<w:t>'.$title.'</w:t></w:r></w:p></w:tc></w:tr></w:tbl>';
+    }
+
     private function signature(Collection $ncs, ?Collection $externals = null): string
     {
         $items = $ncs->flatMap(fn ($nc) => $nc->foto->map(fn ($file) => [
@@ -76,7 +101,7 @@ class WordAttachmentService
             }
         }
 
-        $this->insertImages($path, $images, null, 'nc-attachments:'.$this->signature($ncs, $externals));
+        $this->insertImages($path, $images, null, 'nc-attachments:'.$this->signature($ncs, $externals), 'LAMPIRAN NON-CONFORMANCE');
     }
 
     /**
@@ -84,7 +109,7 @@ class WordAttachmentService
      * (tepat di bawah tabel dokumen eksternal). Bila marker tidak ada di
      * template custom, konten disisipkan di akhir dokumen seperti lampiran NC.
      */
-    public function embedExternals(string $path, Collection $externals): void
+    public function embedExternals(string $path, Collection $externals, string $coverTitle = 'DOKUMEN EKSTERNAL'): void
     {
         $images = [];
         foreach ($externals as $external) {
@@ -110,7 +135,7 @@ class WordAttachmentService
             }
         }
 
-        $this->insertImages($path, $images, self::EXTERNAL_ANCHOR);
+        $this->insertImages($path, $images, self::EXTERNAL_ANCHOR, null, $coverTitle);
     }
 
     /**
@@ -118,8 +143,9 @@ class WordAttachmentService
      *
      * @param  array<array{0: string, 1: string, 2: bool}>  $images  [path storage, caption, fullPage]
      * @param  string|null  $anchorText  teks dalam paragraf marker yang digantikan gambar
+     * @param  string|null  $coverTitle  judul halaman pembatas yang disisipkan sebelum gambar
      */
-    private function insertImages(string $path, array $images, ?string $anchorText = null, ?string $archiveComment = null): void
+    private function insertImages(string $path, array $images, ?string $anchorText = null, ?string $archiveComment = null, ?string $coverTitle = null): void
     {
         $zip = new ZipArchive;
         if ($zip->open($path) !== true) {
@@ -163,6 +189,14 @@ class WordAttachmentService
                 }
             }
             $insertBefore = $anchor ?? $section;
+
+            if ($coverTitle !== null && $images) {
+                $cover = $document->createDocumentFragment();
+                if (! $cover->appendXML(self::coverPageXml($coverTitle))) {
+                    throw new RuntimeException('Struktur lampiran Word tidak valid.');
+                }
+                $body->insertBefore($cover, $insertBefore);
+            }
 
             $first = true;
             foreach ($images as [$image, $caption, $pdfPage]) {

@@ -6,6 +6,7 @@ use App\Jobs\GenerateLaporanHarianJob;
 use App\Models\LaporanHarian;
 use App\Models\LaporanLampiran;
 use App\Models\LaporanMingguan;
+use App\Models\LaporanNc;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -77,6 +78,12 @@ class LaporanMingguanWordService
 
         Settings::setOutputEscapingEnabled(true);
 
+        $ncs = $this->ncService->rekapMingguan(
+            $laporan->data_kapal_id,
+            $laporan->periode_mulai,
+            $laporan->periode_selesai,
+        );
+
         $processor = new TemplateProcessor($this->resolveTemplate($laporan));
 
         $this->setSingleValues($processor, $laporan);
@@ -86,6 +93,8 @@ class LaporanMingguanWordService
         $this->fillNc($processor, $laporan);
         $this->fillFoto($processor, $laporan);
         $this->fillExternal($processor, $laporan);
+        $this->fillLampiranHarian($processor, $laporan);
+        $this->fillLampiranNc($processor, $ncs);
 
         $relativePath = $this->saveDocument($processor, $laporan);
         try {
@@ -93,7 +102,7 @@ class LaporanMingguanWordService
             $attachmentService = app(WordAttachmentService::class);
             $attachmentService->append(
                 storage_path('app/'.$relativePath),
-                $this->ncService->rekapMingguan($laporan->data_kapal_id, $laporan->periode_mulai, $laporan->periode_selesai),
+                $ncs,
                 true,
                 $laporan->laporanExternal,
             );
@@ -146,6 +155,7 @@ class LaporanMingguanWordService
             'perusahaan' => $laporan->dataKapal?->company?->name ?? '-',
             'lokasi' => $laporan->dataKapal?->galangan?->nama ?? '-',
             'no_kapal' => $laporan->dataKapal?->nama ?? '-',
+            'kode_proyek' => $laporan->dataKapal?->kode ?? '-',
             'tanggal' => $this->tanggal($laporan->tanggal_laporan),
             'dibuat_oleh' => $laporan->user?->name ?? '-',
             'ttd_kota' => $laporan->dataKapal?->galangan?->kota ?? '-',
@@ -389,10 +399,74 @@ class LaporanMingguanWordService
             $this->bodyCell($table, $w[0], (string) ($i + 1), $bg, Jc::CENTER);
             $this->bodyCell($table, $w[1], $ext->judul ?: '-', $bg);
             $this->bodyCell($table, $w[2], $ext->file_name ?: '-', $bg);
-            $this->bodyCell($table, $w[3], 'Terlampir', $bg);
+            $keterangan = match (true) {
+                $ext->isFileCompleted() && $ext->hasFile() => 'Terlampir',
+                $ext->isFileProcessing() => 'Sedang diproses',
+                $ext->isFileFailed() => 'Gagal diproses',
+                default => '-',
+            };
+            $this->bodyCell($table, $w[3], $keterangan, $bg);
         }
 
         WordStyleService::setComplexBlock($processor, 'tabel_external', $table);
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // E.2 LAPORAN HARIAN — daftar laporan yang dilampirkan
+    // ──────────────────────────────────────────────────────────────────
+    private function fillLampiranHarian(TemplateProcessor $processor, LaporanMingguan $laporan): void
+    {
+        $rows = $laporan->laporanHarian->values();
+
+        if ($rows->isEmpty()) {
+            $processor->setValue('tabel_lampiran_harian', 'Tidak ada laporan harian pada periode ini.');
+
+            return;
+        }
+
+        $w = [500, 2200, 6326];
+        $table = $this->newTable();
+        $this->headerRow($table, $w, ['No', 'Tanggal', 'Judul']);
+
+        foreach ($rows as $i => $harian) {
+            $table->addRow(null, ['cantSplit' => true]);
+            $bg = $i % 2 ? self::ZEBRA : null;
+            $this->bodyCell($table, $w[0], (string) ($i + 1), $bg, Jc::CENTER);
+            $this->bodyCell($table, $w[1], $this->tanggal($harian->tanggal_laporan), $bg);
+            $this->bodyCell($table, $w[2], $harian->judul ?: '-', $bg);
+        }
+
+        WordStyleService::setComplexBlock($processor, 'tabel_lampiran_harian', $table);
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // E.3 LAMPIRAN NC — daftar NC yang dilampirkan
+    // ──────────────────────────────────────────────────────────────────
+    /**
+     * @param  Collection<int, LaporanNc>  $ncs
+     */
+    private function fillLampiranNc(TemplateProcessor $processor, Collection $ncs): void
+    {
+        if ($ncs->isEmpty()) {
+            $processor->setValue('tabel_lampiran_nc', 'Tidak ada non-conformance pada periode ini.');
+
+            return;
+        }
+
+        $w = [500, 1800, 4726, 2000];
+        $table = $this->newTable();
+        $this->headerRow($table, $w, ['No', 'Nomor', 'Kendala', 'Status']);
+
+        foreach ($ncs->values() as $i => $nc) {
+            $table->addRow(null, ['cantSplit' => true]);
+            $bg = $i % 2 ? self::ZEBRA : null;
+            $this->bodyCell($table, $w[0], (string) ($i + 1), $bg, Jc::CENTER);
+            $this->bodyCell($table, $w[1], $nc->nomor ?: '-', $bg);
+            $this->bodyCell($table, $w[2], $nc->kendala ?: '-', $bg);
+            $this->bodyCell($table, $w[3], $nc->status?->label() ?: '-', $bg, Jc::CENTER);
+        }
+
+        WordStyleService::setComplexBlock($processor, 'tabel_lampiran_nc', $table);
     }
 
     // ──────────────────────────────────────────────────────────────────
@@ -459,20 +533,8 @@ class LaporanMingguanWordService
 
         $pageBreak = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
 
-        // Halaman sampul "LAPORAN HARIAN" terpusat dua sumbu: sel tabel tanpa
-        // garis setinggi (hampir) satu halaman dengan vAlign=center (vertikal)
-        // + jc=center (horizontal). Tinggi 13400 < area konten A4 (13958 twip)
-        // menyisakan ruang untuk paragraf page-break berikutnya agar tidak
-        // tercipta halaman kosong ekstra.
-        $body = $pageBreak.'<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/>'
-            .'<w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/>'
-            .'<w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders></w:tblPr>'
-            .'<w:tblGrid><w:gridCol w:w="9026"/></w:tblGrid>'
-            .'<w:tr w:rsidR="00C0FFEE"><w:trPr><w:trHeight w:val="13400" w:hRule="exact"/><w:cantSplit/></w:trPr>'
-            .'<w:tc><w:tcPr><w:tcW w:w="5000" w:type="pct"/><w:vAlign w:val="center"/></w:tcPr>'
-            .'<w:p><w:pPr><w:jc w:val="center"/></w:pPr>'
-            .'<w:r><w:rPr><w:b/><w:color w:val="'.self::NAVY.'"/><w:sz w:val="48"/><w:szCs w:val="48"/></w:rPr>'
-            .'<w:t>LAPORAN HARIAN</w:t></w:r></w:p></w:tc></w:tr></w:tbl>';
+        // Halaman pembatas "LAPORAN HARIAN" terpusat dua sumbu
+        $body = WordAttachmentService::coverPageXml('LAPORAN HARIAN', self::NAVY);
         foreach ($chunks as $i => $chunk) {
             $n = $i + 1;
             $id = 'rIdAltChunk'.$n;

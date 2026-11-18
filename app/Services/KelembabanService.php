@@ -4,11 +4,12 @@ namespace App\Services;
 
 use App\Enums\KelembabanStatus;
 use App\Models\Kelembaban;
+use App\Traits\SortsQuery;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class KelembabanService
 {
-    use \App\Traits\SortsQuery;
+    use SortsQuery;
 
     public function getFiltered(
         string $search = '',
