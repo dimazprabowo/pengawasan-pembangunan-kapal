@@ -56,7 +56,7 @@ class LaporanMingguanWordServiceTest extends TestCase
 
     private function documentXml(string $relativePath): string
     {
-        $full = storage_path('app/'.$relativePath);
+        $full = storage_path('app/private/'.$relativePath);
         $this->generated[] = $full;
 
         $zip = new \ZipArchive;
@@ -110,15 +110,15 @@ class LaporanMingguanWordServiceTest extends TestCase
 
     public function test_sampul_laporan_harian_terpusat_dua_sumbu(): void
     {
-        // Laporan harian dengan docx "jadi" — cukup file docx valid agar
-        // tersisip sebagai altChunk (generate harian tidak diuji di sini)
+        // Laporan harian dengan docx "jadi" — dikonversi ke PDF lalu gambar
+        // per halaman (generate harian tidak diuji di sini)
         $harian = LaporanHarian::firstOrFail();
-        $dir = storage_path('app/laporan/word');
+        $dir = storage_path('app/private/laporan/word');
         if (! is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
         $fake = $dir.'/fake-harian-test.docx';
-        copy(storage_path('app/templates/laporan-mingguan/template-laporan-mingguan.docx'), $fake);
+        copy(storage_path('app/private/templates/laporan-mingguan/template-laporan-mingguan.docx'), $fake);
         $this->generated[] = $fake;
         $harian->update([
             'doc_path' => 'laporan/word/fake-harian-test.docx',
@@ -137,7 +137,8 @@ class LaporanMingguanWordServiceTest extends TestCase
         $this->assertStringContainsString('<w:vAlign w:val="center"/>', $xml);
         $this->assertStringContainsString('<w:trHeight w:val="13400" w:hRule="exact"/>', $xml);
         $this->assertStringNotContainsString('w:before="5600"', $xml);
-        $this->assertStringContainsString('<w:altChunk', $xml);
+        $this->assertStringNotContainsString('altChunk', $xml);
+        $this->assertStringContainsString('<w:drawing>', $xml);
     }
 
     public function test_ringkasan_template_tanpa_blok_tetap_terisi(): void

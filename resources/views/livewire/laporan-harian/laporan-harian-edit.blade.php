@@ -90,7 +90,7 @@
             </a>
             <div class="min-w-0">
                 <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Edit Laporan Harian</h2>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 truncate">{{ $dataKapal->nama }}{{ $dataKapal->company ? ' · ' . $dataKapal->company->name : '' }} — Perbarui data laporan di bawah ini</p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 truncate">{{ $dataKapal->nama }}{{ $dataKapal->owner ? ' · ' . $dataKapal->owner->name : '' }} — Perbarui data laporan di bawah ini</p>
             </div>
             {{-- Auto Save toggle + draft indicator (pojok kanan, indikator di bawah toggle) --}}
             <div class="ml-auto flex flex-col items-end gap-1.5 flex-shrink-0">
@@ -119,6 +119,9 @@
             </div>
         </div>
     </div>
+
+    {{-- Data Kapal Info Card --}}
+    <x-data-kapal-info-card :data-kapal="$dataKapal" />
 
     <form wire:submit="save" x-on:submit="localStorage.removeItem(draftKey)">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mb-6">

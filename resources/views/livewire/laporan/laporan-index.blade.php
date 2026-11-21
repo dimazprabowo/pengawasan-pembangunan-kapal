@@ -12,14 +12,14 @@
                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
         </div>
 
-        <x-filter-popover :filters="['companyFilter', 'galanganFilter']" :per-page="true">
+        <x-filter-popover :filters="['ownerFilter', 'galanganFilter']" :per-page="true">
             <div>
-                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Perusahaan</label>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Owner</label>
                 <x-searchable-select
-                    wire:model.live="companyFilter"
-                    :options="collect($companies)->map(fn($c) => ['value' => $c->id, 'label' => $c->name])->toArray()"
-                    placeholder="Semua Perusahaan"
-                    searchPlaceholder="Cari perusahaan..."
+                    wire:model.live="ownerFilter"
+                    :options="collect($owners)->map(fn($c) => ['value' => $c->id, 'label' => $c->name])->toArray()"
+                    placeholder="Semua Owner"
+                    searchPlaceholder="Cari owner..."
                 />
             </div>
             <div>
@@ -60,7 +60,7 @@
                 <thead class="bg-gray-50 dark:bg-gray-900">
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Data Kapal</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Perusahaan</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Owner</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Galangan</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Laporan</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Progress</th>
@@ -89,9 +89,9 @@
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                @if($dataKapal->company)
-                                    <div class="text-sm text-gray-900 dark:text-white">{{ $dataKapal->company->name }}</div>
-                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ $dataKapal->company->code }}</div>
+                                @if($dataKapal->owner)
+                                    <div class="text-sm text-gray-900 dark:text-white">{{ $dataKapal->owner->name }}</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ $dataKapal->owner->code }}</div>
                                 @else
                                     <span class="text-sm text-gray-400 dark:text-gray-500">-</span>
                                 @endif
@@ -171,7 +171,7 @@
                                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                                 </svg>
-                                @if($search || $companyFilter || $galanganFilter)
+                                @if($search || $ownerFilter || $galanganFilter)
                                     <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Tidak ada data kapal yang cocok dengan filter</p>
                                 @else
                                     <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Belum ada data kapal yang dapat diakses</p>

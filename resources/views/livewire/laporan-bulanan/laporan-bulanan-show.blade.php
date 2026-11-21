@@ -2,7 +2,7 @@
     @if($this->hasProcessingExternalFiles())
         wire:poll.4s="refreshExternalFileStatus"
     @endif
-    @if($laporan->isDocProcessing())
+    @if($laporan->isDocProcessing() || $laporan->isPdfProcessing())
         wire:poll.4s="refreshDocStatus"
     @endif
 >
@@ -190,6 +190,15 @@
                     @endif
                 @endif
 
+                @if($laporan->isPdfFailed())
+                    <div class="mb-4 flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                        <svg class="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p class="text-sm text-red-700 dark:text-red-400">Release PDF gagal: {{ $laporan->pdf_error ?? 'Terjadi kesalahan saat konversi PDF.' }}</p>
+                    </div>
+                @endif
+
                 @if($laporan->isDocFailed())
                     <div class="mb-4 flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
                         <svg class="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -219,8 +228,8 @@
                                 <button wire:click="downloadWord"
                                     x-data="{ loading: false }"
                                     x-on:click="loading = true; setTimeout(() => loading = false, 2000)"
-                                    title="Download Dokumen"
-                                    class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 shadow-sm">
+                                    title="Download Dokumen Word"
+                                    class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 shadow-sm">
                                     <svg x-show="!loading" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                                     </svg>
@@ -228,8 +237,27 @@
                                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg>
+                                    Word
                                 </button>
                             @endcan
+                            @if($laporan->hasPdf() && $laporan->isPdfCompleted())
+                                @can('download', $laporan)
+                                    <button wire:click="downloadPdf"
+                                        x-data="{ loading: false }"
+                                        x-on:click="loading = true; setTimeout(() => loading = false, 2000)"
+                                        title="Download PDF Rilis"
+                                        class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 shadow-sm">
+                                        <svg x-show="!loading" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                        </svg>
+                                        <svg x-show="loading" x-cloak class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        PDF
+                                    </button>
+                                @endcan
+                            @endif
                             @can('download', $laporan)
                                 <button wire:click="confirmDeleteDoc"
                                     wire:loading.attr="disabled"
@@ -276,6 +304,38 @@
                             </span>
                             <span wire:loading wire:target="confirmRegenerate,generateWord">Memproses...</span>
                         </button>
+                        @if($laporan->isDocCompleted())
+                            @can('download', $laporan)
+                            @if($laporan->isPdfProcessing())
+                                <button disabled
+                                    class="inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium rounded-lg bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 cursor-not-allowed opacity-75">
+                                    <svg class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    {{ $laporan->pdf_status === 'pending' ? 'Menunggu antrian...' : 'Merilis PDF...' }}
+                                </button>
+                            @else
+                                <button wire:click="confirmReleasePdf"
+                                    wire:loading.attr="disabled"
+                                    wire:target="confirmReleasePdf"
+                                    title="Konversi dokumen Word menjadi PDF rilis"
+                                    class="inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white shadow-sm shadow-red-500/20 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-60">
+                                    <svg wire:loading.class="hidden" wire:target="confirmReleasePdf" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                                    </svg>
+                                    <svg wire:loading wire:target="confirmReleasePdf" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span wire:loading.remove wire:target="confirmReleasePdf">
+                                        {{ $laporan->isPdfFailed() ? 'Coba Release Lagi' : 'Release PDF' }}
+                                    </span>
+                                    <span wire:loading wire:target="confirmReleasePdf">Memproses...</span>
+                                </button>
+                            @endif
+                            @endcan
+                        @endif
                     @else
                         <button disabled
                             class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 cursor-not-allowed opacity-75">
@@ -289,6 +349,70 @@
                 </div>
             </div>
         </div>
+    @endcan
+
+    {{-- Lembar Pengesahan (tanda tangan basah, PDF) --}}
+    @can('update', $laporan)
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mt-6" @if($laporan->isPengesahanProcessing()) wire:poll.3s @endif>
+        <div class="px-5 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Lembar Pengesahan</h3>
+        </div>
+        <div class="p-5">
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                Upload scan lembar pengesahan bertanda tangan basah (khusus format PDF). Saat dokumen dirilis ke PDF, halaman pengesahan dari Word akan digantikan file ini.
+            </p>
+
+            @if($laporan->isPengesahanProcessing())
+                <div class="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 mb-4">
+                    <svg class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    {{ $laporan->pengesahan_status === 'pending' ? 'Menunggu antrian...' : 'Memproses lembar pengesahan...' }}
+                </div>
+            @elseif($laporan->isPengesahanFailed())
+                <p class="text-sm text-red-700 dark:text-red-400 mb-4">Upload lembar pengesahan gagal: {{ $laporan->pengesahan_error ?? 'Terjadi kesalahan.' }}</p>
+            @elseif($laporan->pengesahan_path && $laporan->isPengesahanCompleted())
+                <div class="flex items-center gap-3 p-3 mb-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <svg class="w-8 h-8 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ $laporan->pengesahan_name }}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            {{ $laporan->pengesahan_size ? number_format($laporan->pengesahan_size / 1024, 0).' KB' : '' }}
+                            @if($laporan->pengesahan_processed_at) · {{ $laporan->pengesahan_processed_at->translatedFormat('d M Y H:i') }} @endif
+                            · Dipakai sebagai halaman pengesahan pada PDF rilis
+                        </p>
+                    </div>
+                    <button wire:click="downloadPengesahan" wire:loading.attr="disabled" wire:target="downloadPengesahan"
+                        title="Download lembar pengesahan" aria-label="Download lembar pengesahan"
+                        class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50 focus:ring-2 focus:ring-blue-500">
+                        <svg wire:loading.class="hidden" wire:target="downloadPengesahan" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        <svg wire:loading wire:target="downloadPengesahan" class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+                    </button>
+                    <button wire:click="confirmDeletePengesahan" wire:loading.attr="disabled" wire:target="confirmDeletePengesahan"
+                        title="Hapus lembar pengesahan" aria-label="Hapus lembar pengesahan"
+                        class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50 focus:ring-2 focus:ring-blue-500">
+                        <svg wire:loading.class="hidden" wire:target="confirmDeletePengesahan" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m-9-9h14M9 7V4h6v3"/></svg>
+                        <svg wire:loading wire:target="confirmDeletePengesahan" class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+                    </button>
+                </div>
+            @endif
+
+            <form wire:submit="savePengesahan" class="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div class="flex-1">
+                    <input type="file" wire:model="pengesahanFile" accept="application/pdf"
+                        class="block w-full text-sm text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 file:mr-4 file:py-2.5 file:px-4 file:border-0 file:text-sm file:font-semibold file:bg-gray-100 dark:file:bg-gray-600 file:text-gray-700 dark:file:text-gray-200 hover:file:bg-gray-200 dark:hover:file:bg-gray-500 focus:ring-2 focus:ring-blue-500" />
+                    <x-input-error :messages="$errors->get('pengesahanFile')" />
+                </div>
+                <x-loading-button type="submit" target="savePengesahan" variant="primary" size="md" loadingText="Mengunggah..." class="w-full sm:w-auto" :disabled="$laporan->isPengesahanProcessing()">
+                    <x-slot:icon><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg></x-slot:icon>
+                    {{ $laporan->pengesahan_path ? 'Ganti File' : 'Upload' }}
+                </x-loading-button>
+            </form>
+        </div>
+    </div>
     @endcan
 
     {{-- Laporan Mingguan dalam Bulan Ini --}}
@@ -387,5 +511,29 @@
         :docName="$laporan->doc_name"
         confirmAction="deleteDoc"
         cancelAction="cancelDeleteDoc"
+    />
+
+    {{-- Release PDF Confirmation Modal --}}
+    <x-document-confirm-modal
+        :show="$showReleaseConfirm"
+        showProperty="showReleaseConfirm"
+        title="Release Dokumen ke PDF?"
+        message="Dokumen Word akan dikonversi menjadi PDF rilis. Jika PDF sudah ada, akan digantikan dengan yang baru."
+        type="regenerate"
+        :docName="$laporan->doc_name"
+        confirmAction="releasePdf"
+        cancelAction="cancelReleasePdf"
+    />
+
+    {{-- Delete Lembar Pengesahan Confirmation Modal --}}
+    <x-document-confirm-modal
+        :show="$showDeletePengesahanConfirm"
+        showProperty="showDeletePengesahanConfirm"
+        title="Hapus Lembar Pengesahan?"
+        message="File pengesahan yang diupload akan dihapus. PDF rilis akan dirilis ulang memakai halaman pengesahan dari dokumen Word."
+        type="delete"
+        :docName="$laporan->pengesahan_name"
+        confirmAction="deletePengesahan"
+        cancelAction="cancelDeletePengesahan"
     />
 </div>

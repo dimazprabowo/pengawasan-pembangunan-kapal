@@ -8,6 +8,7 @@ use App\Livewire\Traits\HasNotification;
 use App\Livewire\Traits\HasTableSorting;
 use App\Models\DataKapal;
 use App\Models\LaporanHarian;
+use App\Services\FilePathService;
 use App\Services\KontrakPeriodeService;
 use App\Services\LaporanHarianService;
 use App\Services\QueueStatusService;
@@ -168,6 +169,27 @@ class LaporanHarianIndex extends Component
         }
     }
 
+    public function downloadPdf(int $id)
+    {
+        $laporan = LaporanHarian::findOrFail($id);
+        $this->authorize('downloadWord', $laporan);
+
+        if (! $laporan->hasPdf() || ! $laporan->isPdfCompleted()) {
+            $this->notifyWarning('PDF rilis tidak tersedia. Release PDF dari halaman detail laporan.');
+
+            return;
+        }
+
+        $files = app(FilePathService::class);
+        if (! $files->exists($laporan->pdf_path)) {
+            $this->notifyError('File tidak ditemukan.');
+
+            return;
+        }
+
+        return $files->download($laporan->pdf_path, $laporan->pdf_name);
+    }
+
     public function exportExcel()
     {
         $this->authorize('exportExcel', LaporanHarian::class);
@@ -182,7 +204,7 @@ class LaporanHarianIndex extends Component
     {
         $this->authorize('exportPdf', LaporanHarian::class);
 
-        $laporanList = LaporanHarian::with(['user', 'dataKapal.company', 'dataKapal.galangan'])
+        $laporanList = LaporanHarian::with(['user', 'dataKapal.owner', 'dataKapal.galangan'])
             ->byDataKapal($this->dataKapalId)
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {

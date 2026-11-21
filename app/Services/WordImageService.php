@@ -52,6 +52,85 @@ class WordImageService
     }
 
     /**
+     * Kotak konten (non-putih) gambar halaman, dalam fraksi 0..1
+     * [left, top, right, bottom], atau null bila halaman kosong/gagal dibaca.
+     * Dipakai menghitung crop SERAGAM per dokumen sumber — crop per halaman
+     * menggeser halaman yang isinya sedikit (mis. sampul) ke kiri-atas.
+     *
+     * @return array{0: float, 1: float, 2: float, 3: float}|null
+     */
+    public function contentBounds(string $imagePath, int $threshold = 242): ?array
+    {
+        try {
+            $probe = (new ImageManager(new Driver))->read($imagePath)->scaleDown(400, 400);
+            $gd = $probe->core()->native();
+            $pw = imagesx($gd);
+            $ph = imagesy($gd);
+            $trueColor = imageistruecolor($gd);
+            $minX = $pw;
+            $minY = $ph;
+            $maxX = -1;
+            $maxY = -1;
+            for ($y = 0; $y < $ph; $y++) {
+                for ($x = 0; $x < $pw; $x++) {
+                    $rgb = imagecolorat($gd, $x, $y);
+                    if ($trueColor) {
+                        $lum = min(($rgb >> 16) & 0xFF, ($rgb >> 8) & 0xFF, $rgb & 0xFF);
+                    } else {
+                        $c = imagecolorsforindex($gd, $rgb);
+                        $lum = min($c['red'], $c['green'], $c['blue']);
+                    }
+                    if ($lum < $threshold) {
+                        $minX = min($minX, $x);
+                        $maxX = max($maxX, $x);
+                        $minY = min($minY, $y);
+                        $maxY = max($maxY, $y);
+                    }
+                }
+            }
+
+            return $maxX < 0 ? null : [$minX / $pw, $minY / $ph, ($maxX + 1) / $pw, ($maxY + 1) / $ph];
+        } catch (\Throwable $e) {
+            Log::warning('WordImageService: gagal membaca kotak konten', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Crop gambar ke kotak fraksi $bounds (+ padding tipis). Mengembalikan
+     * path temp baru, atau path asal bila crop tidak berarti / gagal.
+     *
+     * @param  array{0: float, 1: float, 2: float, 3: float}  $bounds
+     */
+    public function cropToBounds(string $imagePath, array $bounds): string
+    {
+        try {
+            $image = (new ImageManager(new Driver))->read($imagePath);
+            $w = $image->width();
+            $h = $image->height();
+            $pad = (int) round(max($w, $h) * 0.008);
+            $left = max(0, (int) floor($bounds[0] * $w) - $pad);
+            $top = max(0, (int) floor($bounds[1] * $h) - $pad);
+            $cw = min($w, (int) ceil($bounds[2] * $w) + $pad) - $left;
+            $ch = min($h, (int) ceil($bounds[3] * $h) + $pad) - $top;
+            if ($cw < 1 || $ch < 1 || ($cw >= $w - 8 && $ch >= $h - 8)) {
+                return $imagePath;
+            }
+
+            $image->crop($cw, $ch, $left, $top);
+            $tmp = sys_get_temp_dir().'/'.uniqid('word_img_trim_').'.jpg';
+            $image->toJpeg(88)->save($tmp);
+
+            return $tmp;
+        } catch (\Throwable $e) {
+            Log::warning('WordImageService: gagal crop margin', ['error' => $e->getMessage()]);
+
+            return $imagePath;
+        }
+    }
+
+    /**
      * Check if a file is an image that can be processed.
      */
     public function isImageFile(?string $filePath): bool
@@ -65,8 +144,8 @@ class WordImageService
     }
 
     /**
-     * Resolve the full path to a lampiran file.
-     * Checks both private storage and direct storage paths.
+     * Resolve path lokal untuk file lampiran pada disk terkonfigurasi.
+     * Pada driver non-lokal mengembalikan salinan temp (dibersihkan otomatis).
      */
     public function resolveLampiranPath(?string $filePath): ?string
     {
@@ -74,13 +153,8 @@ class WordImageService
             return null;
         }
 
-        $private = storage_path('app/private/'.$filePath);
-        if (file_exists($private)) {
-            return $private;
-        }
+        $files = app(FilePathService::class);
 
-        $direct = storage_path('app/'.$filePath);
-
-        return file_exists($direct) ? $direct : null;
+        return $files->exists($filePath) ? $files->localPath($filePath) : null;
     }
 }

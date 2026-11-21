@@ -261,14 +261,14 @@ Setiap perubahan search/filter menampilkan toast jumlah hasil — pola sudah dit
       ```
 
 # File Storage & Lampiran (pola WAJIB — async via queue)
-Alur yang ADA (storage `local`, TANPA S3/FileStorageService):
-1. Di Livewire Component: `$tempPath = $file->store('temp/{fitur}', 'local')`, simpan record dengan `file_status='pending'/'processing'`, lalu `ProcessXxx::dispatch($model, $tempPath, $cropData)`.
+Alur yang ADA (disk `local` saja, TANPA S3; I/O upload bersama melalui `App\Services\FileStorageService`):
+1. Simpan temp melalui `FileStorageService::storeTemp($file, '{fitur}')`, simpan record dengan `file_status='pending'/'processing'`, lalu `ProcessXxx::dispatch($model, $tempPath, $cropData)`.
 2. Di Job (`implements ShouldQueue`, `$tries=3`, ada `failed()`):
    - Panggil `$queueStatusService->markWorkerActive()` di awal `handle()`.
-   - Path final: `'{fitur}/{sub}/' . time() . '_' . uniqid() . '.' . $ext` (contoh: `'laporan-lampiran/harian/' . $fileName`).
-   - Gambar: proses via intervention/image — apply crop (jika ada) lalu `->toWebp(85)` (WAJIB WebP agar kompatibel PhpWord saat generate dokumen).
-   - `Storage::disk('local')->put($path, $content)`, update `file_path/file_name/file_size/file_status='completed'/file_processed_at`, hapus temp.
-   - Gagal: `file_status='failed'` + `file_error`, cleanup temp di `failed()`.
+   - Gunakan `storeProcessed($directory, $content, $originalName, $extension)` untuk hasil olahan, atau `copyFromTemp(...)` untuk scan asli tanpa perubahan byte. Metadata hasil berupa array `path`, `name`, `size`; path final memakai UUID. Ekstensi ditentukan server, bukan nama asli upload.
+   - Gambar: proses via intervention/image — apply crop (jika ada) lalu `->toWebp(85)` (WAJIB WebP agar kompatibel PhpWord saat generate dokumen). Rendering PDF tetap melalui `PdfPageService`.
+   - Update metadata/status dalam transaksi DB. File lama dan temp baru dihapus setelah transaksi berhasil, melalui `deleteFiles()` dan `deleteTemp()`; filesystem bukan bagian dari rollback DB.
+   - Gagal: bersihkan hasil percobaan baru, pertahankan file lama dan temp untuk retry, simpan pesan `file_error` yang aman. Cleanup temp dilakukan di `failed()` setelah retry habis. Retry Job yang record-nya sudah completed tidak mengulang pemrosesan atau menurunkan status.
 3. Download/preview/delete: SELALU via `Storage::disk('local')`.
 4. Validasi upload: `config/file_upload.php` + helper `file_upload_validation_rule()`, `get_max_upload_size()`, `get_allowed_mimes()`. Jangan percaya nama file dari client.
 5. Kolom status konvensi: `file_status` (pending/processing/completed/failed), `file_error`, `file_processed_at` — model punya helper `isProcessing()/isCompleted()/isFailed()` (lihat `LaporanExternal`).
@@ -300,6 +300,17 @@ FASE 3 - EKSEKUSI: implementasi sesuai pola yang ada.
 FASE 4 - VERIFIKASI: jalankan/ajukan `php artisan migrate:fresh --seed`, cek tidak ada error, dan lampirkan CHECKLIST "Definition of Done".
 
 Jika ada ambiguitas yang berdampak besar -> TANYA dulu, jangan berasumsi.
+
+## Verifikasi pada Environment Docker (WAJIB)
+- Jika pengguna menjalankan aplikasi melalui Docker dengan source/assets disalin ke image, setiap perubahan runtime (PHP, Blade, JavaScript, CSS, dependency, atau konfigurasi image) WAJIB diikuti build ulang image dan recreate service terkait. Jangan berhenti pada verifikasi lokal atau hanya meminta pengguna melakukan hard refresh.
+- Untuk setup Docker lokal proyek ini, jalankan berurutan dari root repo:
+  1. `docker compose -f docker-compose.yml -f docker-compose.local.yml build app`
+  2. Setelah build sukses: `docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --wait`
+- Image yang sama dipakai app, worker, scheduler, dan Reverb; pastikan service terkait menggunakan image terbaru. Gunakan file Compose/environment yang benar-benar dipakai pengguna; jangan menerapkan override lokal ke production.
+- Verifikasi status service setelah recreate dan pastikan Blade/cache di container memakai perubahan terbaru. Bila tampilan masih lama, periksa cache view di container, bukan hanya cache lokal. Laporkan kegagalan build/startup sebagai blocker; jangan menyatakan perubahan sudah terpasang jika belum berhasil.
+- Jangan menjalankan `migrate:fresh`, menghapus volume, atau reset database hanya untuk menerapkan perubahan tampilan. Operasi destruktif memerlukan konfirmasi spesifik pengguna.
+- Perubahan dokumentasi/skill saja tidak memerlukan build ulang Docker. Bila memakai bind mount/dev server, periksa mekanisme reload aktual terlebih dahulu dan lakukan rebuild/restart sesuai kebutuhan.
+- Jawaban akhir wajib membedakan hasil build, penerapan image/container, status service, dan verifikasi visual browser (jangan mengklaim sudah diuji visual jika belum).
 
 # Audit Log (spatie/laravel-activitylog)
 - Package terinstal; WAJIB dipakai untuk model penting BARU (dan saat refactor model lama): trait `LogsActivity` + `getActivitylogOptions()` (logOnly kolom relevan, `logOnlyDirty()`, `dontSubmitEmptyLogs()`).

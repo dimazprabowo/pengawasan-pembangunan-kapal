@@ -44,13 +44,23 @@ class LaporanBulanan extends Model
         'periode_mulai',
         'periode_selesai',
         'ringkasan',
-        'realisasi_progress',
         'bulan_ke',
         'doc_path',
         'doc_name',
         'doc_status',
         'doc_generated_at',
         'doc_error',
+        'pdf_path',
+        'pdf_name',
+        'pdf_status',
+        'pdf_generated_at',
+        'pdf_error',
+        'pengesahan_path',
+        'pengesahan_name',
+        'pengesahan_size',
+        'pengesahan_status',
+        'pengesahan_processed_at',
+        'pengesahan_error',
     ];
 
     /**
@@ -63,8 +73,10 @@ class LaporanBulanan extends Model
             'periode_mulai' => 'date',
             'periode_selesai' => 'date',
             'bulan_ke' => 'integer',
-            'realisasi_progress' => 'array',
             'doc_generated_at' => 'datetime',
+            'pdf_generated_at' => 'datetime',
+            'pengesahan_processed_at' => 'datetime',
+            'pengesahan_size' => 'integer',
         ];
     }
 
@@ -119,6 +131,41 @@ class LaporanBulanan extends Model
     public function hasDoc(): bool
     {
         return ! empty($this->doc_path) && ! empty($this->doc_name);
+    }
+
+    public function isPdfProcessing(): bool
+    {
+        return in_array($this->pdf_status, ['pending', 'processing']);
+    }
+
+    public function isPdfCompleted(): bool
+    {
+        return $this->pdf_status === 'completed';
+    }
+
+    public function isPdfFailed(): bool
+    {
+        return $this->pdf_status === 'failed';
+    }
+
+    public function hasPdf(): bool
+    {
+        return ! empty($this->pdf_path) && ! empty($this->pdf_name);
+    }
+
+    public function isPengesahanProcessing(): bool
+    {
+        return in_array($this->pengesahan_status, ['pending', 'processing']);
+    }
+
+    public function isPengesahanCompleted(): bool
+    {
+        return $this->pengesahan_status === 'completed' && ! empty($this->pengesahan_path);
+    }
+
+    public function isPengesahanFailed(): bool
+    {
+        return $this->pengesahan_status === 'failed';
     }
 
     /**

@@ -25,8 +25,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         nginx \
         supervisor \
         curl \
-        # pdfinfo/pdftoppm dipakai PdfPageService (render halaman PDF NC)
+        # pdfinfo/pdftoppm/pdftotext/pdfseparate/pdfunite dipakai
+        # PdfPageService + PdfPengesahanService (render & gabung PDF)
         poppler-utils \
+        # soffice headless: konversi DOCX→PDF lampiran rantai laporan
+        # (DocxToPdfService — di Windows ada fallback Word COM)
+        libreoffice-writer \
+        fonts-liberation \
         libpq-dev \
         libicu-dev \
         libzip-dev \

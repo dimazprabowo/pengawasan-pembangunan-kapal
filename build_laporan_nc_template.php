@@ -4,8 +4,8 @@
  * Bangun template-laporan-nc.docx dari master NC.docx (idempoten — selalu
  * dibangun ulang dari master, aman dijalankan berkali-kali).
  *
- * Master : storage/app/templates/laporan-nc/master-nc.docx (salinan NC.docx asli)
- * Output : storage/app/templates/laporan-nc/template-laporan-nc.docx
+ * Master : storage/app/private/templates/laporan-nc/master-nc.docx (salinan NC.docx asli)
+ * Output : storage/app/private/templates/laporan-nc/template-laporan-nc.docx
  *
  *  - Kop: "Nama Proyek" → ${nama_proyek}, judul → ${judul_form}, "NC - ." → ${nomor_ncr}.
  *  - Tabel NC: header dipertahankan, 14 baris kosong → 1 baris placeholder
@@ -20,8 +20,8 @@
  */
 const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 
-$master = 'storage/app/templates/laporan-nc/master-nc.docx';
-$output = 'storage/app/templates/laporan-nc/template-laporan-nc.docx';
+$master = 'storage/app/private/templates/laporan-nc/master-nc.docx';
+$output = 'storage/app/private/templates/laporan-nc/template-laporan-nc.docx';
 
 $src = new ZipArchive;
 if (! is_file($master) || $src->open($master) !== true) {

@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\LaporanBulanan;
 use App\Services\LaporanBulananWordService;
+use App\Services\LaporanDocumentService;
 use App\Services\QueueStatusService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -19,7 +20,7 @@ class GenerateLaporanBulananJob implements ShouldQueue
 
     public int $backoff = 10;
 
-    public int $timeout = 120;
+    public int $timeout = 900;
 
     public function __construct(
         public LaporanBulanan $laporan,
@@ -33,12 +34,11 @@ class GenerateLaporanBulananJob implements ShouldQueue
         $this->laporan->load('dataKapal');
 
         // Delete old generated doc if re-generating
-        if ($this->laporan->doc_path) {
-            $oldPath = storage_path('app/'.$this->laporan->doc_path);
-            if (file_exists($oldPath)) {
-                @unlink($oldPath);
-            }
-        }
+        app(LaporanDocumentService::class)->deleteDocFile($this->laporan->doc_path);
+
+        // Rilis PDF ikut tidak valid saat Word digenerate ulang —
+        // tombol download PDF hilang sampai Release diklik lagi.
+        ReleaseLaporanBulananPdfJob::clearPdf($this->laporan);
 
         $this->laporan->update([
             'doc_status' => 'processing',

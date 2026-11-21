@@ -7,7 +7,9 @@ use App\Models\DataKapal;
 use App\Services\DataKapalService;
 use App\Services\KontrakPeriodeService;
 use App\Services\KurvaSService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -54,9 +56,9 @@ class KurvaSManagement extends Component
     public int $totalBulan = 4;
 
     /** Periode kontrak (hari kalender) — disimpan di data_kapal */
-    public ?string $tanggal_mulai_kontrak = null;
+    public ?string $tanggal_mulai_pelaksanaan = null;
 
-    public ?int $durasi_kontrak_hari = null;
+    public ?int $waktu_pelaksanaan_hari = null;
 
     /** Konfirmasi hapus work group */
     public ?int $confirmDeleteGroupIdx = null;
@@ -102,7 +104,7 @@ class KurvaSManagement extends Component
     public function closeModal(): void
     {
         $this->showModal = false;
-        $this->reset(['dataKapalId', 'dataKapalNama', 'workGroups', 'expandedGroupIdx', 'expandedWeeksKey', 'totalBulan', 'tanggal_mulai_kontrak', 'durasi_kontrak_hari', 'confirmApplyMonths', 'showPeriodeDetail', 'mingguBulanMap']);
+        $this->reset(['dataKapalId', 'dataKapalNama', 'workGroups', 'expandedGroupIdx', 'expandedWeeksKey', 'totalBulan', 'tanggal_mulai_pelaksanaan', 'waktu_pelaksanaan_hari', 'confirmApplyMonths', 'showPeriodeDetail', 'mingguBulanMap']);
         $this->resetValidation();
     }
 
@@ -115,7 +117,7 @@ class KurvaSManagement extends Component
 
         // Range minggu per bulan berdasarkan kontrak TERSIMPAN — untuk memetakan
         // rencana mingguan tersimpan ke slot bulan yang sesuai.
-        $bulanRanges = $dataKapal->hasKontrak()
+        $bulanRanges = $dataKapal->hasPelaksanaan()
             ? collect(app(KontrakPeriodeService::class)->getBulanList($dataKapal))->keyBy('bulan_ke')
             : collect();
 
@@ -153,8 +155,8 @@ class KurvaSManagement extends Component
             ];
         })->toArray();
 
-        $this->tanggal_mulai_kontrak = $dataKapal->tanggal_mulai_kontrak?->format('Y-m-d');
-        $this->durasi_kontrak_hari = $dataKapal->durasi_kontrak_hari;
+        $this->tanggal_mulai_pelaksanaan = $dataKapal->tanggal_mulai_pelaksanaan?->format('Y-m-d');
+        $this->waktu_pelaksanaan_hari = $dataKapal->waktu_pelaksanaan_hari;
         $this->mingguBulanMap = collect($dataKapal->minggu_bulan_map ?? [])
             ->mapWithKeys(fn ($b, $w) => [(int) $w => (int) $b])
             ->all();
@@ -174,7 +176,7 @@ class KurvaSManagement extends Component
      */
     private function totalBulanKontrak(): int
     {
-        if (! $this->tanggal_mulai_kontrak || ! $this->durasi_kontrak_hari) {
+        if (! $this->tanggal_mulai_pelaksanaan || ! $this->waktu_pelaksanaan_hari) {
             return 0;
         }
 
@@ -187,18 +189,18 @@ class KurvaSManagement extends Component
     private function kontrakDraft(): DataKapal
     {
         return new DataKapal([
-            'tanggal_mulai_kontrak' => $this->tanggal_mulai_kontrak ?: null,
-            'durasi_kontrak_hari' => $this->durasi_kontrak_hari ?: null,
+            'tanggal_mulai_pelaksanaan' => $this->tanggal_mulai_pelaksanaan ?: null,
+            'waktu_pelaksanaan_hari' => $this->waktu_pelaksanaan_hari ?: null,
             'minggu_bulan_map' => $this->mingguBulanMap ?: null,
         ]);
     }
 
-    public function updatedTanggalMulaiKontrak(): void
+    public function updatedTanggalMulaiPelaksanaan(): void
     {
         $this->syncTotalBulanDariKontrak();
     }
 
-    public function updatedDurasiKontrakHari(): void
+    public function updatedWaktuPelaksanaanHari(): void
     {
         $this->syncTotalBulanDariKontrak();
     }
@@ -240,7 +242,7 @@ class KurvaSManagement extends Component
     public function requestApplyContractMonths(): void
     {
         if ($this->totalBulanKontrak() <= 0) {
-            $this->notifyWarning('Isi tanggal mulai & durasi kontrak terlebih dahulu.');
+            $this->notifyWarning('Isi tanggal mulai & waktu pelaksanaan terlebih dahulu.');
 
             return;
         }
@@ -283,7 +285,7 @@ class KurvaSManagement extends Component
         $total = $this->totalBulanKontrak();
 
         if ($total <= 0) {
-            $this->notifyWarning('Isi tanggal mulai & durasi kontrak terlebih dahulu.');
+            $this->notifyWarning('Isi tanggal mulai & waktu pelaksanaan terlebih dahulu.');
 
             return;
         }
@@ -312,7 +314,7 @@ class KurvaSManagement extends Component
         $this->totalBulan = $total;
         $this->expandedWeeksKey = null;
 
-        $this->notifyInfo(count($this->workGroups)." work group disesuaikan ke {$total} bulan sesuai kontrak.");
+        $this->notifyInfo(count($this->workGroups)." work group disesuaikan ke {$total} bulan sesuai pelaksanaan.");
     }
 
     // ─── Work Group Actions ──────────────────────────────────────────────────
@@ -320,7 +322,7 @@ class KurvaSManagement extends Component
     public function addWorkGroup(): void
     {
         if ($this->totalBulanKontrak() <= 0) {
-            $this->notifyWarning('Isi tanggal mulai & durasi kontrak terlebih dahulu — periode bulan rencana diturunkan dari kontrak.');
+            $this->notifyWarning('Isi tanggal mulai & waktu pelaksanaan terlebih dahulu — periode bulan rencana diturunkan dari pelaksanaan.');
 
             return;
         }
@@ -449,7 +451,7 @@ class KurvaSManagement extends Component
     public function bagiRata(int $gi, int $mi): void
     {
         if (! $this->fillWeeksFromMonthly($gi, $mi)) {
-            $this->notifyWarning('Minggu untuk bulan ini tidak tersedia — pastikan kontrak terisi.');
+            $this->notifyWarning('Minggu untuk bulan ini tidak tersedia — pastikan pelaksanaan terisi.');
 
             return;
         }
@@ -474,7 +476,7 @@ class KurvaSManagement extends Component
 
         if (empty($this->workGroups[$gi]['months'][$mi]['weeks'] ?? [])) {
             if (! $this->fillWeeksFromMonthly($gi, $mi)) {
-                $this->notifyWarning('Minggu untuk bulan ini tidak tersedia — pastikan kontrak terisi.');
+                $this->notifyWarning('Minggu untuk bulan ini tidak tersedia — pastikan pelaksanaan terisi.');
 
                 return;
             }
@@ -562,7 +564,7 @@ class KurvaSManagement extends Component
     public function getMingguIrisanProperty(): array
     {
         $draft = $this->kontrakDraft();
-        if (! $draft->hasKontrak()) {
+        if (! $draft->hasPelaksanaan()) {
             return [];
         }
 
@@ -679,14 +681,14 @@ class KurvaSManagement extends Component
     public function getKontrakSummaryProperty(): ?array
     {
         $draft = $this->kontrakDraft();
-        if (! $draft->hasKontrak()) {
+        if (! $draft->hasPelaksanaan()) {
             return null;
         }
 
         $service = app(KontrakPeriodeService::class);
 
         return [
-            'selesai' => $draft->tanggal_selesai_kontrak->translatedFormat('d M Y'),
+            'selesai' => $draft->tanggal_selesai_pelaksanaan->translatedFormat('d M Y'),
             'total_minggu' => $service->getTotalMinggu($draft),
             'total_bulan' => $service->getTotalBulan($draft),
         ];
@@ -699,7 +701,7 @@ class KurvaSManagement extends Component
     public function getPeriodePreviewProperty(): ?array
     {
         $draft = $this->kontrakDraft();
-        if (! $draft->hasKontrak()) {
+        if (! $draft->hasPelaksanaan()) {
             return null;
         }
 
@@ -736,7 +738,7 @@ class KurvaSManagement extends Component
     public function getBulanMetaProperty(): array
     {
         $draft = $this->kontrakDraft();
-        if (! $draft->hasKontrak()) {
+        if (! $draft->hasPelaksanaan()) {
             return [];
         }
 
@@ -758,7 +760,7 @@ class KurvaSManagement extends Component
     public function getMingguPerBulanProperty(): array
     {
         $draft = $this->kontrakDraft();
-        if (! $draft->hasKontrak()) {
+        if (! $draft->hasPelaksanaan()) {
             return [];
         }
 
@@ -783,8 +785,8 @@ class KurvaSManagement extends Component
         $bulanKeRule = 'required|integer|min:1'.($maxBulan > 0 ? '|max:'.$maxBulan : '');
 
         return [
-            'tanggal_mulai_kontrak' => 'nullable|date|required_with:durasi_kontrak_hari',
-            'durasi_kontrak_hari' => 'nullable|integer|min:1|max:7300|required_with:tanggal_mulai_kontrak',
+            'tanggal_mulai_pelaksanaan' => 'nullable|date|required_with:waktu_pelaksanaan_hari',
+            'waktu_pelaksanaan_hari' => 'nullable|integer|min:1|max:7300|required_with:tanggal_mulai_pelaksanaan',
             'workGroups' => 'required|array|min:1',
             'workGroups.*.nama' => 'required|string|max:255',
             'workGroups.*.bobot' => 'required|numeric|min:0|max:100',
@@ -801,15 +803,15 @@ class KurvaSManagement extends Component
     protected function messages(): array
     {
         return [
-            'tanggal_mulai_kontrak.required_with' => 'Tanggal mulai kontrak wajib diisi jika durasi diisi.',
-            'durasi_kontrak_hari.required_with' => 'Durasi kontrak wajib diisi jika tanggal mulai diisi.',
-            'durasi_kontrak_hari.min' => 'Durasi kontrak minimal 1 hari.',
+            'tanggal_mulai_pelaksanaan.required_with' => 'Tanggal mulai pelaksanaan wajib diisi jika waktu pelaksanaan diisi.',
+            'waktu_pelaksanaan_hari.required_with' => 'Waktu pelaksanaan wajib diisi jika tanggal mulai diisi.',
+            'waktu_pelaksanaan_hari.min' => 'Waktu pelaksanaan minimal 1 hari.',
             'workGroups.required' => 'Minimal harus ada 1 work group.',
             'workGroups.min' => 'Minimal harus ada 1 work group.',
             'workGroups.*.nama.required' => 'Nama work group wajib diisi.',
             'workGroups.*.bobot.required' => 'Bobot wajib diisi.',
             'workGroups.*.bobot.numeric' => 'Bobot harus berupa angka.',
-            'workGroups.*.months.*.bulan_ke.max' => 'Nomor bulan melebihi total bulan kontrak.',
+            'workGroups.*.months.*.bulan_ke.max' => 'Nomor bulan melebihi total bulan pelaksanaan.',
             'workGroups.*.months.*.pct_rencana.required' => 'Rencana % wajib diisi.',
             'workGroups.*.months.*.pct_rencana.max' => 'Rencana % per bulan maksimal 100%.',
             'workGroups.*.months.*.weeks.*.pct_rencana.required' => 'Rencana % per minggu wajib diisi.',
@@ -826,7 +828,7 @@ class KurvaSManagement extends Component
 
         try {
             $this->validate();
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->notifyValidationError($e);
             throw $e;
         }
@@ -834,7 +836,7 @@ class KurvaSManagement extends Component
         // Rencana bulanan memerlukan kontrak — periode bulan diturunkan dari kontrak
         $hasMonths = collect($this->workGroups)->contains(fn ($wg) => count($wg['months'] ?? []) > 0);
         if ($hasMonths && $this->totalBulanKontrak() <= 0) {
-            $this->notifyFailed('Isi tanggal mulai & durasi kontrak terlebih dahulu — periode bulan rencana diturunkan dari kontrak.');
+            $this->notifyFailed('Isi tanggal mulai & waktu pelaksanaan terlebih dahulu — periode bulan rencana diturunkan dari pelaksanaan.');
 
             return;
         }
@@ -872,10 +874,10 @@ class KurvaSManagement extends Component
         }
 
         try {
-            app(KontrakPeriodeService::class)->saveKontrak(
+            app(KontrakPeriodeService::class)->savePelaksanaan(
                 $dataKapal,
-                $this->tanggal_mulai_kontrak,
-                $this->durasi_kontrak_hari !== null ? (int) $this->durasi_kontrak_hari : null,
+                $this->tanggal_mulai_pelaksanaan,
+                $this->waktu_pelaksanaan_hari !== null ? (int) $this->waktu_pelaksanaan_hari : null,
                 $this->mingguBulanMap ?: null
             );
             $service->saveWorkGroups($dataKapal, $this->workGroups);
@@ -892,7 +894,7 @@ class KurvaSManagement extends Component
             $this->notifySuccess('Kurva S berhasil disimpan!'.$warning);
             $this->closeModal();
             $this->dispatch('kurvas-saved');
-        } catch (\Illuminate\Auth\Access\AuthorizationException) {
+        } catch (AuthorizationException) {
             $this->notifyError('Anda tidak memiliki izin untuk mengatur Kurva S.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
@@ -908,7 +910,7 @@ class KurvaSManagement extends Component
             $this->authorize('exportKurvaSTemplate', $dataKapal);
 
             return $service->exportKurvaSTemplate($dataKapal, $withData);
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk export template Kurva S.');
         } catch (\Exception $e) {
             \Log::error('Export Kurva S gagal', ['data_kapal_id' => $this->dataKapalId, 'error' => $e->getMessage()]);
@@ -923,7 +925,7 @@ class KurvaSManagement extends Component
             $this->authorize('importKurvaSTemplate', $dataKapal);
 
             $this->showKurvaSImportModal = true;
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk import template Kurva S.');
         }
     }
@@ -948,7 +950,7 @@ class KurvaSManagement extends Component
             ], [
                 'kurvaS_file' => 'file template',
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->notifyValidationError($e);
             throw $e;
         }
@@ -971,7 +973,7 @@ class KurvaSManagement extends Component
                 }
                 $this->notifyFailed($errorMessage);
             }
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk import template Kurva S.');
         } catch (\Exception $e) {
             \Log::error('Import Kurva S gagal', ['data_kapal_id' => $this->dataKapalId, 'error' => $e->getMessage()]);

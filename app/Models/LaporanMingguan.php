@@ -35,6 +35,11 @@ class LaporanMingguan extends Model
         'doc_status',
         'doc_generated_at',
         'doc_error',
+        'pdf_path',
+        'pdf_name',
+        'pdf_status',
+        'pdf_generated_at',
+        'pdf_error',
     ];
 
     protected $casts = [
@@ -43,6 +48,7 @@ class LaporanMingguan extends Model
         'periode_selesai' => 'date',
         'minggu_ke' => 'integer',
         'doc_generated_at' => 'datetime',
+        'pdf_generated_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
@@ -144,5 +150,26 @@ class LaporanMingguan extends Model
     public function hasDoc(): bool
     {
         return ! empty($this->doc_path) && ! empty($this->doc_name);
+    }
+
+    // Pdf (Released) Status Helpers
+    public function isPdfProcessing(): bool
+    {
+        return in_array($this->pdf_status, ['pending', 'processing']);
+    }
+
+    public function isPdfCompleted(): bool
+    {
+        return $this->pdf_status === 'completed';
+    }
+
+    public function isPdfFailed(): bool
+    {
+        return $this->pdf_status === 'failed';
+    }
+
+    public function hasPdf(): bool
+    {
+        return ! empty($this->pdf_path) && ! empty($this->pdf_name);
     }
 }

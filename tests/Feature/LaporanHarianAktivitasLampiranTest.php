@@ -189,7 +189,7 @@ class LaporanHarianAktivitasLampiranTest extends TestCase
 
         try {
             $zip = new \ZipArchive;
-            $zip->open(storage_path('app/'.$docPath));
+            $zip->open(storage_path('app/private/'.$docPath));
             $text = strip_tags($zip->getFromName('word/document.xml'));
             $zip->close();
 
@@ -198,7 +198,7 @@ class LaporanHarianAktivitasLampiranTest extends TestCase
             $this->assertStringContainsString('Overhaul mesin induk', $text);
             $this->assertStringNotContainsString('${', $text);
         } finally {
-            @unlink(storage_path('app/'.$docPath));
+            @unlink(storage_path('app/private/'.$docPath));
             Storage::disk('local')->delete($path);
         }
     }

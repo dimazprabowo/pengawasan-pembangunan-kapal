@@ -17,7 +17,7 @@ class SsoAuthController extends Controller
      */
     public function redirect(Request $request)
     {
-        if (!config('services.sso.enabled')) {
+        if (! config('services.sso.enabled')) {
             return redirect()->route('login')->withErrors([
                 'sso' => 'SSO tidak diaktifkan pada aplikasi ini.',
             ]);
@@ -42,7 +42,7 @@ class SsoAuthController extends Controller
             'state' => $state,
         ]);
 
-        $ssoUrl = config('services.sso.base_url') . '/oauth/authorize?' . $query;
+        $ssoUrl = config('services.sso.base_url').'/oauth/authorize?'.$query;
 
         Log::info('SSO redirect initiated', ['url' => $ssoUrl, 'state' => $state]);
 
@@ -54,7 +54,7 @@ class SsoAuthController extends Controller
      */
     public function callback(Request $request)
     {
-        if (!config('services.sso.enabled')) {
+        if (! config('services.sso.enabled')) {
             return redirect()->route('login')->withErrors([
                 'sso' => 'SSO tidak diaktifkan pada aplikasi ini.',
             ]);
@@ -72,6 +72,7 @@ class SsoAuthController extends Controller
                 'error' => $request->input('error'),
                 'description' => $request->input('error_description'),
             ]);
+
             return redirect()->route('login')->withErrors([
                 'sso' => $request->input('error_description', 'Autentikasi SSO gagal.'),
             ]);
@@ -87,18 +88,19 @@ class SsoAuthController extends Controller
             'match' => $storedState === $incomingState,
         ]);
 
-        if (!$storedState || $storedState !== $incomingState) {
+        if (! $storedState || $storedState !== $incomingState) {
             Log::warning('SSO callback: State mismatch', [
                 'stored' => $storedState,
                 'incoming' => $incomingState,
             ]);
+
             return redirect()->route('login')->withErrors([
                 'sso' => 'Sesi SSO tidak valid. Silakan coba lagi.',
             ]);
         }
 
         $code = $request->input('code');
-        if (!$code) {
+        if (! $code) {
             return redirect()->route('login')->withErrors([
                 'sso' => 'Kode otorisasi tidak ditemukan.',
             ]);
@@ -108,7 +110,7 @@ class SsoAuthController extends Controller
             // Exchange authorization code for access token
             Log::info('SSO exchanging code for token');
 
-            $tokenResponse = Http::asForm()->post(config('services.sso.base_url') . '/oauth/token', [
+            $tokenResponse = Http::asForm()->post(config('services.sso.base_url').'/oauth/token', [
                 'grant_type' => 'authorization_code',
                 'client_id' => config('services.sso.client_id'),
                 'client_secret' => config('services.sso.client_secret'),
@@ -120,6 +122,7 @@ class SsoAuthController extends Controller
                 Log::error('SSO token exchange failed', [
                     'status' => $tokenResponse->status(),
                 ]);
+
                 return redirect()->route('login')->withErrors([
                     'sso' => 'Gagal mendapatkan token dari SSO Server.',
                 ]);
@@ -128,8 +131,9 @@ class SsoAuthController extends Controller
             $tokenData = $tokenResponse->json();
             $accessToken = $tokenData['access_token'] ?? null;
 
-            if (!$accessToken) {
+            if (! $accessToken) {
                 Log::error('SSO no access_token in response');
+
                 return redirect()->route('login')->withErrors([
                     'sso' => 'Token akses tidak valid.',
                 ]);
@@ -139,12 +143,13 @@ class SsoAuthController extends Controller
 
             // Fetch user info from SSO Server
             $userResponse = Http::withToken($accessToken)
-                ->get(config('services.sso.base_url') . '/api/user');
+                ->get(config('services.sso.base_url').'/api/user');
 
             if ($userResponse->failed()) {
                 Log::error('SSO user fetch failed', [
                     'status' => $userResponse->status(),
                 ]);
+
                 return redirect()->route('login')->withErrors([
                     'sso' => 'Gagal mengambil data user dari SSO Server.',
                 ]);
@@ -160,7 +165,7 @@ class SsoAuthController extends Controller
             // Find or create user in local database
             $user = $this->findOrCreateUser($ssoUser);
 
-            if (!$user->is_active) {
+            if (! $user->is_active) {
                 return redirect()->route('login')->withErrors([
                     'sso' => 'Akun Anda tidak aktif. Hubungi administrator.',
                 ]);
@@ -187,8 +192,9 @@ class SsoAuthController extends Controller
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return redirect()->route('login')->withErrors([
-                'sso' => 'Terjadi kesalahan saat autentikasi SSO: ' . $e->getMessage(),
+                'sso' => 'Terjadi kesalahan saat autentikasi SSO: '.$e->getMessage(),
             ]);
         }
     }

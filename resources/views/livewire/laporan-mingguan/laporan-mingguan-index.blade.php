@@ -13,7 +13,7 @@
             </div>
             <h2 class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">Laporan Mingguan</h2>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {{ $dataKapal->company?->name }}{{ $dataKapal->company && $dataKapal->galangan ? ' · ' : '' }}{{ $dataKapal->galangan?->nama }}
+                {{ $dataKapal->owner?->name }}{{ $dataKapal->owner && $dataKapal->galangan ? ' · ' : '' }}{{ $dataKapal->galangan?->nama }}
             </p>
         </div>
         <x-loading-button wire:click="gantiKapal" target="gantiKapal" variant="secondary" size="md" loadingText="Memuat..." title="Ganti data kapal">
@@ -269,6 +269,23 @@
                                             </svg>
                                         </a>
                                     @endcan
+                                    @if($laporan->hasPdf() && $laporan->isPdfCompleted())
+                                        @can('download', $laporan)
+                                            <button wire:click="downloadPdf({{ $laporan->id }})"
+                                                wire:loading.attr="disabled"
+                                                wire:target="downloadPdf({{ $laporan->id }})"
+                                                class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
+                                                title="Download PDF Rilis">
+                                                <svg wire:loading.class="hidden" wire:target="downloadPdf({{ $laporan->id }})" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                                </svg>
+                                                <svg wire:loading wire:target="downloadPdf({{ $laporan->id }})" class="animate-spin w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                            </button>
+                                        @endcan
+                                    @endif
                                     @can('delete', $laporan)
                                         <button wire:click="confirmDelete({{ $laporan->id }})"
                                             wire:loading.attr="disabled"

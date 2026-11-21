@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\LaporanHarian;
+use App\Services\LaporanDocumentService;
 use App\Services\LaporanHarianWordService;
 use App\Services\QueueStatusService;
 use Illuminate\Bus\Queueable;
@@ -34,12 +35,11 @@ class GenerateLaporanHarianJob implements ShouldQueue
         $this->laporan->load('dataKapal');
 
         // Delete old generated doc if re-generating
-        if ($this->laporan->doc_path) {
-            $oldPath = storage_path('app/'.$this->laporan->doc_path);
-            if (file_exists($oldPath)) {
-                @unlink($oldPath);
-            }
-        }
+        app(LaporanDocumentService::class)->deleteDocFile($this->laporan->doc_path);
+
+        // Rilis PDF ikut tidak valid saat Word digenerate ulang —
+        // tombol download PDF hilang sampai Release diklik lagi.
+        ReleaseLaporanHarianPdfJob::clearPdf($this->laporan);
 
         $this->laporan->update([
             'doc_status' => 'processing',

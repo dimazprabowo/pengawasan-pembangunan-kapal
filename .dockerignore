@@ -23,13 +23,15 @@ auth.json
 /public/storage
 
 # Storage runtime data — dipersist via volume di produksi.
-# KECUALI storage/app/templates (template docx default ikut image).
+# KECUALI storage/app/private/templates (template docx default ikut image;
+# semua artefak tersimpan di disk 'local' = storage/app/private).
 /storage/logs/*
 /storage/pail
-/storage/app/private
-/storage/app/laporan
+/storage/app/private/*
+!/storage/app/private/templates
 /storage/app/public
 /storage/app/temp
+/storage/app/tmp-files
 /storage/app/tools
 /storage/app/test-output.docx
 /storage/*.key

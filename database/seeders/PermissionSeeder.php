@@ -16,7 +16,7 @@ class PermissionSeeder extends Seeder
      *
      * Konvensi penamaan:
      *   {entity}_{action}
-     *   entity : dashboard, companies, configuration, users, roles, notifications, chat, laporan
+     *   entity : dashboard, owners, configuration, users, roles, notifications, chat, laporan
      *   action : view, create, update, delete, export_excel, export_pdf, send
      *
      * Format ini memudahkan grouping otomatis di UI berdasarkan entity prefix.
@@ -29,13 +29,13 @@ class PermissionSeeder extends Seeder
             // Dashboard
             'dashboard_view',
 
-            // Master Data — Perusahaan
-            'companies_view',
-            'companies_create',
-            'companies_update',
-            'companies_delete',
-            'companies_export_excel',
-            'companies_export_pdf',
+            // Master Data — Owner
+            'owners_view',
+            'owners_create',
+            'owners_update',
+            'owners_delete',
+            'owners_export_excel',
+            'owners_export_pdf',
 
             // Master Data — Data Kapal
             'data_kapal_view',
@@ -53,6 +53,34 @@ class PermissionSeeder extends Seeder
             'proyek_data_create',
             'proyek_data_update',
             'proyek_data_delete',
+            'drawing_types_view',
+            'drawing_types_create',
+            'drawing_types_update',
+            'drawing_types_delete',
+            'drawing_statuses_view',
+            'drawing_statuses_create',
+            'drawing_statuses_update',
+            'drawing_statuses_delete',
+            'material_categories_view',
+            'material_categories_create',
+            'material_categories_update',
+            'material_categories_delete',
+            'material_statuses_view',
+            'material_statuses_create',
+            'material_statuses_update',
+            'material_statuses_delete',
+            'vendor_lingkups_view',
+            'vendor_lingkups_create',
+            'vendor_lingkups_update',
+            'vendor_lingkups_delete',
+            'pengujian_statuses_view',
+            'pengujian_statuses_create',
+            'pengujian_statuses_update',
+            'pengujian_statuses_delete',
+            'rapat_jenis_view',
+            'rapat_jenis_create',
+            'rapat_jenis_update',
+            'rapat_jenis_delete',
 
             // Master Data — Galangan
             'galangan_view',
@@ -93,8 +121,8 @@ class PermissionSeeder extends Seeder
             'users_export_pdf',
             'users_impersonate',
 
-            // Manajemen Perusahaan Sendiri
-            'manage_own_company',
+            // Manajemen Owner Sendiri
+            'manage_own_owner',
 
             // Roles & Permissions
             'roles_view',

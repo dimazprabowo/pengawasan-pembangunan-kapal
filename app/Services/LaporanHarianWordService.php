@@ -34,7 +34,7 @@ class LaporanHarianWordService
     {
         $laporan->loadMissing([
             'user',
-            'dataKapal.company',
+            'dataKapal.owner',
             'dataKapal.galangan',
             'cuacaPagi',
             'kelembabanPagi',
@@ -61,14 +61,16 @@ class LaporanHarianWordService
 
         // Fall back to default template if Data Kapal template not available
         if (! $templateFullPath || ! file_exists($templateFullPath)) {
-            $templateFullPath = storage_path('app/'.self::TEMPLATE_PATH);
+            $files = app(FilePathService::class);
             $templateSource = 'default';
 
-            if (! file_exists($templateFullPath)) {
+            if (! $files->exists(self::TEMPLATE_PATH)) {
                 throw new \RuntimeException(
-                    'Template Word tidak ditemukan. Harap upload template pada master Data Kapal atau pastikan template default tersedia di: storage/app/'.self::TEMPLATE_PATH
+                    'Template Word tidak ditemukan. Harap upload template pada master Data Kapal atau pastikan template default tersedia di penyimpanan: '.self::TEMPLATE_PATH
                 );
             }
+
+            $templateFullPath = $files->localPath(self::TEMPLATE_PATH);
         }
 
         // Escape nilai teks (mis. "Engineering & Design") agar XML dokumen tetap valid
@@ -98,7 +100,7 @@ class LaporanHarianWordService
         $values['lokasi'] = $laporan->dataKapal?->galangan?->nama ?? '-';
         $values['no_kapal'] = $laporan->dataKapal?->nama ?? '-';
         $values['kode_proyek'] = $laporan->dataKapal?->kode ?? '-';
-        $values['perusahaan'] = $laporan->dataKapal?->company?->name ?? '-';
+        $values['owner'] = $laporan->dataKapal?->owner?->name ?? '-';
         $values['tanggal'] = $laporan->tanggal_laporan ? $laporan->tanggal_laporan->translatedFormat('d F Y') : '-';
         $values['dibuat_oleh'] = $laporan->user?->name ?? '-';
         $values['no_laporan'] = (string) $laporan->id;
@@ -377,19 +379,93 @@ class LaporanHarianWordService
 
     private function saveDocument(TemplateProcessor $processor, LaporanHarian $laporan): string
     {
-        $dir = storage_path('app/laporan/word');
-        if (! is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-
         $filename = sprintf(
             'laporan-harian-%d-%s.docx',
             $laporan->id,
             now()->format('YmdHis')
         );
 
-        $processor->saveAs($dir.'/'.$filename);
+        $files = app(FilePathService::class);
+        $local = $files->tempPath('docx');
+        $processor->saveAs($local);
+        $this->ensureFooter($local, $laporan);
+        $files->commitLocalFile($local, 'laporan/word/'.$filename);
 
         return 'laporan/word/'.$filename;
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // FOOTER
+    // ────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Sisipkan footer seperti Laporan Mingguan (nama dokumen + nomor halaman,
+     * kanan, 8pt abu). Dilakukan pasca-save agar berlaku untuk template default
+     * maupun template custom per Data Kapal; template yang sudah punya footer
+     * dibiarkan apa adanya.
+     */
+    private function ensureFooter(string $docxPath, LaporanHarian $laporan): void
+    {
+        $zip = new \ZipArchive;
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+
+        $document = $zip->getFromName('word/document.xml');
+        $rels = $zip->getFromName('word/_rels/document.xml.rels');
+        $types = $zip->getFromName('[Content_Types].xml');
+        if ($document === false || $rels === false || $types === false || str_contains($document, '<w:footerReference')) {
+            $zip->close();
+
+            return;
+        }
+
+        // Nama part & rId baru
+        $n = 1;
+        while ($zip->getFromName("word/footer{$n}.xml") !== false) {
+            $n++;
+        }
+        $part = "footer{$n}.xml";
+        preg_match_all('/Id="rId(\d+)"/', $rels, $m);
+        $rid = 'rId'.((int) max(array_merge([0], $m[1])) + 1);
+
+        $label = htmlspecialchars(sprintf(
+            'Laporan Harian %s — %s',
+            $laporan->dataKapal?->nama ?? '-',
+            $laporan->tanggal_laporan?->translatedFormat('d F Y') ?? '-'
+        ), ENT_XML1);
+        $rPr = '<w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:color w:val="7F7F7F"/><w:sz w:val="16"/><w:szCs w:val="16"/></w:rPr>';
+        // Field nomor halaman memakai pola fldChar yang sama dengan footer mingguan
+        // (hasil PhpWord::addPreserveText). fldSimple TIDAK dipakai: saat Word
+        // memperbarui field, angka hasil tidak mewarisi rPr sehingga tampil lebih
+        // besar dari teks sekitarnya.
+        $field = fn (string $instr) => '<w:r><w:fldChar w:fldCharType="begin"/></w:r>'
+            .'<w:r>'.$rPr.'<w:instrText xml:space="preserve">'.$instr.'</w:instrText></w:r>'
+            .'<w:r>'.$rPr.'<w:fldChar w:fldCharType="separate"/></w:r>'
+            .'<w:r>'.$rPr.'<w:t>1</w:t></w:r>'
+            .'<w:r><w:fldChar w:fldCharType="end"/></w:r>';
+        $footer = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+            .'<w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r>'.$rPr.'<w:t xml:space="preserve">'.$label.'</w:t></w:r></w:p>'
+            .'<w:p><w:pPr><w:jc w:val="right"/></w:pPr>'
+            .'<w:r>'.$rPr.'<w:t xml:space="preserve">Halaman </w:t></w:r>'
+            .$field('PAGE')
+            .'<w:r>'.$rPr.'<w:t xml:space="preserve"> dari </w:t></w:r>'
+            .$field('NUMPAGES')
+            .'</w:p></w:ftr>';
+
+        // Pastikan namespace r tersedia untuk r:id di footerReference
+        if (! str_contains($document, 'xmlns:r=')) {
+            $document = preg_replace('/<w:document /', '<w:document xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ', $document, 1);
+        }
+        $document = preg_replace('/<w:sectPr\b[^>]*>/', '$0<w:footerReference w:type="default" r:id="'.$rid.'"/>', $document, 1);
+        $rels = str_replace('</Relationships>', '<Relationship Id="'.$rid.'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="'.$part.'"/></Relationships>', $rels);
+        $types = str_replace('</Types>', '<Override PartName="/word/'.$part.'" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/></Types>', $types);
+
+        $zip->addFromString('word/document.xml', $document);
+        $zip->addFromString('word/_rels/document.xml.rels', $rels);
+        $zip->addFromString('[Content_Types].xml', $types);
+        $zip->addFromString('word/'.$part, $footer);
+        $zip->close();
     }
 }

@@ -81,14 +81,14 @@ class LaporanNcWordService
             return $custom;
         }
 
-        $default = storage_path('app/'.self::TEMPLATE_PATH);
-        if (! file_exists($default)) {
+        $files = app(FilePathService::class);
+        if (! $files->exists(self::TEMPLATE_PATH)) {
             throw new \RuntimeException(
                 'Template Form NC tidak ditemukan. Upload template pada master Data Kapal atau jalankan php build_laporan_nc_template.php'
             );
         }
 
-        return $default;
+        return $files->localPath(self::TEMPLATE_PATH);
     }
 
     private function fillNcTable(TemplateProcessor $processor, LaporanNcForm $form): void

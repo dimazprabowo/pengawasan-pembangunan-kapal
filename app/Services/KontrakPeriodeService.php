@@ -8,11 +8,11 @@ use App\Models\LaporanMingguan;
 use Carbon\Carbon;
 
 /**
- * Single source of truth untuk penomoran periode laporan berdasarkan kontrak
- * (tanggal mulai + durasi hari kalender) pada data_kapal.
+ * Single source of truth untuk penomoran periode laporan berdasarkan pelaksanaan
+ * (tanggal mulai + waktu hari kalender) pada data_kapal.
  *
- * - Minggu = "minggu proyek": blok 7 hari dari tanggal mulai kontrak.
- *   Sisa hari < 7 di akhir kontrak digabung ke minggu terakhir
+ * - Minggu = "minggu proyek": blok 7 hari dari tanggal mulai pelaksanaan.
+ *   Sisa hari < 7 di akhir pelaksanaan digabung ke minggu terakhir
  *   (minggu terakhir maksimal 13 hari), bukan dijadikan minggu baru.
  * - Bulan  = bulan kalender tempat MAYORITAS hari suatu minggu berada.
  *   Minggu 3 hari Jan + 4 hari Feb → masuk Februari.
@@ -23,28 +23,23 @@ use Carbon\Carbon;
  */
 class KontrakPeriodeService
 {
-    public function hasKontrak(DataKapal $dataKapal): bool
-    {
-        return $dataKapal->hasKontrak();
-    }
-
     /**
-     * Simpan data kontrak pada data kapal. Kedua field harus terisi bersama
-     * atau sama-sama kosong (menghapus kontrak). $mingguBulanMap = override
+     * Simpan data pelaksanaan pada data kapal. Kedua field harus terisi bersama
+     * atau sama-sama kosong (menghapus pelaksanaan). $mingguBulanMap = override
      * pemetaan minggu→bulan ({minggu_ke: bulan_ke}); null = ikut kalender.
      */
-    public function saveKontrak(DataKapal $dataKapal, ?string $tanggalMulai, ?int $durasiHari, ?array $mingguBulanMap = null): void
+    public function savePelaksanaan(DataKapal $dataKapal, ?string $tanggalMulai, ?int $durasiHari, ?array $mingguBulanMap = null): void
     {
         $dataKapal->update([
-            'tanggal_mulai_kontrak' => $tanggalMulai ?: null,
-            'durasi_kontrak_hari' => $durasiHari ?: null,
+            'tanggal_mulai_pelaksanaan' => $tanggalMulai ?: null,
+            'waktu_pelaksanaan_hari' => $durasiHari ?: null,
             'minggu_bulan_map' => $mingguBulanMap ?: null,
         ]);
     }
 
     public function getTanggalSelesai(DataKapal $dataKapal): ?Carbon
     {
-        return $dataKapal->tanggal_selesai_kontrak;
+        return $dataKapal->tanggal_selesai_pelaksanaan;
     }
 
     /**
@@ -54,11 +49,11 @@ class KontrakPeriodeService
      */
     public function getTotalMinggu(DataKapal $dataKapal): int
     {
-        if (! $dataKapal->hasKontrak()) {
+        if (! $dataKapal->hasPelaksanaan()) {
             return 0;
         }
 
-        return max(1, intdiv($dataKapal->durasi_kontrak_hari, 7));
+        return max(1, intdiv($dataKapal->waktu_pelaksanaan_hari, 7));
     }
 
     /**
@@ -81,10 +76,10 @@ class KontrakPeriodeService
             return null;
         }
 
-        $mulai = $dataKapal->tanggal_mulai_kontrak->copy()->addDays(($mingguKe - 1) * 7);
+        $mulai = $dataKapal->tanggal_mulai_pelaksanaan->copy()->addDays(($mingguKe - 1) * 7);
         // Minggu terakhir menyerap sisa hari (< 7) → berakhir tepat di akhir kontrak.
         $selesai = $mingguKe === $total
-            ? $dataKapal->tanggal_selesai_kontrak->copy()
+            ? $dataKapal->tanggal_selesai_pelaksanaan->copy()
             : $mulai->copy()->addDays(6);
 
         return ['mulai' => $mulai, 'selesai' => $selesai];
@@ -97,7 +92,7 @@ class KontrakPeriodeService
      */
     public function getMingguList(DataKapal $dataKapal): array
     {
-        if (! $dataKapal->hasKontrak()) {
+        if (! $dataKapal->hasPelaksanaan()) {
             return [];
         }
 
@@ -121,7 +116,7 @@ class KontrakPeriodeService
      */
     public function getMingguOptions(DataKapal $dataKapal, ?int $excludeMingguKe = null): array
     {
-        if (! $dataKapal->hasKontrak()) {
+        if (! $dataKapal->hasPelaksanaan()) {
             return [];
         }
 
@@ -148,7 +143,7 @@ class KontrakPeriodeService
      */
     public function getBulanOptions(DataKapal $dataKapal, ?int $excludeBulanKe = null): array
     {
-        if (! $dataKapal->hasKontrak()) {
+        if (! $dataKapal->hasPelaksanaan()) {
             return [];
         }
 
@@ -345,18 +340,18 @@ class KontrakPeriodeService
      */
     public function getMingguKeFromDate(DataKapal $dataKapal, Carbon $tanggal): ?int
     {
-        if (! $dataKapal->hasKontrak()) {
+        if (! $dataKapal->hasPelaksanaan()) {
             return null;
         }
 
-        if ($tanggal->lt($dataKapal->tanggal_mulai_kontrak) || $tanggal->gt($dataKapal->tanggal_selesai_kontrak)) {
+        if ($tanggal->lt($dataKapal->tanggal_mulai_pelaksanaan) || $tanggal->gt($dataKapal->tanggal_selesai_pelaksanaan)) {
             return null;
         }
 
         // Tanggal pada "ekor" minggu terakhir (gabungan sisa hari) memetakan
         // melewati total minggu — clamp ke minggu terakhir.
         return min(
-            intdiv((int) $dataKapal->tanggal_mulai_kontrak->diffInDays($tanggal), 7) + 1,
+            intdiv((int) $dataKapal->tanggal_mulai_pelaksanaan->diffInDays($tanggal), 7) + 1,
             $this->getTotalMinggu($dataKapal)
         );
     }
@@ -366,13 +361,13 @@ class KontrakPeriodeService
      */
     public function getHariKeFromDate(DataKapal $dataKapal, Carbon $tanggal): ?int
     {
-        if (! $dataKapal->hasKontrak()
-            || $tanggal->lt($dataKapal->tanggal_mulai_kontrak)
-            || $tanggal->gt($dataKapal->tanggal_selesai_kontrak)) {
+        if (! $dataKapal->hasPelaksanaan()
+            || $tanggal->lt($dataKapal->tanggal_mulai_pelaksanaan)
+            || $tanggal->gt($dataKapal->tanggal_selesai_pelaksanaan)) {
             return null;
         }
 
-        return (int) $dataKapal->tanggal_mulai_kontrak->diffInDays($tanggal) + 1;
+        return (int) $dataKapal->tanggal_mulai_pelaksanaan->diffInDays($tanggal) + 1;
     }
 
     /**

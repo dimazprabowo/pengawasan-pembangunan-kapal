@@ -8,11 +8,12 @@ use App\Livewire\Traits\HasNotification;
 use App\Models\DataKapal;
 use App\Models\LaporanBulanan;
 use App\Models\LaporanExternal;
+use App\Services\FileStorageService;
 use App\Services\KontrakPeriodeService;
 use App\Services\LaporanBulananService;
 use App\Services\LaporanNcService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -35,12 +36,9 @@ class LaporanBulananCreate extends Component
 
     public string $ringkasan = '';
 
-    /** BAB 2.3 — milestone realisasi pekerjaan [{row_key, uraian, tanggal, keterangan}] */
-    public array $realisasiProgress = [];
-
     public array $bulanOptions = [];
 
-    public bool $hasKontrak = false;
+    public bool $hasPelaksanaan = false;
 
     // Laporan External
     public array $laporanExternal = [];
@@ -51,15 +49,25 @@ class LaporanBulananCreate extends Component
 
     public ?string $deletingExternalId = null;
 
+    // Preferensi autosave draft per user (persisten via cache)
+    public bool $autoSave = true;
+
     public function mount(DataKapal $dataKapal): void
     {
         $this->authorize('create', LaporanBulanan::class);
         $this->authorizeDataKapalAccess($dataKapal);
 
         $this->dataKapal = $dataKapal;
-        $this->hasKontrak = $dataKapal->hasKontrak();
+        $this->hasPelaksanaan = $dataKapal->hasPelaksanaan();
+        $this->autoSave = Cache::get('lb_draft_autosave:'.auth()->id(), true);
         $this->tanggal_laporan = now()->format('Y-m-d');
         $this->bulanOptions = app(KontrakPeriodeService::class)->getBulanOptions($dataKapal);
+    }
+
+    public function toggleAutoSave(): void
+    {
+        $this->autoSave = ! $this->autoSave;
+        Cache::forever('lb_draft_autosave:'.auth()->id(), $this->autoSave);
     }
 
     protected function rules(): array
@@ -70,9 +78,6 @@ class LaporanBulananCreate extends Component
             'periode_mulai' => 'required|date',
             'periode_selesai' => 'required|date|after_or_equal:periode_mulai',
             'ringkasan' => 'nullable|string|max:5000',
-            'realisasiProgress.*.uraian' => 'required|string|max:500',
-            'realisasiProgress.*.tanggal' => 'nullable|date',
-            'realisasiProgress.*.keterangan' => 'nullable|string|max:255',
             'laporanExternal.*.judul' => 'required|string|max:255',
             'laporanExternal.*.deskripsi' => 'nullable|string|max:1000',
             'laporanExternal.*.file' => file_upload_validation_rule('laporan_external'),
@@ -87,9 +92,6 @@ class LaporanBulananCreate extends Component
             'periode_mulai' => 'periode mulai',
             'periode_selesai' => 'periode selesai',
             'ringkasan' => 'ringkasan',
-            'realisasiProgress.*.uraian' => 'uraian realisasi',
-            'realisasiProgress.*.tanggal' => 'tanggal realisasi',
-            'realisasiProgress.*.keterangan' => 'keterangan realisasi',
             'laporanExternal.*.judul' => 'judul laporan external',
             'laporanExternal.*.deskripsi' => 'deskripsi laporan external',
             'laporanExternal.*.file' => 'file laporan external',
@@ -109,39 +111,8 @@ class LaporanBulananCreate extends Component
         $this->periode_selesai = $periode ? $periode['selesai']->format('Y-m-d') : '';
     }
 
-    // ─── Repeater: Realisasi Progress (BAB 2.3) ───
-    // BAB 3.2 Problem & Rekomendasi bukan input — otomatis dari rekap NC periode.
-
-    public function addRealisasiProgress(): void
-    {
-        $this->realisasiProgress[] = [
-            'row_key' => (string) Str::uuid(),
-            'uraian' => '',
-            'tanggal' => '',
-            'keterangan' => '',
-        ];
-    }
-
-    public function removeRealisasiProgress(int $index): void
-    {
-        unset($this->realisasiProgress[$index]);
-        $this->realisasiProgress = array_values($this->realisasiProgress);
-    }
-
-    /** Normalisasi repeater realisasi → payload kolom JSON (buang row_key & baris kosong). */
-    private function normalizedRealisasi(): array
-    {
-        $realisasi = collect($this->realisasiProgress)
-            ->map(fn ($r) => [
-                'uraian' => trim((string) ($r['uraian'] ?? '')),
-                'tanggal' => $r['tanggal'] ?: null,
-                'keterangan' => trim((string) ($r['keterangan'] ?? '')) ?: null,
-            ])
-            ->filter(fn ($r) => $r['uraian'] !== '')
-            ->values()->all();
-
-        return ['realisasi_progress' => $realisasi ?: null];
-    }
+    // sub-bab 2.5 Realisasi Progress = tarikan ringkasan laporan mingguan (bukan input).
+    // sub-bab 3.1 Problem & Rekomendasi bukan input — otomatis dari rekap NC periode.
 
     // Laporan External Methods
     public function addExternalReport(): void
@@ -219,7 +190,7 @@ class LaporanBulananCreate extends Component
                 'periode_selesai' => $this->periode_selesai ?: null,
                 'ringkasan' => $this->ringkasan ?: null,
                 'bulan_ke' => $this->bulan_ke,
-            ] + $this->normalizedRealisasi());
+            ]);
 
             $this->saveLaporanExternal($laporan);
 
@@ -250,7 +221,7 @@ class LaporanBulananCreate extends Component
             $laporanExternal->save();
 
             if ($external['file']) {
-                $tempPath = $external['file']->store('temp/laporan-external', 'local');
+                $tempPath = app(FileStorageService::class)->storeTemp($external['file'], 'laporan-external');
                 ProcessLaporanExternal::dispatch($laporanExternal->id, $tempPath);
             }
         }
@@ -265,12 +236,15 @@ class LaporanBulananCreate extends Component
 
     public function cancel()
     {
+        // Beri tahu Alpine untuk menghapus draft lokal sebelum navigate
+        $this->dispatch('lb-clear-draft');
+
         return $this->redirect(route('laporan-bulanan.index', $this->dataKapal), navigate: true);
     }
 
     public function render()
     {
-        // Preview rekap NC (open terbawa + closed dalam periode) = isi BAB 3.2.
+        // Preview rekap NC (open terbawa + closed dalam periode) = isi sub-bab 3.1.
         $ncRekap = ($this->periode_mulai && $this->periode_selesai)
             ? app(LaporanNcService::class)->rekapMingguan($this->dataKapal->id, $this->periode_mulai, $this->periode_selesai)
             : collect();

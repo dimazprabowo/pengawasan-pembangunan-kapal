@@ -240,23 +240,31 @@
                                                 } catch (_) {} finally { this.uploading = false; }
                                             }
                                         }">
-                                            <label class="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 cursor-pointer" :class="{ 'opacity-70 pointer-events-none': uploading }">
-                                                <svg x-show="uploading" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                                                <span x-text="uploading ? 'Mengunggah ' + progress + '%' : 'Tambah {{ $fileCategory->label() }} (Foto/PDF)'"></span>
+                                            <label class="flex w-full items-center justify-center gap-1 px-2 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-xs text-gray-500 dark:text-gray-400 hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer" :class="{ 'opacity-50 pointer-events-none': uploading }">
+                                                <svg x-show="uploading" class="animate-spin w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                                <svg x-show="!uploading" class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                                <span class="truncate" x-text="uploading ? 'Mengunggah ' + progress + '%' : 'Tambah {{ $fileCategory->label() }} (Foto/PDF)'"></span>
                                                 <input type="file" multiple class="sr-only" accept=".{{ implode(',.', get_allowed_mimes_array('laporan_nc_file')) }}" x-on:change="uploadFiles($event.target)" :disabled="uploading" />
                                             </label>
                                             @foreach(data_get($ncUploads, $nc->id.'.'.$fileCategory->value, []) as $uploadKey => $entry)
                                                 @if(is_object($entry['file'] ?? null))
-                                                    <div wire:key="nc-upload-{{ $nc->id }}-{{ $fileCategory->value }}-{{ $uploadKey }}" class="text-xs text-gray-600 dark:text-gray-300">
-                                                        {{ $entry['file']->getClientOriginalName() }}
+                                                    <div wire:key="nc-upload-{{ $nc->id }}-{{ $fileCategory->value }}-{{ $uploadKey }}" class="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300">
+                                                        <span class="truncate" title="{{ $entry['file']->getClientOriginalName() }}">{{ $entry['file']->getClientOriginalName() }}</span>
                                                         @if(str_starts_with((string) $entry['file']->getMimeType(), 'image/'))
                                                             <button type="button" wire:click="openNcFileCropper({{ $nc->id }}, '{{ $fileCategory->value }}', '{{ $uploadKey }}')"
                                                                 wire:loading.attr="disabled" wire:target="openNcFileCropper({{ $nc->id }}, '{{ $fileCategory->value }}', '{{ $uploadKey }}')"
-                                                                class="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 disabled:opacity-50" title="Crop gambar">
+                                                                class="shrink-0 inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 disabled:opacity-50" title="Crop gambar">
                                                                 Crop
                                                                 <svg wire:loading wire:target="openNcFileCropper({{ $nc->id }}, '{{ $fileCategory->value }}', '{{ $uploadKey }}')" class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                                                             </button>
                                                         @endif
+                                                        <button type="button" wire:click="removeNcUpload({{ $nc->id }}, '{{ $fileCategory->value }}', '{{ $uploadKey }}')"
+                                                            wire:loading.attr="disabled" wire:target="removeNcUpload({{ $nc->id }}, '{{ $fileCategory->value }}', '{{ $uploadKey }}')"
+                                                            class="shrink-0 inline-flex items-center justify-center w-4 h-4 rounded text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
+                                                            title="Hapus file dari antrian" aria-label="Hapus file dari antrian">
+                                                            <svg wire:loading.class="hidden" wire:target="removeNcUpload({{ $nc->id }}, '{{ $fileCategory->value }}', '{{ $uploadKey }}')" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                            <svg wire:loading wire:target="removeNcUpload({{ $nc->id }}, '{{ $fileCategory->value }}', '{{ $uploadKey }}')" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                                        </button>
                                                         <x-input-error :messages="$errors->get('ncUploads.'.$nc->id.'.'.$fileCategory->value.'.'.$uploadKey.'.file')" />
                                                     </div>
                                                 @endif

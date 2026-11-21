@@ -2,8 +2,8 @@
 
 namespace Database\Factories;
 
-use App\Enums\RapatJenis;
 use App\Models\Rapat;
+use App\Models\RapatJenis;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class RapatFactory extends Factory
@@ -14,7 +14,7 @@ class RapatFactory extends Factory
     {
         return [
             'tanggal' => fake()->dateTimeBetween('-2 months', 'now'),
-            'jenis' => fake()->randomElement(RapatJenis::cases()),
+            'rapat_jenis_id' => RapatJenis::inRandomOrder()->value('id') ?? RapatJenis::create(['nama' => 'mingguan'])->id,
             'lokasi' => fake()->optional()->city(),
             'topik' => fake()->optional()->sentence(5),
         ];

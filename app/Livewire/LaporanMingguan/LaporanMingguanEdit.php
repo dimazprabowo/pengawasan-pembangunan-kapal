@@ -11,6 +11,7 @@ use App\Models\KurvaSWorkGroup;
 use App\Models\LaporanExternal;
 use App\Models\LaporanLampiran;
 use App\Models\LaporanMingguan;
+use App\Services\FileStorageService;
 use App\Services\KontrakPeriodeService;
 use App\Services\KurvaSService;
 use App\Services\LaporanMingguanService;
@@ -61,7 +62,7 @@ class LaporanMingguanEdit extends Component
     public bool $hasKurvaS = false;
 
     /** Kontrak data kapal terisi → periode mingguan auto-generate & terkunci */
-    public bool $hasKontrak = false;
+    public bool $hasPelaksanaan = false;
 
     public array $progressHistory = [];
 
@@ -102,7 +103,7 @@ class LaporanMingguanEdit extends Component
         $this->dataKapal = $dataKapal;
         $this->laporan = $laporanMingguan;
         $this->data_kapal_id = $laporanMingguan->data_kapal_id;
-        $this->hasKontrak = $dataKapal->hasKontrak();
+        $this->hasPelaksanaan = $dataKapal->hasPelaksanaan();
         $this->autoSave = Cache::get('lm_draft_autosave:'.auth()->id(), true);
         $this->tanggal_laporan = $laporanMingguan->tanggal_laporan?->format('Y-m-d') ?? '';
         $this->periode_mulai = $laporanMingguan->periode_mulai?->format('Y-m-d') ?? '';
@@ -177,7 +178,7 @@ class LaporanMingguanEdit extends Component
 
     public function updatedMingguKe(): void
     {
-        if ($this->hasKontrak) {
+        if ($this->hasPelaksanaan) {
             $periode = $this->minggu_ke
                 ? app(KontrakPeriodeService::class)->getMingguPeriode($this->dataKapal, (int) $this->minggu_ke)
                 : null;
@@ -266,7 +267,7 @@ class LaporanMingguanEdit extends Component
 
     protected function rules(): array
     {
-        $maxMinggu = $this->hasKontrak
+        $maxMinggu = $this->hasPelaksanaan
             ? app(KontrakPeriodeService::class)->getTotalMinggu($this->dataKapal)
             : 1000;
 
@@ -417,16 +418,13 @@ class LaporanMingguanEdit extends Component
             return;
         }
 
-        if (! $lampiran->file_path || ! Storage::disk('local')->exists($lampiran->file_path)) {
+        if (! $lampiran->file_path || ! Storage::disk()->exists($lampiran->file_path)) {
             $this->notifyError('File tidak ditemukan.');
 
             return;
         }
 
-        return response()->download(
-            Storage::disk('local')->path($lampiran->file_path),
-            $lampiran->file_name
-        );
+        return Storage::disk()->download($lampiran->file_path, $lampiran->file_name);
     }
 
     // Laporan External Methods
@@ -451,14 +449,8 @@ class LaporanMingguanEdit extends Component
     {
         // If it's an existing record (numeric ID), delete from database
         if (is_numeric($tempId)) {
-            $existingRecord = LaporanExternal::find($tempId);
-            if ($existingRecord) {
-                if ($existingRecord->file_path && Storage::disk('local')->exists($existingRecord->file_path)) {
-                    Storage::disk('local')->delete($existingRecord->file_path);
-                }
-                Storage::disk('local')->delete($existingRecord->rendered_pages ?? []);
-                $existingRecord->delete();
-            }
+            $this->authorize('update', $this->laporan);
+            app(LaporanMingguanService::class)->deleteExternal($this->laporan, (int) $tempId);
         }
 
         // Remove from array by filtering out the item with matching ID
@@ -555,7 +547,7 @@ class LaporanMingguanEdit extends Component
             return;
         }
 
-        if (! Storage::disk('local')->exists($external['existing_file_path'])) {
+        if (! Storage::disk()->exists($external['existing_file_path'])) {
             $this->notifyError('File tidak ditemukan.');
 
             return;
@@ -575,10 +567,7 @@ class LaporanMingguanEdit extends Component
             $downloadFileName = $originalFileName;
         }
 
-        return response()->download(
-            Storage::disk('local')->path($external['existing_file_path']),
-            $downloadFileName
-        );
+        return Storage::disk()->download($external['existing_file_path'], $downloadFileName);
     }
 
     public function save(LaporanMingguanService $service): void
@@ -685,7 +674,7 @@ class LaporanMingguanEdit extends Component
             $isExisting = is_numeric($external['id']);
 
             if ($isExisting) {
-                $laporanExternal = LaporanExternal::find($external['id']);
+                $laporanExternal = $this->laporan->laporanExternal()->find($external['id']);
                 if (! $laporanExternal) {
                     continue;
                 }
@@ -713,12 +702,12 @@ class LaporanMingguanEdit extends Component
 
     protected function handleExternalFileUpload(LaporanExternal $laporanExternal, $file): void
     {
-        if ($laporanExternal->file_path && Storage::disk('local')->exists($laporanExternal->file_path)) {
-            Storage::disk('local')->delete($laporanExternal->file_path);
+        if ($laporanExternal->file_path && Storage::disk()->exists($laporanExternal->file_path)) {
+            Storage::disk()->delete($laporanExternal->file_path);
         }
-        Storage::disk('local')->delete($laporanExternal->rendered_pages ?? []);
+        Storage::disk()->delete($laporanExternal->rendered_pages ?? []);
 
-        $tempPath = $file->store('temp/laporan-external', 'local');
+        $tempPath = app(FileStorageService::class)->storeTemp($file, 'laporan-external');
         $laporanExternal->file_name = $file->getClientOriginalName();
         $laporanExternal->file_status = 'pending';
         $laporanExternal->file_processed_at = null;

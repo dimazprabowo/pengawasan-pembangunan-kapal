@@ -29,7 +29,7 @@ class RekapDataKapalExport implements FromCollection, ShouldAutoSize, WithHeadin
         return [
             'No',
             'Data Kapal',
-            'Perusahaan',
+            'Owner',
             'Galangan',
             'Laporan Harian',
             'Laporan Mingguan',
@@ -46,7 +46,7 @@ class RekapDataKapalExport implements FromCollection, ShouldAutoSize, WithHeadin
         return [
             $no,
             $dataKapal->nama,
-            $dataKapal->company->name ?? '-',
+            $dataKapal->owner->name ?? '-',
             $dataKapal->galangan->nama ?? '-',
             $dataKapal->laporan_harian_count,
             $dataKapal->laporan_mingguan_count,

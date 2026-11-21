@@ -64,7 +64,7 @@
                 <th width="12%" class="text-center">Periode</th>
                 <th width="10%" class="text-center">Tanggal Laporan</th>
                 <th width="15%">Data Kapal</th>
-                <th width="14%">Perusahaan</th>
+                <th width="14%">Owner</th>
                 <th width="12%">Galangan</th>
                 <th width="8%">Pembuat</th>
                 <th width="6%" class="text-center">Dibuat</th>
@@ -84,7 +84,7 @@
                     </td>
                     <td class="text-center">{{ $laporan->tanggal_laporan->format('d/m/Y') }}</td>
                     <td>{{ $laporan->dataKapal->nama ?? '-' }}</td>
-                    <td>{{ $laporan->dataKapal->company->name ?? '-' }}</td>
+                    <td>{{ $laporan->dataKapal->owner->name ?? '-' }}</td>
                     <td>{{ $laporan->dataKapal->galangan->nama ?? '-' }}</td>
                     <td>{{ $laporan->user->name ?? '-' }}</td>
                     <td class="text-center">{{ $laporan->created_at->format('d/m/Y') }}</td>

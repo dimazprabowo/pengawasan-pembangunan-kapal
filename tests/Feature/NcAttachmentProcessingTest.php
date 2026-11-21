@@ -66,9 +66,6 @@ class NcAttachmentProcessingTest extends TestCase
         } finally {
             $zip->close();
         }
-        $this->assertTrue(app(WordAttachmentService::class)->isCurrent($path, collect([$nc])));
-        $nc->setRelation('foto', collect());
-        $this->assertFalse(app(WordAttachmentService::class)->isCurrent($path, collect([$nc])));
     }
 
     #[Test]

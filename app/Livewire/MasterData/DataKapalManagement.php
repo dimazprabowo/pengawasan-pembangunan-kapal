@@ -6,10 +6,10 @@ use App\Enums\DataKapalStatus;
 use App\Exports\DataKapalExport;
 use App\Livewire\Traits\HasNotification;
 use App\Livewire\Traits\HasTableSorting;
-use App\Models\Company;
 use App\Models\DataKapal;
 use App\Models\DrawingRegister;
 use App\Models\Galangan;
+use App\Models\Owner;
 use App\Services\DataKapalService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -31,7 +31,7 @@ class DataKapalManagement extends Component
 
     public $statusFilter = '';
 
-    public $companyFilter = '';
+    public $ownerFilter = '';
 
     public $galanganFilter = '';
 
@@ -84,7 +84,7 @@ class DataKapalManagement extends Component
         $this->resetPage();
     }
 
-    public function updatingCompanyFilter()
+    public function updatingOwnerFilter()
     {
         $this->resetPage();
     }
@@ -101,7 +101,7 @@ class DataKapalManagement extends Component
 
     public function resetFilters()
     {
-        $this->reset(['search', 'companyFilter', 'galanganFilter', 'statusFilter', 'perPage']);
+        $this->reset(['search', 'ownerFilter', 'galanganFilter', 'statusFilter', 'perPage']);
         $this->resetPage();
     }
 
@@ -174,7 +174,7 @@ class DataKapalManagement extends Component
         $this->authorize('exportExcel', DataKapal::class);
 
         return Excel::download(
-            new DataKapalExport($this->search, $this->statusFilter, $this->companyFilter),
+            new DataKapalExport($this->search, $this->statusFilter, $this->ownerFilter),
             'data-kapal-'.now()->format('Y-m-d-His').'.xlsx'
         );
     }
@@ -183,14 +183,14 @@ class DataKapalManagement extends Component
     {
         $this->authorize('exportPdf', DataKapal::class);
 
-        $dataKapalList = DataKapal::with('company')
+        $dataKapalList = DataKapal::with('owner')
             ->withCount('laporanHarian')
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
                     $q->where('nama', 'like', "%{$this->search}%")
                         ->orWhere('kode', 'like', "%{$this->search}%")
                         ->orWhere('deskripsi', 'like', "%{$this->search}%")
-                        ->orWhereHas('company', function ($q) {
+                        ->orWhereHas('owner', function ($q) {
                             $q->where('name', 'like', "%{$this->search}%")
                                 ->orWhere('code', 'like', "%{$this->search}%");
                         });
@@ -199,8 +199,8 @@ class DataKapalManagement extends Component
             ->when($this->statusFilter !== null && $this->statusFilter !== '', function ($q) {
                 $q->where('status', $this->statusFilter);
             })
-            ->when($this->companyFilter, function ($q) {
-                $q->where('company_id', $this->companyFilter);
+            ->when($this->ownerFilter, function ($q) {
+                $q->where('owner_id', $this->ownerFilter);
             })
             ->orderBy('nama')
             ->get();
@@ -429,14 +429,14 @@ class DataKapalManagement extends Component
             'dataKapalList' => $service->getFiltered(
                 $this->search,
                 $this->statusFilter,
-                $this->companyFilter ? (int) $this->companyFilter : null,
+                $this->ownerFilter ? (int) $this->ownerFilter : null,
                 $this->galanganFilter ? (int) $this->galanganFilter : null,
                 $this->perPage,
                 $this->sortField,
                 $this->sortDir
             ),
             'statuses' => DataKapalStatus::cases(),
-            'companies' => Company::active()->orderBy('name')->get(),
+            'owners' => Owner::active()->orderBy('name')->get(),
             'galangans' => Galangan::active()->orderBy('nama')->get(),
         ]);
     }

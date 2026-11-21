@@ -1,5 +1,8 @@
 <?php
 
+use App\Helpers\ConfigHelper;
+use Illuminate\Http\UploadedFile;
+
 if (! function_exists('email_logo_url')) {
     /**
      * Get the public URL for the email logo
@@ -17,7 +20,7 @@ if (! function_exists('app_name')) {
      */
     function app_name(): string
     {
-        return \App\Helpers\ConfigHelper::getAppName();
+        return ConfigHelper::getAppName();
     }
 }
 
@@ -90,7 +93,7 @@ if (! function_exists('file_upload_validation_rule')) {
                     return;
                 }
 
-                if (! ($value instanceof \Illuminate\Http\UploadedFile)) {
+                if (! ($value instanceof UploadedFile)) {
                     return;
                 }
 

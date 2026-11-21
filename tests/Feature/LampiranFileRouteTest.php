@@ -2,12 +2,12 @@
 
 namespace Tests\Feature;
 
-use App\Models\Company;
 use App\Models\LaporanAktivitas;
 use App\Models\LaporanHarian;
 use App\Models\LaporanLampiran;
 use App\Models\LaporanNc;
 use App\Models\LaporanNcForm;
+use App\Models\Owner;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -17,7 +17,7 @@ use Tests\TestCase;
 /**
  * File lampiran/NC di-serve via route (bukan base64 di payload Livewire —
  * penyebab PayloadTooLargeException di form mingguan). Route wajib: izin
- * laporan_lampiran_preview + scope data kapal perusahaan + file completed.
+ * laporan_lampiran_preview + scope data kapal owner + file completed.
  */
 class LampiranFileRouteTest extends TestCase
 {
@@ -50,10 +50,10 @@ class LampiranFileRouteTest extends TestCase
         ]);
     }
 
-    private function userDenganIzin(?int $companyId = null): User
+    private function userDenganIzin(?int $ownerId = null): User
     {
         $user = User::factory()->create([
-            'company_id' => $companyId ?? $this->harian->dataKapal->company_id,
+            'owner_id' => $ownerId ?? $this->harian->dataKapal->owner_id,
         ]);
         $user->givePermissionTo(
             Permission::firstOrCreate(['name' => 'laporan_lampiran_preview', 'guard_name' => 'web'])
@@ -77,7 +77,7 @@ class LampiranFileRouteTest extends TestCase
     public function test_file_lampiran_ditolak_tanpa_permission(): void
     {
         $user = User::factory()->create([
-            'company_id' => $this->harian->dataKapal->company_id,
+            'owner_id' => $this->harian->dataKapal->owner_id,
         ]);
 
         $this->actingAs($user)
@@ -85,9 +85,9 @@ class LampiranFileRouteTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_file_lampiran_ditolak_beda_perusahaan(): void
+    public function test_file_lampiran_ditolak_beda_owner(): void
     {
-        $lain = Company::create(['code' => 'LAIN', 'name' => 'PT Lain', 'status' => 'active']);
+        $lain = Owner::create(['code' => 'LAIN', 'name' => 'PT Lain', 'status' => 'active']);
 
         $this->actingAs($this->userDenganIzin($lain->id))
             ->get(route('laporan-lampiran.file', $this->lampiran))
@@ -126,7 +126,7 @@ class LampiranFileRouteTest extends TestCase
         $this->actingAs($user)->get(route('laporan-lampiran.file', $hilang))->assertNotFound();
     }
 
-    public function test_foto_nc_diserve_untuk_user_berizin_dan_ditolak_beda_perusahaan(): void
+    public function test_foto_nc_diserve_untuk_user_berizin_dan_ditolak_beda_owner(): void
     {
         Storage::disk('local')->put('test/nc.webp', 'fake-webp-bytes');
         $nc = LaporanNc::create([
@@ -145,7 +145,7 @@ class LampiranFileRouteTest extends TestCase
             ->get(route('laporan-nc-foto.file', $foto))
             ->assertOk();
 
-        $lain = Company::create(['code' => 'LAIN2', 'name' => 'PT Lain 2', 'status' => 'active']);
+        $lain = Owner::create(['code' => 'LAIN2', 'name' => 'PT Lain 2', 'status' => 'active']);
         $this->actingAs($this->userDenganIzin($lain->id))
             ->get(route('laporan-nc-foto.file', $foto))
             ->assertForbidden();

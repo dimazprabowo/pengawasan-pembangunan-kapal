@@ -32,7 +32,7 @@
                 <th style="width: 20%;">Email</th>
                 <th style="width: 10%;">Telepon</th>
                 <th style="width: 10%;">Role</th>
-                <th style="width: 18%;">Perusahaan</th>
+                <th style="width: 18%;">Owner</th>
                 <th style="width: 8%;">Status</th>
                 <th style="width: 9%;">Tgl Dibuat</th>
             </tr>
@@ -50,7 +50,7 @@
                     <td>{{ $user->email }}</td>
                     <td>{{ $user->phone ?? '-' }}</td>
                     <td>{{ ucfirst($user->getRoleNames()->join(', ') ?: 'No Role') }}</td>
-                    <td>{{ $user->company->name ?? '-' }}</td>
+                    <td>{{ $user->owner->name ?? '-' }}</td>
                     <td>
                         <span class="badge {{ $user->is_active ? 'badge-active' : 'badge-inactive' }}">
                             {{ $user->is_active ? 'Aktif' : 'Nonaktif' }}

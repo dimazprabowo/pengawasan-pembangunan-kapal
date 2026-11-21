@@ -5,8 +5,8 @@
  *
  * Tabel tanpa gambar (Kurva-S, Uraian Kegiatan, NC, Dokumen Eksternal) dibangun
  * di LaporanMingguanWordService via setComplexBlock, sehingga template hanya
- * memuat placeholder paragraf: ${tabel_kurva_s}, ${tabel_uraian}, ${tabel_nc},
- * ${tabel_external}. Foto memakai cloneBlock/cloneRow:
+ * memuat placeholder paragraf: ${tabel_info_umum}, ${tabel_kurva_s},
+ * ${tabel_uraian}, ${tabel_nc}, ${tabel_external}. Foto memakai cloneBlock/cloneRow:
  *  ${blok_foto}: tabel baris ${fh_no} ${fh_gambar} ${fh_ket} (satu tabel gabungan)
  * ${lampiran_harian} diganti altChunk docx laporan harian (dokumen utuh).
  *
@@ -22,7 +22,7 @@ use PhpOffice\PhpWord\SimpleType\Jc;
 use PhpOffice\PhpWord\SimpleType\JcTable;
 use PhpOffice\PhpWord\SimpleType\TblWidth;
 
-$path = 'storage/app/templates/laporan-mingguan/template-laporan-mingguan.docx';
+$path = 'storage/app/private/templates/laporan-mingguan/template-laporan-mingguan.docx';
 
 const NAVY = '1F3864';
 const LIGHT = 'D9E2F3';
@@ -80,31 +80,19 @@ $cover = $section->addTable($tableStyle + ['borderSize' => 0, 'borderColor' => '
 $cover->addRow();
 $c = $cover->addCell(CONTENT_WIDTH / 2, $body);
 $c->addText('DISAMPAIKAN KEPADA PEMILIK / OWNER :', ['bold' => true, 'size' => 9, 'color' => NAVY], $center);
-$c->addText('${perusahaan}', ['bold' => true, 'size' => 11], $center + ['spaceBefore' => 120]);
+$c->addText('${owner}', ['bold' => true, 'size' => 11], $center + ['spaceBefore' => 120]);
 $c = $cover->addCell(CONTENT_WIDTH / 2, $body);
 $c->addText('DISUSUN OLEH KONSULTAN PENGAWAS :', ['bold' => true, 'size' => 9, 'color' => NAVY], $center);
 $c->addText('PT. BIRO KLASIFIKASI INDONESIA (PERSERO)', ['bold' => true, 'size' => 11], $center + ['spaceBefore' => 120]);
 $c->addText('SBU MARINE SERVICES', ['size' => 9], $center);
 $section->addPageBreak();
 
-// ══ INFORMASI PROYEK ═════════════════════════════════════════════════════
-$section->addTitle('INFORMASI PROYEK', 1);
-$info = $section->addTable($tableStyle);
-foreach ([
-    'Pekerjaan' => 'Jasa Konsultan Pengawas Pembangunan Kapal',
-    'Nama Kapal' => '${no_kapal}',
-    'Kode Proyek' => '${kode_proyek}',
-    'Lokasi / Galangan' => '${lokasi}',
-    'Pemberi Tugas' => '${perusahaan}',
-    'Konsultan Pengawas' => 'PT Biro Klasifikasi Indonesia (Persero) / SBU Marine Services',
-    'Minggu Ke' => '${minggu_ke}',
-    'Periode' => '${periode_label}',
-    'Tanggal Laporan' => '${tanggal}',
-] as $label => $val) {
-    $info->addRow();
-    $info->addCell(2800, ['bgColor' => LIGHT, 'valign' => 'center'])->addText($label, ['bold' => true, 'color' => NAVY]);
-    $info->addCell(CONTENT_WIDTH - 2800, $body)->addText($val);
-}
+// ══ INFORMASI UMUM ═══════════════════════════════════════════════════════
+// Field sama dengan INFORMASI UMUM laporan bulanan — tabel label | : | nilai
+// dibangun di LaporanMingguanWordService (DataKapal::infoUmumRows +
+// WordStyleService::labelValueTable).
+$section->addTitle('INFORMASI UMUM', 1);
+$p('${tabel_info_umum}');
 
 // ══ A. RESUME ════════════════════════════════════════════════════════════
 $section->addTitle('A. RESUME', 1);

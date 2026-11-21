@@ -19,7 +19,7 @@
  *
  * Jalankan: php build_laporan_harian_template.php
  */
-$path = 'storage/app/templates/laporan-harian/template-laporan-harian.docx';
+$path = 'storage/app/private/templates/laporan-harian/template-laporan-harian.docx';
 const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const NAVY = '1F3864';
 const FONT = 'Arial';

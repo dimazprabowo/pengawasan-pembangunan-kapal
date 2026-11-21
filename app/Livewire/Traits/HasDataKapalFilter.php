@@ -13,11 +13,11 @@ trait HasDataKapalFilter
      */
     protected function getDataKapalQuery(): Builder
     {
-        return DataKapal::with(['company', 'galangan'])
+        return DataKapal::with(['owner', 'galangan'])
             ->active()
             ->when(! $this->canViewAllDataKapal(), function ($q) {
-                $q->whereHas('company', function ($q) {
-                    $q->where('id', auth()->user()->company_id);
+                $q->whereHas('owner', function ($q) {
+                    $q->where('id', auth()->user()->owner_id);
                 });
             })
             ->orderBy('nama');
@@ -40,7 +40,7 @@ trait HasDataKapalFilter
     }
 
     /**
-     * Check if user may access a specific data kapal (company scope).
+     * Check if user may access a specific data kapal (owner scope).
      * Delegasi ke User::canAccessDataKapal() — dipakai juga route file lampiran.
      */
     protected function canAccessDataKapal(DataKapal $dataKapal): bool

@@ -11,6 +11,7 @@
     'error' => false,
     'emptyText' => 'Tidak ada data',
     'noResultText' => 'Tidak ditemukan',
+    'floating' => false,
 ])
 
 @php
@@ -25,6 +26,8 @@
         open: false,
         search: '',
         dropUp: false,
+        floating: @js($floating),
+        positionStyle: {},
         value: @entangle($wireModel){{ $isLive ? '.live' : '' }},
         options: @js($options),
         placeholder: @js($placeholder),
@@ -77,6 +80,15 @@
             
             // If not enough space below but enough above, show dropdown above
             this.dropUp = spaceBelow < dropdownHeight && spaceAbove > spaceBelow;
+            if (this.floating) {
+                const width = Math.min(Math.max(rect.width, 200), window.innerWidth - 16);
+                this.positionStyle = {
+                    width: width + 'px',
+                    left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)) + 'px',
+                    top: this.dropUp ? 'auto' : (rect.bottom + 4) + 'px',
+                    bottom: this.dropUp ? (window.innerHeight - rect.top + 4) + 'px' : 'auto',
+                };
+            }
         },
         
         refreshOptions() {
@@ -98,9 +110,9 @@
     x-key="{{ $componentId }}"
     x-on:click.away="closeDropdown()"
     x-on:keydown.escape.window="closeDropdown()"
-    x-on:scroll.window="if(open) checkPosition()"
+    x-on:scroll.window.capture="if(open) checkPosition()"
     x-on:resize.window="if(open) checkPosition()"
-    class="relative w-full"
+    class="form-field-control relative w-full"
     wire:ignore.self
 >
     {{-- Options snapshot: child of wire:ignore.self tetap ikut morph tiap render, dibaca refreshOptions() --}}
@@ -109,11 +121,12 @@
     {{-- Trigger Button --}}
     <button
         type="button"
+        id="{{ $componentId }}"
         x-ref="trigger"
         x-on:click="toggleDropdown()"
         @if($disabled) disabled @endif
         {{ $attributes->except(['wire:model', 'wire:model.live', 'wire:model.change'])->merge([
-            'class' => 'relative w-full cursor-pointer rounded-lg border bg-white dark:bg-gray-700 py-2.5 pl-4 pr-10 text-left shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ' . 
+            'class' => 'relative w-full cursor-pointer rounded-lg border bg-white dark:bg-gray-700 py-2.5 pl-4 pr-10 text-sm text-left shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ' .
                 ($error ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600') .
                 ($disabled ? ' opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800' : ' hover:border-gray-400 dark:hover:border-gray-500')
         ]) }}
@@ -147,8 +160,9 @@
         x-transition:leave="transition ease-in duration-150"
         x-transition:leave-start="opacity-100"
         x-transition:leave-end="opacity-0"
-        :class="dropUp ? 'bottom-full mb-1' : 'top-full mt-1'"
-        class="absolute z-[9999] w-full rounded-lg bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+        :class="floating ? '' : (dropUp ? 'bottom-full mb-1' : 'top-full mt-1')"
+        :style="floating ? positionStyle : {}"
+        class="{{ $floating ? 'fixed' : 'absolute' }} z-[9999] w-full rounded-lg bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
         style="display: none;"
         x-cloak
     >

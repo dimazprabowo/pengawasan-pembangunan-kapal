@@ -5,18 +5,21 @@ namespace App\Livewire\MasterData;
 use App\Enums\KelembabanStatus;
 use App\Exports\KelembabanExport;
 use App\Livewire\Traits\HasNotification;
+use App\Livewire\Traits\HasTableSorting;
 use App\Models\Kelembaban;
 use App\Services\KelembabanService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Maatwebsite\Excel\Facades\Excel;
 
 class KelembabanManagement extends Component
 {
-    use \App\Livewire\Traits\HasTableSorting;
     use AuthorizesRequests, HasNotification, WithPagination;
+    use HasTableSorting;
 
     protected $paginationTheme = 'tailwind';
 
@@ -120,7 +123,7 @@ class KelembabanManagement extends Component
     {
         try {
             $this->validate();
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->notifyValidationError($e);
             throw $e;
         }
@@ -148,7 +151,7 @@ class KelembabanManagement extends Component
 
             $this->notifySuccess($message);
             $this->closeModal();
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk melakukan aksi ini.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
@@ -172,7 +175,7 @@ class KelembabanManagement extends Component
             $service->delete($kelembaban);
             $this->notifySuccess('Kelembaban berhasil dihapus! Laporan terkait akan di-set null.');
             $this->showDeleteModal = false;
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak dapat menghapus kelembaban ini.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
@@ -189,7 +192,7 @@ class KelembabanManagement extends Component
 
             $status = $kelembaban->fresh()->status->label();
             $this->notifySuccess("Status kelembaban berhasil diubah menjadi {$status}!");
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk mengubah status kelembaban.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());

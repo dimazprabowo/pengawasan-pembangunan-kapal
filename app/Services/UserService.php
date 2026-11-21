@@ -22,7 +22,7 @@ class UserService
         ?string $sortField = null,
         string $sortDir = 'asc'
     ): LengthAwarePaginator {
-        $query = User::with(['roles', 'company', 'createdBy:id,name', 'updatedBy:id,name']);
+        $query = User::with(['roles', 'owner', 'createdBy:id,name', 'updatedBy:id,name']);
 
         if ($search) {
             $operator = $this->getLikeOperator();
@@ -58,7 +58,7 @@ class UserService
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
-            'company_id' => $data['company_id'] ?? null,
+            'owner_id' => $data['owner_id'] ?? null,
             'phone' => $data['phone'] ?? null,
             'position' => $data['position'] ?? null,
             'is_active' => $data['is_active'] ?? true,
@@ -75,7 +75,7 @@ class UserService
         $updateData = [
             'name' => $data['name'],
             'email' => $data['email'],
-            'company_id' => $data['company_id'] ?? null,
+            'owner_id' => $data['owner_id'] ?? null,
             'phone' => $data['phone'] ?? null,
             'position' => $data['position'] ?? null,
             'is_active' => $data['is_active'] ?? true,

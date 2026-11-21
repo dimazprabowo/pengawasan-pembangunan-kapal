@@ -5,12 +5,15 @@ namespace Database\Seeders;
 use App\Models\DataKapal;
 use App\Models\KurvaSWorkGroup;
 use App\Models\LaporanExternal;
+use App\Models\LaporanHarian;
 use App\Models\LaporanMingguan;
 use App\Models\LaporanMingguanProgress;
 use App\Models\User;
 use App\Services\KontrakPeriodeService;
 use App\Services\KurvaSService;
+use App\Services\PdfPageService;
 use Carbon\Carbon;
+use Database\Seeders\Support\SeedFileFactory;
 use Illuminate\Database\Seeder;
 
 class LaporanMingguanSeeder extends Seeder
@@ -32,36 +35,51 @@ class LaporanMingguanSeeder extends Seeder
             return;
         }
 
-        // Pick ONE data kapal for all laporan to show consistent progress across weeks
-        $dataKapal = $dataKapals->first();
+        // Seed laporan mingguan untuk SEMUA data kapal — hanya minggu yang
+        // sudah selesai (periode_selesai <= hari ini) sehingga proyek berjalan
+        // tidak punya laporan di periode masa depan.
         $kontrakService = app(KontrakPeriodeService::class);
+        $kurvaService = app(KurvaSService::class);
+        $today = Carbon::today();
 
-        // Seed SEMUA minggu kontrak untuk data kapal ini agar Laporan Bulanan
-        // (yang menarik data dari mingguan) lengkap sampai bulan terakhir.
-        // Periode diambil dari kontrak; fallback 10 minggu relatif bila tanpa kontrak.
-        $laporanData = [];
-        $mingguList = $kontrakService->getMingguList($dataKapal);
+        foreach ($dataKapals as $dataKapal) {
+            $mingguList = collect($kontrakService->getMingguList($dataKapal))
+                ->filter(fn ($m) => $m['selesai']->lte($today))
+                ->values()
+                ->all();
 
-        if (empty($mingguList)) {
-            $mingguList = collect(range(1, 10))->map(fn ($i) => [
-                'minggu_ke' => $i,
-                'mulai' => Carbon::now()->subDays($i * 7),
-                'selesai' => Carbon::now()->subDays(($i - 1) * 7),
-            ])->all();
+            if (empty($mingguList)) {
+                continue;
+            }
+
+            // Target realisasi kumulatif: kontrak selesai = 100% bobot,
+            // kontrak berjalan = 88% bobot (proyek sedang berjalan).
+            $kontrakSelesai = $dataKapal->tanggal_selesai_pelaksanaan?->isPast() ?? false;
+            $targetRatio = $kontrakSelesai ? 1.0 : 0.88;
+
+            $this->seedForKapal($dataKapal, $mingguList, $targetRatio, $users, $kurvaService);
         }
 
+        $this->command->info('Laporan Mingguan seeded successfully.');
+    }
+
+    /**
+     * Seed seluruh laporan mingguan satu data kapal beserta realisasi
+     * per work group (diskala ke $targetRatio dari bobot) dan lampiran
+     * external contoh.
+     */
+    private function seedForKapal(DataKapal $dataKapal, array $mingguList, float $targetRatio, $users, KurvaSService $kurvaService): void
+    {
+        $laporanData = [];
         foreach ($mingguList as $minggu) {
-            $i = $minggu['minggu_ke'];
             $laporanData[] = [
-                'minggu_ke' => $i,
+                'minggu_ke' => $minggu['minggu_ke'],
                 'periode_mulai' => $minggu['mulai'],
                 'periode_selesai' => $minggu['selesai'],
-                'ringkasan' => 'Progress minggu ke-'.$i.' sesuai rencana.',
             ];
         }
 
         $workGroups = KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)->get();
-        $kurvaService = app(KurvaSService::class);
 
         // Matriks rencana mingguan per work group [work_group_id => [minggu_ke => pct]]
         // (diturunkan dari rencana bulanan — dibagi rata ke minggunya).
@@ -73,8 +91,8 @@ class LaporanMingguanSeeder extends Seeder
         }
 
         // Realisasi mingguan per work group: jitter lebar per minggu (55-150% rencana)
-        // agar deviasi naik-turun terlihat di Kurva-S, lalu diskala ke sebagian bobot
-        // (75-100%) — tiap group punya profil keterlambatan berbeda di akhir kurva.
+        // agar deviasi naik-turun terlihat di Kurva-S, lalu diskala ke $targetRatio
+        // dari bobot — tiap group punya profil penyelesaian berbeda di akhir kurva.
         $realisasiByWg = [];
         foreach ($workGroups as $wg) {
             $raw = [];
@@ -84,7 +102,7 @@ class LaporanMingguanSeeder extends Seeder
             }
 
             $sumRaw = array_sum($raw);
-            $target = (float) $wg->bobot * (rand(75, 100) / 100);
+            $target = (float) $wg->bobot * $targetRatio;
             $scale = $sumRaw > 0 ? $target / $sumRaw : 0.0;
 
             $realisasi = [];
@@ -117,9 +135,31 @@ class LaporanMingguanSeeder extends Seeder
                     'periode_mulai' => $data['periode_mulai'],
                     'periode_selesai' => $data['periode_selesai'],
                     'minggu_ke' => $data['minggu_ke'],
-                    'ringkasan' => $data['ringkasan'],
+                    'ringkasan' => $this->ringkasan($data['minggu_ke']),
                 ]
             );
+
+            // Kaitkan laporan harian dalam periode (pola form: auto-select
+            // semua harian rentang) + lampiran fotonya agar kolom TANGGAL
+            // HARIAN dan picker lampiran mingguan terisi seperti input user.
+            // Skip saat testing: test membuat fixture pivot sendiri dan
+            // laporan_harian_id bersifat UNIQUE (harian hanya milik 1 mingguan).
+            if (! app()->environment('testing')) {
+                $harianDalamPeriode = LaporanHarian::where('data_kapal_id', $dataKapal->id)
+                    ->whereDate('tanggal_laporan', '>=', $data['periode_mulai'])
+                    ->whereDate('tanggal_laporan', '<=', $data['periode_selesai'])
+                    // laporan_harian_id UNIQUE di pivot — harian yang sudah
+                    // diklaim mingguan lain tidak boleh diattach ulang.
+                    ->whereNotIn('id', fn ($q) => $q->select('laporan_harian_id')
+                        ->from('laporan_mingguan_harian')
+                        ->where('laporan_mingguan_id', '!=', $laporan->id))
+                    ->get();
+
+                $laporan->syncLaporanHarian($harianDalamPeriode->pluck('id')->all());
+                $laporan->syncLampiran(
+                    $harianDalamPeriode->flatMap->lampiran->where('file_status', 'completed')->pluck('id')->all()
+                );
+            }
 
             // Realisasi minggu ini dalam poin % proyek — dari matriks yang sudah
             // diskala agar total per group = bobot (lihat blok prekomputasi di atas).
@@ -135,23 +175,69 @@ class LaporanMingguanSeeder extends Seeder
                 );
             }
 
-            // Add sample external reports for some laporan (randomly)
-            if (rand(1, 3) === 1) { // 33% chance to have external reports
-                $externalCount = rand(1, 3);
+            // Lampiran eksternal berupa file PDF NYATA di disk — bukan
+            // sekadar baris DB, agar preview/download/word generation jalan.
+            // Setiap minggu dapat 1 dokumen; tiap minggu ke-3 kelipatan 2
+            // agar daftar lampiran variatif seperti input asli.
+            if (! app()->environment('testing')) {
+                $externalCount = $data['minggu_ke'] % 3 === 0 ? 2 : 1;
                 for ($j = 0; $j < $externalCount; $j++) {
+                    $judul = self::EXTERNAL_JUDUL[($laporan->id + $j) % count(self::EXTERNAL_JUDUL)];
+                    $fileName = 'laporan-eksternal-minggu-'.$data['minggu_ke'].'-'.($j + 1).'.pdf';
+                    [$filePath, $fileSize] = SeedFileFactory::storePdf('laporan-external', $judul, [
+                        ['heading' => 'Ringkasan', 'lines' => [
+                            'Pemeriksaan berkala lapangan pekerjaan pembangunan '.$dataKapal->nama,
+                            'Periode: '.$data['periode_mulai'].' s/d '.$data['periode_selesai'],
+                        ]],
+                        ['heading' => 'Hasil', 'lines' => [
+                            'Hasil pemeriksaan sesuai spesifikasi teknis dan gambar kerja yang disetujui.',
+                            'Catatan minor telah disampaikan ke pihak galangan untuk ditindaklanjuti.',
+                        ]],
+                    ]);
+
+                    // Render halaman via poppler (pola ProcessLaporanExternal)
+                    // — wajib untuk lampiran eksternal di dokumen Word.
+                    $pages = app(PdfPageService::class)->render($filePath, 'laporan-external/pages');
+
                     LaporanExternal::create([
                         'laporan_mingguan_id' => $laporan->id,
-                        'judul' => 'Laporan External '.($j + 1).' - Minggu '.$data['minggu_ke'],
-                        'deskripsi' => 'Dokumen tambahan untuk minggu ke-'.$data['minggu_ke'],
-                        'file_name' => 'laporan_external_'.$laporan->id.'_'.($j + 1).'.pdf',
-                        'file_size' => rand(500000, 5000000), // 500KB - 5MB
+                        'judul' => $judul,
+                        'deskripsi' => 'Dokumen pendukung laporan minggu ke-'.$data['minggu_ke'],
+                        'file_path' => $filePath,
+                        'file_name' => $fileName,
+                        'file_size' => $fileSize,
                         'file_status' => 'completed',
+                        'rendered_pages' => $pages,
                         'file_processed_at' => now(),
                     ]);
                 }
             }
         }
 
-        $this->command->info('Laporan Mingguan seeded successfully ('.count($laporanData).' records).');
+        $this->command->line("  {$dataKapal->nama}: ".count($laporanData).' laporan mingguan.');
     }
+
+    /**
+     * Ringkasan mingguan bergaya input manusia — divariasikan per nomor minggu.
+     */
+    private function ringkasan(int $mingguKe): string
+    {
+        $pool = [
+            'Progress minggu ke-%d berjalan sesuai rencana kerja. Pekerjaan fabrikasi blok berlanjut tanpa kendala berarti, material pendukung tersedia di site.',
+            'Minggu ke-%d: pekerjaan perakitan dan pengelasan berjalan baik. Cuaca sempat menghambat pekerjaan outdoor 1 hari namun tidak mempengaruhi jadwal keseluruhan.',
+            'Realisasi minggu ke-%d sedikit di atas rencana. Koordinasi dengan pihak galangan berjalan lancar; temuan QC minor sudah ditindaklanjuti di tempat.',
+            'Minggu ke-%d diwarnai keterlambatan kedatangan sebagian material sehingga beberapa aktivitas dijadwal ulang. Recovery plan sudah disepakati bersama galangan.',
+            'Kegiatan minggu ke-%d fokus pada penyelesaian pekerjaan struktur dan persiapan pengujian. Tidak ada temuan mayor; dokumentasi progres sudah dilengkapi.',
+        ];
+
+        return sprintf($pool[$mingguKe % count($pool)], $mingguKe);
+    }
+
+    private const EXTERNAL_JUDUL = [
+        'Berita Acara Pemeriksaan Material',
+        'Laporan Hasil NDT',
+        'Berita Acara Uji Kebocoran Tangki',
+        'Sertifikat Material Galangan',
+        'Laporan Inspeksi Lapangan',
+    ];
 }

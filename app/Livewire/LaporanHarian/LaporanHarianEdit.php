@@ -706,13 +706,13 @@ class LaporanHarianEdit extends Component
             return;
         }
 
-        if (! $lampiran->file_path || ! Storage::disk('local')->exists($lampiran->file_path)) {
+        if (! $lampiran->file_path || ! Storage::disk()->exists($lampiran->file_path)) {
             $this->notifyError('File tidak ditemukan.');
 
             return;
         }
 
-        return Storage::disk('local')->download($lampiran->file_path, $lampiran->file_name);
+        return Storage::disk()->download($lampiran->file_path, $lampiran->file_name);
     }
 
     // Dynamic input management methods

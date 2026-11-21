@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\DataKapal;
+use App\Models\LaporanExternal;
 use App\Models\LaporanHarian;
 use App\Models\LaporanMingguan;
 use App\Traits\SortsQuery;
@@ -23,7 +24,7 @@ class LaporanMingguanService
         string $sortDir = 'asc',
         array $bulanFilter = []
     ): LengthAwarePaginator {
-        $query = LaporanMingguan::with(['user', 'updatedBy:id,name', 'dataKapal.company', 'dataKapal.galangan', 'laporanHarian'])
+        $query = LaporanMingguan::with(['user', 'updatedBy:id,name', 'dataKapal.owner', 'dataKapal.galangan', 'laporanHarian'])
             ->byDataKapal($dataKapalId);
 
         if ($bulanFilter) {
@@ -137,17 +138,22 @@ class LaporanMingguanService
 
     /**
      * Lepas laporan harian dari laporan mingguan lain (kecuali $exceptMingguanId).
+     *
+     * @return int[] id laporan mingguan yang kehilangan harian (dokumennya perlu dikosongkan)
      */
-    public function releaseHarianFromOtherMingguan(array $harianIds, ?int $exceptMingguanId = null): void
+    public function releaseHarianFromOtherMingguan(array $harianIds, ?int $exceptMingguanId = null): array
     {
         if (empty($harianIds)) {
-            return;
+            return [];
         }
 
-        DB::table('laporan_mingguan_harian')
+        $query = DB::table('laporan_mingguan_harian')
             ->whereIn('laporan_harian_id', $harianIds)
-            ->when($exceptMingguanId, fn ($q) => $q->where('laporan_mingguan_id', '!=', $exceptMingguanId))
-            ->delete();
+            ->when($exceptMingguanId, fn ($q) => $q->where('laporan_mingguan_id', '!=', $exceptMingguanId));
+        $affected = (clone $query)->distinct()->pluck('laporan_mingguan_id')->map(fn ($id) => (int) $id)->all();
+        $query->delete();
+
+        return $affected;
     }
 
     public function create(array $data): LaporanMingguan
@@ -156,11 +162,12 @@ class LaporanMingguanService
         $lampiranIds = $data['lampiran_ids'] ?? [];
         unset($data['laporan_harian_ids'], $data['lampiran_ids']);
 
-        return DB::transaction(function () use ($data, $laporanHarianIds, $lampiranIds) {
+        $released = [];
+        $laporanMingguan = DB::transaction(function () use ($data, $laporanHarianIds, $lampiranIds, &$released) {
             $laporanMingguan = LaporanMingguan::create($data);
 
             if (! empty($laporanHarianIds)) {
-                $this->releaseHarianFromOtherMingguan($laporanHarianIds, $laporanMingguan->id);
+                $released = $this->releaseHarianFromOtherMingguan($laporanHarianIds, $laporanMingguan->id);
                 $laporanMingguan->laporanHarian()->sync($laporanHarianIds);
             }
 
@@ -170,6 +177,10 @@ class LaporanMingguanService
 
             return $laporanMingguan;
         });
+
+        $this->invalidateDocuments($laporanMingguan, $released);
+
+        return $laporanMingguan;
     }
 
     public function update(LaporanMingguan $laporanMingguan, array $data): LaporanMingguan
@@ -178,49 +189,66 @@ class LaporanMingguanService
         $lampiranIds = $data['lampiran_ids'] ?? null;
         unset($data['laporan_harian_ids'], $data['lampiran_ids']);
 
-        return DB::transaction(function () use ($laporanMingguan, $data, $laporanHarianIds, $lampiranIds) {
+        $released = [];
+        DB::transaction(function () use ($laporanMingguan, $data, $laporanHarianIds, $lampiranIds, &$released) {
             $laporanMingguan->update($data);
 
             if ($laporanHarianIds !== null) {
-                $this->releaseHarianFromOtherMingguan($laporanHarianIds, $laporanMingguan->id);
+                $released = $this->releaseHarianFromOtherMingguan($laporanHarianIds, $laporanMingguan->id);
                 $laporanMingguan->laporanHarian()->sync($laporanHarianIds);
             }
 
             if ($lampiranIds !== null) {
                 $laporanMingguan->lampiran()->sync($lampiranIds);
             }
-
-            return $laporanMingguan;
         });
+
+        $this->invalidateDocuments($laporanMingguan, $released);
+
+        return $laporanMingguan;
     }
 
     public function delete(LaporanMingguan $laporanMingguan): void
     {
         foreach ($laporanMingguan->laporanExternal as $external) {
-            if ($external->file_path) {
-                Storage::disk('local')->delete($external->file_path);
-            }
-            Storage::disk('local')->delete($external->rendered_pages ?? []);
+            $this->deleteExternalFiles($external);
         }
 
+        app(LaporanDocumentService::class)->invalidateMingguan($laporanMingguan);
         $laporanMingguan->delete();
     }
 
-    public function removeDoc(LaporanMingguan $laporanMingguan): void
+    /**
+     * Hapus laporan external milik laporan mingguan ini (id di luar laporan
+     * diabaikan — cegah IDOR) lalu kosongkan dokumen yang memuatnya.
+     */
+    public function deleteExternal(LaporanMingguan $laporanMingguan, int $externalId): void
     {
-        if ($laporanMingguan->doc_path) {
-            $filePath = storage_path('app/'.$laporanMingguan->doc_path);
-            if (file_exists($filePath)) {
-                @unlink($filePath);
-            }
+        $external = $laporanMingguan->laporanExternal()->find($externalId);
+        if (! $external) {
+            return;
         }
 
-        $laporanMingguan->update([
-            'doc_path' => null,
-            'doc_name' => null,
-            'doc_status' => null,
-            'doc_generated_at' => null,
-            'doc_error' => null,
-        ]);
+        $this->deleteExternalFiles($external);
+        $external->delete();
+        app(LaporanDocumentService::class)->invalidateMingguan($laporanMingguan);
+    }
+
+    private function deleteExternalFiles(LaporanExternal $external): void
+    {
+        if ($external->file_path) {
+            Storage::disk()->delete($external->file_path);
+        }
+        Storage::disk()->delete($external->rendered_pages ?? []);
+    }
+
+    /**
+     * @param  int[]  $releasedMingguanIds  mingguan lain yang kehilangan harian
+     */
+    private function invalidateDocuments(LaporanMingguan $laporanMingguan, array $releasedMingguanIds): void
+    {
+        $documents = app(LaporanDocumentService::class);
+        $documents->invalidateMingguan($laporanMingguan);
+        $documents->invalidateMingguanIds($releasedMingguanIds);
     }
 }

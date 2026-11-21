@@ -163,6 +163,12 @@ class LaporanNcFormTest extends TestCase
     public function ncr_close_hanya_memuat_foto_dan_halaman_pdf_after(): void
     {
         Storage::fake('local');
+        // Template Form NC dibaca dari disk yang sama — copy build artifact
+        // nyata ke disk fake agar generate() menemukannya.
+        $templatePath = 'templates/laporan-nc/template-laporan-nc.docx';
+        $templateReal = storage_path('app/private/'.$templatePath);
+        $this->assertFileExists($templateReal, 'Jalankan php build_laporan_nc_template.php');
+        Storage::disk('local')->put($templatePath, file_get_contents($templateReal));
         $this->partialMock(WordImageService::class, function ($mock) {
             $mock->shouldReceive('resolveLampiranPath')->andReturnUsing(fn ($path) => Storage::disk('local')->path($path));
         });

@@ -3,12 +3,14 @@
 namespace App\Livewire\Pages;
 
 use App\Livewire\Traits\HasDataKapalFilter;
-use App\Models\Company;
+use App\Models\DataKapal;
 use App\Models\LaporanHarian;
+use App\Models\Owner;
 use App\Models\User;
 use App\Services\DashboardService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -28,10 +30,18 @@ class Dashboard extends Component
     #[Url(as: 'galangan')]
     public ?string $galanganKode = null;
 
+    /** Route key terenkripsi data kapal terpilih di panel Kurva-S (persist di URL). */
+    #[Url(as: 'kapal')]
+    public ?string $kurvaSkapalKey = null;
+
+    /** Mode grafik Kurva-S dashboard: 'mingguan' | 'bulanan'. */
+    public string $kurvaSMode = 'mingguan';
+
     public function mount(): void
     {
         if (! Gate::allows('viewStats')) {
             $this->galanganKode = null;
+            $this->kurvaSkapalKey = null;
         }
     }
 
@@ -40,6 +50,63 @@ class Dashboard extends Component
         $this->authorize('viewStats');
 
         $this->galanganKode = $kode ?: null;
+    }
+
+    public function selectKurvaSkapal(?string $key): void
+    {
+        $this->authorize('viewStats');
+        $this->kurvaSkapalKey = $key ?: null;
+        $this->dispatchKurvaSUpdate();
+    }
+
+    public function setKurvaSMode(string $mode): void
+    {
+        $this->authorize('viewStats');
+        abort_unless(in_array($mode, ['mingguan', 'bulanan'], true), 404);
+        $this->kurvaSMode = $mode;
+        $this->dispatchKurvaSUpdate();
+    }
+
+    /**
+     * Kirim data grafik terbaru ke chart (canvas di-wire:ignore — update
+     * lewat event kurva-s-updated, pola yang sama dengan form mingguan).
+     */
+    private function dispatchKurvaSUpdate(): void
+    {
+        $service = app(DashboardService::class);
+        $selected = $this->selectedKurvaSkapal($service);
+        if (! $selected) {
+            return;
+        }
+
+        $this->dispatch('kurva-s-updated', chartData: $service->kurvaSChart($selected, $this->kurvaSMode));
+    }
+
+    /**
+     * Data kapal terpilih dari daftar yang SUDAH ter-scope akses user.
+     */
+    private function selectedKurvaSkapal(DashboardService $service): ?DataKapal
+    {
+        return $this->findKurvaSkapal($service->kurvaSKapalRows($this->accessibleKapalIds()));
+    }
+
+    /**
+     * `getRouteKey()` menghasilkan ciphertext baru tiap panggil (random IV),
+     * jadi pencocokan WAJIB lewat dekripsi ke id — bukan perbandingan string.
+     */
+    private function findKurvaSkapal(iterable $rows): ?DataKapal
+    {
+        if (! $this->kurvaSkapalKey) {
+            return null;
+        }
+
+        try {
+            $id = Crypt::decryptString($this->kurvaSkapalKey);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return collect($rows)->firstWhere('id', $id);
     }
 
     public function openLaporan(int $dataKapalId, string $tipe)
@@ -55,7 +122,7 @@ class Dashboard extends Component
     }
 
     /**
-     * Id data kapal yang boleh diakses user (scope perusahaan / view_all).
+     * Id data kapal yang boleh diakses user (scope owner / view_all).
      *
      * @return Collection<int, int>
      */
@@ -94,15 +161,27 @@ class Dashboard extends Component
                 $this->galanganKode = null;
             }
 
+            $kurvaSKapal = $service->kurvaSKapalRows($kapalIds);
+            $selectedKurvaSkapal = $this->kurvaSkapalKey ? $this->findKurvaSkapal($kurvaSKapal) : null;
+
+            if ($this->kurvaSkapalKey && ! $selectedKurvaSkapal) {
+                $this->kurvaSkapalKey = null;
+            }
+
             $data += [
                 'greeting' => $this->greeting(),
                 'totalUsers' => User::count(),
-                'totalCompanies' => Company::count(),
+                'totalOwners' => Owner::count(),
                 'totalRoles' => Role::count(),
                 'summary' => $service->summary($kapalIds),
                 'markers' => $service->markers($kapalIds),
                 'detail' => $detail,
                 'recentLaporan' => $service->recentLaporan($kapalIds),
+                'kurvaSKapal' => $kurvaSKapal,
+                'selectedKurvaSkapal' => $selectedKurvaSkapal,
+                'kurvaSChart' => $selectedKurvaSkapal
+                    ? $service->kurvaSChart($selectedKurvaSkapal, $this->kurvaSMode)
+                    : null,
             ];
         }
 

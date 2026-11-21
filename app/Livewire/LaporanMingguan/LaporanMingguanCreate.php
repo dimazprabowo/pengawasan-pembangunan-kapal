@@ -11,6 +11,7 @@ use App\Models\KurvaSWorkGroup;
 use App\Models\LaporanExternal;
 use App\Models\LaporanLampiran;
 use App\Models\LaporanMingguan;
+use App\Services\FileStorageService;
 use App\Services\KontrakPeriodeService;
 use App\Services\KurvaSService;
 use App\Services\LaporanMingguanService;
@@ -58,7 +59,7 @@ class LaporanMingguanCreate extends Component
     public bool $hasKurvaS = false;
 
     /** Kontrak data kapal terisi → periode mingguan auto-generate & terkunci */
-    public bool $hasKontrak = false;
+    public bool $hasPelaksanaan = false;
 
     public array $progressHistory = [];
 
@@ -97,7 +98,7 @@ class LaporanMingguanCreate extends Component
 
         $this->dataKapal = $dataKapal;
         $this->data_kapal_id = $dataKapal->id;
-        $this->hasKontrak = $dataKapal->hasKontrak();
+        $this->hasPelaksanaan = $dataKapal->hasPelaksanaan();
         $this->autoSave = Cache::get('lm_draft_autosave:'.auth()->id(), true);
         $this->tanggal_laporan = now()->format('Y-m-d');
         $this->loadAvailableLaporanHarian();
@@ -148,7 +149,7 @@ class LaporanMingguanCreate extends Component
 
     public function updatedMingguKe(): void
     {
-        if ($this->hasKontrak) {
+        if ($this->hasPelaksanaan) {
             $periode = $this->minggu_ke
                 ? app(KontrakPeriodeService::class)->getMingguPeriode($this->dataKapal, (int) $this->minggu_ke)
                 : null;
@@ -231,7 +232,7 @@ class LaporanMingguanCreate extends Component
 
     protected function rules(): array
     {
-        $maxMinggu = $this->hasKontrak
+        $maxMinggu = $this->hasPelaksanaan
             ? app(KontrakPeriodeService::class)->getTotalMinggu($this->dataKapal)
             : 1000;
 
@@ -373,16 +374,13 @@ class LaporanMingguanCreate extends Component
             return;
         }
 
-        if (! $lampiran->file_path || ! Storage::disk('local')->exists($lampiran->file_path)) {
+        if (! $lampiran->file_path || ! Storage::disk()->exists($lampiran->file_path)) {
             $this->notifyError('File tidak ditemukan.');
 
             return;
         }
 
-        return response()->download(
-            Storage::disk('local')->path($lampiran->file_path),
-            $lampiran->file_name
-        );
+        return Storage::disk()->download($lampiran->file_path, $lampiran->file_name);
     }
 
     // Laporan External Methods
@@ -451,7 +449,7 @@ class LaporanMingguanCreate extends Component
             return;
         }
 
-        if (! Storage::disk('local')->exists($external['existing_file_path'])) {
+        if (! Storage::disk()->exists($external['existing_file_path'])) {
             $this->notifyError('File tidak ditemukan.');
 
             return;
@@ -471,10 +469,7 @@ class LaporanMingguanCreate extends Component
             $downloadFileName = $originalFileName;
         }
 
-        return response()->download(
-            Storage::disk('local')->path($external['existing_file_path']),
-            $downloadFileName
-        );
+        return Storage::disk()->download($external['existing_file_path'], $downloadFileName);
     }
 
     public function save(LaporanMingguanService $service): void
@@ -596,7 +591,7 @@ class LaporanMingguanCreate extends Component
 
     protected function handleExternalFileUpload(LaporanExternal $laporanExternal, $file): void
     {
-        $tempPath = $file->store('temp/laporan-external', 'local');
+        $tempPath = app(FileStorageService::class)->storeTemp($file, 'laporan-external');
         ProcessLaporanExternal::dispatch($laporanExternal->id, $tempPath);
     }
 

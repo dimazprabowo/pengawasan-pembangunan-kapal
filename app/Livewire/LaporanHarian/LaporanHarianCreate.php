@@ -163,9 +163,9 @@ class LaporanHarianCreate extends Component
             $candidate->subDay();
         }
 
-        $mulaiKontrak = $this->dataKapal->tanggal_mulai_kontrak?->copy()->startOfDay();
-        if ($mulaiKontrak && $candidate->lt($mulaiKontrak)) {
-            $this->notifyWarning('Semua tanggal dalam periode kontrak ('.$mulaiKontrak->translatedFormat('d M Y').' s/d hari ini) sudah memiliki laporan.');
+        $mulaiPelaksanaan = $this->dataKapal->tanggal_mulai_pelaksanaan?->copy()->startOfDay();
+        if ($mulaiPelaksanaan && $candidate->lt($mulaiPelaksanaan)) {
+            $this->notifyWarning('Semua tanggal dalam periode pelaksanaan ('.$mulaiPelaksanaan->translatedFormat('d M Y').' s/d hari ini) sudah memiliki laporan.');
 
             return;
         }
@@ -550,9 +550,9 @@ class LaporanHarianCreate extends Component
                 'before_or_equal:today',
                 'distinct',
                 function ($attribute, $value, $fail) {
-                    $mulaiKontrak = $this->dataKapal->tanggal_mulai_kontrak;
-                    if ($value && $mulaiKontrak && Carbon::parse($value)->lt($mulaiKontrak)) {
-                        $fail('Tanggal laporan tidak boleh sebelum tanggal mulai kontrak ('.$mulaiKontrak->translatedFormat('d M Y').').');
+                    $mulaiPelaksanaan = $this->dataKapal->tanggal_mulai_pelaksanaan;
+                    if ($value && $mulaiPelaksanaan && Carbon::parse($value)->lt($mulaiPelaksanaan)) {
+                        $fail('Tanggal laporan tidak boleh sebelum tanggal mulai pelaksanaan ('.$mulaiPelaksanaan->translatedFormat('d M Y').').');
                     }
                 },
                 // whereDate (bukan Rule::unique) agar perbandingan tanggal konsisten lintas driver DB

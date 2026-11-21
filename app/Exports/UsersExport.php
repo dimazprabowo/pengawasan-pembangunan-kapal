@@ -33,7 +33,7 @@ class UsersExport implements FromQuery, ShouldAutoSize, WithHeadings, WithMappin
 
     public function query(): Builder
     {
-        $query = User::with(['roles', 'company']);
+        $query = User::with(['roles', 'owner']);
 
         if ($this->search) {
             $operator = $this->getLikeOperator();
@@ -65,7 +65,7 @@ class UsersExport implements FromQuery, ShouldAutoSize, WithHeadings, WithMappin
             'Telepon',
             'Posisi/Jabatan',
             'Role',
-            'Perusahaan',
+            'Owner',
             'Status',
             'Tanggal Dibuat',
         ];
@@ -83,7 +83,7 @@ class UsersExport implements FromQuery, ShouldAutoSize, WithHeadings, WithMappin
             $user->phone ?? '-',
             $user->position ?? '-',
             ucfirst($user->getRoleNames()->join(', ') ?: 'No Role'),
-            $user->company->name ?? '-',
+            $user->owner->name ?? '-',
             $user->is_active ? 'Aktif' : 'Nonaktif',
             $user->created_at->format('d/m/Y H:i'),
         ];

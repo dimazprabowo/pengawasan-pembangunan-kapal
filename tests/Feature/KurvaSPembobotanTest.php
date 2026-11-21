@@ -45,8 +45,8 @@ class KurvaSPembobotanTest extends TestCase
         return DataKapal::create([
             'nama' => 'Kapal Uji',
             'status' => 'active',
-            'tanggal_mulai_kontrak' => '2026-01-05',
-            'durasi_kontrak_hari' => 140,
+            'tanggal_mulai_pelaksanaan' => '2026-01-05',
+            'waktu_pelaksanaan_hari' => 140,
         ]);
     }
 
@@ -187,8 +187,8 @@ class KurvaSPembobotanTest extends TestCase
         Livewire::actingAs($admin)
             ->test(KurvaSManagement::class)
             ->call('openModal', $jk->id)
-            ->set('tanggal_mulai_kontrak', '2026-01-05')
-            ->set('durasi_kontrak_hari', 140)
+            ->set('tanggal_mulai_pelaksanaan', '2026-01-05')
+            ->set('waktu_pelaksanaan_hari', 140)
             ->set('workGroups', [[
                 'id' => null,
                 'nama' => 'Engineering',
@@ -215,8 +215,8 @@ class KurvaSPembobotanTest extends TestCase
         Livewire::actingAs($admin)
             ->test(KurvaSManagement::class)
             ->call('openModal', $jk->id)
-            ->set('tanggal_mulai_kontrak', '2026-01-05')
-            ->set('durasi_kontrak_hari', 140)
+            ->set('tanggal_mulai_pelaksanaan', '2026-01-05')
+            ->set('waktu_pelaksanaan_hari', 140)
             ->set('workGroups', [[
                 'id' => null,
                 'nama' => 'Engineering',
@@ -241,8 +241,8 @@ class KurvaSPembobotanTest extends TestCase
         Livewire::actingAs($admin)
             ->test(KurvaSManagement::class)
             ->call('openModal', $jk->id)
-            ->set('tanggal_mulai_kontrak', '2026-01-05')
-            ->set('durasi_kontrak_hari', 140)
+            ->set('tanggal_mulai_pelaksanaan', '2026-01-05')
+            ->set('waktu_pelaksanaan_hari', 140)
             ->set('workGroups', [[
                 'id' => null,
                 'nama' => 'Engineering',
@@ -260,7 +260,7 @@ class KurvaSPembobotanTest extends TestCase
 
         // Kontrak ikut tersimpan
         $jk->refresh();
-        $this->assertTrue($jk->hasKontrak());
+        $this->assertTrue($jk->hasPelaksanaan());
     }
 
     public function test_management_save_ditolak_tanpa_kontrak(): void
@@ -321,8 +321,8 @@ class KurvaSPembobotanTest extends TestCase
         Livewire::actingAs($admin)
             ->test(KurvaSManagement::class)
             ->call('openModal', $jk->id)
-            ->set('tanggal_mulai_kontrak', '2025-01-01')
-            ->set('durasi_kontrak_hari', 90)
+            ->set('tanggal_mulai_pelaksanaan', '2025-01-01')
+            ->set('waktu_pelaksanaan_hari', 90)
             ->set('workGroups', [
                 [
                     'id' => null, 'nama' => 'A', 'bobot' => '10.00',
@@ -339,8 +339,8 @@ class KurvaSPembobotanTest extends TestCase
         Livewire::actingAs($admin)
             ->test(KurvaSManagement::class)
             ->call('openModal', $jk->id)
-            ->set('tanggal_mulai_kontrak', '2025-01-01')
-            ->set('durasi_kontrak_hari', 90)
+            ->set('tanggal_mulai_pelaksanaan', '2025-01-01')
+            ->set('waktu_pelaksanaan_hari', 90)
             ->set('workGroups', [
                 [
                     'id' => null, 'nama' => 'A', 'bobot' => '10.00',
@@ -364,8 +364,8 @@ class KurvaSPembobotanTest extends TestCase
         Livewire::actingAs($admin)
             ->test(KurvaSManagement::class)
             ->call('openModal', $jk->id)
-            ->set('tanggal_mulai_kontrak', '2025-01-01')
-            ->set('durasi_kontrak_hari', 90)
+            ->set('tanggal_mulai_pelaksanaan', '2025-01-01')
+            ->set('waktu_pelaksanaan_hari', 90)
             ->set('workGroups', [[
                 'id' => null, 'nama' => 'A', 'bobot' => '10.00',
                 'months' => array_map(fn ($i) => ['bulan_ke' => $i, 'pct_rencana' => '1.00', 'keterangan' => ''], range(1, 5)),
@@ -387,8 +387,8 @@ class KurvaSPembobotanTest extends TestCase
         Livewire::actingAs($admin)
             ->test(KurvaSManagement::class)
             ->call('openModal', $jk->id)
-            ->set('tanggal_mulai_kontrak', '2025-01-01')
-            ->set('durasi_kontrak_hari', 90)
+            ->set('tanggal_mulai_pelaksanaan', '2025-01-01')
+            ->set('waktu_pelaksanaan_hari', 90)
             ->set('workGroups', [[
                 'id' => null, 'nama' => 'B', 'bobot' => '20.00',
                 'months' => array_map(fn ($i) => ['bulan_ke' => $i, 'pct_rencana' => '1.00', 'keterangan' => ''], range(1, 5)),
@@ -425,8 +425,8 @@ class KurvaSPembobotanTest extends TestCase
         Livewire::actingAs($admin)
             ->test(KurvaSManagement::class)
             ->call('openModal', $jk->id)
-            ->set('tanggal_mulai_kontrak', '2026-01-05')
-            ->set('durasi_kontrak_hari', 140)
+            ->set('tanggal_mulai_pelaksanaan', '2026-01-05')
+            ->set('waktu_pelaksanaan_hari', 140)
             ->call('moveWeek', 13, 'prev')
             ->assertSet('mingguBulanMap.13', 3)
             ->set('workGroups', [[
@@ -454,8 +454,8 @@ class KurvaSPembobotanTest extends TestCase
         Livewire::actingAs($admin)
             ->test(KurvaSManagement::class)
             ->call('openModal', $jk->id)
-            ->set('tanggal_mulai_kontrak', '2026-01-05')
-            ->set('durasi_kontrak_hari', 140)
+            ->set('tanggal_mulai_pelaksanaan', '2026-01-05')
+            ->set('waktu_pelaksanaan_hari', 140)
             // mgg 10 = interior Maret, 'prev' hanya untuk minggu pertama bulan
             ->call('moveWeek', 10, 'prev')
             // mgg 12 = minggu terakhir Maret tapi murni satu bulan (23-29 Mar)
@@ -479,8 +479,8 @@ class KurvaSPembobotanTest extends TestCase
         Livewire::actingAs($admin)
             ->test(KurvaSManagement::class)
             ->call('openModal', $jk->id)
-            ->set('tanggal_mulai_kontrak', '2026-01-05')
-            ->set('durasi_kontrak_hari', 140)
+            ->set('tanggal_mulai_pelaksanaan', '2026-01-05')
+            ->set('waktu_pelaksanaan_hari', 140)
             ->set('workGroups', [[
                 'id' => null, 'nama' => 'A', 'bobot' => '10.00',
                 'months' => [
@@ -561,8 +561,8 @@ class KurvaSPembobotanTest extends TestCase
         $jk = DataKapal::create([
             'nama' => 'Kapal Uji',
             'status' => 'active',
-            'tanggal_mulai_kontrak' => '2025-01-01',
-            'durasi_kontrak_hari' => 90,
+            'tanggal_mulai_pelaksanaan' => '2025-01-01',
+            'waktu_pelaksanaan_hari' => 90,
         ]);
 
         $this->assertSame(3, KurvaSRencanaSheet::resolveMonths($jk));
@@ -695,8 +695,8 @@ class KurvaSPembobotanTest extends TestCase
         Livewire::actingAs($admin)
             ->test(KurvaSManagement::class)
             ->call('openModal', $jk->id)
-            ->set('tanggal_mulai_kontrak', '2026-01-05')
-            ->set('durasi_kontrak_hari', 140)
+            ->set('tanggal_mulai_pelaksanaan', '2026-01-05')
+            ->set('waktu_pelaksanaan_hari', 140)
             ->set('workGroups', [[
                 'id' => null,
                 'nama' => 'Engineering',
@@ -725,8 +725,8 @@ class KurvaSPembobotanTest extends TestCase
         Livewire::actingAs($admin)
             ->test(KurvaSManagement::class)
             ->call('openModal', $jk->id)
-            ->set('tanggal_mulai_kontrak', '2026-01-05')
-            ->set('durasi_kontrak_hari', 140)
+            ->set('tanggal_mulai_pelaksanaan', '2026-01-05')
+            ->set('waktu_pelaksanaan_hari', 140)
             ->set('workGroups', [[
                 'id' => null,
                 'nama' => 'Engineering',

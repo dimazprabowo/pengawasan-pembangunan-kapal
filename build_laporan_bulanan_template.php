@@ -6,17 +6,18 @@
  * Struktur: Cover → Lembar Pengesahan → Daftar Isi (TOC field) → Kata
  * Pengantar → Executive Summary (tabel progress + informasi umum) →
  * BAB 1 Pendahuluan → BAB 2 {nama kapal} (spesifikasi, design & approval
- * drawing, realisasi, vendor, material, waktu & progress mingguan,
- * pengujian) → BAB 3 Penutup (rapat, problem & rekomendasi, NC) →
- * BAB 4 Lampiran (dokumen eksternal + altChunk laporan mingguan).
+ * drawing, vendor, material, realisasi, waktu & progress mingguan,
+ * pengujian, rapat, catatan & rekomendasi NC) → BAB 3 Penutup
+ * (kesimpulan) → BAB 4 Lampiran (dokumen eksternal + altChunk laporan mingguan).
  *
  * Tabel dinamis dibangun di LaporanBulananWordService via setComplexBlock:
- *   ${tabel_exec_progress} ${tabel_info_umum} ${tabel_spesifikasi}
- *   ${tabel_drawing_galangan} ${tabel_drawing_mno} ${tabel_drawing_klas}
- *   ${tabel_realisasi} ${tabel_vendor} ${tabel_material} ${tabel_waktu}
- *   ${tabel_progress_mingguan} ${tabel_pengujian} ${tabel_rapat}
+ *   ${tabel_exec_progress} ${tabel_progress_mingguan}
+ *   ${tabel_info_umum} ${tabel_spesifikasi}
+ *   ${nomor_kontrak_pengawas} ${nomor_kontrak_gambar} ${tabel_drawing}
+ *   ${tabel_realisasi} ${tabel_vendor} ${tabel_material} ${tabel_pengujian} ${tabel_rapat}
  *   ${tabel_nc} ${tabel_external}
- * BAB 3.2 problem & rekomendasi = ${tabel_nc} (tarikan rekap NC periode).
+ * BAB 2.9 catatan & rekomendasi = ${tabel_nc} (tarikan rekap NC periode);
+ * BAB 3.1 kesimpulan = ${poin_kesimpulan} (poin bernomor dari data BAB 2).
  * ${lampiran_mingguan} diganti altChunk docx laporan mingguan (dokumen utuh).
  *
  * Penomoran (pola contoh ASDP — numPr asli, bukan teks literal):
@@ -40,7 +41,7 @@ use PhpOffice\PhpWord\SimpleType\JcTable;
 use PhpOffice\PhpWord\SimpleType\TblWidth;
 use PhpOffice\PhpWord\Style\Tab;
 
-$path = 'storage/app/templates/laporan-bulanan/template-laporan-bulanan.docx';
+$path = 'storage/app/private/templates/laporan-bulanan/template-laporan-bulanan.docx';
 
 const NAVY = '1F3864';
 const LIGHT = 'D9E2F3';
@@ -150,8 +151,8 @@ $cover = $section->addTable($tableStyle + ['borderSize' => 0, 'borderColor' => '
 $cover->addRow();
 $c = $cover->addCell(CONTENT_WIDTH / 2, $body);
 $c->addText('DISAMPAIKAN KEPADA PEMILIK / OWNER :', ['bold' => true, 'size' => 9, 'color' => NAVY], $center);
-$c->addText('${perusahaan}', ['bold' => true, 'size' => 11], $center + ['spaceBefore' => 120]);
-$c->addText('${perusahaan_alamat}', ['size' => 9], $center + ['spaceBefore' => 60]);
+$c->addText('${owner}', ['bold' => true, 'size' => 11], $center + ['spaceBefore' => 120]);
+$c->addText('${owner_alamat}', ['size' => 9], $center + ['spaceBefore' => 60]);
 $c = $cover->addCell(CONTENT_WIDTH / 2, $body);
 $c->addText('DISUSUN OLEH KONSULTAN PENGAWAS :', ['bold' => true, 'size' => 9, 'color' => NAVY], $center);
 $c->addText('PT. BIRO KLASIFIKASI INDONESIA (PERSERO)', ['bold' => true, 'size' => 11], $center + ['spaceBefore' => 120]);
@@ -195,13 +196,13 @@ $section->addPageBreak();
 
 // ══ KATA PENGANTAR ═════════════════════════════════════════════════════════
 $section->addText('KATA PENGANTAR', 'JudulBabF1', 'JudulBab0');
-$p('Laporan bulan ini merupakan rangkuman dari keseluruhan aktivitas, yaitu mendampingi ${perusahaan} dalam proses pekerjaan review design dan supervisi proses fabrikasi / pembangunan ${nama_pekerjaan}, yang dilaksanakan di galangan kapal ${galangan} untuk periode ${periode_label}.', [], $justify);
-$p('Laporan ini ditujukan kepada ${perusahaan}, terdiri atas:', [], $justify + ['spaceBefore' => 120]);
+$p('Laporan bulan ini merupakan rangkuman dari keseluruhan aktivitas, yaitu mendampingi ${owner} dalam proses pekerjaan review design dan supervisi proses fabrikasi / pembangunan ${nama_pekerjaan}, yang dilaksanakan di galangan kapal ${galangan} untuk periode ${periode_label}.', [], $justify);
+$p('Laporan ini ditujukan kepada ${owner}, terdiri atas:', [], $justify + ['spaceBefore' => 120]);
 $section->addListItem('Laporan Progress Proses Kajian dan Persetujuan Gambar Design dari galangan oleh Owner Consultant;', 0, [], 'numPoin', $justify);
 $section->addListItem('Laporan Mingguan Supervisi Proses Fabrikasi / Pembangunan;', 0, [], 'numPoin', $justify);
 $section->addListItem('Laporan Progress Fisik dan S-Curve Rencana dan Realisasi;', 0, [], 'numPoin', $justify);
 $p('Diharapkan laporan ini dapat memberikan gambaran pencapaian progress pembangunan pada periode ${bulan_label} dalam rangka ${nama_pekerjaan}.', [], $justify + ['spaceBefore' => 120]);
-$p('Ucapan terima kasih ditujukan kepada pihak ${perusahaan} dan pihak Project Manager ${galangan} atas kerjasamanya, khususnya dalam mempersiapkan Laporan Bulanan ini.', [], $justify + ['spaceBefore' => 120]);
+$p('Ucapan terima kasih ditujukan kepada pihak ${owner} dan pihak Project Manager ${galangan} atas kerjasamanya, khususnya dalam mempersiapkan Laporan Bulanan ini.', [], $justify + ['spaceBefore' => 120]);
 $p('Demikian laporan ini dibuat untuk dipergunakan sebagaimana mestinya.', [], $justify + ['spaceBefore' => 120]);
 $section->addTextBreak(2);
 $p('${ttd_kota}, ${ttd_tanggal}', [], ['alignment' => Jc::END]);
@@ -227,7 +228,7 @@ $section->addPageBreak();
 // ══ BAB 1 — PENDAHULUAN ════════════════════════════════════════════════════
 $section->addText('PENDAHULUAN', 'JudulBabF1', 'JudulBab1');
 $section->addText('LATAR BELAKANG', 'JudulBabF2', 'JudulBab2');
-$p('${perusahaan} memberikan pekerjaan ${nama_pekerjaan} kepada pihak Konsultansi yaitu PT. Biro Klasifikasi Indonesia (Persero) SBU Marine & Offshore Migas, berdasarkan Surat Perjanjian Nomor : ${nomor_kontrak}.', [], $justify);
+$p('${owner} memberikan pekerjaan ${nama_pekerjaan} kepada pihak Konsultansi yaitu PT. Biro Klasifikasi Indonesia (Persero) SBU Marine & Offshore Migas, berdasarkan Surat Perjanjian Nomor : ${nomor_kontrak_pengawas}.', [], $justify);
 $section->addText('MAKSUD DAN TUJUAN', 'JudulBabF2', 'JudulBab2');
 $p('Maksud dari pekerjaan ${nama_pekerjaan} adalah melakukan pengawasan dalam hal teknis maupun administratif selama proses pembangunan kapal berdasarkan spesifikasi teknis dan kontrak pembangunan kapal yang telah disepakati antara owner dan penyedia/pelaksana pembangunan kapal, dengan tetap memperhatikan regulasi yang terkait pembangunan kapal; serta memastikan dan memberikan masukan/saran, rekomendasi, alternatif inovasi, pemecahan masalah dan tindakan korektif yang tepat pada semua proses pembangunan kapal tersebut.', [], $justify);
 $p('Tujuan dari kegiatan pekerjaan ini adalah agar proses pembangunan kapal dapat berjalan dengan tepat waktu, tepat biaya, dan tepat kualitas pekerjaan pembangunan sesuai kontrak, serta tersusunnya administrasi proses pembangunan dari awal sampai serah terima pekerjaan secara rapi, lengkap, dan terdokumentasi dengan baik.', [], $justify + ['spaceBefore' => 80]);
@@ -247,23 +248,16 @@ foreach ([
 }
 $section->addPageBreak();
 
-// ══ BAB 2 — {NAMA KAPAL} ═══════════════════════════════════════════════════
-$section->addText('${nama_kapal}', 'JudulBabF1', 'JudulBab1');
+// ══ BAB 2 — KEMAJUAN PROGRES ═══════════════════════════════════════════════
+$section->addText('KEMAJUAN PROGRES', 'JudulBabF1', 'JudulBab1');
 
-$section->addText('UMUM', 'JudulBabF2', 'JudulBab2');
+$section->addText('SHIP PARTICULAR', 'JudulBabF2', 'JudulBab2');
 $p('Secara umum spesifikasi dan ukuran utama dari kapal adalah sebagai berikut :', [], $tableIntro + ['alignment' => Jc::BOTH]);
 $p('${tabel_spesifikasi}');
 
 $section->addText('STATUS DESIGN & APPROVAL DRAWING', 'JudulBabF2', 'JudulBab2');
-$p('Proses Penyelesaian Basic Design & Production Drawing Oleh Galangan', ['bold' => true, 'size' => 9], $tableIntro);
-$p('${tabel_drawing_galangan}');
-$p('Review Drawing oleh Konsultansi Pengawas (MNO)', ['bold' => true, 'size' => 9], $tableIntro);
-$p('${tabel_drawing_mno}');
-$p('Review / Approval Drawing oleh Klas', ['bold' => true, 'size' => 9], $tableIntro);
-$p('${tabel_drawing_klas}');
-
-$section->addText('REALISASI PROGRESS PEKERJAAN', 'JudulBabF2', 'JudulBab2');
-$p('${tabel_realisasi}');
+$p('Nomor Kontrak Gambar: ${nomor_kontrak_gambar}', ['bold' => true, 'size' => 9], $tableIntro);
+$p('${tabel_drawing}');
 
 $section->addText('DAFTAR SUB-CONTRACTOR, VENDOR', 'JudulBabF2', 'JudulBab2');
 $p('${tabel_vendor}');
@@ -271,23 +265,28 @@ $p('${tabel_vendor}');
 $section->addText('MATERIAL DAN KOMPONEN', 'JudulBabF2', 'JudulBab2');
 $p('${tabel_material}');
 
+$section->addText('REALISASI PROGRESS PEKERJAAN', 'JudulBabF2', 'JudulBab2');
+$p('${tabel_realisasi}');
+
 $section->addText('RENCANA DAN REALISASI WAKTU PELAKSANAAN PEMBANGUNAN', 'JudulBabF2', 'JudulBab2');
-$p('${tabel_waktu}');
 $p('Presentase Bobot penyelesaian', ['bold' => true, 'size' => 9], $tableIntro);
 $p('Total progress yang telah dicapai dalam pekerjaan ${nama_pekerjaan} sampai dengan ${cutoff} adalah sebagai berikut :', [], $tableIntro + ['alignment' => Jc::BOTH]);
 $p('${tabel_progress_mingguan}');
 
 $section->addText('PENGUJIAN', 'JudulBabF2', 'JudulBab2');
 $p('${tabel_pengujian}');
+$section->addText('RAPAT BULANAN / MINGGUAN', 'JudulBabF2', 'JudulBab2');
+$p('${tabel_rapat}');
+$section->addText('CATATAN DAN REKOMENDASI', 'JudulBabF2', 'JudulBab2');
+// Catatan & rekomendasi = tarikan otomatis rekap NC periode (open + closed).
+$p('${tabel_nc}');
 $section->addPageBreak();
 
 // ══ BAB 3 — PENUTUP ════════════════════════════════════════════════════════
 $section->addText('PENUTUP', 'JudulBabF1', 'JudulBab1');
-$section->addText('RAPAT BULANAN / MINGGUAN', 'JudulBabF2', 'JudulBab2');
-$p('${tabel_rapat}');
-$section->addText('PROBLEM DAN REKOMENDASI', 'JudulBabF2', 'JudulBab2');
-// Problem & rekomendasi = tarikan otomatis rekap NC periode (open + closed).
-$p('${tabel_nc}');
+$section->addText('KESIMPULAN', 'JudulBabF2', 'JudulBab2');
+// Kesimpulan = poin bernomor yang di-derive otomatis dari data BAB 2.
+$p('${poin_kesimpulan}');
 $section->addPageBreak();
 
 // ══ BAB 4 — LAMPIRAN ═══════════════════════════════════════════════════════

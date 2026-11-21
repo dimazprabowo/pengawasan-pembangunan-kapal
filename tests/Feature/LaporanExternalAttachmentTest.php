@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\LaporanExternal;
+use App\Services\DocxToPdfService;
+use App\Services\LaporanDocumentService;
 use App\Services\PdfPageService;
 use App\Services\WordAttachmentService;
 use App\Services\WordStyleService;
@@ -159,27 +161,46 @@ class LaporanExternalAttachmentTest extends TestCase
     }
 
     #[Test]
-    public function signature_is_current_mencakup_file_eksternal(): void
+    public function gambar_halaman_laporan_dicache_per_doc_path_dan_dibuang_saat_dihapus(): void
     {
+        if (! is_executable(config('services.poppler.pdftoppm')) || ! is_executable(config('services.poppler.pdfinfo'))) {
+            $this->markTestSkipped('Poppler belum tersedia pada path konfigurasi.');
+        }
         Storage::fake('local');
-        $path = Storage::disk('local')->path('output.docx');
-        $this->makeDocxWithExternalMarker($path);
+        $docPath = 'laporan/word/harian.docx';
+        $this->makeDocxWithExternalMarker(Storage::disk('local')->path('harian.docx'));
+        Storage::disk('local')->put($docPath, (string) file_get_contents(Storage::disk('local')->path('harian.docx')));
 
-        $external = new LaporanExternal([
-            'judul' => 'Dok A',
-            'file_name' => 'a.pdf',
-            'file_path' => 'a.pdf',
-            'file_status' => 'completed',
-            'rendered_pages' => ['laporan-external/pages/x/page-1.webp'],
-        ]);
+        $conversions = 0;
+        $pdf = Pdf::loadHTML('<p>HALAMAN 1</p><div style="page-break-before:always"></div><p>HALAMAN 2</p>')->output();
+        $this->mock(DocxToPdfService::class, function ($mock) use (&$conversions, $pdf): void {
+            $mock->shouldReceive('convert')->andReturnUsing(function (string $source, string $target) use (&$conversions, $pdf): void {
+                $conversions++;
+                file_put_contents($target, $pdf);
+            });
+        });
+
         $service = app(WordAttachmentService::class);
-        $service->append($path, collect(), false, collect([$external]));
+        $first = $service->reportPageImages($docPath);
+        $second = $service->reportPageImages($docPath);
 
-        $this->assertTrue($service->isCurrent($path, collect(), collect([$external])));
-        $this->assertFalse($service->isCurrent($path, collect(), collect()));
-        $this->assertFalse($service->isCurrent($path, collect()));
+        $this->assertCount(2, $first);
+        $this->assertSame($first, $second);
+        $this->assertSame(1, $conversions, 'Render kedua harus memakai cache, bukan konversi ulang.');
+        foreach ($first as [$page, $caption, $fullPage]) {
+            $this->assertStringStartsWith('laporan/lampiran-pages/'.sha1($docPath).'/', $page);
+            $this->assertSame('', $caption);
+            $this->assertTrue($fullPage);
+            Storage::disk('local')->assertExists($page);
+        }
 
-        $external->rendered_pages = ['laporan-external/pages/x/page-1.webp', 'laporan-external/pages/x/page-2.webp'];
-        $this->assertFalse($service->isCurrent($path, collect(), collect([$external])));
+        // Halaman cache hilang → dirender ulang, bukan mengembalikan path mati.
+        Storage::disk('local')->delete($first[0][0]);
+        $this->assertCount(2, $service->reportPageImages($docPath));
+        $this->assertSame(2, $conversions);
+
+        app(LaporanDocumentService::class)->deleteDocFile($docPath);
+        Storage::disk('local')->assertMissing($docPath);
+        Storage::disk('local')->assertMissing('laporan/lampiran-pages/'.sha1($docPath));
     }
 }

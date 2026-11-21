@@ -25,6 +25,11 @@ return new class extends Migration
             $table->enum('doc_status', ['pending', 'processing', 'completed', 'failed'])->nullable();
             $table->timestamp('doc_generated_at')->nullable();
             $table->text('doc_error')->nullable();
+            $table->string('pdf_path')->nullable();
+            $table->string('pdf_name')->nullable();
+            $table->enum('pdf_status', ['pending', 'processing', 'completed', 'failed'])->nullable();
+            $table->timestamp('pdf_generated_at')->nullable();
+            $table->text('pdf_error')->nullable();
             $table->decimal('suhu', 5, 2)->nullable();
             $table->foreignId('cuaca_pagi_id')->nullable()->constrained('cuaca')->nullOnDelete();
             $table->foreignId('kelembaban_pagi_id')->nullable()->constrained('kelembaban')->nullOnDelete();

@@ -78,11 +78,11 @@ Aplikasi ini mendukung **dual mode operation**:
 - ✅ Dynamic sidebar based on permissions
 
 ### Master Data
-- ✅ Company management (CRUD)
+- ✅ Owner management (CRUD)
 - ✅ Excel export/import
 - ✅ PDF export
 - ✅ Soft deletes
-- ✅ Route model binding dengan company code
+- ✅ Route model binding dengan owner code
 
 ### System Configuration
 - ✅ Key-value configuration management
@@ -230,7 +230,7 @@ MAIL_HOST=smtp.mailtrap.io
 MAIL_PORT=2525
 MAIL_USERNAME=null
 MAIL_PASSWORD=null
-MAIL_FROM_ADDRESS="noreply@app.company.com"
+MAIL_FROM_ADDRESS="noreply@app.owner.com"
 MAIL_FROM_NAME="${APP_NAME}"
 
 # Laravel Reverb (WebSocket)
@@ -330,8 +330,8 @@ php artisan serve --port=8999
 
 | Table | Deskripsi | Kolom Penting |
 |-------|-----------|---------------|
-| `users` | User accounts | id, name, email, password, company_id, is_active |
-| `companies` | Master data perusahaan | id, code, name, email, phone, status |
+| `users` | User accounts | id, name, email, password, owner_id, is_active |
+| `owners` | Master data owner | id, code, name, email, phone, status |
 | `system_configurations` | Key-value config | key, value, type |
 | `chats` | Chat rooms | id, name, type |
 | `chat_messages` | Chat messages | id, chat_id, user_id, message |
@@ -350,7 +350,7 @@ Total: **18+ migrations**
 Termasuk:
 - Laravel default tables (users, sessions, cache, jobs)
 - Spatie Permission tables
-- Custom tables (companies, chats, notifications, system_configurations)
+- Custom tables (owners, chats, notifications, system_configurations)
 
 ---
 
@@ -369,10 +369,10 @@ Termasuk:
 | `roles_create` | Tambah role |
 | `roles_update` | Edit role |
 | `roles_delete` | Hapus role |
-| `companies_view` | Lihat companies |
-| `companies_create` | Tambah company |
-| `companies_update` | Edit company |
-| `companies_delete` | Hapus company |
+| `owners_view` | Lihat owners |
+| `owners_create` | Tambah owner |
+| `owners_update` | Edit owner |
+| `owners_delete` | Hapus owner |
 | `configuration_view` | Lihat system config |
 | `configuration_update` | Edit system config |
 | `notifications_view` | Lihat notifications |
@@ -509,14 +509,14 @@ php artisan tinker
 ```env
 APP_ENV=production
 APP_DEBUG=false
-APP_URL=https://app.company.com
+APP_URL=https://app.owner.com
 
 # SSO (jika digunakan)
 IS_USING_SSO=true
 SSO_CLIENT_ID=production-client-id
 SSO_CLIENT_SECRET=production-client-secret
-SSO_BASE_URL=https://sso.company.com
-SSO_REDIRECT_URI=https://app.company.com/auth/callback
+SSO_BASE_URL=https://sso.owner.com
+SSO_REDIRECT_URI=https://app.owner.com/auth/callback
 SSO_API_SECRET=production-api-secret
 
 DB_CONNECTION=mysql
@@ -531,9 +531,9 @@ RECAPTCHA_SITE_KEY=production-site-key
 RECAPTCHA_SECRET_KEY=production-secret-key
 
 MAIL_MAILER=smtp
-MAIL_HOST=smtp.company.com
+MAIL_HOST=smtp.owner.com
 MAIL_PORT=587
-MAIL_USERNAME=noreply@company.com
+MAIL_USERNAME=noreply@owner.com
 MAIL_PASSWORD=secure-password
 MAIL_ENCRYPTION=tls
 ```

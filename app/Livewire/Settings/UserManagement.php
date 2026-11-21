@@ -4,19 +4,22 @@ namespace App\Livewire\Settings;
 
 use App\Exports\UsersExport;
 use App\Livewire\Traits\HasNotification;
-use App\Models\Company;
+use App\Livewire\Traits\HasTableSorting;
+use App\Models\Owner;
 use App\Models\User;
 use App\Services\UserService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Spatie\Permission\Models\Role;
 
 class UserManagement extends Component
 {
-    use \App\Livewire\Traits\HasTableSorting;
     use AuthorizesRequests, HasNotification, WithPagination;
+    use HasTableSorting;
 
     protected $paginationTheme = 'tailwind';
 
@@ -45,7 +48,7 @@ class UserManagement extends Component
 
     public $password_confirmation;
 
-    public $company_id;
+    public $owner_id;
 
     public $phone;
 
@@ -81,7 +84,7 @@ class UserManagement extends Component
         $rules = [
             'name' => 'required|string|max:255',
             'email' => ['required', 'email', $this->editMode ? 'unique:users,email,'.$this->userId : 'unique:users,email'],
-            'company_id' => 'nullable|exists:companies,id',
+            'owner_id' => 'nullable|exists:owners,id',
             'phone' => 'nullable|string|max:20',
             'position' => 'nullable|string|max:100',
             'is_active' => 'boolean',
@@ -154,7 +157,7 @@ class UserManagement extends Component
         $this->userId = $user->id;
         $this->name = $user->name;
         $this->email = $user->email;
-        $this->company_id = $user->company_id;
+        $this->owner_id = $user->owner_id;
         $this->phone = $user->phone;
         $this->position = $user->position;
         $this->is_active = $user->is_active;
@@ -168,7 +171,7 @@ class UserManagement extends Component
     {
         try {
             $this->validate();
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->notifyValidationError($e);
             throw $e;
         }
@@ -178,7 +181,7 @@ class UserManagement extends Component
                 'name' => $this->name,
                 'email' => $this->email,
                 'password' => $this->password,
-                'company_id' => $this->company_id ?: null,
+                'owner_id' => $this->owner_id ?: null,
                 'phone' => $this->phone ?: null,
                 'position' => $this->position ?: null,
                 'is_active' => $this->is_active,
@@ -204,7 +207,7 @@ class UserManagement extends Component
             $this->notifySuccess($message);
             $this->closeModal();
             $this->resetForm();
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk melakukan aksi ini.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
@@ -228,7 +231,7 @@ class UserManagement extends Component
             $service->delete($user);
             $this->notifySuccess('User berhasil dihapus!');
             $this->showDeleteModal = false;
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak dapat menghapus akun ini.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
@@ -245,7 +248,7 @@ class UserManagement extends Component
 
             $status = $user->is_active ? 'diaktifkan' : 'dinonaktifkan';
             $this->notifySuccess("User berhasil {$status}!");
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak dapat mengubah status akun ini.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
@@ -280,7 +283,7 @@ class UserManagement extends Component
 
             $this->notifySuccess('Password berhasil direset!');
             $this->closeResetPasswordModal();
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk mereset password.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
@@ -307,7 +310,7 @@ class UserManagement extends Component
             'email',
             'password',
             'password_confirmation',
-            'company_id',
+            'owner_id',
             'phone',
             'position',
             'is_active',
@@ -364,7 +367,7 @@ class UserManagement extends Component
         return view('livewire.settings.user-management', [
             'users' => $users,
             'roles' => Role::all(),
-            'companies' => Company::orderBy('name')->get(),
+            'owners' => Owner::orderBy('name')->get(),
         ]);
     }
 }

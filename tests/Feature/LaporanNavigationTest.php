@@ -2,10 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Enums\DataKapalStatus;
+use App\Livewire\Laporan\LaporanIndex;
 use App\Models\DataKapal;
 use App\Models\LaporanHarian;
+use App\Models\Owner;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class LaporanNavigationTest extends TestCase
@@ -31,27 +35,27 @@ class LaporanNavigationTest extends TestCase
             ->assertSee('Manajemen Laporan');
     }
 
-    public function test_picker_filters_by_company(): void
+    public function test_picker_filters_by_owner(): void
     {
-        $kapalA = DataKapal::where('company_id', 1)->firstOrFail();
-        $companyB = \App\Models\Company::findOrFail(2);
+        $kapalA = DataKapal::where('owner_id', 1)->firstOrFail();
+        $ownerB = Owner::findOrFail(2);
         $kapalB = DataKapal::create([
-            'company_id' => $companyB->id,
+            'owner_id' => $ownerB->id,
             'nama' => 'Kapal Unik Filter Test',
-            'status' => \App\Enums\DataKapalStatus::Active,
+            'status' => DataKapalStatus::Active,
         ]);
 
-        \Livewire\Livewire::actingAs($this->admin())
-            ->test(\App\Livewire\Laporan\LaporanIndex::class)
-            ->set('companyFilter', 1)
+        Livewire::actingAs($this->admin())
+            ->test(LaporanIndex::class)
+            ->set('ownerFilter', 1)
             ->assertSee($kapalA->nama)
             ->assertDontSee($kapalB->nama);
     }
 
     public function test_picker_exports_excel_and_pdf(): void
     {
-        \Livewire\Livewire::actingAs($this->admin())
-            ->test(\App\Livewire\Laporan\LaporanIndex::class)
+        Livewire::actingAs($this->admin())
+            ->test(LaporanIndex::class)
             ->call('exportExcel')
             ->assertOk()
             ->call('exportPdf')
@@ -120,16 +124,16 @@ class LaporanNavigationTest extends TestCase
             ->assertNotFound();
     }
 
-    public function test_data_kapal_outside_user_company_scope_is_forbidden(): void
+    public function test_data_kapal_outside_user_owner_scope_is_forbidden(): void
     {
-        $company = \App\Models\Company::create([
+        $owner = Owner::create([
             'code' => 'OTHER',
-            'name' => 'PT Other Company',
+            'name' => 'PT Other Owner',
             'status' => 'active',
         ]);
 
         $scopedUser = User::factory()->create([
-            'company_id' => $company->id,
+            'owner_id' => $owner->id,
             'email_verified_at' => now(),
             'is_active' => true,
         ]);

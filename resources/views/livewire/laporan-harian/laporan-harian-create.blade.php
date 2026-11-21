@@ -86,7 +86,7 @@
             <div class="min-w-0">
                 <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Tambah Laporan Harian</h2>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 truncate">
-                    {{ $dataKapal->nama }}{{ $dataKapal->company ? ' · ' . $dataKapal->company->name : '' }} — setiap tab adalah satu hari; tanggal otomatis mengikuti hari sebelumnya
+                    {{ $dataKapal->nama }}{{ $dataKapal->owner ? ' · ' . $dataKapal->owner->name : '' }} — setiap tab adalah satu hari; tanggal otomatis mengikuti hari sebelumnya
                 </p>
             </div>
             {{-- Auto Save toggle + draft indicator (pojok kanan, indikator di bawah toggle) --}}

@@ -142,7 +142,7 @@ class KurvaSWorkGroupSeeder extends Seeder
             }
 
             // Rencana bulanan memerlukan kontrak (bulan di-derive dari tanggal & durasi kontrak)
-            if (! $dataKapal->hasKontrak()) {
+            if (! $dataKapal->hasPelaksanaan()) {
                 $this->command->warn("  Skip: {$dataKapal->nama} belum memiliki data kontrak.");
 
                 continue;

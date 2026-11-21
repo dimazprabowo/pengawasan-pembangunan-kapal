@@ -2,8 +2,8 @@
 
 namespace Database\Factories;
 
-use App\Enums\PengujianStatus;
 use App\Models\Pengujian;
+use App\Models\PengujianStatus;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class PengujianFactory extends Factory
@@ -15,7 +15,8 @@ class PengujianFactory extends Factory
         return [
             'nama_pengujian' => fake()->randomElement(['NDT Test', 'Leak Test', 'Hydrostatic Test', 'Inclining Test', 'Sea Trial']),
             'tanggal' => fake()->optional()->dateTimeBetween('-1 month', '+3 months'),
-            'status' => fake()->randomElement(PengujianStatus::cases()),
+            'pengujian_status_id' => PengujianStatus::query()->inRandomOrder()->value('id')
+                ?? PengujianStatus::create(['nama' => 'direncanakan'])->id,
             'hasil' => fake()->optional()->randomElement(['Lulus', 'Memuaskan', 'OK']),
         ];
     }

@@ -2,8 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\MaterialKategori;
-use App\Enums\MaterialStatus;
 use App\Traits\HasUserStamps;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,7 +11,7 @@ use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
- * Pengadaan material & komponen proyek (BAB 2.5 laporan bulanan).
+ * Pengadaan material & komponen proyek (sub-bab 2.5 laporan bulanan).
  */
 class ProjectMaterial extends Model
 {
@@ -23,12 +21,12 @@ class ProjectMaterial extends Model
 
     protected $fillable = [
         'data_kapal_id',
-        'kategori',
+        'material_category_id',
         'nama_item',
         'spesifikasi',
         'jumlah',
         'satuan',
-        'status',
+        'material_status_id',
         'tanggal',
         'keterangan',
     ];
@@ -36,8 +34,8 @@ class ProjectMaterial extends Model
     protected function casts(): array
     {
         return [
-            'kategori' => MaterialKategori::class,
-            'status' => MaterialStatus::class,
+            'material_category_id' => 'integer',
+            'material_status_id' => 'integer',
             'jumlah' => 'decimal:2',
             'tanggal' => 'date',
         ];
@@ -47,7 +45,7 @@ class ProjectMaterial extends Model
     {
         return LogOptions::defaults()
             ->useLogName('project_material')
-            ->logOnly(['data_kapal_id', 'kategori', 'nama_item', 'status'])
+            ->logOnly(['data_kapal_id', 'material_category_id', 'nama_item', 'material_status_id'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }
@@ -55,5 +53,15 @@ class ProjectMaterial extends Model
     public function dataKapal(): BelongsTo
     {
         return $this->belongsTo(DataKapal::class);
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(MaterialCategory::class, 'material_category_id');
+    }
+
+    public function status(): BelongsTo
+    {
+        return $this->belongsTo(MaterialStatus::class, 'material_status_id');
     }
 }

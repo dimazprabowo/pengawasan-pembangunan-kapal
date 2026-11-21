@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Jobs\GenerateLaporanHarianJob;
+use App\Models\DataKapal;
 use App\Models\LaporanHarian;
 use App\Models\LaporanLampiran;
 use App\Models\LaporanMingguan;
@@ -66,7 +67,7 @@ class LaporanMingguanWordService
     {
         $laporan->loadMissing([
             'user',
-            'dataKapal.company',
+            'dataKapal.owner',
             'dataKapal.galangan',
             'laporanHarian' => fn ($q) => $q->orderBy('tanggal_laporan'),
             'laporanHarian.dataKapal',
@@ -87,6 +88,7 @@ class LaporanMingguanWordService
         $processor = new TemplateProcessor($this->resolveTemplate($laporan));
 
         $this->setSingleValues($processor, $laporan);
+        $this->fillInfoUmum($processor, $laporan);
         $this->fillRingkasan($processor, $laporan);
         $this->fillKurvaS($processor, $laporan);
         $this->fillUraianKegiatan($processor, $laporan);
@@ -96,22 +98,19 @@ class LaporanMingguanWordService
         $this->fillLampiranHarian($processor, $laporan);
         $this->fillLampiranNc($processor, $ncs);
 
-        $relativePath = $this->saveDocument($processor, $laporan);
+        $files = app(FilePathService::class);
+        [$relativePath, $localPath] = $this->saveDocument($processor, $laporan);
         try {
-            $this->embedHarianDocs(storage_path('app/'.$relativePath), $this->resolveHarianDocs($laporan));
+            $this->embedHarianDocs($localPath, $this->resolveHarianDocs($laporan));
             $attachmentService = app(WordAttachmentService::class);
-            $attachmentService->append(
-                storage_path('app/'.$relativePath),
-                $ncs,
-                true,
-                $laporan->laporanExternal,
-            );
+            $attachmentService->append($localPath, $ncs, true);
             $attachmentService->embedExternals(
-                storage_path('app/'.$relativePath),
+                $localPath,
                 $laporan->laporanExternal,
             );
+            $files->commitLocalFile($localPath, $relativePath);
         } catch (\Throwable $e) {
-            @unlink(storage_path('app/'.$relativePath));
+            @unlink($localPath);
             throw $e;
         }
 
@@ -130,14 +129,14 @@ class LaporanMingguanWordService
             }
         }
 
-        $default = storage_path('app/'.self::TEMPLATE_PATH);
-        if (! file_exists($default)) {
+        $files = app(FilePathService::class);
+        if (! $files->exists(self::TEMPLATE_PATH)) {
             throw new \RuntimeException(
-                'Template Word mingguan tidak ditemukan. Upload template pada master Data Kapal atau sediakan default di storage/app/'.self::TEMPLATE_PATH
+                'Template Word mingguan tidak ditemukan. Upload template pada master Data Kapal atau sediakan default di penyimpanan: '.self::TEMPLATE_PATH
             );
         }
 
-        return $default;
+        return $files->localPath(self::TEMPLATE_PATH);
     }
 
     // ──────────────────────────────────────────────────────────────────
@@ -152,16 +151,22 @@ class LaporanMingguanWordService
         $processor->setValues([
             'minggu_ke' => $laporan->minggu_ke !== null ? (string) $laporan->minggu_ke : '-',
             'periode_label' => $periodeLabel,
-            'perusahaan' => $laporan->dataKapal?->company?->name ?? '-',
-            'lokasi' => $laporan->dataKapal?->galangan?->nama ?? '-',
+            'owner' => $laporan->dataKapal?->owner?->name ?? '-',
             'no_kapal' => $laporan->dataKapal?->nama ?? '-',
-            'kode_proyek' => $laporan->dataKapal?->kode ?? '-',
-            'tanggal' => $this->tanggal($laporan->tanggal_laporan),
-            'dibuat_oleh' => $laporan->user?->name ?? '-',
             'ttd_kota' => $laporan->dataKapal?->galangan?->kota ?? '-',
             'ttd_tanggal' => $this->tanggal($laporan->tanggal_laporan),
             'ttd_nama' => $laporan->user?->name ?? '-',
         ]);
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // INFORMASI UMUM (label : nilai) — field sama dengan laporan bulanan
+    // ──────────────────────────────────────────────────────────────────
+    private function fillInfoUmum(TemplateProcessor $processor, LaporanMingguan $laporan): void
+    {
+        WordStyleService::setComplexBlock($processor, 'tabel_info_umum', WordStyleService::labelValueTable(
+            DataKapal::infoUmumRows($laporan->dataKapal, $laporan->periode_selesai ?? $laporan->tanggal_laporan)
+        ));
     }
 
     // ──────────────────────────────────────────────────────────────────
@@ -470,13 +475,15 @@ class LaporanMingguanWordService
     }
 
     // ──────────────────────────────────────────────────────────────────
-    // E.2 LAPORAN HARIAN — docx harian utuh disisipkan via altChunk
+    // E.2 LAPORAN HARIAN — docx harian utuh disisipkan sebagai gambar halaman
     // ──────────────────────────────────────────────────────────────────
     /**
      * Pakai docx harian yang sudah ada (doc_path); generate dulu via job
      * yang sama dengan halaman harian bila belum ada / filenya hilang.
+     * Kesegaran dijaga LaporanDocumentService (edit harian mengosongkan
+     * doc_path). Harian yang gagal disiapkan menggagalkan mingguan.
      *
-     * @return string[] path absolut docx harian, urut tanggal
+     * @return string[] doc_path (storage) docx harian, urut tanggal
      */
     private function resolveHarianDocs(LaporanMingguan $laporan): array
     {
@@ -492,12 +499,15 @@ class LaporanMingguanWordService
                         'laporan_harian_id' => $harian->id,
                         'error' => $e->getMessage(),
                     ]);
+                    throw new \RuntimeException('Gagal menyiapkan lampiran laporan harian.', 0, $e);
                 }
             }
 
-            if ($path = $this->harianDocPath($harian)) {
-                $paths[] = $path;
+            $path = $this->harianDocPath($harian);
+            if (! $path) {
+                throw new \RuntimeException('Dokumen harian untuk lampiran mingguan belum tersedia.');
             }
+            $paths[] = $path;
         }
 
         return $paths;
@@ -509,55 +519,39 @@ class LaporanMingguanWordService
             return null;
         }
 
-        $path = storage_path('app/'.$harian->doc_path);
-
-        return file_exists($path) ? $path : null;
+        return app(FilePathService::class)->exists($harian->doc_path) ? $harian->doc_path : null;
     }
 
     /**
-     * Ganti paragraf ${lampiran_harian} dengan w:altChunk per docx harian.
-     * Word mengimpor isi tiap chunk saat dokumen dibuka (tampilan identik).
+     * Ganti paragraf ${lampiran_harian} dengan gambar halaman per docx
+     * harian (docx → pdf → webp). Isi tampil identik di semua viewer
+     * dan heading laporan anak tidak bocor ke outline dokumen induk.
      *
      * @param  string[]  $chunks
      */
     private function embedHarianDocs(string $docxPath, array $chunks): void
     {
+        $attachment = app(WordAttachmentService::class);
+        $images = [];
+        foreach ($chunks as $chunk) {
+            $images = array_merge($images, $attachment->reportPageImages($chunk));
+        }
+
+        if ($images) {
+            $attachment->embedReportPages($docxPath, $images, '${lampiran_harian}', 'LAPORAN HARIAN');
+
+            return;
+        }
+
+        // Tanpa lampiran: ganti placeholder dengan keterangan kosong.
         $zip = new \ZipArchive;
         if ($zip->open($docxPath) !== true) {
             throw new \RuntimeException('Gagal membuka dokumen mingguan untuk menyisipkan laporan harian.');
         }
-
         $document = $zip->getFromName('word/document.xml');
-        $rels = $zip->getFromName('word/_rels/document.xml.rels');
-        $types = $zip->getFromName('[Content_Types].xml');
-
-        $pageBreak = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
-
-        // Halaman pembatas "LAPORAN HARIAN" terpusat dua sumbu
-        $body = WordAttachmentService::coverPageXml('LAPORAN HARIAN', self::NAVY);
-        foreach ($chunks as $i => $chunk) {
-            $n = $i + 1;
-            $id = 'rIdAltChunk'.$n;
-            $zip->addFile($chunk, "word/afchunk{$n}.docx");
-            $rels = str_replace('</Relationships>',
-                '<Relationship Id="'.$id.'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/aFChunk" Target="afchunk'.$n.'.docx"/></Relationships>', $rels);
-            $body .= $pageBreak.'<w:altChunk r:id="'.$id.'"/>';
-        }
-
-        if ($chunks && ! str_contains($types, 'Extension="docx"')) {
-            $types = str_replace('</Types>',
-                '<Default Extension="docx" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>', $types);
-        }
-
-        // Paragraf placeholder (bila tidak ada chunk, ganti dengan keterangan kosong)
-        $replacement = $chunks
-            ? $body
-            : '<w:p><w:r><w:rPr><w:i/><w:color w:val="7F7F7F"/></w:rPr><w:t>Tidak ada laporan harian pada periode ini.</w:t></w:r></w:p>';
-        $document = preg_replace('/<w:p[ >](?:(?!<\/w:p>).)*?\$\{lampiran_harian\}.*?<\/w:p>/s', $replacement, $document, 1);
-
+        $document = preg_replace('/<w:p[ >](?:(?!<\/w:p>).)*?\$\{lampiran_harian\}.*?<\/w:p>/s',
+            '<w:p><w:r><w:rPr><w:i/><w:color w:val="7F7F7F"/></w:rPr><w:t>Tidak ada laporan harian pada periode ini.</w:t></w:r></w:p>', $document, 1);
         $zip->addFromString('word/document.xml', $document);
-        $zip->addFromString('word/_rels/document.xml.rels', $rels);
-        $zip->addFromString('[Content_Types].xml', $types);
         $zip->close();
     }
 
@@ -689,16 +683,19 @@ class LaporanMingguanWordService
     // ──────────────────────────────────────────────────────────────────
     // SAVE DOCUMENT
     // ──────────────────────────────────────────────────────────────────
-    private function saveDocument(TemplateProcessor $processor, LaporanMingguan $laporan): string
+    /**
+     * Simpan dokumen ke file lokal temporer; pemanggil menjalankan
+     * post-processing (lampiran) lalu commitLocalFile() ke disk.
+     *
+     * @return array{0: string, 1: string} [path relatif di disk, path lokal]
+     */
+    private function saveDocument(TemplateProcessor $processor, LaporanMingguan $laporan): array
     {
-        $dir = storage_path('app/laporan/word');
-        if (! is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-
         $filename = sprintf('laporan-mingguan-%d-%s.docx', $laporan->id, now()->format('YmdHis'));
-        $processor->saveAs($dir.'/'.$filename);
 
-        return 'laporan/word/'.$filename;
+        $local = app(FilePathService::class)->tempPath('docx');
+        $processor->saveAs($local);
+
+        return ['laporan/word/'.$filename, $local];
     }
 }

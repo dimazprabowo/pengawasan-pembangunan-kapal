@@ -24,7 +24,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'email',
         'password',
         'pending_email',
-        'company_id',
+        'owner_id',
         'phone',
         'position',
         'is_active',
@@ -46,19 +46,19 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     // Relationships
-    public function company(): BelongsTo
+    public function owner(): BelongsTo
     {
-        return $this->belongsTo(Company::class);
+        return $this->belongsTo(Owner::class);
     }
 
     /**
      * Scope akses data kapal: semua data kapal bila punya izin
-     * laporan_view_all_data_kapal, selain itu hanya kapal milik perusahaan user.
+     * laporan_view_all_data_kapal, selain itu hanya kapal milik owner user.
      */
     public function canAccessDataKapal(DataKapal $dataKapal): bool
     {
         return $this->can('laporan_view_all_data_kapal')
-            || $dataKapal->company_id === $this->company_id;
+            || $dataKapal->owner_id === $this->owner_id;
     }
 
     public function userNotifications(): HasMany
@@ -89,9 +89,9 @@ class User extends Authenticatable implements MustVerifyEmail
         return $query->role($role);
     }
 
-    public function scopeByCompany($query, int $companyId)
+    public function scopeByOwner($query, int $ownerId)
     {
-        return $query->where('company_id', $companyId);
+        return $query->where('owner_id', $ownerId);
     }
 
     // Accessors

@@ -8,11 +8,12 @@ use App\Enums\NcStatus;
 use App\Enums\ProgressStatus;
 use App\Livewire\MasterData\GalanganManagement;
 use App\Livewire\Pages\Dashboard;
-use App\Models\Company;
 use App\Models\DataKapal;
 use App\Models\Galangan;
+use App\Models\KurvaSWorkGroup;
 use App\Models\LaporanHarian;
 use App\Models\LaporanNc;
+use App\Models\Owner;
 use App\Models\User;
 use App\Services\DashboardService;
 use Database\Seeders\PermissionSeeder;
@@ -27,9 +28,9 @@ class DashboardGalanganMapTest extends TestCase
 {
     use RefreshDatabase;
 
-    private Company $companyA;
+    private Owner $ownerA;
 
-    private Company $companyB;
+    private Owner $ownerB;
 
     private Galangan $galangan;
 
@@ -42,25 +43,25 @@ class DashboardGalanganMapTest extends TestCase
         parent::setUp();
         $this->seed(PermissionSeeder::class);
 
-        $this->companyA = Company::create(['code' => 'CMP-A', 'name' => 'PT Alfa', 'status' => 'active']);
-        $this->companyB = Company::create(['code' => 'CMP-B', 'name' => 'PT Beta', 'status' => 'active']);
+        $this->ownerA = Owner::create(['code' => 'CMP-A', 'name' => 'PT Alfa', 'status' => 'active']);
+        $this->ownerB = Owner::create(['code' => 'CMP-B', 'name' => 'PT Beta', 'status' => 'active']);
         $this->galangan = Galangan::factory()->active()->create([
             'kode' => 'GLG-TEST1', 'nama' => 'Galangan Uji Surabaya', 'latitude' => -7.2, 'longitude' => 112.73,
         ]);
         $this->kapalA = DataKapal::create([
-            'company_id' => $this->companyA->id, 'galangan_id' => $this->galangan->id,
+            'owner_id' => $this->ownerA->id, 'galangan_id' => $this->galangan->id,
             'nama' => 'Kapal Alfa', 'status' => DataKapalStatus::Active,
-            'tanggal_mulai_kontrak' => today()->subDays(80), 'durasi_kontrak_hari' => 100,
+            'tanggal_mulai_pelaksanaan' => today()->subDays(80), 'waktu_pelaksanaan_hari' => 100,
         ]);
         $this->kapalB = DataKapal::create([
-            'company_id' => $this->companyB->id, 'galangan_id' => $this->galangan->id,
+            'owner_id' => $this->ownerB->id, 'galangan_id' => $this->galangan->id,
             'nama' => 'Kapal Beta', 'status' => DataKapalStatus::Active,
         ]);
     }
 
-    private function user(array $permissions, ?Company $company = null): User
+    private function user(array $permissions, ?Owner $owner = null): User
     {
-        $user = User::factory()->create(['company_id' => ($company ?? $this->companyA)->id]);
+        $user = User::factory()->create(['owner_id' => ($owner ?? $this->ownerA)->id]);
         $user->givePermissionTo($permissions);
 
         return $user;
@@ -98,7 +99,7 @@ class DashboardGalanganMapTest extends TestCase
     }
 
     #[Test]
-    public function detail_galangan_hanya_menampilkan_kapal_sesuai_scope_perusahaan(): void
+    public function detail_galangan_hanya_menampilkan_kapal_sesuai_scope_owner(): void
     {
         $this->actingAs($this->user(['dashboard_view']));
 
@@ -139,7 +140,7 @@ class DashboardGalanganMapTest extends TestCase
     }
 
     #[Test]
-    public function open_laporan_kapal_perusahaan_lain_ditolak(): void
+    public function open_laporan_kapal_owner_lain_ditolak(): void
     {
         $this->actingAs($this->user(['dashboard_view', 'laporan_view']));
 
@@ -224,6 +225,55 @@ class DashboardGalanganMapTest extends TestCase
             ->set('longitude', $lng)
             ->call('save')
             ->assertHasErrors([$field]);
+    }
+
+    #[Test]
+    public function kurva_s_dashboard_hanya_menampilkan_kapal_terscope_dan_punya_jadwal(): void
+    {
+        KurvaSWorkGroup::create(['data_kapal_id' => $this->kapalA->id, 'nama' => 'Hull', 'bobot' => 60, 'sort_order' => 0]);
+        KurvaSWorkGroup::create(['data_kapal_id' => $this->kapalB->id, 'nama' => 'Hull', 'bobot' => 60, 'sort_order' => 0]);
+
+        $this->actingAs($this->user(['dashboard_view']));
+
+        // Scope owner: hanya kapalA yang punya jadwal; kapalB (owner lain) tidak tampil.
+        Livewire::test(Dashboard::class)
+            ->assertSee('Progres Kurva-S per Kapal')
+            ->assertSee('Kapal Alfa')
+            ->assertDontSee('Kapal Beta')
+            ->assertViewHas('kurvaSKapal', fn ($rows) => $rows->pluck('id')->all() === [$this->kapalA->id])
+            ->assertViewHas('selectedKurvaSkapal', null);
+
+        // Kapal tanpa work group tidak masuk daftar.
+        KurvaSWorkGroup::where('data_kapal_id', $this->kapalA->id)->delete();
+        Livewire::test(Dashboard::class)
+            ->assertSee('Belum ada kapal dengan jadwal Kurva-S')
+            ->assertViewHas('kurvaSKapal', fn ($rows) => $rows->isEmpty());
+    }
+
+    #[Test]
+    public function kurva_s_dashboard_pilih_kapal_menampilkan_grafik_dan_tolak_scope_lain(): void
+    {
+        KurvaSWorkGroup::create(['data_kapal_id' => $this->kapalA->id, 'nama' => 'Hull', 'bobot' => 60, 'sort_order' => 0]);
+        KurvaSWorkGroup::create(['data_kapal_id' => $this->kapalB->id, 'nama' => 'Hull', 'bobot' => 60, 'sort_order' => 0]);
+
+        $this->actingAs($this->user(['dashboard_view']));
+
+        $keyA = $this->kapalA->getRouteKey();
+        Livewire::test(Dashboard::class)
+            ->call('selectKurvaSkapal', $keyA)
+            ->assertSet('kurvaSkapalKey', $keyA)
+            ->assertViewHas('selectedKurvaSkapal', fn ($k) => $k?->id === $this->kapalA->id)
+            ->assertViewHas('kurvaSChart', fn (array $c) => $c['has_rencana'] === true)
+            ->call('setKurvaSMode', 'bulanan')
+            ->assertSet('kurvaSMode', 'bulanan')
+            ->call('setKurvaSMode', 'asal')
+            ->assertStatus(404);
+
+        // Kapal di luar scope owner tidak bisa dipilih walau key valid.
+        Livewire::test(Dashboard::class)
+            ->call('selectKurvaSkapal', $this->kapalB->getRouteKey())
+            ->assertSet('kurvaSkapalKey', null)
+            ->assertViewHas('selectedKurvaSkapal', null);
     }
 
     #[Test]

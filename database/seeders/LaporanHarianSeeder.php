@@ -35,17 +35,22 @@ class LaporanHarianSeeder extends Seeder
             return;
         }
 
-        // Rentang tanggal: dari tanggal mulai kontrak tiap kapal s/d hari ini —
-        // laporan harian tidak boleh melebihi tanggal berjalan.
+        // Rentang tanggal: dari tanggal mulai kontrak tiap kapal s/d hari ini,
+        // dibatasi tanggal selesai kontrak — proyek yang sudah berakhir tidak
+        // mendapat laporan harian setelah kontrak selesai.
         $today = Carbon::today();
 
         $count = 0;
         foreach ($dataKapals as $dataKapal) {
             $workGroups = KurvaSWorkGroup::where('data_kapal_id', $dataKapal->id)->orderBy('sort_order')->get();
-            $tanggalMulai = $dataKapal->tanggal_mulai_kontrak?->copy()->startOfDay()
+            $tanggalMulai = $dataKapal->tanggal_mulai_pelaksanaan?->copy()->startOfDay()
                 ?? $today->copy()->subDays(14);
+            $tanggalAkhir = $dataKapal->tanggal_selesai_pelaksanaan?->copy()->startOfDay();
+            if (! $tanggalAkhir || $tanggalAkhir->gt($today)) {
+                $tanggalAkhir = $today->copy();
+            }
 
-            for ($tanggal = $tanggalMulai->copy(); $tanggal->lte($today); $tanggal->addDay()) {
+            for ($tanggal = $tanggalMulai->copy(); $tanggal->lte($tanggalAkhir); $tanggal->addDay()) {
                 $i = (int) $tanggalMulai->diffInDays($tanggal);
 
                 $laporan = LaporanHarian::firstOrCreate(
@@ -165,7 +170,7 @@ class LaporanHarianSeeder extends Seeder
             ->create(800, 600)
             ->fill($colors[$hari % count($colors)])
             ->toWebp(85);
-        Storage::disk('local')->put($path, $encoded);
+        Storage::disk()->put($path, $encoded);
 
         $laporan->lampiran()->create([
             'laporan_aktivitas_id' => $aktivitas?->id,

@@ -29,7 +29,7 @@ class LaporanMingguanExport implements FromQuery, ShouldAutoSize, WithHeadings, 
 
     public function query(): Builder
     {
-        $query = LaporanMingguan::with(['user', 'dataKapal.company', 'dataKapal.galangan']);
+        $query = LaporanMingguan::with(['user', 'dataKapal.owner', 'dataKapal.galangan']);
 
         if ($this->search) {
             $query->where(function ($q) {
@@ -61,7 +61,7 @@ class LaporanMingguanExport implements FromQuery, ShouldAutoSize, WithHeadings, 
             'Judul',
             'Tanggal Laporan',
             'Data Kapal',
-            'Perusahaan',
+            'Owner',
             'Galangan',
             'Pembuat',
             'Tanggal Dibuat',
@@ -78,7 +78,7 @@ class LaporanMingguanExport implements FromQuery, ShouldAutoSize, WithHeadings, 
             $laporan->judul,
             $laporan->tanggal_laporan->format('d/m/Y'),
             $laporan->dataKapal->nama ?? '-',
-            $laporan->dataKapal->company->name ?? '-',
+            $laporan->dataKapal->owner->name ?? '-',
             $laporan->dataKapal->galangan->nama ?? '-',
             $laporan->user->name ?? '-',
             $laporan->created_at->format('d/m/Y H:i'),

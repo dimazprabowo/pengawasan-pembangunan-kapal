@@ -19,8 +19,6 @@ return new class extends Migration
             $table->date('periode_mulai')->nullable();
             $table->date('periode_selesai')->nullable();
             $table->text('ringkasan')->nullable();
-            $table->json('realisasi_progress')->nullable()
-                ->comment('Milestone realisasi BAB 2.3 [{uraian, tanggal, keterangan}]');
             // BAB 3.2 problem & rekomendasi = tarikan otomatis dari rekap NC (tidak disimpan).
             $table->unsignedSmallInteger('bulan_ke')
                 ->comment('Nomor bulan konstruksi (referensi ke kurva_s_rencana)');
@@ -31,6 +29,22 @@ return new class extends Migration
             $table->enum('doc_status', ['pending', 'processing', 'completed', 'failed'])->nullable();
             $table->timestamp('doc_generated_at')->nullable();
             $table->text('doc_error')->nullable();
+
+            // Released PDF (hasil konversi docx via Release — di-reset saat doc digenerate ulang)
+            $table->string('pdf_path')->nullable();
+            $table->string('pdf_name')->nullable();
+            $table->enum('pdf_status', ['pending', 'processing', 'completed', 'failed'])->nullable();
+            $table->timestamp('pdf_generated_at')->nullable();
+            $table->text('pdf_error')->nullable();
+
+            // Lembar Pengesahan tanda tangan basah (PDF upload) — saat
+            // rilis, halaman pengesahan dari Word diganti file ini.
+            $table->string('pengesahan_path')->nullable();
+            $table->string('pengesahan_name')->nullable();
+            $table->unsignedBigInteger('pengesahan_size')->nullable();
+            $table->enum('pengesahan_status', ['pending', 'processing', 'completed', 'failed'])->nullable();
+            $table->timestamp('pengesahan_processed_at')->nullable();
+            $table->text('pengesahan_error')->nullable();
 
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();

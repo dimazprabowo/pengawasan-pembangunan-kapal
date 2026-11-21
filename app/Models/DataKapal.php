@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use App\Enums\DataKapalStatus;
+use App\Services\FilePathService;
 use App\Traits\HasEncryptedRouteKey;
 use App\Traits\HasUserStamps;
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -33,17 +35,18 @@ class DataKapal extends Model
     ];
 
     protected $fillable = [
-        'company_id',
+        'owner_id',
         'galangan_id',
         'nama',
         'deskripsi',
         'nama_pekerjaan',
-        'nomor_kontrak',
-        'nomor_pembangunan',
+        'nomor_kontrak_galangan',
+        'nomor_kontrak_pengawas',
+        'nomor_kontrak_gambar',
         'penandatangan',
         'spesifikasi',
-        'tanggal_mulai_kontrak',
-        'durasi_kontrak_hari',
+        'tanggal_mulai_pelaksanaan',
+        'waktu_pelaksanaan_hari',
         'minggu_bulan_map',
         'template_path_harian',
         'template_path_mingguan',
@@ -61,8 +64,8 @@ class DataKapal extends Model
         'status' => DataKapalStatus::class,
         'spesifikasi' => 'array',
         'penandatangan' => 'array',
-        'tanggal_mulai_kontrak' => 'date',
-        'durasi_kontrak_hari' => 'integer',
+        'tanggal_mulai_pelaksanaan' => 'date',
+        'waktu_pelaksanaan_hari' => 'integer',
         'minggu_bulan_map' => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
@@ -100,14 +103,14 @@ class DataKapal extends Model
     {
         return LogOptions::defaults()
             ->useLogName('data_kapal')
-            ->logOnly(['kode', 'company_id', 'galangan_id', 'nama', 'nama_pekerjaan', 'nomor_kontrak', 'nomor_pembangunan', 'deskripsi', 'status', 'tanggal_mulai_kontrak', 'durasi_kontrak_hari'])
+            ->logOnly(['kode', 'owner_id', 'galangan_id', 'nama', 'nama_pekerjaan', 'nomor_kontrak_galangan', 'nomor_kontrak_pengawas', 'nomor_kontrak_gambar', 'deskripsi', 'status', 'tanggal_mulai_pelaksanaan', 'waktu_pelaksanaan_hari'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }
 
-    public function company(): BelongsTo
+    public function owner(): BelongsTo
     {
-        return $this->belongsTo(Company::class);
+        return $this->belongsTo(Owner::class);
     }
 
     public function galangan(): BelongsTo
@@ -142,7 +145,7 @@ class DataKapal extends Model
 
     public function drawingRegisters(): HasMany
     {
-        return $this->hasMany(DrawingRegister::class)->orderBy('nomor');
+        return $this->hasMany(DrawingRegister::class)->orderBy('nama');
     }
 
     public function projectVendors(): HasMany
@@ -152,7 +155,7 @@ class DataKapal extends Model
 
     public function projectMaterials(): HasMany
     {
-        return $this->hasMany(ProjectMaterial::class)->orderBy('kategori')->orderBy('nama_item');
+        return $this->hasMany(ProjectMaterial::class)->orderBy('nama_item');
     }
 
     public function pengujians(): HasMany
@@ -187,9 +190,9 @@ class DataKapal extends Model
         return $query->where('status', DataKapalStatus::Active);
     }
 
-    public function scopeByCompany($query, int $companyId)
+    public function scopeByOwner($query, int $ownerId)
     {
-        return $query->where('company_id', $companyId);
+        return $query->where('owner_id', $ownerId);
     }
 
     public function getIsActiveAttribute(): bool
@@ -198,40 +201,81 @@ class DataKapal extends Model
     }
 
     /**
-     * Kontrak dianggap terisi lengkap jika tanggal mulai & durasi hari ada.
+     * Pelaksanaan dianggap terisi lengkap jika tanggal mulai & waktu hari ada.
      */
-    public function hasKontrak(): bool
+    public function hasPelaksanaan(): bool
     {
-        return ! empty($this->tanggal_mulai_kontrak) && ! empty($this->durasi_kontrak_hari);
+        return ! empty($this->tanggal_mulai_pelaksanaan) && ! empty($this->waktu_pelaksanaan_hari);
     }
 
     /**
-     * Tanggal selesai kontrak = tanggal mulai + durasi hari - 1 (hari kalender, inklusif).
+     * Tanggal selesai pelaksanaan = tanggal mulai + waktu hari - 1 (hari kalender, inklusif).
      */
-    public function getTanggalSelesaiKontrakAttribute(): ?Carbon
+    public function getTanggalSelesaiPelaksanaanAttribute(): ?Carbon
     {
-        if (! $this->hasKontrak()) {
+        if (! $this->hasPelaksanaan()) {
             return null;
         }
 
-        return $this->tanggal_mulai_kontrak->copy()->addDays($this->durasi_kontrak_hari - 1);
+        return $this->tanggal_mulai_pelaksanaan->copy()->addDays($this->waktu_pelaksanaan_hari - 1);
     }
 
     /**
-     * Sisa hari kalender sampai kontrak selesai (negatif = lewat kontrak, null = kontrak belum diisi).
+     * Sisa hari kalender sampai pelaksanaan selesai (negatif = lewat waktu, null = pelaksanaan belum diisi).
      */
-    public function sisaHariKontrak(): ?int
+    public function sisaHariPelaksanaan(): ?int
     {
-        return $this->tanggal_selesai_kontrak
-            ? (int) now()->startOfDay()->diffInDays($this->tanggal_selesai_kontrak, false)
+        return $this->tanggal_selesai_pelaksanaan
+            ? (int) now()->startOfDay()->diffInDays($this->tanggal_selesai_pelaksanaan, false)
             : null;
+    }
+
+    /**
+     * Realisasi & sisa hari pelaksanaan s.d. cutoff (inklusif, clamp jangka).
+     *
+     * @return array{0: int, 1: int} [realisasi, sisa]
+     */
+    public function progresWaktuPelaksanaan(?CarbonInterface $cutoff): array
+    {
+        $jangka = (int) ($this->waktu_pelaksanaan_hari ?? 0);
+        $realisasi = ($this->tanggal_mulai_pelaksanaan && $cutoff)
+            ? min(max(0, (int) $this->tanggal_mulai_pelaksanaan->diffInDays($cutoff) + 1), $jangka)
+            : 0;
+
+        return [$realisasi, max(0, $jangka - $realisasi)];
+    }
+
+    /**
+     * Baris INFORMASI UMUM (label => nilai) untuk dokumen laporan —
+     * dipakai bersama laporan mingguan & bulanan.
+     *
+     * @return array<string, string>
+     */
+    public static function infoUmumRows(?self $dk, ?CarbonInterface $cutoff): array
+    {
+        $jangka = (int) ($dk?->waktu_pelaksanaan_hari ?? 0);
+        [$realisasi, $sisa] = $dk?->progresWaktuPelaksanaan($cutoff) ?? [0, 0];
+        $tanggal = fn ($d) => $d ? $d->copy()->locale('id')->translatedFormat('d F Y') : '-';
+
+        return [
+            'PEMILIK PEKERJAAN' => trim(($dk?->owner?->name ?? '-').' '.($dk?->owner?->address ?? '')),
+            'NAMA PEKERJAAN' => $dk?->nama_pekerjaan ?: ($dk?->nama ?? '-'),
+            'NAMA GALANGAN' => trim(($dk?->galangan?->nama ?? '-').' '.($dk?->galangan?->alamat ?? '')),
+            'NOMOR KONTRAK GALANGAN' => $dk?->nomor_kontrak_galangan ?: '-',
+            'KONSULTAN PENGAWAS' => 'PT. BIRO KLASIFIKASI INDONESIA (PERSERO) SBU Marine & Offshore Migas',
+            'NOMOR KONTRAK PENGAWAS' => $dk?->nomor_kontrak_pengawas ?: '-',
+            'TANGGAL MULAI PELAKSANAAN' => $tanggal($dk?->tanggal_mulai_pelaksanaan),
+            'WAKTU PELAKSANAAN' => $jangka > 0 ? $jangka.' Hari Kalender' : '-',
+            'REALISASI WAKTU PELAKSANAAN' => $jangka > 0 ? $realisasi.' Hari Kalender' : '-',
+            'SISA WAKTU PELAKSANAAN' => $jangka > 0 ? $sisa.' Hari Kalender' : '-',
+        ];
     }
 
     public function hasTemplate(string $tipe): bool
     {
         $column = 'template_path_'.$tipe;
         $hasPath = ! empty($this->$column);
-        $fileExists = $hasPath ? \Storage::disk('local')->exists($this->$column) : false;
+        $fileExists = $hasPath ? \Storage::disk()->exists($this->$column) : false;
 
         return $hasPath && $fileExists;
     }
@@ -244,7 +288,7 @@ class DataKapal extends Model
 
         $column = 'template_path_'.$tipe;
 
-        return \Storage::disk('local')->path($this->$column);
+        return app(FilePathService::class)->localPath($this->$column);
     }
 
     public function hasAnyTemplate(): bool

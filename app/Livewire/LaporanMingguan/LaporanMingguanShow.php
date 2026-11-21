@@ -3,6 +3,7 @@
 namespace App\Livewire\LaporanMingguan;
 
 use App\Jobs\GenerateLaporanMingguanJob;
+use App\Jobs\ReleaseLaporanMingguanPdfJob;
 use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
 use App\Models\DataKapal;
@@ -10,8 +11,9 @@ use App\Models\KurvaSWorkGroup;
 use App\Models\LaporanHarian;
 use App\Models\LaporanLampiran;
 use App\Models\LaporanMingguan;
+use App\Services\FilePathService;
 use App\Services\KurvaSService;
-use App\Services\LaporanMingguanService;
+use App\Services\LaporanDocumentService;
 use App\Services\LaporanNcService;
 use App\Services\QueueStatusService;
 use Illuminate\Database\Eloquent\Collection;
@@ -50,6 +52,12 @@ class LaporanMingguanShow extends Component
 
     public bool $showDeleteDocConfirm = false;
 
+    public bool $showReleaseConfirm = false;
+
+    public ?string $lastDocStatus = null;
+
+    public ?string $lastPdfStatus = null;
+
     // Progress per group (for compatibility with progress history component)
     public array $progressPerGroup = [];
 
@@ -61,13 +69,16 @@ class LaporanMingguanShow extends Component
 
         $this->dataKapal = $dataKapal;
         $this->loadLaporan($laporanMingguan);
+
+        $this->lastDocStatus = $this->laporan->doc_status;
+        $this->lastPdfStatus = $this->laporan->pdf_status;
     }
 
     private function loadLaporan(LaporanMingguan $laporanMingguan): void
     {
         $this->laporan = $laporanMingguan->load([
             'user',
-            'dataKapal.company',
+            'dataKapal.owner',
             'dataKapal.galangan',
             'laporanHarian' => function ($query) {
                 $query->orderBy('tanggal_laporan', 'asc');
@@ -204,7 +215,7 @@ class LaporanMingguanShow extends Component
 
         $lampiran = LaporanLampiran::with('laporanHarian')->find($lampiranId);
 
-        if (! $lampiran || ! $lampiran->file_path || ! Storage::disk('local')->exists($lampiran->file_path)) {
+        if (! $lampiran || ! $lampiran->file_path || ! Storage::disk()->exists($lampiran->file_path)) {
             $this->notifyError('File tidak ditemukan.');
 
             return;
@@ -220,7 +231,7 @@ class LaporanMingguanShow extends Component
             return;
         }
 
-        return response()->download(Storage::disk('local')->path($lampiran->file_path), $lampiran->file_name);
+        return Storage::disk()->download($lampiran->file_path, $lampiran->file_name);
     }
 
     public function confirmRegenerate(): void
@@ -255,10 +266,7 @@ class LaporanMingguanShow extends Component
         try {
             // Hapus file lama jika ada (untuk generate ulang)
             if ($this->laporan->doc_path) {
-                $oldPath = storage_path('app/'.$this->laporan->doc_path);
-                if (file_exists($oldPath)) {
-                    @unlink($oldPath);
-                }
+                app(FilePathService::class)->delete($this->laporan->doc_path);
             }
 
             $this->laporan->update([
@@ -280,10 +288,26 @@ class LaporanMingguanShow extends Component
     {
         $this->laporan->refresh();
 
-        if ($this->laporan->isDocCompleted()) {
-            $this->notifySuccess('Dokumen Word berhasil digenerate! Silakan download.');
-        } elseif ($this->laporan->isDocFailed()) {
-            $this->notifyError('Generate dokumen gagal: '.($this->laporan->doc_error ?? 'Unknown error'));
+        // Notifikasi hanya saat status BERUBAH — polling terus berjalan
+        // selama doc/pdf completed sehingga tanpa guard toast berulang tiap 4 detik.
+        if ($this->laporan->doc_status !== $this->lastDocStatus) {
+            $this->lastDocStatus = $this->laporan->doc_status;
+
+            if ($this->laporan->isDocCompleted()) {
+                $this->notifySuccess('Dokumen Word berhasil digenerate! Silakan download.');
+            } elseif ($this->laporan->isDocFailed()) {
+                $this->notifyError('Generate dokumen gagal: '.($this->laporan->doc_error ?? 'Unknown error'));
+            }
+        }
+
+        if ($this->laporan->pdf_status !== $this->lastPdfStatus) {
+            $this->lastPdfStatus = $this->laporan->pdf_status;
+
+            if ($this->laporan->isPdfCompleted()) {
+                $this->notifySuccess('PDF rilis berhasil digenerate! Silakan download.');
+            } elseif ($this->laporan->isPdfFailed()) {
+                $this->notifyError('Generate PDF rilis gagal. Silakan coba lagi.');
+            }
         }
     }
 
@@ -317,7 +341,7 @@ class LaporanMingguanShow extends Component
             return;
         }
 
-        if (! Storage::disk('local')->exists($external->file_path)) {
+        if (! Storage::disk()->exists($external->file_path)) {
             $this->notifyError('File tidak ditemukan.');
 
             return;
@@ -337,10 +361,7 @@ class LaporanMingguanShow extends Component
             $downloadFileName = $originalFileName;
         }
 
-        return response()->download(
-            Storage::disk('local')->path($external->file_path),
-            $downloadFileName
-        );
+        return Storage::disk()->download($external->file_path, $downloadFileName);
     }
 
     public function confirmDeleteDoc(): void
@@ -360,20 +381,7 @@ class LaporanMingguanShow extends Component
         $this->authorize('generateWord', $this->laporan);
 
         try {
-            if ($this->laporan->doc_path) {
-                $path = storage_path('app/'.$this->laporan->doc_path);
-                if (file_exists($path)) {
-                    @unlink($path);
-                }
-            }
-
-            $this->laporan->update([
-                'doc_path' => null,
-                'doc_name' => null,
-                'doc_status' => null,
-                'doc_generated_at' => null,
-                'doc_error' => null,
-            ]);
+            app(LaporanDocumentService::class)->clearDoc($this->laporan);
 
             $this->laporan->refresh();
             $this->notifySuccess('Dokumen Word berhasil dihapus.');
@@ -392,23 +400,85 @@ class LaporanMingguanShow extends Component
             return;
         }
 
-        $filePath = storage_path('app/'.$this->laporan->doc_path);
-        if (! file_exists($filePath)) {
+        $files = app(FilePathService::class);
+        if (! $files->exists($this->laporan->doc_path)) {
             $this->notifyError('File tidak ditemukan.');
 
             return;
         }
 
-        return response()->download($filePath, $this->laporan->doc_name);
+        return $files->download($this->laporan->doc_path, $this->laporan->doc_name);
     }
 
-    public function removeDoc(LaporanMingguanService $service): void
+    public function confirmReleasePdf(): void
     {
-        $this->authorize('update', $this->laporan);
+        $this->authorize('generateWord', $this->laporan);
 
-        $service->removeDoc($this->laporan);
+        if (! $this->laporan->hasDoc() || ! $this->laporan->isDocCompleted()) {
+            $this->notifyWarning('Generate dokumen Word terlebih dahulu sebelum release PDF.');
 
-        $this->notifySuccess('Dokumen berhasil dihapus.');
+            return;
+        }
+
+        $this->showReleaseConfirm = true;
+    }
+
+    public function cancelReleasePdf(): void
+    {
+        $this->showReleaseConfirm = false;
+    }
+
+    public function releasePdf(): void
+    {
+        $this->showReleaseConfirm = false;
+        $this->authorize('generateWord', $this->laporan);
+
+        if (! $this->laporan->hasDoc() || ! $this->laporan->isDocCompleted()) {
+            $this->notifyWarning('Generate dokumen Word terlebih dahulu sebelum release PDF.');
+
+            return;
+        }
+
+        if ($this->laporan->isPdfProcessing()) {
+            $this->notifyWarning('PDF rilis sedang dalam proses generate. Mohon tunggu.');
+
+            return;
+        }
+
+        try {
+            $this->laporan->update([
+                'pdf_status' => 'pending',
+                'pdf_error' => null,
+            ]);
+
+            ReleaseLaporanMingguanPdfJob::dispatch($this->laporan);
+
+            $this->laporan->refresh();
+
+            $this->notifySuccess('Proses release PDF dimulai. Halaman akan otomatis diperbarui.');
+        } catch (\Exception $e) {
+            $this->notifyError('Gagal memulai proses release PDF. Silakan coba lagi.');
+        }
+    }
+
+    public function downloadPdf()
+    {
+        $this->authorize('downloadWord', $this->laporan);
+
+        if (! $this->laporan->hasPdf() || ! $this->laporan->isPdfCompleted()) {
+            $this->notifyError('PDF rilis tidak tersedia. Klik Release terlebih dahulu.');
+
+            return;
+        }
+
+        $files = app(FilePathService::class);
+        if (! $files->exists($this->laporan->pdf_path)) {
+            $this->notifyError('File tidak ditemukan.');
+
+            return;
+        }
+
+        return $files->download($this->laporan->pdf_path, $this->laporan->pdf_name);
     }
 
     public function render(QueueStatusService $queueStatusService, KurvaSService $kurvaSService)

@@ -3,7 +3,11 @@
 namespace App\Services;
 
 use PhpOffice\PhpWord\Element\AbstractElement;
+use PhpOffice\PhpWord\Element\Table;
 use PhpOffice\PhpWord\PhpWord;
+use PhpOffice\PhpWord\SimpleType\Jc;
+use PhpOffice\PhpWord\SimpleType\JcTable;
+use PhpOffice\PhpWord\SimpleType\TblWidth;
 use PhpOffice\PhpWord\Style;
 use PhpOffice\PhpWord\Style\Font;
 use PhpOffice\PhpWord\Style\Paragraph;
@@ -29,6 +33,37 @@ final class WordStyleService
     {
         self::prepare($block);
         $processor->setComplexBlock($placeholder, $block);
+    }
+
+    /**
+     * Tabel label | : | nilai (pola blok info laporan — tanpa header).
+     * Dipakai bersama laporan mingguan & bulanan.
+     *
+     * @param  array<string, string>  $rows
+     */
+    public static function labelValueTable(array $rows): Table
+    {
+        $t = new Table([
+            'borderSize' => 4,
+            'borderColor' => '8EAADB',
+            'cellMarginLeft' => 80,
+            'cellMarginRight' => 80,
+            'cellMarginTop' => 40,
+            'cellMarginBottom' => 40,
+            'alignment' => JcTable::CENTER,
+            'layout' => 'fixed',
+            'unit' => TblWidth::TWIP,
+            'width' => 9026,
+        ]);
+        foreach ($rows as $label => $value) {
+            $t->addRow();
+            $t->addCell(3200, ['bgColor' => 'D9E2F3', 'valign' => 'center'])
+                ->addText($label, ['bold' => true, 'size' => 9, 'color' => '1F3864']);
+            $t->addCell(300, ['valign' => 'center'])->addText(':', ['size' => 9], ['alignment' => Jc::CENTER]);
+            $t->addCell(5526, ['valign' => 'center'])->addText($value !== '' ? $value : '-', ['size' => 9]);
+        }
+
+        return $t;
     }
 
     private static function prepareElement(AbstractElement $element): void

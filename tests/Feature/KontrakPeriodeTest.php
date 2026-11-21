@@ -7,6 +7,7 @@ use App\Models\DataKapal;
 use App\Models\LaporanMingguan;
 use App\Models\User;
 use App\Services\KontrakPeriodeService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -25,28 +26,28 @@ class KontrakPeriodeTest extends TestCase
         return DataKapal::create([
             'nama' => 'Kapal Uji',
             'status' => 'active',
-            'tanggal_mulai_kontrak' => '2026-01-15',
-            'durasi_kontrak_hari' => $durasi,
+            'tanggal_mulai_pelaksanaan' => '2026-01-15',
+            'waktu_pelaksanaan_hari' => $durasi,
         ]);
     }
 
     public function test_has_kontrak_memerlukan_kedua_field(): void
     {
         $jk = new DataKapal;
-        $this->assertFalse($jk->hasKontrak());
+        $this->assertFalse($jk->hasPelaksanaan());
 
-        $jk->tanggal_mulai_kontrak = '2026-01-15';
-        $this->assertFalse($jk->hasKontrak());
+        $jk->tanggal_mulai_pelaksanaan = '2026-01-15';
+        $this->assertFalse($jk->hasPelaksanaan());
 
-        $jk->durasi_kontrak_hari = 300;
-        $this->assertTrue($jk->hasKontrak());
+        $jk->waktu_pelaksanaan_hari = 300;
+        $this->assertTrue($jk->hasPelaksanaan());
     }
 
-    public function test_tanggal_selesai_kontrak_inklusif(): void
+    public function test_tanggal_selesai_pelaksanaan_inklusif(): void
     {
         $jk = $this->dataKapalKontrak(300);
         // 15 Jan + 299 hari = 10 Nov 2026
-        $this->assertSame('2026-11-10', $jk->tanggal_selesai_kontrak->format('Y-m-d'));
+        $this->assertSame('2026-11-10', $jk->tanggal_selesai_pelaksanaan->format('Y-m-d'));
     }
 
     public function test_total_minggu_sisa_digabung_ke_minggu_terakhir(): void
@@ -162,8 +163,8 @@ class KontrakPeriodeTest extends TestCase
         $jk = DataKapal::create([
             'nama' => 'Kapal Uji',
             'status' => 'active',
-            'tanggal_mulai_kontrak' => '2026-05-12',
-            'durasi_kontrak_hari' => 300,
+            'tanggal_mulai_pelaksanaan' => '2026-05-12',
+            'waktu_pelaksanaan_hari' => 300,
         ]);
 
         $bulan = $this->service()->getBulanList($jk);
@@ -192,8 +193,8 @@ class KontrakPeriodeTest extends TestCase
         $jk = DataKapal::create([
             'nama' => 'Kapal Uji',
             'status' => 'active',
-            'tanggal_mulai_kontrak' => '2026-01-29',
-            'durasi_kontrak_hari' => 28,
+            'tanggal_mulai_pelaksanaan' => '2026-01-29',
+            'waktu_pelaksanaan_hari' => 28,
         ]);
 
         $bulan = $this->service()->getBulanList($jk);
@@ -264,31 +265,31 @@ class KontrakPeriodeTest extends TestCase
     public function test_minggu_ke_from_date(): void
     {
         $jk = $this->dataKapalKontrak(300);
-        $this->assertSame(1, $this->service()->getMingguKeFromDate($jk, \Carbon\Carbon::parse('2026-01-15')));
-        $this->assertSame(1, $this->service()->getMingguKeFromDate($jk, \Carbon\Carbon::parse('2026-01-21')));
-        $this->assertSame(2, $this->service()->getMingguKeFromDate($jk, \Carbon\Carbon::parse('2026-01-22')));
+        $this->assertSame(1, $this->service()->getMingguKeFromDate($jk, Carbon::parse('2026-01-15')));
+        $this->assertSame(1, $this->service()->getMingguKeFromDate($jk, Carbon::parse('2026-01-21')));
+        $this->assertSame(2, $this->service()->getMingguKeFromDate($jk, Carbon::parse('2026-01-22')));
         // Tanggal di ekor minggu terakhir (gabungan sisa) di-clamp ke minggu 42
-        $this->assertSame(42, $this->service()->getMingguKeFromDate($jk, \Carbon\Carbon::parse('2026-11-10')));
-        $this->assertSame(42, $this->service()->getMingguKeFromDate($jk, \Carbon\Carbon::parse('2026-11-05')));
-        $this->assertNull($this->service()->getMingguKeFromDate($jk, \Carbon\Carbon::parse('2026-11-11')));
-        $this->assertNull($this->service()->getMingguKeFromDate($jk, \Carbon\Carbon::parse('2026-01-14')));
+        $this->assertSame(42, $this->service()->getMingguKeFromDate($jk, Carbon::parse('2026-11-10')));
+        $this->assertSame(42, $this->service()->getMingguKeFromDate($jk, Carbon::parse('2026-11-05')));
+        $this->assertNull($this->service()->getMingguKeFromDate($jk, Carbon::parse('2026-11-11')));
+        $this->assertNull($this->service()->getMingguKeFromDate($jk, Carbon::parse('2026-01-14')));
     }
 
     public function test_save_kontrak_dan_hapus_kontrak(): void
     {
         $jk = DataKapal::create(['nama' => 'Kapal A', 'status' => 'active']);
 
-        $this->service()->saveKontrak($jk, '2026-01-15', 300);
+        $this->service()->savePelaksanaan($jk, '2026-01-15', 300);
         $jk->refresh();
-        $this->assertTrue($jk->hasKontrak());
-        $this->assertSame('2026-01-15', $jk->tanggal_mulai_kontrak->format('Y-m-d'));
-        $this->assertSame(300, $jk->durasi_kontrak_hari);
+        $this->assertTrue($jk->hasPelaksanaan());
+        $this->assertSame('2026-01-15', $jk->tanggal_mulai_pelaksanaan->format('Y-m-d'));
+        $this->assertSame(300, $jk->waktu_pelaksanaan_hari);
         $this->assertNull($jk->minggu_bulan_map);
 
         // Kosongkan keduanya = hapus kontrak (map ikut dibersihkan)
-        $this->service()->saveKontrak($jk, null, null);
+        $this->service()->savePelaksanaan($jk, null, null);
         $jk->refresh();
-        $this->assertFalse($jk->hasKontrak());
+        $this->assertFalse($jk->hasPelaksanaan());
     }
 
     public function test_minggu_bulan_map_memindahkan_minggu_irisan(): void
@@ -377,7 +378,7 @@ class KontrakPeriodeTest extends TestCase
     {
         $jk = DataKapal::create(['nama' => 'Kapal A', 'status' => 'active']);
 
-        $this->service()->saveKontrak($jk, '2026-01-15', 300, [7 => 2]);
+        $this->service()->savePelaksanaan($jk, '2026-01-15', 300, [7 => 2]);
         $jk->refresh();
         $this->assertSame([7 => 2], $jk->minggu_bulan_map);
 
@@ -385,7 +386,7 @@ class KontrakPeriodeTest extends TestCase
         $this->assertSame(7, $bulan[1]['minggu_sampai']);
 
         // Null = kembali ke pengelompokan kalender
-        $this->service()->saveKontrak($jk, '2026-01-15', 300, null);
+        $this->service()->savePelaksanaan($jk, '2026-01-15', 300, null);
         $jk->refresh();
         $this->assertNull($jk->minggu_bulan_map);
         $this->assertSame(6, $this->service()->getBulanList($jk)[1]['minggu_sampai']);
@@ -399,7 +400,7 @@ class KontrakPeriodeTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(LaporanMingguanCreate::class, ['dataKapal' => $jk])
-            ->assertSet('hasKontrak', true)
+            ->assertSet('hasPelaksanaan', true)
             ->set('minggu_ke', 3)
             ->assertSet('periode_mulai', '2026-01-29')
             ->assertSet('periode_selesai', '2026-02-04');

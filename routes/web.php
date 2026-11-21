@@ -20,6 +20,7 @@ use App\Livewire\Pages\Dashboard;
 use App\Models\LaporanLampiran;
 use App\Models\LaporanNcForm;
 use App\Models\LaporanNcFoto;
+use App\Models\RapatFile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
@@ -45,9 +46,9 @@ Route::middleware(['auth', 'verified', 'active'])->group(function () {
 
     // Master Data Routes
     Route::prefix('master-data')->name('master-data.')->group(function () {
-        Route::get('/perusahaan', function () {
-            return view('master-data.perusahaan');
-        })->middleware('can:companies_view')->name('perusahaan');
+        Route::get('/owner', function () {
+            return view('master-data.owner');
+        })->middleware('can:owners_view')->name('owner');
 
         Route::prefix('data-kapal')->group(function () {
             Route::get('/', function () {
@@ -140,18 +141,18 @@ Route::middleware(['auth', 'verified', 'active'])->group(function () {
 
     // File lampiran/NC di-serve via route (bukan base64 di payload Livewire):
     // request HTTP biasa + browser cache. Akses = izin lampiran_preview +
-    // scope data kapal perusahaan (User::canAccessDataKapal). ID terenkripsi.
+    // scope data kapal owner (User::canAccessDataKapal). ID terenkripsi.
     Route::get('/laporan-lampiran/{lampiran}/file', function (LaporanLampiran $lampiran) {
         $lampiran->loadMissing('laporanHarian.dataKapal');
         $dataKapal = $lampiran->laporanHarian?->dataKapal;
 
         abort_unless($dataKapal && auth()->user()->canAccessDataKapal($dataKapal), 403);
         abort_unless(
-            $lampiran->isFileCompleted() && $lampiran->file_path && Storage::disk('local')->exists($lampiran->file_path),
+            $lampiran->isFileCompleted() && $lampiran->file_path && Storage::disk()->exists($lampiran->file_path),
             404
         );
 
-        return Storage::disk('local')->response($lampiran->file_path, $lampiran->file_name, [
+        return Storage::disk()->response($lampiran->file_path, $lampiran->file_name, [
             'Cache-Control' => 'private, max-age=86400, immutable',
         ]);
     })->middleware('can:laporan_lampiran_preview')->name('laporan-lampiran.file');
@@ -161,11 +162,11 @@ Route::middleware(['auth', 'verified', 'active'])->group(function () {
 
         abort_unless($dataKapal && auth()->user()->canAccessDataKapal($dataKapal), 403);
         abort_unless(
-            $foto->isFileCompleted() && $foto->file_path && Storage::disk('local')->exists($foto->file_path),
+            $foto->isFileCompleted() && $foto->file_path && Storage::disk()->exists($foto->file_path),
             404
         );
 
-        return Storage::disk('local')->response($foto->file_path, $foto->file_name, [
+        return Storage::disk()->response($foto->file_path, $foto->file_name, [
             'Cache-Control' => 'private, max-age=86400, immutable',
         ]);
     })->middleware('can:laporan_lampiran_preview')->name('laporan-nc-foto.file');
@@ -176,14 +177,29 @@ Route::middleware(['auth', 'verified', 'active'])->group(function () {
 
         abort_unless($form->dataKapal && auth()->user()->canAccessDataKapal($form->dataKapal), 403);
         abort_unless(
-            $form->isFileCompleted() && $form->file_path && Storage::disk('local')->exists($form->file_path),
+            $form->isFileCompleted() && $form->file_path && Storage::disk()->exists($form->file_path),
             404
         );
 
-        return Storage::disk('local')->response($form->file_path, $form->file_name, [
+        return Storage::disk()->response($form->file_path, $form->file_name, [
             'Cache-Control' => 'private, no-cache',
         ]);
     })->middleware('can:laporan_lampiran_preview')->name('laporan-nc-form.file');
+
+    // File lampiran rapat (pola yang sama: izin + scope data kapal, ID terenkripsi)
+    Route::get('/rapat-file/{file}/file', function (RapatFile $file) {
+        $dataKapal = $file->loadMissing('rapat.dataKapal')->rapat?->dataKapal;
+
+        abort_unless($dataKapal && auth()->user()->canAccessDataKapal($dataKapal), 403);
+        abort_unless(
+            $file->isFileCompleted() && $file->file_path && Storage::disk()->exists($file->file_path),
+            404
+        );
+
+        return Storage::disk()->response($file->file_path, $file->file_name, [
+            'Cache-Control' => 'private, max-age=86400, immutable',
+        ]);
+    })->middleware('can:proyek_data_view')->name('rapat-file.file');
 
     // Settings Routes - each route checks its own permission
     Route::prefix('settings')->name('settings.')->group(function () {

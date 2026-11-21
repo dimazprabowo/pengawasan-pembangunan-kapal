@@ -64,7 +64,7 @@
                         <x-sortable-header field="name" :sort-field="$sortField" :sort-dir="$sortDir">User</x-sortable-header>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Role</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Company</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Owner</th>
                         <x-sortable-header field="is_active" :sort-field="$sortField" :sort-dir="$sortDir">Status</x-sortable-header>
                         <x-sortable-header field="updated_at" :sort-field="$sortField" :sort-dir="$sortDir">Dibuat / Diubah</x-sortable-header>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
@@ -121,7 +121,7 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm text-gray-900 dark:text-white">
-                                    {{ $user->company->name ?? '-' }}
+                                    {{ $user->owner->name ?? '-' }}
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
@@ -304,15 +304,15 @@
                                 </div>
 
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Company (Optional)</label>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Owner (Optional)</label>
                                     <x-searchable-select
-                                        wire:model.live="company_id"
-                                        :options="$companies->map(fn($c) => ['value' => $c->id, 'label' => $c->name])->toArray()"
+                                        wire:model.live="owner_id"
+                                        :options="$owners->map(fn($c) => ['value' => $c->id, 'label' => $c->name])->toArray()"
                                         placeholder="Tidak ada"
-                                        searchPlaceholder="Cari perusahaan..."
-                                        :error="$errors->has('company_id')"
+                                        searchPlaceholder="Cari owner..."
+                                        :error="$errors->has('owner_id')"
                                     />
-                                    @error('company_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                    @error('owner_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                                 </div>
 
                                 <div>

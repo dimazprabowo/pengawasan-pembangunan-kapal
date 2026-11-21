@@ -26,8 +26,8 @@ class LaporanIndex extends Component
     #[Url(as: 'q')]
     public string $search = '';
 
-    #[Url(as: 'perusahaan')]
-    public ?int $companyFilter = null;
+    #[Url(as: 'owner')]
+    public ?int $ownerFilter = null;
 
     #[Url(as: 'galangan')]
     public ?int $galanganFilter = null;
@@ -51,7 +51,7 @@ class LaporanIndex extends Component
         $this->resetPage();
     }
 
-    public function updatingCompanyFilter(): void
+    public function updatingOwnerFilter(): void
     {
         $this->resetPage();
     }
@@ -68,7 +68,7 @@ class LaporanIndex extends Component
 
     public function resetFilters(): void
     {
-        $this->reset(['search', 'companyFilter', 'galanganFilter', 'perPage']);
+        $this->reset(['search', 'ownerFilter', 'galanganFilter', 'perPage']);
         $this->resetPage();
     }
 
@@ -118,11 +118,11 @@ class LaporanIndex extends Component
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
                     $q->where('nama', 'like', "%{$this->search}%")
-                        ->orWhereHas('company', fn ($q) => $q->where('name', 'like', "%{$this->search}%"))
+                        ->orWhereHas('owner', fn ($q) => $q->where('name', 'like', "%{$this->search}%"))
                         ->orWhereHas('galangan', fn ($q) => $q->where('nama', 'like', "%{$this->search}%"));
                 });
             })
-            ->when($this->companyFilter, fn ($q) => $q->where('company_id', $this->companyFilter))
+            ->when($this->ownerFilter, fn ($q) => $q->where('owner_id', $this->ownerFilter))
             ->when($this->galanganFilter, fn ($q) => $q->where('galangan_id', $this->galanganFilter));
     }
 
@@ -136,16 +136,16 @@ class LaporanIndex extends Component
 
     public function render()
     {
-        // Filter options: only companies/galangans that own accessible data kapal
+        // Filter options: only owners/galangans that own accessible data kapal
         $accessible = $this->getDataKapalList();
-        $companies = $accessible->pluck('company')->filter()->unique('id')->sortBy('name')->values();
+        $owners = $accessible->pluck('owner')->filter()->unique('id')->sortBy('name')->values();
         $galangans = $accessible->pluck('galangan')->filter()->unique('id')->sortBy('nama')->values();
 
         $dataKapalList = $this->withProgress($this->filteredQuery()->paginate($this->perPage));
 
         return view('livewire.laporan.laporan-index', [
             'dataKapalList' => $dataKapalList,
-            'companies' => $companies,
+            'owners' => $owners,
             'galangans' => $galangans,
         ]);
     }

@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_id')->nullable()->constrained('companies')->onDelete('set null');
+            $table->foreignId('owner_id')->nullable()->constrained('owners')->onDelete('set null');
             $table->string('name');
             $table->string('email')->unique();
             $table->string('pending_email')->nullable();
@@ -27,7 +27,7 @@ return new class extends Migration
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 
-            $table->index('company_id');
+            $table->index('owner_id');
             $table->index('is_active');
         });
 

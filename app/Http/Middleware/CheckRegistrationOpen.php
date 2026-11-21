@@ -11,7 +11,7 @@ class CheckRegistrationOpen
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (!ConfigHelper::isRegistrationOpen()) {
+        if (! ConfigHelper::isRegistrationOpen()) {
             session()->flash('status', ConfigHelper::getRegistrationClosedMessage());
 
             return redirect()->route('login');

@@ -3,13 +3,13 @@
 namespace App\Livewire\Traits;
 
 use App\Models\Chat;
-use App\Models\Company;
 use App\Models\Cuaca;
 use App\Models\DataKapal;
 use App\Models\Galangan;
 use App\Models\Kelembaban;
 use App\Models\LaporanHarian;
 use App\Models\Notification;
+use App\Models\Owner;
 use App\Models\SystemConfiguration;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -32,7 +32,7 @@ trait HasMenuItems
         // All checks go through Gate → policies (respects Gate::before super-admin bypass)
         $perms = [
             'dashboard_view' => Gate::allows('viewStats'),
-            'companies_view' => Gate::allows('viewAny', Company::class),
+            'owners_view' => Gate::allows('viewAny', Owner::class),
             'data_kapal_view' => Gate::allows('viewAny', DataKapal::class),
             'galangan_view' => Gate::allows('viewAny', Galangan::class),
             'kelembaban_view' => Gate::allows('viewAny', Kelembaban::class),
@@ -59,11 +59,11 @@ trait HasMenuItems
 
         // Master Data
         $masterDataChildren = [];
-        if ($perms['companies_view']) {
+        if ($perms['owners_view']) {
             $masterDataChildren[] = [
-                'name' => 'Perusahaan',
-                'route' => 'master-data.perusahaan',
-                'active' => $req->routeIs('master-data.perusahaan'),
+                'name' => 'Owner',
+                'route' => 'master-data.owner',
+                'active' => $req->routeIs('master-data.owner'),
             ];
         }
         if ($perms['data_kapal_view']) {

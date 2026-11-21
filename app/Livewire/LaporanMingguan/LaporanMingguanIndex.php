@@ -9,6 +9,7 @@ use App\Livewire\Traits\HasTableSorting;
 use App\Models\DataKapal;
 use App\Models\KurvaSWorkGroup;
 use App\Models\LaporanMingguan;
+use App\Services\FilePathService;
 use App\Services\KontrakPeriodeService;
 use App\Services\KurvaSService;
 use App\Services\LaporanMingguanService;
@@ -157,6 +158,27 @@ class LaporanMingguanIndex extends Component
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
+    }
+
+    public function downloadPdf(int $id)
+    {
+        $laporan = LaporanMingguan::findOrFail($id);
+        $this->authorize('downloadWord', $laporan);
+
+        if (! $laporan->hasPdf() || ! $laporan->isPdfCompleted()) {
+            $this->notifyWarning('PDF rilis tidak tersedia. Release PDF dari halaman detail laporan.');
+
+            return;
+        }
+
+        $files = app(FilePathService::class);
+        if (! $files->exists($laporan->pdf_path)) {
+            $this->notifyError('File tidak ditemukan.');
+
+            return;
+        }
+
+        return $files->download($laporan->pdf_path, $laporan->pdf_name);
     }
 
     public function exportExcel()

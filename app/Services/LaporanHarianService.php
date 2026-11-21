@@ -31,7 +31,7 @@ class LaporanHarianService
         array $mingguFilter = [],
         array $bulanFilter = []
     ): LengthAwarePaginator {
-        $query = LaporanHarian::with(['user', 'updatedBy:id,name', 'dataKapal.company', 'dataKapal.galangan', 'lampiran'])
+        $query = LaporanHarian::with(['user', 'updatedBy:id,name', 'dataKapal.owner', 'dataKapal.galangan', 'lampiran'])
             ->byDataKapal($dataKapalId);
 
         if ($mingguFilter || $bulanFilter) {
@@ -115,6 +115,7 @@ class LaporanHarianService
     public function update(LaporanHarian $laporanHarian, array $data): LaporanHarian
     {
         $laporanHarian->update($data);
+        app(LaporanDocumentService::class)->invalidateHarian($laporanHarian);
 
         return $laporanHarian;
     }
@@ -129,8 +130,8 @@ class LaporanHarianService
         // Delete old single file if exists (backward compatibility)
         $this->deleteFile($laporanHarian);
 
-        // Delete generated Word document if exists
-        $this->deleteDocFile($laporanHarian);
+        // Dokumen Word/PDF harian + mingguan/bulanan yang melampirkannya
+        app(LaporanDocumentService::class)->invalidateHarian($laporanHarian);
 
         // NC milik laporan ini + file orphan-nya (file bisa dipakai NC lain)
         app(LaporanNcService::class)->deleteForLaporan($laporanHarian);
@@ -275,7 +276,7 @@ class LaporanHarianService
                         'file_status' => 'pending',
                     ]);
 
-                    $jobs[] = [$lampiran, $file->store('temp/laporan-lampiran', 'local'), $foto['cropData'] ?? null];
+                    $jobs[] = [$lampiran, app(FileStorageService::class)->storeTemp($file, 'laporan-lampiran'), $foto['cropData'] ?? null];
                 }
             }
 
@@ -290,6 +291,8 @@ class LaporanHarianService
         foreach ($jobs as [$lampiran, $tempPath, $cropData]) {
             ProcessLaporanLampiran::dispatch($lampiran, $tempPath, $cropData);
         }
+
+        app(LaporanDocumentService::class)->invalidateHarian($laporan);
 
         return count($jobs);
     }
@@ -339,41 +342,23 @@ class LaporanHarianService
     {
         $this->deleteLampiranFile($lampiran);
         $lampiran->delete();
-    }
 
-    public function removeDoc(LaporanHarian $laporanHarian): void
-    {
-        $this->deleteDocFile($laporanHarian);
-        $laporanHarian->update([
-            'doc_path' => null,
-            'doc_name' => null,
-            'doc_status' => null,
-            'doc_generated_at' => null,
-            'doc_error' => null,
-        ]);
+        if ($lampiran->laporanHarian) {
+            app(LaporanDocumentService::class)->invalidateHarian($lampiran->laporanHarian);
+        }
     }
 
     private function deleteFile(LaporanHarian $laporanHarian): void
     {
-        if ($laporanHarian->file_path && Storage::disk('local')->exists($laporanHarian->file_path)) {
-            Storage::disk('local')->delete($laporanHarian->file_path);
-        }
-    }
-
-    private function deleteDocFile(LaporanHarian $laporanHarian): void
-    {
-        if ($laporanHarian->doc_path) {
-            $path = storage_path('app/'.$laporanHarian->doc_path);
-            if (file_exists($path)) {
-                @unlink($path);
-            }
+        if ($laporanHarian->file_path && Storage::disk()->exists($laporanHarian->file_path)) {
+            Storage::disk()->delete($laporanHarian->file_path);
         }
     }
 
     private function deleteLampiranFile(LaporanLampiran $lampiran): void
     {
-        if ($lampiran->file_path && Storage::disk('local')->exists($lampiran->file_path)) {
-            Storage::disk('local')->delete($lampiran->file_path);
+        if ($lampiran->file_path && Storage::disk()->exists($lampiran->file_path)) {
+            Storage::disk()->delete($lampiran->file_path);
         }
     }
 }

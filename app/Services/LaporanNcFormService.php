@@ -175,7 +175,7 @@ class LaporanNcFormService
      */
     public function uploadSigned(LaporanNcForm $form, UploadedFile $file, int $userId): int
     {
-        $closed = 0;
+        $closed = collect();
         $job = null;
 
         DB::transaction(function () use ($form, $file, $userId, &$closed, &$job) {
@@ -197,16 +197,19 @@ class LaporanNcFormService
                         'status' => NcStatus::Closed,
                         'closed_at' => now(),
                         'closed_by' => $userId,
-                    ]))
-                    ->count();
+                    ]));
             }
 
-            $job = [$form, $file->store('temp/laporan-nc-form', 'local'), $oldPath];
+            $job = [$form, app(FileStorageService::class)->storeTemp($file, 'laporan-nc-form'), $oldPath];
         });
 
         ProcessNcFormFile::dispatch(...$job);
 
-        return $closed;
+        // NC tertutup mengubah rekap NC mingguan → dokumen terkait dibuat ulang saat dipakai.
+        $ncService = app(LaporanNcService::class);
+        $closed->each(fn (LaporanNc $nc) => $ncService->invalidateDocuments($nc));
+
+        return $closed->count();
     }
 
     /**
@@ -229,8 +232,8 @@ class LaporanNcFormService
     public function deleteForLaporan(LaporanHarian $laporan): void
     {
         LaporanNcForm::where('laporan_harian_id', $laporan->id)->get()->each(function (LaporanNcForm $form) {
-            if ($form->file_path && Storage::disk('local')->exists($form->file_path)) {
-                Storage::disk('local')->delete($form->file_path);
+            if ($form->file_path && Storage::disk()->exists($form->file_path)) {
+                Storage::disk()->delete($form->file_path);
             }
             $form->delete();
         });

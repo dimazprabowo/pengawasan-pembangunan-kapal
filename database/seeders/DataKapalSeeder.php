@@ -3,20 +3,20 @@
 namespace Database\Seeders;
 
 use App\Enums\DataKapalStatus;
-use App\Models\Company;
 use App\Models\DataKapal;
 use App\Models\Galangan;
+use App\Models\Owner;
 use Illuminate\Database\Seeder;
 
 class DataKapalSeeder extends Seeder
 {
     public function run(): void
     {
-        $companies = Company::all();
+        $owners = Owner::all();
         $galangans = Galangan::all();
 
-        if ($companies->isEmpty()) {
-            $this->command->warn('No companies found. Please run CompanySeeder first.');
+        if ($owners->isEmpty()) {
+            $this->command->warn('No owners found. Please run OwnerSeeder first.');
 
             return;
         }
@@ -45,7 +45,15 @@ class DataKapalSeeder extends Seeder
                     ['item' => 'Cap. Fuel Oil (include Daily Tank)', 'keterangan' => '5.000 Liters'],
                     ['item' => 'Cap. Fresh Water', 'keterangan' => '1.500 Liters'],
                 ],
+                'nama_pekerjaan' => 'Jasa Konsultansi Pengawas Pembangunan 1 Unit Crew Boat 22 PAX',
+                'nomor_kontrak_galangan' => 'BKI.CB22/PBG-2025/001',
+                'nomor_kontrak_pengawas' => 'Sperj.110/UM.301/BKI-2025',
+                'nomor_kontrak_gambar' => 'DWG-CB22/2025/014',
                 'status' => DataKapalStatus::Active,
+                // Proyek SELESAI: kontrak 50 hari, berakhir ~20 hari lalu —
+                // seluruh minggu/bulan proyek punya laporan ter-seed.
+                'tanggal_mulai_pelaksanaan' => now()->subDays(69)->toDateString(),
+                'waktu_pelaksanaan_hari' => 50,
             ],
             [
                 'nama' => 'Crew Boat 50 PAX',
@@ -64,32 +72,43 @@ class DataKapalSeeder extends Seeder
                     ['item' => 'Cap. Fuel Oil (include Daily Tank)', 'keterangan' => '12.000 Liters'],
                     ['item' => 'Cap. Fresh Water', 'keterangan' => '3.000 Liters'],
                 ],
+                'nama_pekerjaan' => 'Jasa Konsultansi Pengawas Pembangunan 1 Unit Crew Boat 50 PAX',
+                'nomor_kontrak_galangan' => 'BKI.CB50/PBG-2025/002',
+                'nomor_kontrak_pengawas' => 'Sperj.215/UM.301/BKI-2025',
+                'nomor_kontrak_gambar' => 'DWG-CB50/2025/021',
                 'status' => DataKapalStatus::Active,
+                // Proyek BERJALAN: kontrak 100 hari, sudah berjalan 88 hari —
+                // aktual ter-seed ±88% (lihat LaporanMingguanSeeder).
+                'tanggal_mulai_pelaksanaan' => now()->subDays(88)->toDateString(),
+                'waktu_pelaksanaan_hari' => 100,
             ],
         ];
 
-        // Kontrak: 100 hari penuh mulai 99 hari lalu, berakhir hari ini — seluruh
-        // minggu/bulan proyek punya laporan ter-seed (simulasi proyek selesai).
-        $tanggalMulaiKontrak = now()->subDays(99)->toDateString();
-        $durasiKontrakHari = 100;
-
-        foreach ($companies as $company) {
-            foreach ($dataKapalData as $data) {
-                DataKapal::firstOrCreate(
-                    [
-                        'company_id' => $company->id,
-                        'nama' => $data['nama'],
-                    ],
-                    [
-                        'galangan_id' => $galangans->random()->id,
-                        'deskripsi' => $data['deskripsi'],
-                        'spesifikasi' => $data['spesifikasi'],
-                        'status' => $data['status'],
-                        'tanggal_mulai_kontrak' => $tanggalMulaiKontrak,
-                        'durasi_kontrak_hari' => $durasiKontrakHari,
-                    ]
-                );
+        // Cukup 2 proyek: satu per owner (owner ke-i dapat proyek ke-i).
+        foreach ($owners as $index => $owner) {
+            $data = $dataKapalData[$index] ?? null;
+            if (! $data) {
+                break;
             }
+
+            DataKapal::firstOrCreate(
+                [
+                    'owner_id' => $owner->id,
+                    'nama' => $data['nama'],
+                ],
+                [
+                    'galangan_id' => $galangans->random()->id,
+                    'deskripsi' => $data['deskripsi'],
+                    'nama_pekerjaan' => $data['nama_pekerjaan'],
+                    'nomor_kontrak_galangan' => $data['nomor_kontrak_galangan'],
+                    'nomor_kontrak_pengawas' => $data['nomor_kontrak_pengawas'],
+                    'nomor_kontrak_gambar' => $data['nomor_kontrak_gambar'],
+                    'spesifikasi' => $data['spesifikasi'],
+                    'status' => $data['status'],
+                    'tanggal_mulai_pelaksanaan' => $data['tanggal_mulai_pelaksanaan'],
+                    'waktu_pelaksanaan_hari' => $data['waktu_pelaksanaan_hari'],
+                ]
+            );
         }
 
         $this->command->info('Data Kapal seeded successfully.');

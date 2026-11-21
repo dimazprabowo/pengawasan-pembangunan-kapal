@@ -4,9 +4,9 @@ namespace App\Livewire\MasterData;
 
 use App\Enums\DataKapalStatus;
 use App\Livewire\Traits\HasNotification;
-use App\Models\Company;
 use App\Models\DataKapal;
 use App\Models\Galangan;
+use App\Models\Owner;
 use App\Services\DataKapalService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -25,7 +25,7 @@ class DataKapalForm extends Component
 
     public bool $editMode = false;
 
-    public $company_id;
+    public $owner_id;
 
     public $galangan_id;
 
@@ -35,21 +35,15 @@ class DataKapalForm extends Component
 
     public $nama_pekerjaan;
 
-    public $nomor_kontrak;
+    public $nomor_kontrak_galangan;
 
-    public $nomor_pembangunan;
-
-    public array $penandatangan = [];
+    public $nomor_kontrak_pengawas;
 
     public array $spesifikasi = [];
 
     public bool $showDeleteSpesifikasiModal = false;
 
     public ?int $deletingSpesifikasiIndex = null;
-
-    public bool $showDeletePenandatanganModal = false;
-
-    public ?int $deletingPenandatanganIndex = null;
 
     public $status = 'active';
 
@@ -64,21 +58,13 @@ class DataKapalForm extends Component
 
             $this->dataKapal = $dataKapal;
             $this->editMode = true;
-            $this->company_id = $dataKapal->company_id;
+            $this->owner_id = $dataKapal->owner_id;
             $this->galangan_id = $dataKapal->galangan_id;
             $this->nama = $dataKapal->nama;
             $this->deskripsi = $dataKapal->deskripsi;
             $this->nama_pekerjaan = $dataKapal->nama_pekerjaan;
-            $this->nomor_kontrak = $dataKapal->nomor_kontrak;
-            $this->nomor_pembangunan = $dataKapal->nomor_pembangunan;
-            $this->penandatangan = collect($dataKapal->penandatangan ?? [])
-                ->map(fn ($row) => [
-                    'row_key' => (string) Str::uuid(),
-                    'label' => $row['label'] ?? '',
-                    'nama' => $row['nama'] ?? '',
-                    'jabatan' => $row['jabatan'] ?? '',
-                    'instansi' => $row['instansi'] ?? '',
-                ])->all();
+            $this->nomor_kontrak_galangan = $dataKapal->nomor_kontrak_galangan;
+            $this->nomor_kontrak_pengawas = $dataKapal->nomor_kontrak_pengawas;
             $this->spesifikasi = collect($dataKapal->spesifikasi ?? [])
                 ->map(fn ($row) => [
                     'row_key' => (string) Str::uuid(),
@@ -94,18 +80,13 @@ class DataKapalForm extends Component
     protected function rules(): array
     {
         return [
-            'company_id' => 'nullable|exists:companies,id',
+            'owner_id' => 'nullable|exists:owners,id',
             'galangan_id' => 'nullable|exists:galangan,id',
             'nama' => 'required|string|max:255',
             'deskripsi' => 'nullable|string',
             'nama_pekerjaan' => 'nullable|string|max:255',
-            'nomor_kontrak' => 'nullable|string|max:150',
-            'nomor_pembangunan' => 'nullable|string|max:100',
-            'penandatangan' => 'array',
-            'penandatangan.*.label' => 'nullable|string|max:100',
-            'penandatangan.*.nama' => 'required|string|max:255',
-            'penandatangan.*.jabatan' => 'nullable|string|max:255',
-            'penandatangan.*.instansi' => 'nullable|string|max:255',
+            'nomor_kontrak_galangan' => 'nullable|string|max:150',
+            'nomor_kontrak_pengawas' => 'nullable|string|max:150',
             'spesifikasi' => 'array',
             'spesifikasi.*.item' => 'required|string|max:100|distinct',
             'spesifikasi.*.keterangan' => 'required|string|max:255',
@@ -116,17 +97,13 @@ class DataKapalForm extends Component
     public function validationAttributes(): array
     {
         return [
-            'company_id' => 'perusahaan',
+            'owner_id' => 'owner',
             'galangan_id' => 'galangan',
             'nama' => 'nama kapal',
             'deskripsi' => 'deskripsi',
             'nama_pekerjaan' => 'nama pekerjaan',
-            'nomor_kontrak' => 'nomor kontrak',
-            'nomor_pembangunan' => 'nomor pembangunan',
-            'penandatangan.*.label' => 'label penandatangan',
-            'penandatangan.*.nama' => 'nama penandatangan',
-            'penandatangan.*.jabatan' => 'jabatan penandatangan',
-            'penandatangan.*.instansi' => 'instansi penandatangan',
+            'nomor_kontrak_galangan' => 'nomor kontrak galangan',
+            'nomor_kontrak_pengawas' => 'nomor kontrak pengawas',
             'spesifikasi.*.item' => 'item spesifikasi',
             'spesifikasi.*.keterangan' => 'keterangan spesifikasi',
             'status' => 'status',
@@ -140,41 +117,6 @@ class DataKapalForm extends Component
             'item' => '',
             'keterangan' => '',
         ];
-    }
-
-    public function addPenandatangan(): void
-    {
-        $this->penandatangan[] = [
-            'row_key' => (string) Str::uuid(),
-            'label' => '',
-            'nama' => '',
-            'jabatan' => '',
-            'instansi' => '',
-        ];
-    }
-
-    public function confirmRemovePenandatangan(int $index): void
-    {
-        $this->deletingPenandatanganIndex = $index;
-        $this->showDeletePenandatanganModal = true;
-    }
-
-    public function removePenandatanganConfirmed(): void
-    {
-        if ($this->deletingPenandatanganIndex !== null) {
-            $this->removePenandatangan($this->deletingPenandatanganIndex);
-        }
-        $this->showDeletePenandatanganModal = false;
-        $this->deletingPenandatanganIndex = null;
-        $this->notifySuccess('Penandatangan berhasil dihapus');
-    }
-
-    public function removePenandatangan(int $index): void
-    {
-        if (isset($this->penandatangan[$index])) {
-            unset($this->penandatangan[$index]);
-            $this->penandatangan = array_values($this->penandatangan);
-        }
     }
 
     public function confirmRemoveSpesifikasi(int $index): void
@@ -210,12 +152,6 @@ class DataKapalForm extends Component
             ->values()
             ->all();
 
-        // Buang baris penandatangan tanpa nama (nama wajib bila baris diisi)
-        $this->penandatangan = collect($this->penandatangan)
-            ->filter(fn ($row) => trim((string) ($row['nama'] ?? '')) !== '')
-            ->values()
-            ->all();
-
         try {
             $this->validate();
         } catch (ValidationException $e) {
@@ -225,14 +161,13 @@ class DataKapalForm extends Component
 
         try {
             $data = [
-                'company_id' => $this->company_id ?: null,
+                'owner_id' => $this->owner_id ?: null,
                 'galangan_id' => $this->galangan_id ?: null,
                 'nama' => $this->nama,
                 'deskripsi' => $this->deskripsi,
                 'nama_pekerjaan' => $this->nama_pekerjaan,
-                'nomor_kontrak' => $this->nomor_kontrak,
-                'nomor_pembangunan' => $this->nomor_pembangunan,
-                'penandatangan' => $this->penandatangan,
+                'nomor_kontrak_galangan' => $this->nomor_kontrak_galangan,
+                'nomor_kontrak_pengawas' => $this->nomor_kontrak_pengawas,
                 'spesifikasi' => $this->spesifikasi,
                 'status' => $this->status,
             ];
@@ -276,7 +211,7 @@ class DataKapalForm extends Component
     {
         return view('livewire.master-data.data-kapal-form', [
             'statuses' => DataKapalStatus::cases(),
-            'companies' => Company::active()->orderBy('name')->get(),
+            'owners' => Owner::active()->orderBy('name')->get(),
             'galangans' => Galangan::active()->orderBy('nama')->get(),
         ]);
     }

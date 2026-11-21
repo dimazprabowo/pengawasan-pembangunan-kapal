@@ -23,20 +23,20 @@ class DataKapalService
     public function getFiltered(
         string $search = '',
         string $statusFilter = '',
-        ?int $companyFilter = null,
+        ?int $ownerFilter = null,
         ?int $galanganFilter = null,
         int $perPage = 15,
         ?string $sortField = null,
         string $sortDir = 'asc'
     ): LengthAwarePaginator {
-        $query = DataKapal::with(['company', 'galangan', 'createdBy:id,name', 'updatedBy:id,name'])
+        $query = DataKapal::with(['owner', 'galangan', 'createdBy:id,name', 'updatedBy:id,name'])
             ->withCount('laporanHarian')
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($q) use ($search) {
                     $q->where('nama', 'like', "%{$search}%")
                         ->orWhere('kode', 'like', "%{$search}%")
                         ->orWhere('deskripsi', 'like', "%{$search}%")
-                        ->orWhereHas('company', function ($q) use ($search) {
+                        ->orWhereHas('owner', function ($q) use ($search) {
                             $q->where('name', 'like', "%{$search}%")
                                 ->orWhere('code', 'like', "%{$search}%");
                         });
@@ -45,8 +45,8 @@ class DataKapalService
             ->when($statusFilter !== null && $statusFilter !== '', function ($q) use ($statusFilter) {
                 $q->where('status', $statusFilter);
             })
-            ->when($companyFilter, function ($q) use ($companyFilter) {
-                $q->where('company_id', $companyFilter);
+            ->when($ownerFilter, function ($q) use ($ownerFilter) {
+                $q->where('owner_id', $ownerFilter);
             })
             ->when($galanganFilter, function ($q) use ($galanganFilter) {
                 $q->where('galangan_id', $galanganFilter);
@@ -65,7 +65,6 @@ class DataKapalService
     public function create(array $data): DataKapal
     {
         $data['spesifikasi'] = $this->normalizeSpesifikasi($data['spesifikasi'] ?? null);
-        $data['penandatangan'] = $this->normalizePenandatangan($data['penandatangan'] ?? null);
 
         return DataKapal::create($data);
     }
@@ -73,7 +72,6 @@ class DataKapalService
     public function update(DataKapal $dataKapal, array $data): bool
     {
         $data['spesifikasi'] = $this->normalizeSpesifikasi($data['spesifikasi'] ?? null);
-        $data['penandatangan'] = $this->normalizePenandatangan($data['penandatangan'] ?? null);
 
         return $dataKapal->update($data);
     }
@@ -100,36 +98,6 @@ class DataKapalService
         return $normalized === [] ? null : $normalized;
     }
 
-    /**
-     * Normalisasi input penandatangan: trim, buang baris tanpa nama,
-     * hapus key internal (row_key), reindex. Label kosong diisi
-     * default urutan (Dipersiapkan, Diketahui, Menyetujui, ...).
-     */
-    private function normalizePenandatangan(?array $rows): ?array
-    {
-        if (empty($rows)) {
-            return null;
-        }
-
-        $defaultLabels = ['Dipersiapkan', 'Diketahui', 'Menyetujui', 'Disahkan'];
-
-        $normalized = collect($rows)
-            ->map(fn ($row) => [
-                'label' => trim((string) ($row['label'] ?? '')),
-                'nama' => trim((string) ($row['nama'] ?? '')),
-                'jabatan' => trim((string) ($row['jabatan'] ?? '')),
-                'instansi' => trim((string) ($row['instansi'] ?? '')),
-            ])
-            ->filter(fn ($row) => $row['nama'] !== '')
-            ->values()
-            ->map(fn ($row, $i) => $row['label'] === ''
-                ? $row + ['label' => $defaultLabels[$i] ?? 'Penandatangan '.($i + 1)]
-                : $row)
-            ->all();
-
-        return $normalized === [] ? null : $normalized;
-    }
-
     public function delete(DataKapal $dataKapal): bool
     {
         return $dataKapal->delete();
@@ -149,14 +117,14 @@ class DataKapalService
         $column = $this->templateColumn($tipe);
 
         // Delete old template if exists
-        if ($dataKapal->$column && Storage::disk('local')->exists($dataKapal->$column)) {
-            Storage::disk('local')->delete($dataKapal->$column);
+        if ($dataKapal->$column && Storage::disk()->exists($dataKapal->$column)) {
+            Storage::disk()->delete($dataKapal->$column);
         }
 
         // Store new template in specific folder based on tipe
         $folder = 'templates/laporan-'.$tipe;
         $filename = 'template-'.$dataKapal->id.'-'.time().'.'.$file->getClientOriginalExtension();
-        $path = $file->storeAs($folder, $filename, 'local');
+        $path = $file->storeAs($folder, $filename);
 
         return $dataKapal->update([$column => $path]);
     }
@@ -164,8 +132,8 @@ class DataKapalService
     public function deleteTemplate(DataKapal $dataKapal, string $tipe): bool
     {
         $column = $this->templateColumn($tipe);
-        if ($dataKapal->$column && Storage::disk('local')->exists($dataKapal->$column)) {
-            Storage::disk('local')->delete($dataKapal->$column);
+        if ($dataKapal->$column && Storage::disk()->exists($dataKapal->$column)) {
+            Storage::disk()->delete($dataKapal->$column);
         }
 
         return $dataKapal->update([$column => null]);
@@ -196,13 +164,14 @@ class DataKapalService
     public function downloadDefaultTemplate(string $tipe = 'harian'): ?string
     {
         $this->templateColumn($tipe);
-        $templatePath = storage_path('app/templates/laporan-'.$tipe.'/template-laporan-'.$tipe.'.docx');
+        $templatePath = 'templates/laporan-'.$tipe.'/template-laporan-'.$tipe.'.docx';
+        $files = app(FilePathService::class);
 
-        if (! file_exists($templatePath)) {
+        if (! $files->exists($templatePath)) {
             return null;
         }
 
-        return $templatePath;
+        return $files->localPath($templatePath);
     }
 
     public function exportKurvaSTemplate(DataKapal $dataKapal, bool $withData = true)
@@ -256,7 +225,7 @@ class DataKapalService
             }
 
             // Guard: rencana tidak boleh melebihi total bulan kontrak
-            if ($dataKapal->hasKontrak()) {
+            if ($dataKapal->hasPelaksanaan()) {
                 $totalBulanKontrak = app(KontrakPeriodeService::class)->getTotalBulan($dataKapal);
                 $maxBulanImport = 0;
                 foreach ($workGroupsData as $wgData) {

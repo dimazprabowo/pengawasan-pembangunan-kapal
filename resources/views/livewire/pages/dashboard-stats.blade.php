@@ -23,8 +23,8 @@
                     <p class="text-[11px] text-blue-200">Pengguna</p>
                 </div>
                 <div class="rounded-xl bg-white/10 px-3 sm:px-4 py-2.5 backdrop-blur">
-                    <p class="text-lg sm:text-xl font-bold">{{ number_format($totalCompanies) }}</p>
-                    <p class="text-[11px] text-blue-200">Perusahaan</p>
+                    <p class="text-lg sm:text-xl font-bold">{{ number_format($totalOwners) }}</p>
+                    <p class="text-[11px] text-blue-200">Owner</p>
                 </div>
                 <div class="rounded-xl bg-white/10 px-3 sm:px-4 py-2.5 backdrop-blur">
                     <p class="text-lg sm:text-xl font-bold">{{ number_format($totalRoles) }}</p>
@@ -253,13 +253,13 @@
                         <div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3 max-h-[520px] xl:max-h-none">
                             @forelse ($detail['kapal'] as $kapal)
                                 @php
-                                    $sisaHari = $kapal->sisaHariKontrak();
+                                    $sisaHari = $kapal->sisaHariPelaksanaan();
                                 @endphp
                                 <div wire:key="dash-kapal-{{ $kapal->id }}" class="rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-sm transition-all">
                                     <div class="flex items-start justify-between gap-2">
                                         <div class="min-w-0">
                                             <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">{{ $kapal->nama }}</p>
-                                            <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ $kapal->company?->name ?? '-' }}{{ $kapal->nomor_kontrak ? ' · '.$kapal->nomor_kontrak : '' }}</p>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ $kapal->owner?->name ?? '-' }}{{ $kapal->nomor_kontrak_galangan ? ' · '.$kapal->nomor_kontrak_galangan : '' }}</p>
                                         </div>
                                         <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $kapal->progress_status->badgeClass() }}">{{ $kapal->progress_status->label() }}</span>
                                     </div>
@@ -331,6 +331,9 @@
             </div>
         </div>
     </div>
+
+    {{-- Statistik Kurva-S: tabel progres per kapal + panel grafik --}}
+    @include('livewire.pages.dashboard-kurva-s')
 
     {{-- Aktivitas terbaru + aksi cepat --}}
     <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">

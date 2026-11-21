@@ -38,7 +38,7 @@ class KurvaSRencanaSheet implements FromArray, WithColumnWidths, WithHeadings, W
      */
     public static function resolveMonths(DataKapal $dataKapal): int
     {
-        $kontrak = $dataKapal->hasKontrak()
+        $kontrak = $dataKapal->hasPelaksanaan()
             ? app(KontrakPeriodeService::class)->getTotalBulan($dataKapal)
             : 0;
 

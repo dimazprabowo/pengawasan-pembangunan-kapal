@@ -11,7 +11,7 @@ use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
- * Daftar sub-contractor / vendor proyek (BAB 2.4 laporan bulanan).
+ * Daftar sub-contractor / vendor proyek (sub-bab 2.4 laporan bulanan).
  */
 class ProjectVendor extends Model
 {
@@ -22,16 +22,21 @@ class ProjectVendor extends Model
     protected $fillable = [
         'data_kapal_id',
         'nama',
-        'lingkup_pekerjaan',
+        'lingkup_id',
         'kontak',
         'keterangan',
+        'bulan_ke',
+    ];
+
+    protected $casts = [
+        'bulan_ke' => 'integer',
     ];
 
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
             ->useLogName('project_vendor')
-            ->logOnly(['data_kapal_id', 'nama', 'lingkup_pekerjaan'])
+            ->logOnly(['data_kapal_id', 'nama', 'lingkup_id', 'bulan_ke'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }
@@ -39,5 +44,10 @@ class ProjectVendor extends Model
     public function dataKapal(): BelongsTo
     {
         return $this->belongsTo(DataKapal::class);
+    }
+
+    public function lingkup(): BelongsTo
+    {
+        return $this->belongsTo(VendorLingkup::class, 'lingkup_id');
     }
 }

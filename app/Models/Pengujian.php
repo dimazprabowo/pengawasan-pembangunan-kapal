@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\PengujianStatus;
 use App\Traits\HasUserStamps;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +11,7 @@ use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
- * Jadwal & hasil pengujian pembangunan kapal (BAB 2.7 laporan bulanan).
+ * Jadwal & hasil pengujian pembangunan kapal (sub-bab 2.7 laporan bulanan).
  */
 class Pengujian extends Model
 {
@@ -24,7 +23,7 @@ class Pengujian extends Model
         'data_kapal_id',
         'nama_pengujian',
         'tanggal',
-        'status',
+        'pengujian_status_id',
         'hasil',
         'keterangan',
     ];
@@ -32,7 +31,7 @@ class Pengujian extends Model
     protected function casts(): array
     {
         return [
-            'status' => PengujianStatus::class,
+            'pengujian_status_id' => 'integer',
             'tanggal' => 'date',
         ];
     }
@@ -41,7 +40,7 @@ class Pengujian extends Model
     {
         return LogOptions::defaults()
             ->useLogName('pengujian')
-            ->logOnly(['data_kapal_id', 'nama_pengujian', 'tanggal', 'status', 'hasil'])
+            ->logOnly(['data_kapal_id', 'nama_pengujian', 'tanggal', 'pengujian_status_id', 'hasil'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }
@@ -49,5 +48,10 @@ class Pengujian extends Model
     public function dataKapal(): BelongsTo
     {
         return $this->belongsTo(DataKapal::class);
+    }
+
+    public function status(): BelongsTo
+    {
+        return $this->belongsTo(PengujianStatus::class, 'pengujian_status_id');
     }
 }

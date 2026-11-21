@@ -73,9 +73,11 @@ class LaporanNcService
     {
         $workGroups = KurvaSWorkGroup::where('data_kapal_id', $laporan->data_kapal_id)->pluck('nama', 'id');
         $jobs = [];
+        $touched = collect();
 
-        DB::transaction(function () use ($laporan, $rows, $fotos, $workGroups, &$jobs) {
+        DB::transaction(function () use ($laporan, $rows, $fotos, $workGroups, &$jobs, &$touched) {
             $existing = $laporan->ncs()->with('foto')->get()->keyBy('id');
+            $touched = $existing->values();
             $keepIds = [];
 
             foreach ($rows as $row) {
@@ -111,6 +113,7 @@ class LaporanNcService
                     ]);
                 }
                 $keepIds[] = $nc->id;
+                $touched->push($nc);
 
                 foreach ($files as $key => $entry) {
                     $kategori = str_starts_with((string) $key, $rowKey.'_after_') ? NcFileKategori::After : NcFileKategori::Before;
@@ -123,6 +126,12 @@ class LaporanNcService
 
         foreach ($jobs as [$ncFoto, $tempPath, $cropData]) {
             ProcessNcFoto::dispatch($ncFoto, $tempPath, $cropData)->afterCommit();
+        }
+
+        if ($since = $touched->min('created_at')) {
+            $documents = app(LaporanDocumentService::class);
+            $documents->invalidateHarian($laporan);
+            $documents->invalidateNcScope($laporan->data_kapal_id, $since);
         }
 
         return count($jobs);
@@ -143,6 +152,8 @@ class LaporanNcService
             'reopened_by' => $userId,
             'reopen_note' => $note,
         ]);
+
+        $this->invalidateDocuments($nc);
     }
 
     public function addFiles(LaporanNc $nc, array $entries, NcFileKategori $kategori): void
@@ -154,12 +165,27 @@ class LaporanNcService
         foreach ($jobs as [$record, $tempPath, $cropData]) {
             ProcessNcFoto::dispatch($record, $tempPath, $cropData)->afterCommit();
         }
+
+        $this->invalidateDocuments($nc);
+    }
+
+    /**
+     * Dokumen Word yang memuat NC ini (harian asal + rekap mingguan sejak NC
+     * dibuat, berantai ke bulanan) dikosongkan agar dibuat ulang saat dipakai.
+     */
+    public function invalidateDocuments(LaporanNc $nc): void
+    {
+        $documents = app(LaporanDocumentService::class);
+        if ($nc->laporanHarian) {
+            $documents->invalidateHarian($nc->laporanHarian);
+        }
+        $documents->invalidateNcScope($nc->data_kapal_id, $nc->created_at ?? now());
     }
 
     private function prepareFile(LaporanNc $nc, UploadedFile $file, NcFileKategori $kategori, ?array $cropData): array
     {
         validator(['file' => $file], ['file' => file_upload_validation_rule('laporan_nc_file', true)])->validate();
-        $tempPath = $file->store('temp/laporan-nc', 'local');
+        $tempPath = app(FileStorageService::class)->storeTemp($file, 'laporan-nc');
         $record = $nc->foto()->create([
             'kategori' => $kategori,
             'file_name' => basename($file->getClientOriginalName()),
@@ -173,9 +199,18 @@ class LaporanNcService
 
     public function deleteFoto(LaporanNcFoto $foto): void
     {
-        Storage::disk('local')->delete($foto->rendered_pages ?? []);
-        if ($foto->file_path && Storage::disk('local')->exists($foto->file_path)) {
-            Storage::disk('local')->delete($foto->file_path);
+        $this->removeFoto($foto);
+
+        if ($foto->nc) {
+            $this->invalidateDocuments($foto->nc);
+        }
+    }
+
+    private function removeFoto(LaporanNcFoto $foto): void
+    {
+        Storage::disk()->delete($foto->rendered_pages ?? []);
+        if ($foto->file_path && Storage::disk()->exists($foto->file_path)) {
+            Storage::disk()->delete($foto->file_path);
         }
         $foto->delete();
     }
@@ -186,7 +221,7 @@ class LaporanNcService
     public function deleteNc(LaporanNc $nc): void
     {
         foreach ($nc->foto as $file) {
-            $this->deleteFoto($file);
+            $this->removeFoto($file);
         }
         $nc->delete();
     }
@@ -197,11 +232,16 @@ class LaporanNcService
      */
     public function deleteForLaporan(LaporanHarian $laporan): void
     {
-        foreach ($laporan->ncs()->with('foto')->get() as $nc) {
+        $ncs = $laporan->ncs()->with('foto')->get();
+        foreach ($ncs as $nc) {
             $this->deleteNc($nc);
         }
 
         app(LaporanNcFormService::class)->deleteForLaporan($laporan);
+
+        if ($since = $ncs->min('created_at')) {
+            app(LaporanDocumentService::class)->invalidateNcScope($laporan->data_kapal_id, $since);
+        }
     }
 
     /**

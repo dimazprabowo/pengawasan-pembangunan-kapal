@@ -3,6 +3,7 @@
 namespace App\Livewire\Pages\Auth;
 
 use App\Livewire\Traits\HasNotification;
+use App\Models\User;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
@@ -30,7 +31,7 @@ class ForgotPassword extends Component
 
         try {
             // Check if email exists in either email or pending_email
-            $user = \App\Models\User::where('email', $this->email)
+            $user = User::where('email', $this->email)
                 ->orWhere('pending_email', $this->email)
                 ->first();
 

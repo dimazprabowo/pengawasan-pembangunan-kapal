@@ -61,7 +61,7 @@
             <tr>
                 <th width="5%" class="text-center">No</th>
                 <th width="25%">Data Kapal</th>
-                <th width="20%">Perusahaan</th>
+                <th width="20%">Owner</th>
                 <th width="15%">Galangan</th>
                 <th width="8%" class="text-center">Harian</th>
                 <th width="8%" class="text-center">Mingguan</th>
@@ -74,7 +74,7 @@
                 <tr>
                     <td class="text-center">{{ $index + 1 }}</td>
                     <td>{{ $dataKapal->nama }}</td>
-                    <td>{{ $dataKapal->company->name ?? '-' }}</td>
+                    <td>{{ $dataKapal->owner->name ?? '-' }}</td>
                     <td>{{ $dataKapal->galangan->nama ?? '-' }}</td>
                     <td class="text-center">{{ $dataKapal->laporan_harian_count }}</td>
                     <td class="text-center">{{ $dataKapal->laporan_mingguan_count }}</td>

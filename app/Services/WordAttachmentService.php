@@ -19,7 +19,9 @@ class WordAttachmentService
      * tanpa garis setinggi (hampir) satu halaman dengan vAlign=center
      * (vertikal) + jc=center (horizontal). Tinggi 13400 < area konten A4
      * (13958 twip) menyisakan ruang untuk paragraf page-break berikutnya
-     * agar tidak tercipta halaman kosong ekstra.
+     * agar tidak tercipta halaman kosong ekstra. JANGAN diganti paragraf
+     * `spacing before`: Word menekan spasi itu di awal halaman setelah
+     * page break sehingga judul naik ke atas.
      */
     public static function coverPageXml(string $title, string $color = '1F3864'): string
     {
@@ -39,44 +41,10 @@ class WordAttachmentService
             .'<w:t>'.$title.'</w:t></w:r></w:p></w:tc></w:tr></w:tbl>';
     }
 
-    private function signature(Collection $ncs, ?Collection $externals = null): string
-    {
-        $items = $ncs->flatMap(fn ($nc) => $nc->foto->map(fn ($file) => [
-            'nc', $nc->id, $nc->nomor, $nc->kendala, $file->id, $file->kategori?->value,
-            $file->file_name, $file->file_path, $file->file_status, $file->rendered_pages,
-        ]))->values()->all();
-
-        if ($externals) {
-            $items = array_merge($items, $externals->map(fn ($external) => [
-                'external', $external->id, $external->judul, $external->file_name,
-                $external->file_path, $external->file_status, $external->rendered_pages,
-            ])->values()->all());
-        }
-
-        return hash('sha256', json_encode($items, JSON_THROW_ON_ERROR));
-    }
-
-    public function isCurrent(string $path, Collection $ncs, ?Collection $externals = null): bool
-    {
-        $zip = new ZipArchive;
-        if ($zip->open($path) !== true) {
-            return false;
-        }
-        try {
-            $comment = $zip->getArchiveComment();
-
-            return ! is_string($comment) || ! str_starts_with($comment, 'nc-attachments:')
-                ? $ncs->every(fn ($nc) => $nc->foto->isEmpty()) && ($externals === null || $externals->isEmpty())
-                : hash_equals($this->signature($ncs, $externals), substr($comment, strlen('nc-attachments:')));
-        } finally {
-            $zip->close();
-        }
-    }
-
     /**
      * Sisipkan lampiran NC di akhir dokumen (sebelum sectPr).
      */
-    public function append(string $path, Collection $ncs, bool $includePhotos = false, ?Collection $externals = null): void
+    public function append(string $path, Collection $ncs, bool $includePhotos = false): void
     {
         $images = [];
         foreach ($ncs as $nc) {
@@ -84,7 +52,7 @@ class WordAttachmentService
                 if (! $file->isFileCompleted()) {
                     throw new RuntimeException('Lampiran NC belum selesai diproses.');
                 }
-                if (! Storage::disk('local')->exists($file->file_path)) {
+                if (! Storage::disk()->exists($file->file_path)) {
                     throw new RuntimeException('File lampiran NC tidak ditemukan.');
                 }
                 $caption = $nc->nomor.' — '.$file->kategori->label().' — '.$nc->kendala;
@@ -101,7 +69,7 @@ class WordAttachmentService
             }
         }
 
-        $this->insertImages($path, $images, null, 'nc-attachments:'.$this->signature($ncs, $externals), 'LAMPIRAN NON-CONFORMANCE');
+        $this->insertImages($path, $images, null, 'LAMPIRAN NON-CONFORMANCE');
     }
 
     /**
@@ -119,7 +87,7 @@ class WordAttachmentService
             if (! $external->isFileCompleted()) {
                 throw new RuntimeException('Dokumen eksternal belum selesai diproses.');
             }
-            if (! Storage::disk('local')->exists($external->file_path)) {
+            if (! Storage::disk()->exists($external->file_path)) {
                 throw new RuntimeException('File dokumen eksternal tidak ditemukan.');
             }
             $caption = $external->judul ?: $external->file_name;
@@ -135,7 +103,79 @@ class WordAttachmentService
             }
         }
 
-        $this->insertImages($path, $images, self::EXTERNAL_ANCHOR, null, $coverTitle);
+        $this->insertImages($path, $images, self::EXTERNAL_ANCHOR, $coverTitle);
+    }
+
+    /**
+     * Gambar halaman docx laporan tersimpan ($docPath = doc_path di disk)
+     * untuk dilampirkan ke laporan induk. Dipakai rantai harian→mingguan→
+     * bulanan agar isi lampiran tampil identik di semua viewer (bukan
+     * altChunk) dan heading lampiran tidak bocor ke outline dokumen induk.
+     *
+     * Hasil render di-cache per doc_path (`laporan/lampiran-pages/{sha1}`):
+     * selama file sumber tidak berubah, konversi docx→pdf→webp tidak diulang.
+     * doc_path baru (generate ulang) = kunci baru; cache lama dibuang lewat
+     * forgetPageImages() saat file docx dihapus.
+     *
+     * @return array<array{0: string, 1: string, 2: bool}> item insertImages [path, caption, fullPage]
+     */
+    public function reportPageImages(string $docPath): array
+    {
+        $files = app(FilePathService::class);
+        $directory = self::pageCacheDirectory($docPath);
+        $manifest = $directory.'/pages.json';
+
+        $pages = $files->exists($manifest) ? json_decode((string) $files->disk()->get($manifest), true) : null;
+        if (! is_array($pages) || $pages === [] || ! collect($pages)->every(fn ($page) => is_string($page) && $files->exists($page))) {
+            $files->disk()->deleteDirectory($directory);
+            $pages = $this->renderDocxPages($files->localPath($docPath), $directory);
+            $files->put($manifest, (string) json_encode($pages));
+        }
+
+        return array_map(fn (string $page) => [$page, '', true], $pages);
+    }
+
+    /**
+     * Buang cache gambar halaman milik $docPath (dipanggil saat docx dihapus).
+     */
+    public function forgetPageImages(string $docPath): void
+    {
+        app(FilePathService::class)->disk()->deleteDirectory(self::pageCacheDirectory($docPath));
+    }
+
+    private static function pageCacheDirectory(string $docPath): string
+    {
+        return 'laporan/lampiran-pages/'.sha1($docPath);
+    }
+
+    /**
+     * @return string[] path storage gambar halaman (webp)
+     */
+    private function renderDocxPages(string $docxLocalPath, string $directory): array
+    {
+        $files = app(FilePathService::class);
+        $pdfLocal = $files->tempPath('pdf');
+        app(DocxToPdfService::class)->convert($docxLocalPath, $pdfLocal);
+
+        $source = 'tmp/'.uniqid('lampiran-', true).'.pdf';
+        $files->put($source, (string) file_get_contents($pdfLocal));
+        try {
+            return app(PdfPageService::class)->render($source, $directory);
+        } finally {
+            $files->delete($source);
+            @unlink($pdfLocal);
+        }
+    }
+
+    /**
+     * Sisipkan halaman lampiran (hasil reportPageImages) menggantikan
+     * paragraf marker $anchorText, diawali halaman pembatas $coverTitle.
+     *
+     * @param  array<array{0: string, 1: string, 2: bool}>  $images
+     */
+    public function embedReportPages(string $path, array $images, string $anchorText, string $coverTitle): void
+    {
+        $this->insertImages($path, $images, $anchorText, $coverTitle);
     }
 
     /**
@@ -145,7 +185,7 @@ class WordAttachmentService
      * @param  string|null  $anchorText  teks dalam paragraf marker yang digantikan gambar
      * @param  string|null  $coverTitle  judul halaman pembatas yang disisipkan sebelum gambar
      */
-    private function insertImages(string $path, array $images, ?string $anchorText = null, ?string $archiveComment = null, ?string $coverTitle = null): void
+    private function insertImages(string $path, array $images, ?string $anchorText = null, ?string $coverTitle = null): void
     {
         $zip = new ZipArchive;
         if ($zip->open($path) !== true) {
@@ -199,17 +239,14 @@ class WordAttachmentService
             }
 
             $first = true;
+            $wordImage = app(WordImageService::class);
+            $bounds = $this->sourceBounds($images, $wordImage);
             foreach ($images as [$image, $caption, $pdfPage]) {
-                $fullPath = Storage::disk('local')->path($image);
+                $fullPath = app(FilePathService::class)->localPath($image);
                 $size = @getimagesize($fullPath);
                 if (! $size || $size[0] < 1 || $size[1] < 1) {
                     throw new RuntimeException('Gambar lampiran tidak dapat dibaca.');
                 }
-                $maxWidth = min($availableWidth, ($pdfPage ? 17 : 6) * 360000);
-                $maxHeight = min($availableHeight, ($pdfPage ? 22 : 6) * 360000);
-                $scale = min($maxWidth / $size[0], $maxHeight / $size[1]);
-                $width = (int) round($size[0] * $scale);
-                $height = (int) round($size[1] * $scale);
                 $key = 'att_'.bin2hex(random_bytes(12));
                 $name = $key.'.jpg';
                 $relation = $relations->createElementNS($relations->documentElement->namespaceURI, 'Relationship');
@@ -217,21 +254,40 @@ class WordAttachmentService
                 $relation->setAttribute('Type', 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image');
                 $relation->setAttribute('Target', 'media/'.$name);
                 $relations->documentElement->appendChild($relation);
-                $prepared = app(WordImageService::class)->prepareImageForWord($fullPath, $pdfPage ? 2400 : 900, $pdfPage ? 2400 : 900, 85);
+                $prepared = $wordImage->prepareImageForWord($fullPath, $pdfPage ? 2400 : 900, $pdfPage ? 2400 : 900, 85);
+                $final = $prepared;
                 try {
-                    if (getimagesize($prepared)[2] !== IMAGETYPE_JPEG || ! $zip->addFromString('word/media/'.$name, file_get_contents($prepared))) {
+                    if ($pdfPage && isset($bounds[self::boundsKey($image)])) {
+                        // Pangkas margin putih dengan kotak yang SAMA untuk semua
+                        // halaman satu dokumen sumber, lalu ukur ulang hasil crop.
+                        $trimmed = $wordImage->cropToBounds($prepared, $bounds[self::boundsKey($image)]);
+                        if ($trimmed !== $prepared) {
+                            $final = $trimmed;
+                            $size = @getimagesize($final) ?: $size;
+                        }
+                    }
+                    $maxWidth = $pdfPage ? $availableWidth : min($availableWidth, 6 * 360000);
+                    $maxHeight = $pdfPage ? $availableHeight : min($availableHeight, 6 * 360000);
+                    $scale = min($maxWidth / $size[0], $maxHeight / $size[1]);
+                    $width = (int) round($size[0] * $scale);
+                    $height = (int) round($size[1] * $scale);
+                    if (getimagesize($final)[2] !== IMAGETYPE_JPEG || ! $zip->addFromString('word/media/'.$name, file_get_contents($final))) {
                         throw new RuntimeException('Gagal menyisipkan lampiran.');
                     }
                 } finally {
-                    if ($prepared !== $fullPath) {
-                        @unlink($prepared);
+                    foreach (array_unique([$prepared, $final]) as $tmp) {
+                        if ($tmp !== $fullPath) {
+                            @unlink($tmp);
+                        }
                     }
                 }
                 $caption = htmlspecialchars($caption, ENT_XML1 | ENT_QUOTES, 'UTF-8');
                 $pageBreak = $pdfPage || $first ? '<w:pageBreakBefore/>' : '';
                 $first = false;
-                $xml = '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:pPr>'.$pageBreak.'<w:keepNext/></w:pPr><w:r><w:t xml:space="preserve">'.$caption.'</w:t></w:r></w:p>';
-                $xml .= '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><wp:extent cx="'.$width.'" cy="'.$height.'"/><wp:docPr id="'.$id.'" name="'.$key.'"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="'.$name.'"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="'.$key.'"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="'.$width.'" cy="'.$height.'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>';
+                $xml = $caption === '' ? ''
+                    : '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:pPr>'.$pageBreak.'<w:keepNext/></w:pPr><w:r><w:t xml:space="preserve">'.$caption.'</w:t></w:r></w:p>';
+                $imageBreak = $caption === '' ? $pageBreak : '';
+                $xml .= '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:pPr>'.$imageBreak.'<w:jc w:val="center"/></w:pPr><w:r><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><wp:extent cx="'.$width.'" cy="'.$height.'"/><wp:docPr id="'.$id.'" name="'.$key.'"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="'.$name.'"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="'.$key.'"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="'.$width.'" cy="'.$height.'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>';
                 $fragment = $document->createDocumentFragment();
                 if (! $fragment->appendXML($xml)) {
                     throw new RuntimeException('Struktur lampiran Word tidak valid.');
@@ -243,15 +299,50 @@ class WordAttachmentService
             if ($anchor instanceof DOMElement) {
                 $body->removeChild($anchor);
             }
-            if ($archiveComment !== null) {
-                $zip->setArchiveComment($archiveComment);
-            }
             $zip->addFromString('word/document.xml', $document->saveXML());
             $zip->addFromString('word/_rels/document.xml.rels', $relations->saveXML());
             $zip->addFromString('[Content_Types].xml', $types->saveXML());
         } finally {
             $zip->close();
         }
+    }
+
+    /**
+     * Union kotak konten seluruh halaman per dokumen sumber (halaman hasil
+     * render satu PDF/DOCX berada di direktori yang sama). Crop seragam
+     * menjaga posisi relatif tiap halaman — sampul tetap di tengah, header
+     * dan footer sejajar antarhalaman.
+     *
+     * @param  array<array{0: string, 1: string, 2: bool}>  $images
+     * @return array<string, array{0: float, 1: float, 2: float, 3: float}>
+     */
+    private function sourceBounds(array $images, WordImageService $wordImage): array
+    {
+        $bounds = [];
+        foreach ($images as [$image, , $pdfPage]) {
+            if (! $pdfPage) {
+                continue;
+            }
+            $box = $wordImage->contentBounds(app(FilePathService::class)->localPath($image));
+            if ($box === null) {
+                continue;
+            }
+            $key = self::boundsKey($image);
+            $bounds[$key] = isset($bounds[$key])
+                ? [min($bounds[$key][0], $box[0]), min($bounds[$key][1], $box[1]), max($bounds[$key][2], $box[2]), max($bounds[$key][3], $box[3])]
+                : $box;
+        }
+
+        return $bounds;
+    }
+
+    /**
+     * Kunci grup crop: halaman render PDF (`{dir}/{uuid}/page-N.*`) per
+     * direktori dokumen; gambar tunggal per file.
+     */
+    private static function boundsKey(string $image): string
+    {
+        return preg_match('/(^|\/)page-\d+\.\w+$/', $image) ? dirname($image) : $image;
     }
 
     private function xml(string|false $content): DOMDocument

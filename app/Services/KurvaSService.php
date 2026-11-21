@@ -160,7 +160,7 @@ class KurvaSService
      */
     public function getMingguOptions(DataKapal $dataKapal, ?int $excludeCurrentWeek = null): array
     {
-        if (! $dataKapal->hasKontrak()) {
+        if (! $dataKapal->hasPelaksanaan()) {
             return [];
         }
 

@@ -91,12 +91,12 @@ trait HasNcFotoPreview
 
         $foto = $this->ncFotos()->firstWhere('id', $fotoId);
 
-        if (! $foto || ! $foto->file_path || ! Storage::disk('local')->exists($foto->file_path)) {
+        if (! $foto || ! $foto->file_path || ! Storage::disk()->exists($foto->file_path)) {
             $this->notifyError('File tidak ditemukan.');
 
             return null;
         }
 
-        return Storage::disk('local')->download($foto->file_path, $foto->file_name);
+        return Storage::disk()->download($foto->file_path, $foto->file_name);
     }
 }

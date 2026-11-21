@@ -18,8 +18,10 @@ class PdfPageService
             ini_set('memory_limit', '512M');
         }
         $deadline = microtime(true) + 45;
-        $disk = Storage::disk('local');
-        $info = new Process([config('services.poppler.pdfinfo'), $disk->path($source)], env: ['LC_ALL' => 'C']);
+        $disk = Storage::disk();
+        $files = app(FilePathService::class);
+        $sourceLocal = $files->localPath($source);
+        $info = new Process([config('services.poppler.pdfinfo'), $sourceLocal], env: ['LC_ALL' => 'C']);
         $info->setTimeout(10);
         $info->mustRun();
         if (! preg_match('/^Pages:\s+(\d+)/m', $info->getOutput(), $match)) {
@@ -36,10 +38,13 @@ class PdfPageService
         $manager = new ImageManager(new Driver);
         try {
             for ($page = 1; $page <= $count; $page++) {
-                $prefix = $disk->path($directory.'/page-'.$page);
+                // pdftoppm hanya bisa menulis ke filesystem lokal — render ke
+                // file temp lalu simpan hasil WebP ke disk tujuan.
+                $pngPath = $files->tempPath('png');
+                $prefix = substr($pngPath, 0, -4);
                 $process = new Process([
                     config('services.poppler.pdftoppm'), '-f', (string) $page, '-l', (string) $page,
-                    '-singlefile', '-scale-to', '2400', '-png', $disk->path($source), $prefix,
+                    '-singlefile', '-scale-to', '2400', '-png', $sourceLocal, $prefix,
                 ]);
                 $remaining = $deadline - microtime(true);
                 if ($remaining <= 0) {
@@ -47,13 +52,12 @@ class PdfPageService
                 }
                 $process->setTimeout(min(15, $remaining));
                 $process->mustRun();
-                $image = $manager->read($prefix.'.png');
+                $image = $manager->read($pngPath);
                 $path = $directory.'/page-'.$page.'.webp';
                 if (! $disk->put($path, (string) $image->toWebp(85))) {
                     throw new RuntimeException('Gagal menyimpan halaman PDF.');
                 }
                 unset($image);
-                $disk->delete($directory.'/page-'.$page.'.png');
                 $pages[] = $path;
             }
 

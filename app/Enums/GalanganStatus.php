@@ -9,7 +9,7 @@ enum GalanganStatus: string
 
     public function label(): string
     {
-        return match($this) {
+        return match ($this) {
             self::Active => 'Aktif',
             self::Inactive => 'Tidak Aktif',
         };
@@ -17,7 +17,7 @@ enum GalanganStatus: string
 
     public function color(): string
     {
-        return match($this) {
+        return match ($this) {
             self::Active => 'success',
             self::Inactive => 'danger',
         };

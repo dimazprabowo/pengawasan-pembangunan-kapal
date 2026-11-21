@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\LaporanBulanan;
+use App\Models\LaporanExternal;
 use App\Models\LaporanMingguan;
 use App\Traits\SortsQuery;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -21,7 +22,7 @@ class LaporanBulananService
         ?string $sortField = null,
         string $sortDir = 'asc'
     ): LengthAwarePaginator {
-        $query = LaporanBulanan::with(['user', 'updatedBy:id,name', 'dataKapal.company', 'dataKapal.galangan'])
+        $query = LaporanBulanan::with(['user', 'updatedBy:id,name', 'dataKapal.owner', 'dataKapal.galangan'])
             ->byDataKapal($dataKapalId);
 
         if ($search) {
@@ -87,11 +88,10 @@ class LaporanBulananService
 
     public function update(LaporanBulanan $laporanBulanan, array $data): LaporanBulanan
     {
-        return DB::transaction(function () use ($laporanBulanan, $data) {
-            $laporanBulanan->update($data);
+        DB::transaction(fn () => $laporanBulanan->update($data));
+        app(LaporanDocumentService::class)->clearDoc($laporanBulanan);
 
-            return $laporanBulanan;
-        });
+        return $laporanBulanan;
     }
 
     /**
@@ -99,16 +99,39 @@ class LaporanBulananService
      */
     public function delete(LaporanBulanan $laporanBulanan): void
     {
+        app(LaporanDocumentService::class)->clearDoc($laporanBulanan);
+
         DB::transaction(function () use ($laporanBulanan) {
             foreach ($laporanBulanan->laporanExternal as $external) {
-                if ($external->file_path) {
-                    Storage::disk('local')->delete($external->file_path);
-                }
-                Storage::disk('local')->delete($external->rendered_pages ?? []);
+                $this->deleteExternalFiles($external);
                 $external->delete();
             }
 
             $laporanBulanan->delete();
         });
+    }
+
+    /**
+     * Hapus laporan external milik laporan bulanan ini (id di luar laporan
+     * diabaikan — cegah IDOR) lalu kosongkan dokumen bulanannya.
+     */
+    public function deleteExternal(LaporanBulanan $laporanBulanan, int $externalId): void
+    {
+        $external = $laporanBulanan->laporanExternal()->find($externalId);
+        if (! $external) {
+            return;
+        }
+
+        $this->deleteExternalFiles($external);
+        $external->delete();
+        app(LaporanDocumentService::class)->clearDoc($laporanBulanan);
+    }
+
+    private function deleteExternalFiles(LaporanExternal $external): void
+    {
+        if ($external->file_path) {
+            Storage::disk()->delete($external->file_path);
+        }
+        Storage::disk()->delete($external->rendered_pages ?? []);
     }
 }

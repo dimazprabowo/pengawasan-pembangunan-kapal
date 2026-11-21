@@ -369,7 +369,7 @@
                     <div class="flex-1">
                         <h4 class="text-base font-semibold text-gray-900 dark:text-white">Terapkan {{ $this->kontrakSummary['total_bulan'] ?? 0 }} Bulan ke Semua Work Group?</h4>
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                            Jumlah bulan <strong>semua work group</strong> akan disesuaikan ke <strong>{{ $this->kontrakSummary['total_bulan'] ?? 0 }}</strong> bulan sesuai kontrak.
+                            Jumlah bulan <strong>semua work group</strong> akan disesuaikan ke <strong>{{ $this->kontrakSummary['total_bulan'] ?? 0 }}</strong> bulan sesuai pelaksanaan.
                             Work group yang memiliki lebih dari {{ $this->kontrakSummary['total_bulan'] ?? 0 }} bulan akan <strong class="text-red-600 dark:text-red-400">kehilangan bulan berlebih beserta nilai rencananya</strong>.
                         </p>
                     </div>
@@ -441,41 +441,41 @@
             {{-- Body --}}
             <div class="flex-1 overflow-y-auto px-6 py-5 space-y-4">
 
-                {{-- Periode Kontrak --}}
+                {{-- Periode Pelaksanaan --}}
                 <div class="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg"
                     x-data="{ detailTab: 'minggu' }">
-                    <p class="text-sm font-medium text-emerald-800 dark:text-emerald-300 mb-1">Periode Kontrak (Hari Kalender)</p>
+                    <p class="text-sm font-medium text-emerald-800 dark:text-emerald-300 mb-1">Periode Pelaksanaan (Hari Kalender)</p>
                     <p class="text-xs text-emerald-600 dark:text-emerald-400 mb-3">
-                        Periode laporan mingguan &amp; bulanan akan digenerate otomatis mengikuti kontrak ini.
+                        Periode laporan mingguan &amp; bulanan akan digenerate otomatis mengikuti pelaksanaan ini.
                     </p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-3 items-end">
                         <div>
-                            <label for="tanggal_mulai_kontrak" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Tanggal Mulai Kontrak</label>
-                            <x-tanggal-picker wire:model.live="tanggal_mulai_kontrak"
+                            <label for="tanggal_mulai_pelaksanaan" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Tanggal Mulai Pelaksanaan</label>
+                            <x-tanggal-picker wire:model.live="tanggal_mulai_pelaksanaan"
                                 display-format="j F Y"
-                                placeholder="Pilih tanggal mulai kontrak"
+                                placeholder="Pilih tanggal mulai pelaksanaan"
                                 class="!py-1.5 text-sm" />
-                            @error('tanggal_mulai_kontrak')
+                            @error('tanggal_mulai_pelaksanaan')
                                 <p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ $message }}</p>
                             @enderror
                         </div>
                         <div>
-                            <label for="durasi_kontrak_hari" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Durasi Kontrak (hari)</label>
-                            <input id="durasi_kontrak_hari" type="number"
-                                wire:model.live.debounce.500ms="durasi_kontrak_hari"
-                                wire:key="durasi-kontrak-{{ $dataKapalId }}"
+                            <label for="waktu_pelaksanaan_hari" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Waktu Pelaksanaan (hari)</label>
+                            <input id="waktu_pelaksanaan_hari" type="number"
+                                wire:model.live.debounce.500ms="waktu_pelaksanaan_hari"
+                                wire:key="waktu-pelaksanaan-{{ $dataKapalId }}"
                                 wire:ignore
-                                value="{{ $durasi_kontrak_hari }}"
+                                value="{{ $waktu_pelaksanaan_hari }}"
                                 min="1" max="7300" step="1"
                                 placeholder="Contoh: 300"
-                                class="w-full px-3 py-1.5 text-sm border rounded-lg focus:ring-2 dark:bg-gray-700 dark:text-white @error('durasi_kontrak_hari') border-red-500 dark:border-red-500 focus:ring-red-500 @else border-emerald-300 dark:border-emerald-600 focus:ring-emerald-500 @enderror">
-                            @error('durasi_kontrak_hari')
+                                class="w-full px-3 py-1.5 text-sm border rounded-lg focus:ring-2 dark:bg-gray-700 dark:text-white @error('waktu_pelaksanaan_hari') border-red-500 dark:border-red-500 focus:ring-red-500 @else border-emerald-300 dark:border-emerald-600 focus:ring-emerald-500 @enderror">
+                            @error('waktu_pelaksanaan_hari')
                                 <p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ $message }}</p>
                             @enderror
                         </div>
                         <div class="sm:col-span-2 lg:col-span-1">
                             <x-loading-button wire:click="requestApplyContractMonths" target="requestApplyContractMonths" variant="success" size="sm"
-                                loadingText="Memeriksa..." title="Sesuaikan jumlah bulan semua work group ke total bulan kontrak"
+                                loadingText="Memeriksa..." title="Sesuaikan jumlah bulan semua work group ke total bulan pelaksanaan"
                                 class="w-full lg:w-auto">
                                 <x-slot:icon>
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -497,8 +497,8 @@
                                 <div class="min-w-0">
                                     <p class="text-[10px] font-medium uppercase tracking-wide text-emerald-600/80 dark:text-emerald-400/80">Tanggal Selesai</p>
                                     <p class="text-sm font-semibold text-emerald-900 dark:text-emerald-100 truncate">
-                                        <span wire:loading.class="hidden" wire:target="durasi_kontrak_hari,tanggal_mulai_kontrak">{{ $this->kontrakSummary['selesai'] }}</span>
-                                        <svg wire:loading wire:target="durasi_kontrak_hari,tanggal_mulai_kontrak" class="animate-spin w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" fill="none" viewBox="0 0 24 24">
+                                        <span wire:loading.class="hidden" wire:target="waktu_pelaksanaan_hari,tanggal_mulai_pelaksanaan">{{ $this->kontrakSummary['selesai'] }}</span>
+                                        <svg wire:loading wire:target="waktu_pelaksanaan_hari,tanggal_mulai_pelaksanaan" class="animate-spin w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" fill="none" viewBox="0 0 24 24">
                                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                                         </svg>
@@ -512,8 +512,8 @@
                                 <div class="min-w-0">
                                     <p class="text-[10px] font-medium uppercase tracking-wide text-emerald-600/80 dark:text-emerald-400/80">Minggu Proyek</p>
                                     <p class="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
-                                        <span wire:loading.class="hidden" wire:target="durasi_kontrak_hari,tanggal_mulai_kontrak">{{ $this->kontrakSummary['total_minggu'] }} minggu</span>
-                                        <svg wire:loading wire:target="durasi_kontrak_hari,tanggal_mulai_kontrak" class="animate-spin w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" fill="none" viewBox="0 0 24 24">
+                                        <span wire:loading.class="hidden" wire:target="waktu_pelaksanaan_hari,tanggal_mulai_pelaksanaan">{{ $this->kontrakSummary['total_minggu'] }} minggu</span>
+                                        <svg wire:loading wire:target="waktu_pelaksanaan_hari,tanggal_mulai_pelaksanaan" class="animate-spin w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" fill="none" viewBox="0 0 24 24">
                                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                                         </svg>
@@ -527,8 +527,8 @@
                                 <div class="min-w-0">
                                     <p class="text-[10px] font-medium uppercase tracking-wide text-emerald-600/80 dark:text-emerald-400/80">Bulan Kalender</p>
                                     <p class="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
-                                        <span wire:loading.class="hidden" wire:target="durasi_kontrak_hari,tanggal_mulai_kontrak">{{ $this->kontrakSummary['total_bulan'] }} bulan</span>
-                                        <svg wire:loading wire:target="durasi_kontrak_hari,tanggal_mulai_kontrak" class="animate-spin w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" fill="none" viewBox="0 0 24 24">
+                                        <span wire:loading.class="hidden" wire:target="waktu_pelaksanaan_hari,tanggal_mulai_pelaksanaan">{{ $this->kontrakSummary['total_bulan'] }} bulan</span>
+                                        <svg wire:loading wire:target="waktu_pelaksanaan_hari,tanggal_mulai_pelaksanaan" class="animate-spin w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" fill="none" viewBox="0 0 24 24">
                                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                                         </svg>
@@ -658,7 +658,7 @@
                         @endif
                     @else
                         <p class="mt-3 text-xs text-emerald-600/80 dark:text-emerald-400/80 italic">
-                            Isi tanggal mulai &amp; durasi untuk melihat ringkasan periode kontrak.
+                            Isi tanggal mulai &amp; waktu pelaksanaan untuk melihat ringkasan periode.
                         </p>
                     @endif
                 </div>

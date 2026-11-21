@@ -5,18 +5,21 @@ namespace App\Livewire\MasterData;
 use App\Enums\CuacaStatus;
 use App\Exports\CuacaExport;
 use App\Livewire\Traits\HasNotification;
+use App\Livewire\Traits\HasTableSorting;
 use App\Models\Cuaca;
 use App\Services\CuacaService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Maatwebsite\Excel\Facades\Excel;
 
 class CuacaManagement extends Component
 {
-    use \App\Livewire\Traits\HasTableSorting;
     use AuthorizesRequests, HasNotification, WithPagination;
+    use HasTableSorting;
 
     protected $paginationTheme = 'tailwind';
 
@@ -115,7 +118,7 @@ class CuacaManagement extends Component
     {
         try {
             $this->validate();
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->notifyValidationError($e);
             throw $e;
         }
@@ -142,7 +145,7 @@ class CuacaManagement extends Component
 
             $this->notifySuccess($message);
             $this->closeModal();
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk melakukan aksi ini.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
@@ -166,7 +169,7 @@ class CuacaManagement extends Component
             $service->delete($cuaca);
             $this->notifySuccess('Cuaca berhasil dihapus! Laporan terkait akan di-set null.');
             $this->showDeleteModal = false;
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak dapat menghapus cuaca ini.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
@@ -183,7 +186,7 @@ class CuacaManagement extends Component
 
             $status = $cuaca->fresh()->status->label();
             $this->notifySuccess("Status cuaca berhasil diubah menjadi {$status}!");
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk mengubah status cuaca.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());

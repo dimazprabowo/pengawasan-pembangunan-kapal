@@ -19,33 +19,33 @@
             @endif
         </div>
     </div>
-    <dl class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-4 gap-y-2">
+    <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3">
         <div>
             <dt class="text-[11px] uppercase tracking-wide text-blue-500/80 dark:text-blue-400/70">Pekerjaan</dt>
             <dd class="text-sm font-medium text-blue-900 dark:text-blue-100">{{ $dataKapal->nama_pekerjaan ?: '-' }}</dd>
         </div>
         <div>
-            <dt class="text-[11px] uppercase tracking-wide text-blue-500/80 dark:text-blue-400/70">Pemberi Tugas</dt>
-            <dd class="text-sm font-medium text-blue-900 dark:text-blue-100">{{ $dataKapal->company?->name ?? '-' }}</dd>
+            <dt class="text-[11px] uppercase tracking-wide text-blue-500/80 dark:text-blue-400/70">Owner</dt>
+            <dd class="text-sm font-medium text-blue-900 dark:text-blue-100">{{ $dataKapal->owner?->name ?? '-' }}</dd>
         </div>
         <div>
             <dt class="text-[11px] uppercase tracking-wide text-blue-500/80 dark:text-blue-400/70">Galangan / Lokasi</dt>
             <dd class="text-sm font-medium text-blue-900 dark:text-blue-100">{{ trim(($dataKapal->galangan?->nama ?? '-').' '.($dataKapal->galangan?->kota ?? '')) }}</dd>
         </div>
         <div>
-            <dt class="text-[11px] uppercase tracking-wide text-blue-500/80 dark:text-blue-400/70">No. Kontrak</dt>
-            <dd class="text-sm font-medium text-blue-900 dark:text-blue-100">{{ $dataKapal->nomor_kontrak ?: '-' }}</dd>
+            <dt class="text-[11px] uppercase tracking-wide text-blue-500/80 dark:text-blue-400/70">No. Kontrak Galangan</dt>
+            <dd class="text-sm font-medium text-blue-900 dark:text-blue-100">{{ $dataKapal->nomor_kontrak_galangan ?: '-' }}</dd>
         </div>
         <div>
-            <dt class="text-[11px] uppercase tracking-wide text-blue-500/80 dark:text-blue-400/70">No. Pembangunan</dt>
-            <dd class="text-sm font-medium text-blue-900 dark:text-blue-100">{{ $dataKapal->nomor_pembangunan ?: '-' }}</dd>
+            <dt class="text-[11px] uppercase tracking-wide text-blue-500/80 dark:text-blue-400/70">No. Kontrak Pengawas</dt>
+            <dd class="text-sm font-medium text-blue-900 dark:text-blue-100">{{ $dataKapal->nomor_kontrak_pengawas ?: '-' }}</dd>
         </div>
         <div>
-            <dt class="text-[11px] uppercase tracking-wide text-blue-500/80 dark:text-blue-400/70">Periode Kontrak</dt>
+            <dt class="text-[11px] uppercase tracking-wide text-blue-500/80 dark:text-blue-400/70">Periode Pelaksanaan</dt>
             <dd class="text-sm font-medium text-blue-900 dark:text-blue-100">
-                @if($dataKapal->hasKontrak())
-                    {{ $dataKapal->tanggal_mulai_kontrak->translatedFormat('d M Y') }} – {{ $dataKapal->tanggal_selesai_kontrak->translatedFormat('d M Y') }}
-                    <span class="text-xs font-normal text-blue-600 dark:text-blue-300">({{ $dataKapal->durasi_kontrak_hari }} hari)</span>
+                @if($dataKapal->hasPelaksanaan())
+                    {{ $dataKapal->tanggal_mulai_pelaksanaan->translatedFormat('d M Y') }} – {{ $dataKapal->tanggal_selesai_pelaksanaan->translatedFormat('d M Y') }}
+                    <span class="text-xs font-normal text-blue-600 dark:text-blue-300">({{ $dataKapal->waktu_pelaksanaan_hari }} hari)</span>
                 @else
                     -
                 @endif

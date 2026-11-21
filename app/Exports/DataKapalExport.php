@@ -19,25 +19,25 @@ class DataKapalExport implements FromCollection, ShouldAutoSize, WithHeadings, W
 
     protected $statusFilter;
 
-    protected $companyFilter;
+    protected $ownerFilter;
 
-    public function __construct($search = '', $statusFilter = '', $companyFilter = null)
+    public function __construct($search = '', $statusFilter = '', $ownerFilter = null)
     {
         $this->search = $search;
         $this->statusFilter = $statusFilter;
-        $this->companyFilter = $companyFilter;
+        $this->ownerFilter = $ownerFilter;
     }
 
     public function collection(): Collection
     {
-        return DataKapal::with('company')
+        return DataKapal::with('owner')
             ->withCount(['laporanHarian', 'laporanMingguan', 'laporanBulanan'])
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
                     $q->where('nama', 'like', "%{$this->search}%")
                         ->orWhere('kode', 'like', "%{$this->search}%")
                         ->orWhere('deskripsi', 'like', "%{$this->search}%")
-                        ->orWhereHas('company', function ($q) {
+                        ->orWhereHas('owner', function ($q) {
                             $q->where('name', 'like', "%{$this->search}%")
                                 ->orWhere('code', 'like', "%{$this->search}%");
                         });
@@ -46,8 +46,8 @@ class DataKapalExport implements FromCollection, ShouldAutoSize, WithHeadings, W
             ->when($this->statusFilter !== null && $this->statusFilter !== '', function ($q) {
                 $q->where('status', $this->statusFilter);
             })
-            ->when($this->companyFilter, function ($q) {
-                $q->where('company_id', $this->companyFilter);
+            ->when($this->ownerFilter, function ($q) {
+                $q->where('owner_id', $this->ownerFilter);
             })
             ->orderBy('nama')
             ->get();
@@ -59,8 +59,8 @@ class DataKapalExport implements FromCollection, ShouldAutoSize, WithHeadings, W
             'No',
             'Kode',
             'Data Kapal',
-            'Perusahaan',
-            'Kode Perusahaan',
+            'Owner',
+            'Kode Owner',
             'Deskripsi',
             'Laporan Harian',
             'Laporan Mingguan',
@@ -79,8 +79,8 @@ class DataKapalExport implements FromCollection, ShouldAutoSize, WithHeadings, W
             $no,
             $dataKapal->kode,
             $dataKapal->nama,
-            $dataKapal->company->name,
-            $dataKapal->company->code,
+            $dataKapal->owner->name,
+            $dataKapal->owner->code,
             $dataKapal->deskripsi ?? '-',
             $dataKapal->getLaporanCount('harian'),
             $dataKapal->getLaporanCount('mingguan'),

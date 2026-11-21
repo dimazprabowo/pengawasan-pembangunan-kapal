@@ -29,10 +29,10 @@ class DashboardService
             ->first();
 
         $kontrakBerakhir = DataKapal::whereIn('id', $kapalIds)
-            ->whereNotNull('tanggal_mulai_kontrak')
-            ->whereNotNull('durasi_kontrak_hari')
-            ->get(['id', 'tanggal_mulai_kontrak', 'durasi_kontrak_hari'])
-            ->filter(fn (DataKapal $k) => ($sisa = $k->sisaHariKontrak()) !== null && $sisa >= 0 && $sisa <= 30)
+            ->whereNotNull('tanggal_mulai_pelaksanaan')
+            ->whereNotNull('waktu_pelaksanaan_hari')
+            ->get(['id', 'tanggal_mulai_pelaksanaan', 'waktu_pelaksanaan_hari'])
+            ->filter(fn (DataKapal $k) => ($sisa = $k->sisaHariPelaksanaan()) !== null && $sisa >= 0 && $sisa <= 30)
             ->count();
 
         $laporan = LaporanHarian::whereIn('data_kapal_id', $kapalIds);
@@ -102,7 +102,7 @@ class DashboardService
             return null;
         }
 
-        $kapal = DataKapal::with('company:id,name')
+        $kapal = DataKapal::with('owner:id,name')
             ->where('galangan_id', $galangan->id)
             ->whereIn('id', $kapalIds)
             ->withCount([
@@ -119,6 +119,44 @@ class DashboardService
             'galangan' => $galangan,
             'kapal' => $this->kurvaSService->attachProgress($kapal),
         ];
+    }
+
+    /**
+     * Daftar kapal ter-scope yang memiliki jadwal Kurva-S (work groups),
+     * lengkap dengan progress rencana/aktual/deviasi. Urut: deviasi
+     * terburuk (paling negatif) di atas agar kapal terlambat terlihat
+     * duluan; kapal tanpa data progress berada paling bawah.
+     *
+     * @param  Collection<int, int>  $kapalIds
+     * @return \Illuminate\Database\Eloquent\Collection<int, DataKapal>
+     */
+    public function kurvaSKapalRows(Collection $kapalIds): \Illuminate\Database\Eloquent\Collection
+    {
+        $kapal = DataKapal::with(['owner:id,name', 'galangan:id,nama,kota'])
+            ->whereIn('id', $kapalIds)
+            ->whereHas('kurvaSWorkGroups')
+            ->withCount('laporanMingguan')
+            ->withMax('laporanHarian', 'tanggal_laporan')
+            ->get();
+
+        $this->kurvaSService->attachProgress($kapal);
+
+        return $kapal->sortBy(fn (DataKapal $k) => [
+            $k->progress_deviasi === null ? 1 : 0,
+            $k->progress_deviasi ?? 0.0,
+            mb_strtolower($k->nama),
+        ])->values();
+    }
+
+    /**
+     * Data grafik Kurva-S satu kapal untuk panel dashboard.
+     * mode 'mingguan' = kurva mingguan kanonik; 'bulanan' = agregat per bulan.
+     */
+    public function kurvaSChart(DataKapal $dataKapal, string $mode = 'mingguan'): array
+    {
+        return $mode === 'bulanan'
+            ? $this->kurvaSService->getMonthlyChartData($dataKapal)
+            : $this->kurvaSService->getChartData($dataKapal);
     }
 
     /**

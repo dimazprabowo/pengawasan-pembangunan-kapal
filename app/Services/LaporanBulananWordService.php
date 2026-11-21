@@ -2,13 +2,13 @@
 
 namespace App\Services;
 
-use App\Enums\MaterialKategori;
 use App\Enums\NcStatus;
 use App\Jobs\GenerateLaporanMingguanJob;
+use App\Models\DataKapal;
 use App\Models\LaporanBulanan;
 use App\Models\LaporanMingguan;
 use Carbon\CarbonInterface;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpWord\Element\Table;
 use PhpOffice\PhpWord\Settings;
@@ -21,7 +21,8 @@ use PhpOffice\PhpWord\TemplateProcessor;
  * Generate dokumen Word Laporan Bulanan (struktur ASDP):
  * Cover → Pengesahan → TOC → Kata Pengantar → Executive Summary →
  * BAB 1–4. Tabel dibangun via setComplexBlock; laporan mingguan
- * disisipkan utuh via w:altChunk (pola harian→mingguan).
+ * disisipkan utuh sebagai gambar halaman (docx → pdf → webp)
+ * sehingga rantai lampiran harian→mingguan terbawa tanpa altChunk.
  */
 class LaporanBulananWordService
 {
@@ -41,7 +42,6 @@ class LaporanBulananWordService
         private KurvaSService $kurvaSService,
         private KontrakPeriodeService $periodeService,
         private DataProyekService $proyekService,
-        private WordChunkService $chunkService,
     ) {}
 
     public function generate(LaporanBulanan $laporan): string
@@ -50,7 +50,7 @@ class LaporanBulananWordService
 
         $laporan->loadMissing([
             'user',
-            'dataKapal.company',
+            'dataKapal.owner',
             'dataKapal.galangan',
             'laporanExternal',
         ]);
@@ -62,24 +62,25 @@ class LaporanBulananWordService
         $this->fillInfoUmum($processor, $laporan);
         $this->fillSpesifikasi($processor, $laporan);
         $this->fillDrawing($processor, $laporan);
-        $this->fillRealisasi($processor, $laporan);
         $this->fillVendor($processor, $laporan);
         $this->fillMaterial($processor, $laporan);
-        $this->fillWaktu($processor, $laporan);
+        $this->fillRealisasi($processor, $laporan);
         $this->fillProgressMingguan($processor, $laporan);
         $this->fillPengujian($processor, $laporan);
         $this->fillRapat($processor, $laporan);
         $this->fillNc($processor, $laporan);
+        $this->fillKesimpulan($processor, $laporan);
         $this->fillExternal($processor, $laporan);
         $this->fillLampiranMingguan($processor, $laporan);
 
-        $relativePath = $this->saveDocument($processor, $laporan);
-        $path = storage_path('app/'.$relativePath);
+        $files = app(FilePathService::class);
+        [$relativePath, $localPath] = $this->saveDocument($processor, $laporan);
         try {
-            app(WordAttachmentService::class)->embedExternals($path, $laporan->laporanExternal, 'DOKUMEN PENDUKUNG');
-            $this->embedMingguanDocs($path, $this->resolveMingguanDocs($laporan));
+            app(WordAttachmentService::class)->embedExternals($localPath, $laporan->laporanExternal, 'DOKUMEN PENDUKUNG');
+            $this->embedMingguanDocs($localPath, $this->resolveMingguanDocs($laporan));
+            $files->commitLocalFile($localPath, $relativePath);
         } catch (\Throwable $e) {
-            unlink($path);
+            @unlink($localPath);
             throw $e;
         }
 
@@ -98,14 +99,14 @@ class LaporanBulananWordService
             }
         }
 
-        $default = storage_path('app/'.self::TEMPLATE_PATH);
-        if (! file_exists($default)) {
+        $files = app(FilePathService::class);
+        if (! $files->exists(self::TEMPLATE_PATH)) {
             throw new \RuntimeException(
-                'Template Word bulanan tidak ditemukan. Upload template pada master Data Kapal atau sediakan default di storage/app/'.self::TEMPLATE_PATH
+                'Template Word bulanan tidak ditemukan. Upload template pada master Data Kapal atau sediakan default di penyimpanan: '.self::TEMPLATE_PATH
             );
         }
 
-        return $default;
+        return $files->localPath(self::TEMPLATE_PATH);
     }
 
     // ──────────────────────────────────────────────────────────────────
@@ -121,10 +122,10 @@ class LaporanBulananWordService
             'cutoff' => $this->tanggal($laporan->periode_selesai ?? $laporan->tanggal_laporan),
             'nama_pekerjaan' => $dk?->nama_pekerjaan ?: ($dk?->nama ?? '-'),
             'nama_kapal' => $dk?->nama ?? '-',
-            'perusahaan' => $dk?->company?->name ?? '-',
-            'perusahaan_alamat' => $dk?->company?->address ?? '',
+            'owner' => $dk?->owner?->name ?? '-',
+            'owner_alamat' => $dk?->owner?->address ?? '',
             'galangan' => $dk?->galangan?->nama ?? '-',
-            'nomor_kontrak' => $dk?->nomor_kontrak ?: '-',
+            'nomor_kontrak_pengawas' => $dk?->nomor_kontrak_pengawas ?: '-',
             'periode_label' => ($laporan->periode_mulai && $laporan->periode_selesai)
                 ? $this->tanggal($laporan->periode_mulai).' s/d '.$this->tanggal($laporan->periode_selesai)
                 : '-',
@@ -208,26 +209,13 @@ class LaporanBulananWordService
     // ──────────────────────────────────────────────────────────────────
     private function fillInfoUmum(TemplateProcessor $processor, LaporanBulanan $laporan): void
     {
-        $dk = $laporan->dataKapal;
-
-        $rows = [
-            'NAMA PEKERJAAN' => $dk?->nama_pekerjaan ?: ($dk?->nama ?? '-'),
-            'KAPAL YANG DISUPERVISI' => $dk?->nama ?? '-',
-            'KODE PROYEK' => $dk?->kode ?: '-',
-            'NOMOR PEMBANGUNAN' => $dk?->nomor_pembangunan ?: '-',
-            'PEMILIK' => trim(($dk?->company?->name ?? '-').' '.($dk?->company?->address ?? '')),
-            'KONSULTANSI' => 'PT. BIRO KLASIFIKASI INDONESIA (PERSERO) SBU Marine & Offshore Migas',
-            'KONTRAKTOR / GALANGAN' => trim(($dk?->galangan?->nama ?? '-').' '.($dk?->galangan?->alamat ?? '')),
-            'NO. KONTRAK' => $dk?->nomor_kontrak ?: '-',
-            'WAKTU PELAKSANAAN' => $dk?->durasi_kontrak_hari ? $dk->durasi_kontrak_hari.' Hari Kalender' : '-',
-            'LOKASI PENGAWASAN' => trim(($dk?->galangan?->nama ?? '-').', '.($dk?->galangan?->kota ?? '')),
-        ];
-
-        WordStyleService::setComplexBlock($processor, 'tabel_info_umum', $this->labelValueTable($rows));
+        WordStyleService::setComplexBlock($processor, 'tabel_info_umum', WordStyleService::labelValueTable(
+            DataKapal::infoUmumRows($laporan->dataKapal, $laporan->periode_selesai ?? $laporan->tanggal_laporan)
+        ));
     }
 
     // ──────────────────────────────────────────────────────────────────
-    // BAB 2.1 — SPESIFIKASI KAPAL
+    // sub-bab 2.1 — SPESIFIKASI KAPAL
     // ──────────────────────────────────────────────────────────────────
     private function fillSpesifikasi(TemplateProcessor $processor, LaporanBulanan $laporan): void
     {
@@ -252,56 +240,38 @@ class LaporanBulananWordService
     }
 
     // ──────────────────────────────────────────────────────────────────
-    // BAB 2.2 — STATUS DESIGN & APPROVAL DRAWING (3 blok agregat)
+    // sub-bab 2.2 — STATUS DESIGN & APPROVAL DRAWING (riwayat kumulatif)
     // ──────────────────────────────────────────────────────────────────
     private function fillDrawing(TemplateProcessor $processor, LaporanBulanan $laporan): void
     {
         $dk = $laporan->dataKapal;
-        $aggr = $dk ? $this->proyekService->getDrawingAggregates($dk) : null;
-
-        if (! $aggr || $aggr['total'] === 0) {
-            foreach (['tabel_drawing_galangan', 'tabel_drawing_mno', 'tabel_drawing_klas'] as $macro) {
-                $processor->setValue($macro, 'Belum ada data drawing register.');
-            }
+        $rows = $dk ? app(DrawingRegisterService::class)->historyUpTo($dk, $laporan->periode_selesai ?? $laporan->tanggal_laporan) : collect();
+        $processor->setValue('nomor_kontrak_gambar', $dk?->nomor_kontrak_gambar ?? '-');
+        if ($rows->isEmpty()) {
+            $processor->setValue('tabel_drawing', 'Belum ada riwayat gambar sampai periode ini.');
 
             return;
         }
-
-        $pct = fn (?float $v) => $v === null ? '-' : number_format($v, 2, ',', '.').' %';
-
-        WordStyleService::setComplexBlock($processor, 'tabel_drawing_galangan', $this->labelValueTable([
-            'Total Gambar dari Galangan' => (string) $aggr['total'],
-            'Total Gambar yang sudah dibuat oleh Galangan' => (string) $aggr['produksi_selesai'],
-            'Progress Penyelesaian Gambar oleh Galangan' => $pct($aggr['produksi_pct']),
-        ]));
-
-        WordStyleService::setComplexBlock($processor, 'tabel_drawing_mno', $this->labelValueTable([
-            'Total Gambar yang sudah diterima MNO' => (string) $aggr['mno_diterima'],
-            'Total Gambar yang telah direview MNO' => (string) $aggr['mno_selesai'],
-            'Progress Penyelesaian Review Gambar oleh MNO' => $pct($aggr['mno_pct']),
-            'Jumlah "comment"' => (string) $aggr['mno_comment'],
-            'Jumlah "comment" dengan status "Open"' => (string) $aggr['mno_open'],
-            'Jumlah "comment" dengan status "Closed"' => (string) $aggr['mno_closed'],
-            'Jumlah "comment" dengan status "Informasi"' => (string) $aggr['mno_informasi'],
-        ]));
-
-        WordStyleService::setComplexBlock($processor, 'tabel_drawing_klas', $this->labelValueTable([
-            'Total Gambar yang sudah dikirim ke Klas' => (string) $aggr['klas_dikirim'],
-            'Total Gambar yang telah direview / disetujui Klas' => (string) $aggr['klas_disetujui'],
-            'Progress Penyelesaian Review / Approval oleh Klas' => $pct($aggr['klas_pct']),
-            'Jumlah "comment"' => (string) $aggr['klas_comment'],
-            'Jumlah "comment" dengan status "Open"' => (string) $aggr['klas_open'],
-            'Jumlah "comment" dengan status "Closed"' => (string) $aggr['klas_closed'],
-            'Jumlah "comment" dengan status "Informasi"' => (string) $aggr['klas_informasi'],
-        ]));
+        $table = $this->newTable();
+        $widths = [700, 3626, 700, 2000, 2026];
+        $this->headerRow($table, $widths, ['No', 'Nama Gambar', 'Rev', 'Jenis Gambar', 'Status']);
+        foreach ($rows->values() as $index => $row) {
+            $table->addRow();
+            $values = [(string) ($index + 1), $row->drawing->nama, (string) $row->revisi, $row->drawing->type->nama, $row->status->label()];
+            foreach ($values as $column => $value) {
+                $table->addCell($widths[$column], $this->bodyCell())->addText($value, $this->smallFont());
+            }
+        }
+        WordStyleService::setComplexBlock($processor, 'tabel_drawing', $table);
     }
 
     // ──────────────────────────────────────────────────────────────────
-    // BAB 2.3 — REALISASI PROGRESS (milestone)
+    // sub-bab 2.5 — REALISASI PROGRESS PEKERJAAN
+    // Tarikan ringkasan laporan mingguan pada bulan ini (Minggu ke-N | realisasi).
     // ──────────────────────────────────────────────────────────────────
     private function fillRealisasi(TemplateProcessor $processor, LaporanBulanan $laporan): void
     {
-        $rows = collect($laporan->realisasi_progress ?? []);
+        $rows = $this->bulananService->getMingguanBulan($laporan);
 
         if ($rows->isEmpty()) {
             $processor->setValue('tabel_realisasi', 'Belum ada realisasi progress pada bulan ini.');
@@ -310,52 +280,71 @@ class LaporanBulananWordService
         }
 
         $t = $this->newTable();
-        $this->headerRow($t, [800, 4426, 2200, 1600], ['No', 'Realisasi Pekerjaan', 'Tanggal', 'Ket.']);
-        foreach ($rows->values() as $i => $r) {
-            $tanggal = ! empty($r['tanggal']) ? $this->tanggal(Carbon::parse($r['tanggal']), 'd M Y') : '-';
+        $this->headerRow($t, [1426, 7600], ['Minggu', 'Realisasi Pekerjaan']);
+        foreach ($rows as $m) {
             $t->addRow();
-            $t->addCell(800, $this->bodyCell())->addText((string) ($i + 1), $this->smallFont(), $this->center());
-            $t->addCell(4426, $this->bodyCell())->addText($r['uraian'] ?? '-', $this->smallFont());
-            $t->addCell(2200, $this->bodyCell())->addText($tanggal, $this->smallFont(), $this->center());
-            $t->addCell(1600, $this->bodyCell())->addText($r['keterangan'] ?? '-', $this->smallFont(), $this->center());
+            $t->addCell(1426, $this->bodyCell())->addText('Minggu '.$m->minggu_ke, $this->smallFont());
+            $cell = $t->addCell(7600, $this->bodyCell());
+            $lines = preg_split('/\r\n|\r|\n/', trim((string) ($m->ringkasan ?? ''))) ?: [];
+            $lines = array_values(array_filter($lines, fn ($l) => trim($l) !== ''));
+            if ($lines === []) {
+                $cell->addText('-', $this->smallFont());
+            } else {
+                foreach ($lines as $i => $line) {
+                    if ($i > 0) {
+                        $cell->addTextBreak();
+                    }
+                    $cell->addText(trim($line), $this->smallFont());
+                }
+            }
         }
 
         WordStyleService::setComplexBlock($processor, 'tabel_realisasi', $t);
     }
 
     // ──────────────────────────────────────────────────────────────────
-    // BAB 2.4 — VENDOR / SUB-CONTRACTOR
+    // sub-bab 2.3 — VENDOR / SUB-CONTRACTOR
     // ──────────────────────────────────────────────────────────────────
     private function fillVendor(TemplateProcessor $processor, LaporanBulanan $laporan): void
     {
-        $rows = $laporan->dataKapal?->projectVendors ?? collect();
+        $groups = $laporan->dataKapal
+            ? $this->proyekService->getVendorsUpToBulanGrouped($laporan->dataKapal, $laporan->bulan_ke)
+            : collect();
 
-        if ($rows->isEmpty()) {
+        if ($groups->isEmpty()) {
             $processor->setValue('tabel_vendor', 'Belum ada daftar sub-contractor / vendor.');
 
             return;
         }
 
         $t = $this->newTable();
-        $this->headerRow($t, [800, 3000, 3226, 2000], ['No', 'Nama', 'Lingkup Pekerjaan', 'Kontak']);
-        foreach ($rows->values() as $i => $v) {
+        $this->headerRow($t, [800, 8226], ['No', 'Nama Vendor / Sub-Contractor']);
+
+        $no = 0;
+        foreach ($groups as $items) {
+            // Baris judul lingkup pekerjaan (span semua kolom)
             $t->addRow();
-            $t->addCell(800, $this->bodyCell())->addText((string) ($i + 1), $this->smallFont(), $this->center());
-            $t->addCell(3000, $this->bodyCell())->addText($v->nama, $this->smallFont());
-            $t->addCell(3226, $this->bodyCell())->addText($v->lingkup_pekerjaan ?? '-', $this->smallFont());
-            $t->addCell(2000, $this->bodyCell())->addText($v->kontak ?? '-', $this->smallFont());
+            $t->addCell(9026, ['bgColor' => self::LIGHT, 'valign' => 'center', 'gridSpan' => 2])
+                ->addText(strtoupper($items->first()->lingkup?->nama ?? 'LAINNYA'), ['bold' => true, 'size' => 8, 'color' => self::NAVY]);
+
+            foreach ($items as $v) {
+                $no++;
+                $t->addRow();
+                $t->addCell(800, $this->bodyCell())->addText((string) $no, $this->smallFont(), $this->center());
+                $t->addCell(8226, $this->bodyCell())->addText($v->nama, $this->smallFont());
+            }
         }
 
         WordStyleService::setComplexBlock($processor, 'tabel_vendor', $t);
     }
 
     // ──────────────────────────────────────────────────────────────────
-    // BAB 2.5 — MATERIAL & KOMPONEN (dikelompokkan per kategori)
+    // sub-bab 2.4 — MATERIAL & KOMPONEN (dikelompokkan per kategori)
     // ──────────────────────────────────────────────────────────────────
     private function fillMaterial(TemplateProcessor $processor, LaporanBulanan $laporan): void
     {
         $groups = $laporan->dataKapal
-            ? $this->proyekService->getMaterialsGrouped($laporan->dataKapal)
+            ? $this->proyekService->getMaterialsGrouped($laporan->dataKapal, $laporan->periode_selesai ?? $laporan->tanggal_laporan)
             : collect();
 
         if ($groups->isEmpty()) {
@@ -365,19 +354,14 @@ class LaporanBulananWordService
         }
 
         $t = $this->newTable();
-        $this->headerRow($t, [700, 2700, 2226, 1400, 1400, 600], ['No', 'Item', 'Spesifikasi', 'Jumlah', 'Status', 'Tgl']);
+        $this->headerRow($t, [700, 2700, 2826, 1400, 1400], ['No', 'Item', 'Spesifikasi', 'Jumlah', 'Status']);
 
         $no = 0;
-        foreach (MaterialKategori::cases() as $kat) {
-            $items = $groups->get($kat->value);
-            if (! $items || $items->isEmpty()) {
-                continue;
-            }
-
+        foreach ($groups as $items) {
             // Baris judul kategori (span semua kolom)
             $t->addRow();
-            $t->addCell(9026, ['bgColor' => self::LIGHT, 'valign' => 'center', 'gridSpan' => 6])
-                ->addText(strtoupper($kat->label()), ['bold' => true, 'size' => 8, 'color' => self::NAVY]);
+            $t->addCell(9026, ['bgColor' => self::LIGHT, 'valign' => 'center', 'gridSpan' => 5])
+                ->addText(strtoupper($items->first()->category->label()), ['bold' => true, 'size' => 8, 'color' => self::NAVY]);
 
             foreach ($items as $m) {
                 $no++;
@@ -387,10 +371,9 @@ class LaporanBulananWordService
                 $t->addRow();
                 $t->addCell(700, $this->bodyCell())->addText((string) $no, $this->smallFont(), $this->center());
                 $t->addCell(2700, $this->bodyCell())->addText($m->nama_item, $this->smallFont());
-                $t->addCell(2226, $this->bodyCell())->addText($m->spesifikasi ?? '-', $this->smallFont());
+                $t->addCell(2826, $this->bodyCell())->addText($m->spesifikasi ?? '-', $this->smallFont());
                 $t->addCell(1400, $this->bodyCell())->addText(trim($jumlah), $this->smallFont(), $this->center());
                 $t->addCell(1400, $this->bodyCell())->addText($m->status->label(), $this->smallFont(), $this->center());
-                $t->addCell(600, $this->bodyCell())->addText($m->tanggal?->format('d/m/y') ?? '-', $this->smallFont(), $this->center());
             }
         }
 
@@ -398,37 +381,7 @@ class LaporanBulananWordService
     }
 
     // ──────────────────────────────────────────────────────────────────
-    // BAB 2.6 — WAKTU PELAKSANAAN (hari kalender)
-    // ──────────────────────────────────────────────────────────────────
-    private function fillWaktu(TemplateProcessor $processor, LaporanBulanan $laporan): void
-    {
-        $dk = $laporan->dataKapal;
-
-        if (! $dk || ! $dk->hasKontrak()) {
-            $processor->setValue('tabel_waktu', 'Kontrak (tanggal mulai & durasi) belum diatur pada Data Kapal.');
-
-            return;
-        }
-
-        $jangka = (int) $dk->durasi_kontrak_hari;
-        $selesai = $laporan->periode_selesai ?? $laporan->tanggal_laporan;
-        $realisasi = $selesai
-            ? max(0, $dk->tanggal_mulai_kontrak->diffInDays($selesai) + 1)
-            : 0;
-        $realisasi = min($realisasi, $jangka);
-        $sisa = max(0, $jangka - $realisasi);
-        $pctWaktu = $jangka > 0 ? round($realisasi / $jangka * 100, 2) : 0;
-
-        WordStyleService::setComplexBlock($processor, 'tabel_waktu', $this->labelValueTable([
-            'Jangka waktu pelaksanaan pembangunan' => $jangka.' Hari Kalender',
-            'Realisasi pekerjaan pembangunan' => $realisasi.' Hari Kalender',
-            'Sisa waktu pembangunan' => $sisa.' Hari Kalender',
-            'Progress waktu pelaksanaan pembangunan' => number_format($pctWaktu, 2, ',', '.').' %',
-        ]));
-    }
-
-    // ──────────────────────────────────────────────────────────────────
-    // BAB 2.6 — PROGRESS MINGGUAN per cutoff (realisasi | rencana | deviasi)
+    // sub-bab 2.6 — PROGRESS MINGGUAN per cutoff (minggu | fisik | rencana | realisasi | deviasi akum.)
     // ──────────────────────────────────────────────────────────────────
     private function fillProgressMingguan(TemplateProcessor $processor, LaporanBulanan $laporan): void
     {
@@ -443,7 +396,6 @@ class LaporanBulananWordService
             return;
         }
 
-        $mingguList = collect($this->periodeService->getMingguList($dk))->keyBy('minggu_ke');
         $history = collect($this->kurvaSService->getProgressHistory($dk))
             ->filter(fn ($e) => $e['minggu_ke'] >= $bulan['minggu_dari'] && $e['minggu_ke'] <= $bulan['minggu_sampai'])
             ->values();
@@ -455,24 +407,23 @@ class LaporanBulananWordService
         }
 
         $t = $this->newTable();
-        $this->headerRow($t, [3826, 1800, 1800, 1600],
-            ['Jangka Waktu Mingguan', 'Progres Fisik Mingguan', 'Rencana (Akum.)', 'Deviasi (Akum.)']);
+        $this->headerRow($t, [1426, 2100, 1800, 1900, 1800],
+            ['Minggu', 'Progres Fisik Mingguan', 'Rencana (Akum.)', 'Realisasi (Akum.)', 'Deviasi (Akum.)']);
 
         foreach ($history as $e) {
-            $minggu = $mingguList->get($e['minggu_ke']);
-            $label = $minggu ? 'S.d. '.$minggu['selesai']->translatedFormat('d F Y') : 'Minggu '.$e['minggu_ke'];
             $t->addRow();
-            $t->addCell(3826, $this->bodyCell())->addText($label, $this->smallFont());
-            $t->addCell(1800, $this->bodyCell())->addText($this->pct($e['week_actual'] ?? 0), $this->smallFont(), $this->center());
+            $t->addCell(1426, $this->bodyCell())->addText('Minggu '.$e['minggu_ke'], $this->smallFont());
+            $t->addCell(2100, $this->bodyCell())->addText($this->pct($e['week_actual'] ?? 0), $this->smallFont(), $this->center());
             $t->addCell(1800, $this->bodyCell())->addText($this->pct($e['cumulative_plan'] ?? 0), $this->smallFont(), $this->center());
-            $t->addCell(1600, $this->bodyCell())->addText($this->pct($e['cumulative_deviation'] ?? 0, true), $this->smallFont(), $this->center());
+            $t->addCell(1900, $this->bodyCell())->addText($this->pct($e['cumulative_actual'] ?? 0), $this->smallFont(), $this->center());
+            $t->addCell(1800, $this->bodyCell())->addText($this->pct($e['cumulative_deviation'] ?? 0, true), $this->smallFont(), $this->center());
         }
 
         WordStyleService::setComplexBlock($processor, 'tabel_progress_mingguan', $t);
     }
 
     // ──────────────────────────────────────────────────────────────────
-    // BAB 2.7 — PENGUJIAN
+    // sub-bab 2.7 — PENGUJIAN
     // ──────────────────────────────────────────────────────────────────
     private function fillPengujian(TemplateProcessor $processor, LaporanBulanan $laporan): void
     {
@@ -501,7 +452,7 @@ class LaporanBulananWordService
     }
 
     // ──────────────────────────────────────────────────────────────────
-    // BAB 3.1 — RAPAT dalam periode bulan
+    // sub-bab 2.8 — RAPAT dalam periode bulan
     // ──────────────────────────────────────────────────────────────────
     private function fillRapat(TemplateProcessor $processor, LaporanBulanan $laporan): void
     {
@@ -516,7 +467,7 @@ class LaporanBulananWordService
         }
 
         $t = $this->newTable();
-        $this->headerRow($t, [1600, 1800, 2826, 2800], ['Tanggal', 'Jenis', 'Lokasi', 'Topik / Hasil']);
+        $this->headerRow($t, [1600, 1800, 2826, 2800], ['Tanggal', 'Jenis', 'Lokasi', 'Pokok Pembahasan']);
         foreach ($rows as $r) {
             $t->addRow();
             $t->addCell(1600, $this->bodyCell())->addText($r->tanggal->translatedFormat('d M Y'), $this->smallFont(), $this->center());
@@ -529,7 +480,7 @@ class LaporanBulananWordService
     }
 
     // ──────────────────────────────────────────────────────────────────
-    // BAB 3.2 — PROBLEM & REKOMENDASI (tarikan otomatis rekap NC periode:
+    // sub-bab 2.9 — CATATAN & REKOMENDASI (tarikan otomatis rekap NC periode:
     // open terbawa + closed pada periode ini — sama dengan preview form).
     // ──────────────────────────────────────────────────────────────────
     private function fillNc(TemplateProcessor $processor, LaporanBulanan $laporan): void
@@ -546,7 +497,7 @@ class LaporanBulananWordService
 
         $t = $this->newTable();
         $this->headerRow($t, [700, 1200, 1500, 1926, 1700, 1000, 1000],
-            ['No', 'Nomor', 'Tanggal', 'Problem', 'Rekomendasi', 'PIC', 'Status']);
+            ['No', 'Nomor', 'Tanggal', 'Catatan', 'Rekomendasi', 'PIC', 'Status']);
         foreach ($ncs->values() as $i => $nc) {
             $t->addRow();
             $t->addCell(700, $this->bodyCell())->addText((string) ($i + 1), $this->smallFont(), $this->center());
@@ -570,7 +521,82 @@ class LaporanBulananWordService
     }
 
     // ──────────────────────────────────────────────────────────────────
-    // BAB 4.1 — DOKUMEN EKSTERNAL
+    // sub-bab 3.1 — KESIMPULAN (poin bernomor yang di-derive dari data BAB 2)
+    // ──────────────────────────────────────────────────────────────────
+    private function fillKesimpulan(TemplateProcessor $processor, LaporanBulanan $laporan): void
+    {
+        $dk = $laporan->dataKapal;
+        $selesai = $laporan->periode_selesai ?? $laporan->tanggal_laporan;
+        $points = [];
+
+        // 1. Progres fisik — entry terakhir progress history pada bulan ini.
+        $last = null;
+        if ($dk && $laporan->bulan_ke) {
+            $bulan = $this->periodeService->getBulanPeriode($dk, (int) $laporan->bulan_ke);
+            if ($bulan) {
+                $last = collect($this->kurvaSService->getProgressHistory($dk))
+                    ->filter(fn ($e) => $e['minggu_ke'] >= $bulan['minggu_dari'] && $e['minggu_ke'] <= $bulan['minggu_sampai'])
+                    ->last();
+            }
+        }
+        $points[] = $last
+            ? 'Realisasi progres fisik pembangunan sampai dengan '.$this->tanggal($selesai).' mencapai '.$this->pct($last['cumulative_actual'] ?? 0).' terhadap rencana kumulatif '.$this->pct($last['cumulative_plan'] ?? 0).' dengan deviasi '.$this->pct($last['cumulative_deviation'] ?? 0, true).'.'
+            : 'Belum terdapat data realisasi progres fisik pada periode pelaporan ini.';
+
+        // 2. Realisasi waktu pelaksanaan (inklusif s.d. cutoff, clamp jangka).
+        $jangka = (int) ($dk?->waktu_pelaksanaan_hari ?? 0);
+        if ($jangka > 0) {
+            [$realisasi, $sisa] = $this->realisasiWaktu($dk, $selesai);
+            $points[] = 'Waktu pelaksanaan pembangunan telah berjalan '.$realisasi.' hari kalender dari total '.$jangka.' hari kalender, dengan sisa waktu '.$sisa.' hari kalender.';
+        }
+
+        // 3. Riwayat design & approval drawing per status (kumulatif s.d. cutoff).
+        $drawings = $dk ? app(DrawingRegisterService::class)->historyUpTo($dk, $selesai) : collect();
+        if ($drawings->isNotEmpty()) {
+            $points[] = 'Tercatat '.$drawings->count().' revisi gambar dengan rincian status '.$this->countByLabel($drawings, fn ($d) => $d->status->label()).'.';
+        }
+
+        // 4. Sub-contractor/vendor per lingkup pekerjaan (kumulatif s.d. bulan ini).
+        $vendorGroups = $dk ? $this->proyekService->getVendorsUpToBulanGrouped($dk, $laporan->bulan_ke) : collect();
+        if ($vendorGroups->isNotEmpty()) {
+            $detail = $vendorGroups
+                ->map(fn ($items) => ($items->first()->lingkup?->nama ?? 'Lainnya').' ('.$items->count().')')
+                ->implode(', ');
+            $points[] = 'Tercatat '.$vendorGroups->flatten(1)->count().' sub-contractor/vendor yang terbagi dalam lingkup pekerjaan '.$detail.'.';
+        }
+
+        // 5. Material dan komponen per status (kumulatif s.d. cutoff).
+        $materials = $dk ? $this->proyekService->getMaterialsGrouped($dk, $selesai)->flatten(1) : collect();
+        if ($materials->isNotEmpty()) {
+            $points[] = 'Tercatat '.$materials->count().' item material dan komponen dengan rincian status '.$this->countByLabel($materials, fn ($m) => $m->status->label()).'.';
+        }
+
+        // 6. Kegiatan pengujian per status (kumulatif s.d. cutoff).
+        $pengujians = $dk ? $this->proyekService->getPengujiansUpTo($dk, $selesai) : collect();
+        if ($pengujians->isNotEmpty()) {
+            $points[] = 'Tercatat '.$pengujians->count().' kegiatan pengujian dengan rincian status '.$this->countByLabel($pengujians, fn ($u) => $u->status->label()).'.';
+        }
+
+        // 7. Rekap temuan Non-Conformity pada periode ini.
+        $ncs = ($laporan->periode_mulai && $laporan->periode_selesai && $laporan->data_kapal_id)
+            ? $this->ncService->rekapMingguan($laporan->data_kapal_id, $laporan->periode_mulai, $laporan->periode_selesai)
+            : collect();
+        $points[] = $ncs->isEmpty()
+            ? 'Tidak terdapat temuan Non-Conformity pada periode pelaporan ini.'
+            : 'Tercatat '.$ncs->count().' temuan Non-Conformity pada periode ini, terdiri dari '.$ncs->where('status', NcStatus::Open)->count().' temuan berstatus open dan '.$ncs->where('status', NcStatus::Closed)->count().' temuan berstatus closed.';
+
+        $t = $this->newTable(false);
+        foreach ($points as $i => $point) {
+            $t->addRow();
+            $t->addCell(500, $this->bodyCell())->addText(($i + 1).'.', $this->smallFont());
+            $t->addCell(8526, $this->bodyCell())->addText($point, $this->smallFont(), ['alignment' => Jc::BOTH]);
+        }
+
+        WordStyleService::setComplexBlock($processor, 'poin_kesimpulan', $t);
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // sub-bab 4.1 — DOKUMEN EKSTERNAL
     // ──────────────────────────────────────────────────────────────────
     private function fillExternal(TemplateProcessor $processor, LaporanBulanan $laporan): void
     {
@@ -595,7 +621,7 @@ class LaporanBulananWordService
     }
 
     // ──────────────────────────────────────────────────────────────────
-    // BAB 4.2 — daftar laporan mingguan yang dilampirkan
+    // sub-bab 4.2 — daftar laporan mingguan yang dilampirkan
     // ──────────────────────────────────────────────────────────────────
     private function fillLampiranMingguan(TemplateProcessor $processor, LaporanBulanan $laporan): void
     {
@@ -623,23 +649,22 @@ class LaporanBulananWordService
     }
 
     // ──────────────────────────────────────────────────────────────────
-    // BAB 4.2 — LAMPIRAN LAPORAN MINGGUAN via w:altChunk
+    // sub-bab 4.2 — LAMPIRAN LAPORAN MINGGUAN (gambar halaman docx)
     // ──────────────────────────────────────────────────────────────────
     /**
      * Pakai docx mingguan yang sudah ada (doc_path); generate dulu via job
      * yang sama dengan halaman mingguan bila belum ada / filenya hilang.
+     * Kesegaran dijaga LaporanDocumentService (perubahan mingguan, harian
+     * atau NC di dalamnya mengosongkan doc_path).
      *
-     * @return string[] path absolut docx mingguan, urut minggu_ke
+     * @return string[] doc_path (storage) docx mingguan, urut minggu_ke
      */
     private function resolveMingguanDocs(LaporanBulanan $laporan): array
     {
         $paths = [];
 
         foreach ($this->bulananService->getMingguanBulan($laporan) as $mingguan) {
-            $harianCount = (int) $mingguan->laporan_harian_count;
-            $path = $this->mingguanDocPath($mingguan);
-            if (! $path || $this->chunkService->count($path) !== $harianCount
-                || ! app(WordAttachmentService::class)->isCurrent($path, $this->ncService->rekapMingguan($mingguan->data_kapal_id, $mingguan->periode_mulai, $mingguan->periode_selesai), $mingguan->laporanExternal)) {
+            if (! $this->mingguanDocPath($mingguan)) {
                 try {
                     GenerateLaporanMingguanJob::dispatchSync($mingguan);
                     $mingguan->refresh();
@@ -653,9 +678,8 @@ class LaporanBulananWordService
             }
 
             $path = $this->mingguanDocPath($mingguan);
-            if (! $path || $this->chunkService->count($path) !== $harianCount
-                || ! app(WordAttachmentService::class)->isCurrent($path, $this->ncService->rekapMingguan($mingguan->data_kapal_id, $mingguan->periode_mulai, $mingguan->periode_selesai), $mingguan->laporanExternal)) {
-                throw new \RuntimeException('Lampiran laporan harian pada dokumen mingguan belum lengkap.');
+            if (! $path) {
+                throw new \RuntimeException('Dokumen mingguan untuk lampiran bulanan belum tersedia.');
             }
             $paths[] = $path;
         }
@@ -669,72 +693,50 @@ class LaporanBulananWordService
             return null;
         }
 
-        $path = storage_path('app/'.$mingguan->doc_path);
-
-        return file_exists($path) ? $path : null;
+        return app(FilePathService::class)->exists($mingguan->doc_path) ? $mingguan->doc_path : null;
     }
 
     /**
-     * Ganti paragraf ${lampiran_mingguan} dengan w:altChunk per docx mingguan.
-     * Word mengimpor isi tiap chunk saat dokumen dibuka (tampilan identik).
+     * Ganti paragraf ${lampiran_mingguan} dengan gambar halaman per docx
+     * mingguan (docx → pdf → webp). Karena mingguan sendiri sudah
+     * menyisipkan halaman harian sebagai gambar, rantai lampiran
+     * terbawa utuh tanpa mekanisme altChunk bertingkat.
      *
      * @param  string[]  $chunks
      */
     private function embedMingguanDocs(string $docxPath, array $chunks): void
     {
+        $attachment = app(WordAttachmentService::class);
+        $images = [];
+        foreach ($chunks as $chunk) {
+            $images = array_merge($images, $attachment->reportPageImages($chunk));
+        }
+
+        if ($images) {
+            $attachment->embedReportPages($docxPath, $images, '${lampiran_mingguan}', 'LAPORAN MINGGUAN');
+
+            return;
+        }
+
+        // Tanpa lampiran: ganti placeholder dengan keterangan kosong.
         $zip = new \ZipArchive;
         if ($zip->open($docxPath) !== true) {
             throw new \RuntimeException('Gagal membuka dokumen bulanan untuk menyisipkan laporan mingguan.');
         }
-
         $document = $zip->getFromName('word/document.xml');
-        $rels = $zip->getFromName('word/_rels/document.xml.rels');
-        $types = $zip->getFromName('[Content_Types].xml');
-
-        $pageBreak = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
-
-        // Halaman pembatas "LAPORAN MINGGUAN" terpusat dua sumbu (pola harian).
-        $body = WordAttachmentService::coverPageXml('LAPORAN MINGGUAN', self::NAVY);
-        $n = 0;
-        try {
-            foreach ($chunks as $chunk) {
-                foreach ($this->chunkService->flatten(file_get_contents($chunk)) as $content) {
-                    $n++;
-                    $id = 'rIdAltChunk'.$n;
-                    $zip->addFromString("word/afchunk{$n}.docx", $content);
-                    $rels = str_replace('</Relationships>',
-                        '<Relationship Id="'.$id.'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/aFChunk" Target="afchunk'.$n.'.docx"/></Relationships>', $rels);
-                    $body .= $pageBreak.'<w:altChunk r:id="'.$id.'"/>';
-                }
-            }
-        } catch (\Throwable $e) {
-            $zip->close();
-            throw $e;
-        }
-
-        if ($chunks && ! str_contains($types, 'Extension="docx"')) {
-            $types = str_replace('</Types>',
-                '<Default Extension="docx" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>', $types);
-        }
-
-        $replacement = $chunks
-            ? $body
-            : '<w:p><w:r><w:rPr><w:i/><w:color w:val="7F7F7F"/></w:rPr><w:t>Tidak ada laporan mingguan pada periode ini.</w:t></w:r></w:p>';
-        $document = preg_replace('/<w:p[ >](?:(?!<\/w:p>).)*?\$\{lampiran_mingguan\}.*?<\/w:p>/s', $replacement, $document, 1);
-
+        $document = preg_replace('/<w:p[ >](?:(?!<\/w:p>).)*?\$\{lampiran_mingguan\}.*?<\/w:p>/s',
+            '<w:p><w:r><w:rPr><w:i/><w:color w:val="7F7F7F"/></w:rPr><w:t>Tidak ada laporan mingguan pada periode ini.</w:t></w:r></w:p>', $document, 1);
         $zip->addFromString('word/document.xml', $document);
-        $zip->addFromString('word/_rels/document.xml.rels', $rels);
-        $zip->addFromString('[Content_Types].xml', $types);
         $zip->close();
     }
 
     // ──────────────────────────────────────────────────────────────────
     // TABLE HELPERS
     // ──────────────────────────────────────────────────────────────────
-    private function newTable(): Table
+    private function newTable(bool $bordered = true): Table
     {
         $table = new Table([
-            'borderSize' => 4,
+            'borderSize' => $bordered ? 4 : 0,
             'borderColor' => self::BORDER,
             'cellMarginLeft' => 80,
             'cellMarginRight' => 80,
@@ -747,25 +749,6 @@ class LaporanBulananWordService
         ]);
 
         return $table;
-    }
-
-    /**
-     * Tabel label | : | nilai (pola blok info laporan — tanpa header).
-     *
-     * @param  array<string, string>  $rows
-     */
-    private function labelValueTable(array $rows): Table
-    {
-        $t = $this->newTable();
-        foreach ($rows as $label => $value) {
-            $t->addRow();
-            $t->addCell(3200, ['bgColor' => self::LIGHT, 'valign' => 'center'])
-                ->addText($label, ['bold' => true, 'size' => 9, 'color' => self::NAVY]);
-            $t->addCell(300, $this->bodyCell())->addText(':', $this->smallFont(), $this->center());
-            $t->addCell(5526, $this->bodyCell())->addText($value !== '' ? $value : '-', $this->smallFont());
-        }
-
-        return $t;
     }
 
     /** @param  int[]  $widths  @param  string[]  $labels */
@@ -798,6 +781,29 @@ class LaporanBulananWordService
         return ['alignment' => Jc::CENTER];
     }
 
+    /**
+     * Format "Label (n), Label (n)" dari grouping koleksi per label.
+     *
+     * @param  callable(mixed): string  $labelOf
+     */
+    private function countByLabel(Collection $items, callable $labelOf): string
+    {
+        return $items
+            ->groupBy(fn ($item) => $labelOf($item))
+            ->map(fn ($group, $label) => $label.' ('.$group->count().')')
+            ->implode(', ');
+    }
+
+    /**
+     * Realisasi & sisa hari pelaksanaan (inklusif s.d. cutoff, clamp jangka).
+     *
+     * @return array{0: int, 1: int}
+     */
+    private function realisasiWaktu(?DataKapal $dk, ?CarbonInterface $selesai): array
+    {
+        return $dk?->progresWaktuPelaksanaan($selesai) ?? [0, 0];
+    }
+
     private function pct(float $value, bool $signed = false): string
     {
         $formatted = number_format($value, 2, ',', '.').' %';
@@ -813,21 +819,23 @@ class LaporanBulananWordService
     // ──────────────────────────────────────────────────────────────────
     // SAVE DOCUMENT
     // ──────────────────────────────────────────────────────────────────
-    private function saveDocument(TemplateProcessor $processor, LaporanBulanan $laporan): string
+    /**
+     * Simpan dokumen ke file lokal temporer; pemanggil menjalankan
+     * post-processing (lampiran) lalu commitLocalFile() ke disk.
+     *
+     * @return array{0: string, 1: string} [path relatif di disk, path lokal]
+     */
+    private function saveDocument(TemplateProcessor $processor, LaporanBulanan $laporan): array
     {
-        $dir = storage_path('app/laporan/word');
-        if (! is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-
         $filename = sprintf(
             'laporan-bulanan-%d-%s.docx',
             $laporan->id,
             now()->format('YmdHis')
         );
 
-        $processor->saveAs($dir.'/'.$filename);
+        $local = app(FilePathService::class)->tempPath('docx');
+        $processor->saveAs($local);
 
-        return 'laporan/word/'.$filename;
+        return ['laporan/word/'.$filename, $local];
     }
 }

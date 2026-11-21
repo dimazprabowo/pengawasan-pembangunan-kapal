@@ -7,8 +7,8 @@
 
     <div class="">
         <div class="space-y-6">
-            {{-- Company Information - Livewire Component --}}
-            <livewire:profile.manage-company />
+            {{-- Owner Information - Livewire Component --}}
+            <livewire:profile.manage-owner />
 
             <div class="p-4 sm:p-8 bg-white dark:bg-gray-800 shadow sm:rounded-lg">
                 <div class="max-w-xl">

@@ -6,18 +6,21 @@ use App\Enums\ConfigCategory;
 use App\Enums\ConfigDataType;
 use App\Exports\SystemConfigurationsExport;
 use App\Livewire\Traits\HasNotification;
+use App\Livewire\Traits\HasTableSorting;
 use App\Models\SystemConfiguration as SystemConfigModel;
 use App\Services\SystemConfigurationService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class SystemConfiguration extends Component
 {
-    use \App\Livewire\Traits\HasTableSorting;
     use AuthorizesRequests, HasNotification, WithPagination;
+    use HasTableSorting;
 
     protected $paginationTheme = 'tailwind';
 
@@ -122,7 +125,7 @@ class SystemConfiguration extends Component
     {
         try {
             $this->validate();
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->notifyValidationError($e);
             throw $e;
         }
@@ -152,7 +155,7 @@ class SystemConfiguration extends Component
             $this->notifySuccess($message);
             $this->closeModal();
             $this->resetForm();
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk melakukan aksi ini.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
@@ -169,7 +172,7 @@ class SystemConfiguration extends Component
 
             $status = $config->is_active ? 'diaktifkan' : 'dinonaktifkan';
             $this->notifySuccess("Konfigurasi berhasil {$status}!");
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+        } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk mengubah status konfigurasi.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());

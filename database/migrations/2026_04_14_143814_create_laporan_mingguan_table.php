@@ -29,6 +29,13 @@ return new class extends Migration
             $table->timestamp('doc_generated_at')->nullable();
             $table->text('doc_error')->nullable();
 
+            // Released PDF (konversi dari dokumen Word)
+            $table->string('pdf_path')->nullable();
+            $table->string('pdf_name')->nullable();
+            $table->enum('pdf_status', ['pending', 'processing', 'completed', 'failed'])->nullable();
+            $table->timestamp('pdf_generated_at')->nullable();
+            $table->text('pdf_error')->nullable();
+
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
             $table->softDeletes();

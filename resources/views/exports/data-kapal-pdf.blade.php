@@ -24,7 +24,7 @@
             <tr>
                 <th width="5%">No</th>
                 <th width="20%">Data Kapal</th>
-                <th width="20%">Perusahaan</th>
+                <th width="20%">Owner</th>
                 <th width="30%">Deskripsi</th>
                 <th width="5%" class="text-center">Laporan Harian</th>
                 <th width="5%" class="text-center">Laporan Mingguan</th>
@@ -38,8 +38,8 @@
                     <td class="text-center">{{ $index + 1 }}</td>
                     <td>{{ $dataKapal->nama }}<br><small>{{ $dataKapal->kode }}</small></td>
                     <td>
-                        {{ $dataKapal->company->name }}<br>
-                        <small>{{ $dataKapal->company->code }}</small>
+                        {{ $dataKapal->owner->name }}<br>
+                        <small>{{ $dataKapal->owner->code }}</small>
                     </td>
                     <td>{{ $dataKapal->deskripsi ?? '-' }}</td>
                     <td class="text-center">{{ $dataKapal->getLaporanCount('harian') }}</td>

@@ -118,7 +118,7 @@
     x-on:keydown.escape.window="closeDropdown()"
     x-on:scroll.window="if(open) checkPosition()"
     x-on:resize.window="if(open) checkPosition()"
-    class="relative w-full"
+    class="form-field-control relative w-full"
     wire:ignore.self
 >
     {{-- Options snapshot: child of wire:ignore.self tetap ikut morph tiap render, dibaca refreshOptions() --}}
@@ -131,7 +131,7 @@
         x-on:click="toggleDropdown()"
         @if($disabled) disabled @endif
         {{ $attributes->except(['wire:model', 'wire:model.live', 'wire:model.change'])->merge([
-            'class' => 'relative w-full cursor-pointer rounded-xl border bg-white dark:bg-gray-900 py-2.5 pl-4 pr-10 text-left shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 ' . 
+            'class' => 'relative w-full cursor-pointer rounded-lg border bg-white dark:bg-gray-700 py-2.5 pl-4 pr-10 text-sm text-left shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ' .
                 ($error ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600') .
                 ($disabled ? ' opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800' : ' hover:border-gray-400 dark:hover:border-gray-500')
         ]) }}

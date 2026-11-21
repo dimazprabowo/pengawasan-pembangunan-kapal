@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\RapatJenis;
 use App\Livewire\MasterData\DataProyekManagement;
+use App\Livewire\MasterData\ProjectRapatManagement;
 use App\Models\DataKapal;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -59,28 +60,72 @@ class DataProyekTabTest extends TestCase
     public function test_rapat_tab_filters_by_jenis(): void
     {
         $kapal = $this->kapal();
-        $kapal->rapats()->create([
-            'tanggal' => now(), 'jenis' => RapatJenis::Mingguan, 'topik' => 'TopikFilterMingguanXYZ',
+        $mingguanId = \App\Models\RapatJenis::where('nama', RapatJenis::Mingguan->value)->value('id');
+        $bulananId = \App\Models\RapatJenis::where('nama', RapatJenis::Bulanan->value)->value('id');
+        $mingguan = $kapal->rapats()->create([
+            'tanggal' => now(), 'rapat_jenis_id' => $mingguanId, 'topik' => 'TopikFilterMingguanXYZ',
         ]);
-        $kapal->rapats()->create([
-            'tanggal' => now(), 'jenis' => RapatJenis::Bulanan, 'topik' => 'TopikFilterBulananXYZ',
+        $bulanan = $kapal->rapats()->create([
+            'tanggal' => now(), 'rapat_jenis_id' => $bulananId, 'topik' => 'TopikFilterBulananXYZ',
         ]);
 
-        Livewire::actingAs($this->admin())
-            ->test(DataProyekManagement::class, ['dataKapal' => $kapal])
-            ->call('setTab', 'rapat')
-            ->set('rapatJenisFilter', RapatJenis::Mingguan->value)
-            ->assertSee('TopikFilterMingguanXYZ')
-            ->assertDontSee('TopikFilterBulananXYZ');
+        $component = Livewire::actingAs($this->admin())
+            ->test(ProjectRapatManagement::class, ['dataKapal' => $kapal])
+            ->set('jenisFilter', $mingguanId);
+
+        $keys = array_keys($component->get('drafts'));
+        $this->assertContains('row-'.$mingguan->id, $keys);
+        $this->assertNotContains('row-'.$bulanan->id, $keys);
     }
 
-    public function test_filters_reset_when_switching_tab(): void
+    public function test_rapat_filters_reset(): void
+    {
+        Livewire::actingAs($this->admin())
+            ->test(ProjectRapatManagement::class, ['dataKapal' => $this->kapal()])
+            ->set('jenisFilter', \App\Models\RapatJenis::where('nama', RapatJenis::Mingguan->value)->value('id'))
+            ->call('resetFilters')
+            ->assertSet('jenisFilter', '');
+    }
+
+    public function test_rapat_excel_like_row_crud(): void
+    {
+        $kapal = $this->kapal();
+
+        $component = Livewire::actingAs($this->admin())
+            ->test(ProjectRapatManagement::class, ['dataKapal' => $kapal])
+            ->call('addRow');
+
+        $key = collect($component->get('drafts'))->keys()->first(fn ($k) => str_starts_with($k, 'new-'));
+
+        $component
+            ->set("drafts.$key.tanggal", '2026-01-15')
+            ->set("drafts.$key.rapat_jenis_id", \App\Models\RapatJenis::where('nama', RapatJenis::Bulanan->value)->value('id'))
+            ->set("drafts.$key.lokasi", 'Ruang QC')
+            ->set("drafts.$key.topik", 'Pembahasan progres')
+            ->call('saveRow', $key);
+
+        $rapat = $kapal->rapats()->where('topik', 'Pembahasan progres')->sole();
+        $this->assertSame('Pembahasan progres', $rapat->topik);
+        $this->assertSame(RapatJenis::Bulanan->value, $rapat->jenis->nama);
+        $this->assertSame('2026-01-15', $rapat->tanggal->format('Y-m-d'));
+
+        $component
+            ->set("drafts.row-{$rapat->id}.topik", 'Topik direvisi')
+            ->call('saveRow', 'row-'.$rapat->id);
+
+        $this->assertSame('Topik direvisi', $rapat->fresh()->topik);
+
+        $component->call('confirmDelete', $rapat->id)->call('delete');
+        $this->assertSoftDeleted('rapat', ['id' => $rapat->id]);
+    }
+
+    public function test_tab_switch_does_not_notify(): void
     {
         Livewire::actingAs($this->admin())
             ->test(DataProyekManagement::class, ['dataKapal' => $this->kapal()])
             ->call('setTab', 'rapat')
-            ->set('rapatJenisFilter', RapatJenis::Mingguan->value)
+            ->assertNotDispatched('notify')
             ->call('setTab', 'material')
-            ->assertSet('rapatJenisFilter', '');
+            ->assertNotDispatched('notify');
     }
 }

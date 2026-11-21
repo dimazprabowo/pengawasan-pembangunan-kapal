@@ -35,7 +35,7 @@ class KurvaSInstructionsSheet implements FromArray, WithColumnWidths, WithStyles
             [''],
             ['📋 INFORMASI DATA KAPAL'],
             ['Nama Data Kapal', $this->dataKapal->nama],
-            ['Perusahaan', $this->dataKapal->company?->name ?? '-'],
+            ['Owner', $this->dataKapal->owner?->name ?? '-'],
             ['Galangan', $this->dataKapal->galangan?->nama ?? '-'],
             ['Tanggal Export', now()->format('d/m/Y H:i:s')],
             [''],

@@ -13,7 +13,7 @@
     $tanggalModelPath = $attributes->wire('model')->value();
 @endphp
 
-<div class="relative" @if($displayFormat) wire:ignore @endif x-data
+<div class="form-field-control relative" @if($displayFormat) wire:ignore @endif x-data
     x-init="
         (function () {
             var picker = flatpickr($refs.input, {
@@ -63,7 +63,7 @@
     <input x-ref="input" type="text" readonly
         placeholder="{{ $placeholder }}"
         {{ $attributes->except(['wire:model', 'wire:model.live', 'wire:model.blur', 'wire:model.defer', 'wire:model.change'])->merge([
-            'class' => 'w-full px-3 py-2 pr-9 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer',
+            'class' => 'block w-full px-3 py-2.5 pr-9 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 bg-white shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 dark:bg-gray-700 dark:text-white cursor-pointer',
         ]) }}>
     <svg class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500"
         fill="none" stroke="currentColor" viewBox="0 0 24 24">

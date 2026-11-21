@@ -28,7 +28,7 @@
         'lg' => 'h-5 w-5',
     ];
 
-    $hasIcon = isset($icon) && !$icon->isEmpty();
+    $hasIcon = isset($icon) && $icon instanceof \Illuminate\View\ComponentSlot && !$icon->isEmpty();
     $variantClass = $variants[$variant] ?? $variants['primary'];
     $sizeClass = $sizes[$size] ?? $sizes['md'];
     $spinnerSize = $spinnerSizes[$size] ?? $spinnerSizes['md'];
@@ -56,14 +56,14 @@
 
     {{-- Icon slot (hidden during loading) --}}
     @if($hasIcon)
-        <span @if($target) wire:loading.class.remove="inline-block" wire:loading.class.add="hidden" wire:target="{{ $target }}" @endif>
+        <span @if($target) wire:loading.class.remove="inline-block" wire:loading.class="hidden" wire:target="{{ $target }}" @endif>
             {{ $icon }}
         </span>
     @endif
 
     {{-- Text (with optional loading text swap) --}}
     @if($target && $loadingText)
-        <span wire:loading.class.remove="inline-block" wire:loading.class.add="hidden" wire:target="{{ $target }}">{{ $slot }}</span>
+        <span wire:loading.class.remove="inline-block" wire:loading.class="hidden" wire:target="{{ $target }}">{{ $slot }}</span>
         <span wire:loading wire:target="{{ $target }}">{{ $loadingText }}</span>
     @else
         {{ $slot }}

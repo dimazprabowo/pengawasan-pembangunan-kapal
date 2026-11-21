@@ -21,6 +21,7 @@ trait HasEncryptedRouteKey
     {
         try {
             $decryptedId = Crypt::decryptString($value);
+
             return $this->where($this->getKeyName(), $decryptedId)->first();
         } catch (\Exception $e) {
             return null;
@@ -34,6 +35,7 @@ trait HasEncryptedRouteKey
     {
         try {
             $decryptedId = Crypt::decryptString($value);
+
             return parent::resolveChildRouteBinding($childType, $decryptedId, $field);
         } catch (\Exception $e) {
             return null;

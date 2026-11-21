@@ -3,12 +3,14 @@
 namespace App\Jobs;
 
 use App\Models\LaporanNcForm;
+use App\Services\FileStorageService;
 use App\Services\QueueStatusService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -33,9 +35,18 @@ class ProcessNcFormFile implements ShouldQueue
     {
         $queueStatusService->markWorkerActive();
 
+        $files = app(FileStorageService::class);
+        $current = $this->form->fresh();
+        if (! $current || $current->file_status === 'completed') {
+            $files->deleteTemp($this->tempPath);
+
+            return;
+        }
+        $this->form = $current;
+        $stored = null;
         $this->form->update(['file_status' => 'processing']);
 
-        if (! Storage::disk('local')->exists($this->tempPath)) {
+        if (! Storage::disk()->exists($this->tempPath)) {
             $this->form->update([
                 'file_status' => 'failed',
                 'file_error' => 'File temporary tidak ditemukan',
@@ -45,41 +56,55 @@ class ProcessNcFormFile implements ShouldQueue
         }
 
         try {
-            $extension = strtolower(pathinfo((string) $this->form->file_name, PATHINFO_EXTENSION));
-            $destinationPath = 'laporan-nc/form/'.time().'_'.uniqid().'.'.$extension;
+            $extension = match (Storage::disk()->mimeType($this->tempPath)) {
+                'application/pdf' => 'pdf',
+                'image/jpeg' => 'jpg',
+                'image/png' => 'png',
+                default => throw new \RuntimeException('Tipe scan form NC tidak didukung.'),
+            };
+            $stored = $files->copyFromTemp($this->tempPath, 'laporan-nc/form', (string) $this->form->file_name, $extension);
+            if (! $this->form->fresh()) {
+                $files->deleteFiles([$stored['path']]);
+                $files->deleteTemp($this->tempPath);
 
-            Storage::disk('local')->move($this->tempPath, $destinationPath);
+                return;
+            }
 
-            $this->form->update([
-                'file_path' => $destinationPath,
-                'file_size' => Storage::disk('local')->size($destinationPath),
+            if (! DB::transaction(fn () => $this->form->update([
+                'file_path' => $stored['path'],
+                'file_name' => $stored['name'],
+                'file_size' => $stored['size'],
                 'file_status' => 'completed',
                 'file_processed_at' => now(),
                 'file_error' => null,
-            ]);
-
-            // Upload ulang: file lama dihapus setelah file baru berhasil dipindah
-            if ($this->oldPath && $this->oldPath !== $destinationPath && Storage::disk('local')->exists($this->oldPath)) {
-                Storage::disk('local')->delete($this->oldPath);
+            ]))) {
+                throw new \RuntimeException('Gagal memperbarui metadata scan form NC.');
             }
-        } catch (\Exception $e) {
-            $this->form->update([
+
+        } catch (\Throwable $e) {
+            $files->deleteFiles([$stored['path'] ?? null]);
+            $this->form->fresh()?->update([
                 'file_status' => 'failed',
-                'file_error' => $e->getMessage(),
+                'file_error' => 'Scan form NC gagal diproses. Silakan unggah ulang.',
             ]);
             throw $e;
         }
+
+        // Upload ulang: file lama dihapus setelah file baru berhasil dipindah
+        $files->deleteFiles([$this->oldPath]);
+        $files->deleteTemp($this->tempPath);
     }
 
     public function failed(\Throwable $exception): void
     {
-        $this->form->update([
-            'file_status' => 'failed',
-            'file_error' => $exception->getMessage(),
-        ]);
-
-        if (Storage::disk('local')->exists($this->tempPath)) {
-            Storage::disk('local')->delete($this->tempPath);
+        $current = $this->form->fresh();
+        if ($current && $current->file_status !== 'completed') {
+            $current->update([
+                'file_status' => 'failed',
+                'file_error' => 'Scan form NC gagal diproses. Silakan unggah ulang.',
+            ]);
         }
+
+        app(FileStorageService::class)->deleteTemp($this->tempPath);
     }
 }

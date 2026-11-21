@@ -89,7 +89,7 @@
             </a>
             <div class="min-w-0">
                 <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Tambah Laporan Mingguan</h2>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 truncate">{{ $dataKapal->nama }}{{ $dataKapal->company ? ' · ' . $dataKapal->company->name : '' }} — Isi form di bawah untuk membuat laporan mingguan baru</p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 truncate">{{ $dataKapal->nama }}{{ $dataKapal->owner ? ' · ' . $dataKapal->owner->name : '' }} — Isi form di bawah untuk membuat laporan mingguan baru</p>
             </div>
             {{-- Auto Save toggle + draft indicator (pojok kanan, indikator di bawah toggle) --}}
             <div class="ml-auto flex flex-col items-end gap-1.5 flex-shrink-0">
@@ -154,7 +154,7 @@
                         @enderror
                         @if(count($mingguOptions) === 0)
                             <span class="text-xs text-gray-400 dark:text-gray-500 mt-1 block">
-                                @if($hasKontrak) Semua minggu sudah terlaporkan @else Belum ada minggu — kontrak belum diatur @endif
+                                @if($hasPelaksanaan) Semua minggu sudah terlaporkan @else Belum ada minggu — pelaksanaan belum diatur @endif
                             </span>
                         @endif
                     </div>
@@ -186,7 +186,7 @@
                                 <span class="text-sm text-gray-500 dark:text-gray-400">Pilih minggu ke- untuk menampilkan periode</span>
                             @endif
                         </div>
-                        @if(!$hasKontrak)
+                        @if(!$hasPelaksanaan)
                             <input id="period-range-picker" type="text" placeholder="Pilih rentang tanggal periode"
                                 class="w-full mt-2 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer {{ $errors->has('periode_mulai') || $errors->has('periode_selesai') ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600' }}"
                                 wire:ignore>
@@ -414,7 +414,7 @@
         confirmMethod="saveWithReassign"
     />
 
-@if(!$hasKontrak)
+@if(!$hasPelaksanaan)
 <script>
 let pickerInstance = null;
 

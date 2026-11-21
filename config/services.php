@@ -17,7 +17,15 @@ return [
     'poppler' => [
         'pdftoppm' => env('PDFTOPPM_BINARY', 'pdftoppm'),
         'pdfinfo' => env('PDFINFO_BINARY', 'pdfinfo'),
+        'pdftotext' => env('PDFTOTEXT_BINARY', 'pdftotext'),
+        'pdfseparate' => env('PDFSEPARATE_BINARY', 'pdfseparate'),
+        'pdfunite' => env('PDFUNITE_BINARY', 'pdfunite'),
         'max_pages' => 200,
+    ],
+
+    'libreoffice' => [
+        // Fallback engine DOCX→PDF saat MS Word COM tidak tersedia (Linux).
+        'binary' => env('SOFFICE_BINARY', 'soffice'),
     ],
 
     'postmark' => [

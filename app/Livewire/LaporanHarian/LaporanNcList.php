@@ -112,6 +112,25 @@ class LaporanNcList extends Component
         }
     }
 
+    /**
+     * Hapus satu file dari antrian upload (sebelum Simpan File diklik).
+     */
+    public function removeNcUpload(int $ncId, string $kategori, string $uploadKey): void
+    {
+        try {
+            $nc = $this->findFileNc($ncId);
+            $this->authorize('update', $nc);
+            validator(['kategori' => $kategori], ['kategori' => [Rule::enum(NcFileKategori::class)]])->validate();
+            $entry = $this->ncUploads[$ncId][$kategori][$uploadKey] ?? null;
+            if (is_object($entry['file'] ?? null)) {
+                $entry['file']->delete();
+            }
+            unset($this->ncUploads[$ncId][$kategori][$uploadKey]);
+        } catch (AuthorizationException) {
+            $this->notifyError('Anda tidak memiliki izin untuk mengubah file NC.');
+        }
+    }
+
     public function confirmDeleteFile(int $id): void
     {
         $file = LaporanNcFoto::with('nc')->findOrFail($id);
@@ -748,7 +767,7 @@ class LaporanNcList extends Component
         $this->authorize('lampiranDownload', LaporanHarian::class);
         $item = $this->previewItem;
 
-        if (! $item || $item->id !== $id || ! $item->file_path || ! Storage::disk('local')->exists($item->file_path)) {
+        if (! $item || $item->id !== $id || ! $item->file_path || ! Storage::disk()->exists($item->file_path)) {
             $this->notifyError('File tidak ditemukan.');
 
             return null;
@@ -758,7 +777,7 @@ class LaporanNcList extends Component
             ? app(LaporanNcFormService::class)->downloadName($item, true)
             : $item->file_name;
 
-        return Storage::disk('local')->download($item->file_path, $name);
+        return Storage::disk()->download($item->file_path, $name);
     }
 
     public function render(LaporanNcService $service, LaporanNcFormService $formService, KontrakPeriodeService $periodeService)

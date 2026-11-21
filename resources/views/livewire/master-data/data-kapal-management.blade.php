@@ -5,14 +5,14 @@
                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
         </div>
 
-        <x-filter-popover :filters="['companyFilter', 'galanganFilter', 'statusFilter']" :per-page="true">
+        <x-filter-popover :filters="['ownerFilter', 'galanganFilter', 'statusFilter']" :per-page="true">
             <div>
-                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Perusahaan</label>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Owner</label>
                 <x-searchable-select
-                    wire:model.live="companyFilter"
-                    :options="collect($companies)->map(fn($c) => ['value' => $c->id, 'label' => $c->name])->toArray()"
-                    placeholder="Semua Perusahaan"
-                    searchPlaceholder="Cari perusahaan..."
+                    wire:model.live="ownerFilter"
+                    :options="collect($owners)->map(fn($c) => ['value' => $c->id, 'label' => $c->name])->toArray()"
+                    placeholder="Semua Owner"
+                    searchPlaceholder="Cari owner..."
                 />
             </div>
             <div>
@@ -77,7 +77,7 @@
                 <thead class="bg-gray-50 dark:bg-gray-900">
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Kapal</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Perusahaan</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Owner</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Galangan</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Template</th>
                         <x-sortable-header field="laporan_harian_count" :sort-field="$sortField" :sort-dir="$sortDir">Laporan</x-sortable-header>
@@ -102,20 +102,20 @@
                                             <span class="px-1.5 py-0.5 rounded text-xs font-mono font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
                                                 title="Kode kapal">{{ $dataKapal->kode }}</span>
                                         </div>
-                                        @if($dataKapal->hasKontrak())
+                                        @if($dataKapal->hasPelaksanaan())
                                             <div class="text-xs text-gray-500 dark:text-gray-400"
-                                                title="Periode kontrak {{ $dataKapal->durasi_kontrak_hari }} hari kalender">
-                                                {{ $dataKapal->tanggal_mulai_kontrak->translatedFormat('d M Y') }} – {{ $dataKapal->tanggal_selesai_kontrak->translatedFormat('d M Y') }}
-                                                <span class="text-gray-400 dark:text-gray-500">({{ $dataKapal->durasi_kontrak_hari }} hari)</span>
+                                                title="Periode pelaksanaan {{ $dataKapal->waktu_pelaksanaan_hari }} hari kalender">
+                                                {{ $dataKapal->tanggal_mulai_pelaksanaan->translatedFormat('d M Y') }} – {{ $dataKapal->tanggal_selesai_pelaksanaan->translatedFormat('d M Y') }}
+                                                <span class="text-gray-400 dark:text-gray-500">({{ $dataKapal->waktu_pelaksanaan_hari }} hari)</span>
                                             </div>
                                         @endif
                                     </div>
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                @if($dataKapal->company)
-                                    <div class="text-sm text-gray-900 dark:text-white">{{ $dataKapal->company->name }}</div>
-                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ $dataKapal->company->code }}</div>
+                                @if($dataKapal->owner)
+                                    <div class="text-sm text-gray-900 dark:text-white">{{ $dataKapal->owner->name }}</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ $dataKapal->owner->code }}</div>
                                 @else
                                     <span class="text-sm text-gray-400 dark:text-gray-500">-</span>
                                 @endif

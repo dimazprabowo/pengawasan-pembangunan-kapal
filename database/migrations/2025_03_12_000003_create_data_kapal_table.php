@@ -12,23 +12,25 @@ return new class extends Migration
             $table->id();
             $table->string('kode', 6)->unique()
                 ->comment('Kode unik 6 karakter, digenerate otomatis');
-            $table->foreignId('company_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('owner_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('galangan_id')->nullable()->constrained('galangan')->nullOnDelete();
             $table->string('nama', 255);
             $table->text('deskripsi')->nullable();
             $table->string('nama_pekerjaan')->nullable()
                 ->comment('Judul pekerjaan kontrak — tampil di cover/pengesahan laporan');
-            $table->string('nomor_kontrak', 150)->nullable();
-            $table->string('nomor_pembangunan', 100)->nullable()
-                ->comment('Nomor pembangunan / hull number dari galangan');
+            $table->string('nomor_kontrak_galangan', 150)->nullable()
+                ->comment('Nomor kontrak pembangunan dengan galangan');
+            $table->string('nomor_kontrak_pengawas', 150)->nullable()
+                ->comment('Nomor kontrak jasa pengawasan BKI dengan pemilik pekerjaan');
+            $table->string('nomor_kontrak_gambar', 150)->nullable();
             $table->json('penandatangan')->nullable()
                 ->comment('Daftar penandatangan laporan [{label, nama, jabatan, instansi}] — urutan = urutan TTD');
             $table->json('spesifikasi')->nullable()
                 ->comment('Daftar spesifikasi dinamis [{item, keterangan}]');
-            $table->date('tanggal_mulai_kontrak')->nullable()
-                ->comment('Tanggal mulai kontrak pembangunan (hari kalender)');
-            $table->unsignedSmallInteger('durasi_kontrak_hari')->nullable()
-                ->comment('Durasi kontrak dalam hari kalender');
+            $table->date('tanggal_mulai_pelaksanaan')->nullable()
+                ->comment('Tanggal mulai pelaksanaan pembangunan (hari kalender)');
+            $table->unsignedSmallInteger('waktu_pelaksanaan_hari')->nullable()
+                ->comment('Waktu pelaksanaan dalam hari kalender');
             $table->json('minggu_bulan_map')->nullable()
                 ->comment('Override pemetaan minggu→bulan {minggu_ke: bulan_ke} — kosong = ikut kalender mayoritas');
             $table->string('template_path_harian')->nullable();
@@ -41,7 +43,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index('company_id');
+            $table->index('owner_id');
             $table->index('galangan_id');
             $table->index('status');
             $table->index('created_at');

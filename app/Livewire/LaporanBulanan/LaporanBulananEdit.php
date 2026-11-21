@@ -8,12 +8,13 @@ use App\Livewire\Traits\HasNotification;
 use App\Models\DataKapal;
 use App\Models\LaporanBulanan;
 use App\Models\LaporanExternal;
+use App\Services\FileStorageService;
 use App\Services\KontrakPeriodeService;
 use App\Services\LaporanBulananService;
 use App\Services\LaporanNcService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -38,12 +39,9 @@ class LaporanBulananEdit extends Component
 
     public string $ringkasan = '';
 
-    /** BAB 2.3 — milestone realisasi pekerjaan [{row_key, uraian, tanggal, keterangan}] */
-    public array $realisasiProgress = [];
-
     public array $bulanOptions = [];
 
-    public bool $hasKontrak = false;
+    public bool $hasPelaksanaan = false;
 
     // Laporan External
     public array $laporanExternal = [];
@@ -54,6 +52,9 @@ class LaporanBulananEdit extends Component
 
     public ?string $deletingExternalId = null;
 
+    // Preferensi autosave draft per user (persisten via cache)
+    public bool $autoSave = true;
+
     public function mount(DataKapal $dataKapal, LaporanBulanan $laporanBulanan): void
     {
         $this->authorize('update', $laporanBulanan);
@@ -62,21 +63,15 @@ class LaporanBulananEdit extends Component
 
         $this->dataKapal = $dataKapal;
         $this->laporan = $laporanBulanan;
-        $this->hasKontrak = $dataKapal->hasKontrak();
+        $this->hasPelaksanaan = $dataKapal->hasPelaksanaan();
         $this->tanggal_laporan = $laporanBulanan->tanggal_laporan?->format('Y-m-d') ?? '';
         $this->periode_mulai = $laporanBulanan->periode_mulai?->format('Y-m-d') ?? '';
         $this->periode_selesai = $laporanBulanan->periode_selesai?->format('Y-m-d') ?? '';
         $this->ringkasan = $laporanBulanan->ringkasan ?? '';
         $this->bulan_ke = $laporanBulanan->bulan_ke;
-        $this->realisasiProgress = collect($laporanBulanan->realisasi_progress ?? [])
-            ->map(fn ($r) => [
-                'row_key' => (string) Str::uuid(),
-                'uraian' => $r['uraian'] ?? '',
-                'tanggal' => $r['tanggal'] ?? '',
-                'keterangan' => $r['keterangan'] ?? '',
-            ])->all();
-        // BAB 3.2 Problem & Rekomendasi bukan kolom — otomatis dari rekap NC periode.
+        // sub-bab 3.1 Problem & Rekomendasi bukan kolom — otomatis dari rekap NC periode.
         $this->bulanOptions = app(KontrakPeriodeService::class)->getBulanOptions($dataKapal, $this->bulan_ke);
+        $this->autoSave = Cache::get('lb_draft_autosave:'.auth()->id(), true);
 
         $this->laporanExternal = $laporanBulanan->laporanExternal->map(function ($item) {
             return [
@@ -93,6 +88,12 @@ class LaporanBulananEdit extends Component
         })->toArray();
     }
 
+    public function toggleAutoSave(): void
+    {
+        $this->autoSave = ! $this->autoSave;
+        Cache::forever('lb_draft_autosave:'.auth()->id(), $this->autoSave);
+    }
+
     protected function rules(): array
     {
         return [
@@ -101,9 +102,6 @@ class LaporanBulananEdit extends Component
             'periode_mulai' => 'required|date',
             'periode_selesai' => 'required|date|after_or_equal:periode_mulai',
             'ringkasan' => 'nullable|string|max:5000',
-            'realisasiProgress.*.uraian' => 'required|string|max:500',
-            'realisasiProgress.*.tanggal' => 'nullable|date',
-            'realisasiProgress.*.keterangan' => 'nullable|string|max:255',
             'laporanExternal.*.judul' => 'required|string|max:255',
             'laporanExternal.*.deskripsi' => 'nullable|string|max:1000',
             'laporanExternal.*.file' => file_upload_validation_rule('laporan_external'),
@@ -118,9 +116,6 @@ class LaporanBulananEdit extends Component
             'periode_mulai' => 'periode mulai',
             'periode_selesai' => 'periode selesai',
             'ringkasan' => 'ringkasan',
-            'realisasiProgress.*.uraian' => 'uraian realisasi',
-            'realisasiProgress.*.tanggal' => 'tanggal realisasi',
-            'realisasiProgress.*.keterangan' => 'keterangan realisasi',
             'laporanExternal.*.judul' => 'judul laporan external',
             'laporanExternal.*.deskripsi' => 'deskripsi laporan external',
             'laporanExternal.*.file' => 'file laporan external',
@@ -161,14 +156,8 @@ class LaporanBulananEdit extends Component
     public function removeExternalReport(string $tempId): void
     {
         if (is_numeric($tempId)) {
-            $existingRecord = LaporanExternal::find($tempId);
-            if ($existingRecord) {
-                if ($existingRecord->file_path && Storage::disk('local')->exists($existingRecord->file_path)) {
-                    Storage::disk('local')->delete($existingRecord->file_path);
-                }
-                Storage::disk('local')->delete($existingRecord->rendered_pages ?? []);
-                $existingRecord->delete();
-            }
+            $this->authorize('update', $this->laporan);
+            app(LaporanBulananService::class)->deleteExternal($this->laporan, (int) $tempId);
         }
 
         $this->laporanExternal = array_values(array_filter($this->laporanExternal, function ($item) use ($tempId) {
@@ -248,7 +237,7 @@ class LaporanBulananEdit extends Component
     {
         $external = $this->laporanExternal[$index] ?? null;
 
-        if (! $external || empty($external['existing_file_path']) || ! Storage::disk('local')->exists($external['existing_file_path'])) {
+        if (! $external || empty($external['existing_file_path']) || ! Storage::disk()->exists($external['existing_file_path'])) {
             $this->notifyError('File tidak ditemukan.');
 
             return;
@@ -260,43 +249,7 @@ class LaporanBulananEdit extends Component
             ? $title.'.'.pathinfo($originalFileName, PATHINFO_EXTENSION)
             : $originalFileName;
 
-        return response()->download(
-            Storage::disk('local')->path($external['existing_file_path']),
-            $downloadFileName
-        );
-    }
-
-    // ─── Repeater: Realisasi Progress (BAB 2.3) & Problem/Rekomendasi (BAB 3.2) ───
-
-    public function addRealisasiProgress(): void
-    {
-        $this->realisasiProgress[] = [
-            'row_key' => (string) Str::uuid(),
-            'uraian' => '',
-            'tanggal' => '',
-            'keterangan' => '',
-        ];
-    }
-
-    public function removeRealisasiProgress(int $index): void
-    {
-        unset($this->realisasiProgress[$index]);
-        $this->realisasiProgress = array_values($this->realisasiProgress);
-    }
-
-    /** Normalisasi repeater realisasi → payload kolom JSON (buang row_key & baris kosong). */
-    private function normalizedRealisasi(): array
-    {
-        $realisasi = collect($this->realisasiProgress)
-            ->map(fn ($r) => [
-                'uraian' => trim((string) ($r['uraian'] ?? '')),
-                'tanggal' => $r['tanggal'] ?: null,
-                'keterangan' => trim((string) ($r['keterangan'] ?? '')) ?: null,
-            ])
-            ->filter(fn ($r) => $r['uraian'] !== '')
-            ->values()->all();
-
-        return ['realisasi_progress' => $realisasi ?: null];
+        return Storage::disk()->download($external['existing_file_path'], $downloadFileName);
     }
 
     public function save(LaporanBulananService $service): void
@@ -323,7 +276,7 @@ class LaporanBulananEdit extends Component
                 'periode_selesai' => $this->periode_selesai ?: null,
                 'ringkasan' => $this->ringkasan ?: null,
                 'bulan_ke' => $this->bulan_ke,
-            ] + $this->normalizedRealisasi());
+            ]);
 
             $this->updateLaporanExternal();
 
@@ -345,7 +298,7 @@ class LaporanBulananEdit extends Component
             $isExisting = is_numeric($external['id']);
 
             if ($isExisting) {
-                $laporanExternal = LaporanExternal::find($external['id']);
+                $laporanExternal = $this->laporan->laporanExternal()->find($external['id']);
                 if (! $laporanExternal) {
                     continue;
                 }
@@ -360,12 +313,12 @@ class LaporanBulananEdit extends Component
             $laporanExternal->deskripsi = $external['deskripsi'] ?? null;
 
             if ($external['file']) {
-                if ($laporanExternal->file_path && Storage::disk('local')->exists($laporanExternal->file_path)) {
-                    Storage::disk('local')->delete($laporanExternal->file_path);
+                if ($laporanExternal->file_path && Storage::disk()->exists($laporanExternal->file_path)) {
+                    Storage::disk()->delete($laporanExternal->file_path);
                 }
-                Storage::disk('local')->delete($laporanExternal->rendered_pages ?? []);
+                Storage::disk()->delete($laporanExternal->rendered_pages ?? []);
 
-                $tempPath = $external['file']->store('temp/laporan-external', 'local');
+                $tempPath = app(FileStorageService::class)->storeTemp($external['file'], 'laporan-external');
                 $laporanExternal->file_name = $external['file']->getClientOriginalName();
                 $laporanExternal->file_status = 'pending';
                 $laporanExternal->file_processed_at = null;
@@ -388,12 +341,15 @@ class LaporanBulananEdit extends Component
 
     public function cancel()
     {
+        // Beri tahu Alpine untuk menghapus draft lokal sebelum navigate
+        $this->dispatch('lb-clear-draft');
+
         return $this->redirect(route('laporan-bulanan.index', $this->dataKapal), navigate: true);
     }
 
     public function render()
     {
-        // Preview rekap NC (open terbawa + closed dalam periode) = isi BAB 3.2.
+        // Preview rekap NC (open terbawa + closed dalam periode) = isi sub-bab 3.1.
         $ncRekap = ($this->periode_mulai && $this->periode_selesai)
             ? app(LaporanNcService::class)->rekapMingguan($this->dataKapal->id, $this->periode_mulai, $this->periode_selesai)
             : collect();

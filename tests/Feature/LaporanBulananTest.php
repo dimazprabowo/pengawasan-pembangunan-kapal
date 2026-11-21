@@ -7,17 +7,19 @@ use App\Models\DataKapal;
 use App\Models\KurvaSRencana;
 use App\Models\KurvaSWorkGroup;
 use App\Models\LaporanBulanan;
+use App\Models\LaporanExternal;
 use App\Models\LaporanHarian;
 use App\Models\User;
 use App\Services\KontrakPeriodeService;
 use App\Services\KurvaSService;
 use App\Services\LaporanBulananService;
 use App\Services\LaporanBulananWordService;
-use App\Services\WordChunkService;
+use App\Services\LaporanMingguanService;
 use App\Services\WordStyleService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use PhpOffice\PhpWord\Element\Table;
 use PhpOffice\PhpWord\IOFactory;
@@ -46,7 +48,7 @@ class LaporanBulananTest extends TestCase
 
     private function dataKapal(): DataKapal
     {
-        return DataKapal::whereNotNull('tanggal_mulai_kontrak')->firstOrFail();
+        return DataKapal::whereNotNull('tanggal_mulai_pelaksanaan')->firstOrFail();
     }
 
     public function test_phpword_writer_tanpa_patch_tidak_memicu_deprecation(): void
@@ -83,7 +85,7 @@ class LaporanBulananTest extends TestCase
             $block->addRow();
             $block->addCell()->addText('Tabel dinamis & aman', [], ['alignment' => 'center']);
             Settings::setOutputEscapingEnabled(true);
-            $processor = new TemplateProcessor(base_path('storage/app/templates/laporan-bulanan/template-laporan-bulanan.docx'));
+            $processor = new TemplateProcessor(base_path('storage/app/private/templates/laporan-bulanan/template-laporan-bulanan.docx'));
             WordStyleService::setComplexBlock($processor, 'tabel_exec_progress', $block);
             $path = tempnam(sys_get_temp_dir(), 'word-style-test-');
             try {
@@ -109,12 +111,14 @@ class LaporanBulananTest extends TestCase
     {
         $storage = storage_path();
         $isolatedStorage = sys_get_temp_dir().'/monthly-word-'.bin2hex(random_bytes(8));
-        mkdir($isolatedStorage.'/app/templates/laporan-bulanan', 0755, true);
-        copy(base_path('storage/app/templates/laporan-bulanan/template-laporan-bulanan.docx'), $isolatedStorage.'/app/templates/laporan-bulanan/template-laporan-bulanan.docx');
+        mkdir($isolatedStorage.'/app/private/templates/laporan-bulanan', 0755, true);
+        copy(base_path('storage/app/private/templates/laporan-bulanan/template-laporan-bulanan.docx'), $isolatedStorage.'/app/private/templates/laporan-bulanan/template-laporan-bulanan.docx');
         $this->partialMock(LaporanBulananService::class, function ($mock): void {
             $mock->shouldReceive('getMingguanBulan')->andReturn(collect());
         });
         app()->useStoragePath($isolatedStorage);
+        config(['filesystems.disks.local.root' => $isolatedStorage.'/app/private']);
+        Storage::forgetDisk('local');
         set_error_handler(function (int $severity, string $message, string $file, int $line): bool {
             if ($severity === E_DEPRECATED) {
                 throw new \ErrorException($message, 0, $severity, $file, $line);
@@ -124,9 +128,10 @@ class LaporanBulananTest extends TestCase
         });
         try {
             $laporan = LaporanBulanan::firstOrFail();
+            $laporan->laporanExternal()->delete();
             $path = app(LaporanBulananWordService::class)->generate($laporan);
             $zip = new \ZipArchive;
-            $this->assertTrue($zip->open(storage_path('app/'.$path)));
+            $this->assertTrue($zip->open(storage_path('app/private/'.$path)));
             try {
                 $document = new \DOMDocument;
                 $this->assertTrue($document->loadXML($zip->getFromName('word/document.xml')));
@@ -143,30 +148,37 @@ class LaporanBulananTest extends TestCase
     }
 
     #[Test]
-    public function bulanan_memperbarui_mingguan_lama_dan_menyertakan_harian_tanpa_chunk_bertingkat(): void
+    public function bulanan_memakai_ulang_mingguan_dan_generate_bila_dokumen_dikosongkan(): void
     {
         $storage = storage_path();
         $isolatedStorage = sys_get_temp_dir().'/monthly-attachments-'.bin2hex(random_bytes(8));
         foreach (['bulanan', 'mingguan', 'harian'] as $type) {
-            mkdir($isolatedStorage.'/app/templates/laporan-'.$type, 0755, true);
-            copy(base_path('storage/app/templates/laporan-'.$type.'/template-laporan-'.$type.'.docx'), $isolatedStorage.'/app/templates/laporan-'.$type.'/template-laporan-'.$type.'.docx');
+            mkdir($isolatedStorage.'/app/private/templates/laporan-'.$type, 0755, true);
+            copy(base_path('storage/app/private/templates/laporan-'.$type.'/template-laporan-'.$type.'.docx'), $isolatedStorage.'/app/private/templates/laporan-'.$type.'/template-laporan-'.$type.'.docx');
         }
         app()->useStoragePath($isolatedStorage);
+        config(['filesystems.disks.local.root' => $isolatedStorage.'/app/private']);
+        Storage::forgetDisk('local');
         try {
             $laporan = LaporanBulanan::firstOrFail();
+            LaporanExternal::query()->delete();
             $mingguan = app(LaporanBulananService::class)->getMingguanBulan($laporan)->firstOrFail();
             $harian = LaporanHarian::where('data_kapal_id', $laporan->data_kapal_id)->orderBy('tanggal_laporan')->limit(2)->get();
             $this->assertCount(2, $harian);
-            $mingguan->laporanHarian()->sync($harian->modelKeys());
             $harian->each(fn ($item) => $item->update(['doc_path' => null, 'doc_status' => null]));
-            mkdir($isolatedStorage.'/app/laporan/word', 0755, true);
+            mkdir($isolatedStorage.'/app/private/laporan/word', 0755, true);
             $oldPath = 'laporan/word/old-weekly.docx';
             $word = new PhpWord;
             $word->addSection()->addText('Mingguan lama tanpa lampiran harian');
             WordStyleService::prepare($word);
-            $word->save(storage_path('app/'.$oldPath), 'Word2007');
+            $word->save(storage_path('app/private/'.$oldPath), 'Word2007');
             $mingguan->update(['doc_path' => $oldPath, 'doc_status' => 'completed']);
-            $mingguan->loadCount('laporanHarian');
+
+            // Perubahan isi mingguan lewat service mengosongkan docx-nya (invalidasi eksplisit).
+            app(LaporanMingguanService::class)->update($mingguan, ['laporan_harian_ids' => $harian->modelKeys()]);
+            $mingguan->refresh()->loadCount('laporanHarian');
+            $this->assertNull($mingguan->doc_path);
+            $this->assertFileDoesNotExist(storage_path('app/private/'.$oldPath));
             $this->partialMock(LaporanBulananService::class, function ($mock) use ($mingguan): void {
                 $mock->shouldReceive('getMingguanBulan')->andReturn(new Collection([$mingguan]));
             });
@@ -174,38 +186,48 @@ class LaporanBulananTest extends TestCase
             $mingguan->refresh();
             $this->assertSame('completed', $mingguan->doc_status);
             $this->assertNotSame($oldPath, $mingguan->doc_path);
-            $weeklyHash = hash_file('sha256', storage_path('app/'.$mingguan->doc_path));
+            $this->assertTrue(Storage::disk('local')->exists('laporan/lampiran-pages/'.sha1($mingguan->doc_path).'/pages.json'));
+            $weeklyHash = hash_file('sha256', storage_path('app/private/'.$mingguan->doc_path));
             $zip = new \ZipArchive;
-            $this->assertTrue($zip->open(storage_path('app/'.$relativePath)));
+            $this->assertTrue($zip->open(storage_path('app/private/'.$relativePath)));
             try {
                 $document = new \DOMDocument;
                 $this->assertTrue($document->loadXML($zip->getFromName('word/document.xml')));
                 $xpath = new \DOMXPath($document);
                 $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
-                $this->assertSame(3, $xpath->query('//w:altChunk')->length);
-                foreach ($harian->fresh()->values() as $i => $item) {
-                    $this->assertSame('completed', $item->doc_status);
-                    $this->assertSame(file_get_contents(storage_path('app/'.$item->doc_path)), $zip->getFromName('word/afchunk'.($i + 2).'.docx'));
-                }
-                $weeklyCopy = tempnam(sys_get_temp_dir(), 'weekly-copy-');
-                try {
-                    file_put_contents($weeklyCopy, $zip->getFromName('word/afchunk1.docx'));
-                    $child = new \ZipArchive;
-                    $this->assertTrue($child->open($weeklyCopy));
-                    try {
-                        $this->assertStringContainsString('LAPORAN HARIAN', $child->getFromName('word/document.xml'));
-                        $this->assertStringNotContainsString('altChunk', $child->getFromName('word/document.xml'));
-                    } finally {
-                        $child->close();
+                // Lampiran disisipkan sebagai gambar halaman (bukan altChunk):
+                // tidak ada chunk bertingkat dan konten ter-render untuk semua viewer.
+                $this->assertSame(0, $xpath->query('//w:altChunk')->length);
+                $this->assertGreaterThan(0, $xpath->query('//w:drawing')->length);
+                $media = 0;
+                for ($i = 0; $i < $zip->numFiles; $i++) {
+                    if (str_starts_with((string) $zip->getNameIndex($i), 'word/media/')) {
+                        $media++;
                     }
-                } finally {
-                    unlink($weeklyCopy);
+                }
+                $this->assertGreaterThan(0, $media);
+                foreach ($harian->fresh() as $item) {
+                    $this->assertSame('completed', $item->doc_status);
                 }
             } finally {
                 $zip->close();
             }
-            $this->assertSame($weeklyHash, hash_file('sha256', storage_path('app/'.$mingguan->doc_path)));
-            $this->assertSame(2, app(WordChunkService::class)->count(storage_path('app/'.$mingguan->doc_path)));
+            $this->assertSame($weeklyHash, hash_file('sha256', storage_path('app/private/'.$mingguan->doc_path)));
+
+            // Generate ulang bulanan memakai docx mingguan yang sudah ada (tanpa generate ulang).
+            $reusedPath = $mingguan->doc_path;
+            app(LaporanBulananWordService::class)->generate($laporan);
+            $this->assertSame($reusedPath, $mingguan->fresh()->doc_path);
+            $this->assertSame($weeklyHash, hash_file('sha256', storage_path('app/private/'.$reusedPath)));
+            $weekly = new \ZipArchive;
+            $this->assertTrue($weekly->open(storage_path('app/private/'.$mingguan->doc_path)));
+            try {
+                $weeklyDocument = (string) $weekly->getFromName('word/document.xml');
+                $this->assertStringContainsString('LAPORAN HARIAN', $weeklyDocument);
+                $this->assertStringNotContainsString('altChunk', $weeklyDocument);
+            } finally {
+                $weekly->close();
+            }
         } finally {
             app()->useStoragePath($storage);
             File::deleteDirectory($isolatedStorage);
@@ -215,7 +237,7 @@ class LaporanBulananTest extends TestCase
     public function test_template_toc_dan_numbering_bulanan(): void
     {
         $zip = new \ZipArchive;
-        $this->assertTrue($zip->open(base_path('storage/app/templates/laporan-bulanan/template-laporan-bulanan.docx')));
+        $this->assertTrue($zip->open(base_path('storage/app/private/templates/laporan-bulanan/template-laporan-bulanan.docx')));
         try {
             $document = new \DOMDocument;
             $this->assertTrue($document->loadXML($zip->getFromName('word/document.xml')));
@@ -226,11 +248,11 @@ class LaporanBulananTest extends TestCase
                 $instructions[] = $instruction->textContent;
             }
             $this->assertContains(' TOC \\t "JudulBab0;1;JudulBab0C;1;JudulBab1;1;JudulBab2;2" \\h \\z ', $instructions);
-            $this->assertSame(23, $xpath->query('//w:fldChar[@w:fldCharType="begin"][@w:dirty="true"]')->length);
-            $this->assertSame(22, $xpath->query('//w:bookmarkStart[starts-with(@w:name, "_MonthlyToc")]')->length);
-            $this->assertSame(22, $xpath->query('//w:hyperlink[starts-with(@w:anchor, "_MonthlyToc")]')->length);
+            $this->assertSame(24, $xpath->query('//w:fldChar[@w:fldCharType="begin"][@w:dirty="true"]')->length);
+            $this->assertSame(23, $xpath->query('//w:bookmarkStart[starts-with(@w:name, "_MonthlyToc")]')->length);
+            $this->assertSame(23, $xpath->query('//w:hyperlink[starts-with(@w:anchor, "_MonthlyToc")]')->length);
             $pageReferences = array_filter($instructions, fn ($instruction) => str_contains($instruction, 'PAGEREF'));
-            $this->assertCount(22, $pageReferences);
+            $this->assertCount(23, $pageReferences);
             foreach ($xpath->query('//w:hyperlink[starts-with(@w:anchor, "_MonthlyToc")]') as $link) {
                 $anchor = $link->getAttribute('w:anchor');
                 $this->assertSame(1, $xpath->query('//w:bookmarkStart[@w:name="'.$anchor.'"]')->length);
@@ -270,7 +292,7 @@ class LaporanBulananTest extends TestCase
     public function test_pengantar_tabel_memiliki_spacing_konsisten(): void
     {
         $zip = new \ZipArchive;
-        $this->assertTrue($zip->open(base_path('storage/app/templates/laporan-bulanan/template-laporan-bulanan.docx')));
+        $this->assertTrue($zip->open(base_path('storage/app/private/templates/laporan-bulanan/template-laporan-bulanan.docx')));
         try {
             $document = new \DOMDocument;
             $this->assertTrue($document->loadXML($zip->getFromName('word/document.xml')));
@@ -278,9 +300,7 @@ class LaporanBulananTest extends TestCase
             $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
             foreach ([
                 'Secara umum spesifikasi dan ukuran utama',
-                'Proses Penyelesaian Basic Design & Production Drawing Oleh Galangan',
-                'Review Drawing oleh Konsultansi Pengawas (MNO)',
-                'Review / Approval Drawing oleh Klas',
+                'Nomor Kontrak Gambar:',
                 'Presentase Bobot penyelesaian',
                 'Total progress yang telah dicapai',
             ] as $text) {
@@ -379,11 +399,14 @@ class LaporanBulananTest extends TestCase
 
     public function test_create_bulanan_persists_with_derived_periode(): void
     {
-        // Kapal pertama sudah penuh (semua bulan ter-seed) — pakai kapal
-        // lain dengan kontrak yang belum punya laporan bulanan.
-        $dataKapal = DataKapal::whereNotNull('tanggal_mulai_kontrak')
-            ->whereDoesntHave('laporanBulanan')
-            ->firstOrFail();
+        // Kedua kapal seeded sudah punya laporan bulanan — buat kapal
+        // baru berkontrak yang belum punya laporan bulanan.
+        $dataKapal = DataKapal::create([
+            'nama' => 'Kapal Uji Bulanan',
+            'status' => 'active',
+            'tanggal_mulai_pelaksanaan' => now()->subDays(60)->toDateString(),
+            'waktu_pelaksanaan_hari' => 100,
+        ]);
 
         $options = app(KontrakPeriodeService::class)->getBulanOptions($dataKapal);
         $this->assertNotEmpty($options);
