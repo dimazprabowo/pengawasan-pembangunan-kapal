@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\NcFileKategori;
 use App\Enums\NcStatus;
 use App\Traits\HasUserStamps;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -90,7 +91,7 @@ class LaporanNc extends Model
     }
 
     /**
-     * Koleksi file gambar/PDF Before/After NC.
+     * Koleksi file gambar/PDF Open/Close NC.
      */
     public function foto(): HasMany
     {
@@ -120,6 +121,17 @@ class LaporanNc extends Model
      * NC sudah masuk draft Form Penutupan yang belum ditandatangani —
      * tidak bisa dipindah ke draft penutupan lain sebelum draft itu dihapus.
      */
+    /**
+     * NC punya minimal satu file Close selesai diproses — syarat masuk
+     * Form Penutupan (dokumen NCR Close hanya memuat lampiran Close).
+     */
+    public function hasCompletedCloseFile(): bool
+    {
+        return $this->foto->contains(
+            fn (LaporanNcFoto $f) => $f->kategori === NcFileKategori::Close && $f->isFileCompleted()
+        );
+    }
+
     public function isInDraftPenutupan(): bool
     {
         return $this->forms->contains(fn (LaporanNcForm $f) => $f->isPenutupan() && $f->isDraft());

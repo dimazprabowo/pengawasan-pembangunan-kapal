@@ -65,8 +65,8 @@ class LaporanNcService
      * - Status NC tidak diubah di sini — close lewat Form Penutupan, reopen di List NC.
      *
      * @param  array  $rows  [['row_key', 'id', 'kendala', 'tindakan', 'pic'], ...]
-     * @param  array  $fotos  [row_key|row_key_{uuid}|row_key_after_{uuid} => ['file' => UploadedFile|null, 'cropData' => ?array]]
-     *                        Key ber-marker "_after_" disimpan sebagai kategori After; sisanya Before.
+     * @param  array  $fotos  [row_key|row_key_{uuid}|row_key_close_{uuid} => ['file' => UploadedFile|null, 'cropData' => ?array]]
+     *                        Key ber-marker "_close_" disimpan sebagai kategori Close; sisanya Open.
      * @return int jumlah foto baru yang diantrikan
      */
     public function syncNc(LaporanHarian $laporan, array $rows, array $fotos = []): int
@@ -116,7 +116,7 @@ class LaporanNcService
                 $touched->push($nc);
 
                 foreach ($files as $key => $entry) {
-                    $kategori = str_starts_with((string) $key, $rowKey.'_after_') ? NcFileKategori::After : NcFileKategori::Before;
+                    $kategori = str_starts_with((string) $key, $rowKey.'_close_') ? NcFileKategori::Close : NcFileKategori::Open;
                     $jobs[] = $this->prepareFile($nc, $entry['file'], $kategori, $entry['cropData'] ?? null);
                 }
             }

@@ -77,7 +77,7 @@ class LaporanBulananCreate extends Component
             'bulan_ke' => 'required|integer|min:1',
             'periode_mulai' => 'required|date',
             'periode_selesai' => 'required|date|after_or_equal:periode_mulai',
-            'ringkasan' => 'nullable|string|max:5000',
+            'ringkasan' => 'required|string|max:5000',
             'laporanExternal.*.judul' => 'required|string|max:255',
             'laporanExternal.*.deskripsi' => 'nullable|string|max:1000',
             'laporanExternal.*.file' => file_upload_validation_rule('laporan_external'),
@@ -91,7 +91,7 @@ class LaporanBulananCreate extends Component
             'bulan_ke' => 'bulan ke-',
             'periode_mulai' => 'periode mulai',
             'periode_selesai' => 'periode selesai',
-            'ringkasan' => 'ringkasan',
+            'ringkasan' => 'executive summary',
             'laporanExternal.*.judul' => 'judul laporan external',
             'laporanExternal.*.deskripsi' => 'deskripsi laporan external',
             'laporanExternal.*.file' => 'file laporan external',
@@ -188,7 +188,7 @@ class LaporanBulananCreate extends Component
                 'tanggal_laporan' => $this->tanggal_laporan,
                 'periode_mulai' => $this->periode_mulai ?: null,
                 'periode_selesai' => $this->periode_selesai ?: null,
-                'ringkasan' => $this->ringkasan ?: null,
+                'ringkasan' => $this->ringkasan,
                 'bulan_ke' => $this->bulan_ke,
             ]);
 

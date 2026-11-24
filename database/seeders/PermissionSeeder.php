@@ -37,7 +37,7 @@ class PermissionSeeder extends Seeder
             'owners_export_excel',
             'owners_export_pdf',
 
-            // Master Data — Data Kapal
+            // Master Data — Data Proyek
             'data_kapal_view',
             'data_kapal_create',
             'data_kapal_update',
@@ -48,7 +48,7 @@ class PermissionSeeder extends Seeder
             'data_kapal_download_template',
             'data_kapal_manage_kurva_s',
 
-            // Master Data — Data Proyek (drawing, vendor, material, pengujian, rapat)
+            // Master Data — Data Umum (drawing, vendor, material, pengujian, rapat)
             'proyek_data_view',
             'proyek_data_create',
             'proyek_data_update',

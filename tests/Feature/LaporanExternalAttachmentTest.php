@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\LaporanExternal;
+use App\Models\LaporanNc;
+use App\Models\LaporanNcFoto;
 use App\Services\DocxToPdfService;
 use App\Services\LaporanDocumentService;
 use App\Services\PdfPageService;
@@ -14,6 +16,7 @@ use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\PhpWord;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
+use Symfony\Component\Process\Process;
 use Tests\TestCase;
 use ZipArchive;
 
@@ -23,6 +26,8 @@ class LaporanExternalAttachmentTest extends TestCase
     {
         $document = new PhpWord;
         $section = $document->addSection();
+        $section->addHeader()->addText('HEADER UTAMA');
+        $section->addFooter()->addText('FOOTER UTAMA');
         $section->addText('TABEL DOKUMEN EKSTERNAL');
         $section->addText('${lampiran_external}');
         $section->addText('SECTION SETELAH MARKER');
@@ -73,13 +78,14 @@ class LaporanExternalAttachmentTest extends TestCase
             $this->assertTrue($dom->loadXML($xml, LIBXML_NONET));
             $xpath = new \DOMXPath($dom);
             $this->assertSame(2, $xpath->query('//*[local-name()="drawing"]')->length);
-            $this->assertStringContainsString('Sertifikat Uji', $xml);
-            $this->assertStringContainsString('Halaman 1', $xml);
+            $this->assertStringNotContainsString('Sertifikat Uji', $xml);
+            $this->assertStringNotContainsString('Halaman 1', $xml);
+            $this->assertStringNotContainsString('ext.pdf', $dom->textContent);
             $this->assertStringNotContainsString('${lampiran_external}', $xml);
             // Konten embed harus berada di bawah tabel, sebelum section berikutnya
             $this->assertLessThan(
                 strpos($xml, 'SECTION SETELAH MARKER'),
-                strpos($xml, 'Sertifikat Uji')
+                strpos($xml, '<w:drawing>')
             );
             $this->assertSame(2, count(array_filter(range(0, $zip->numFiles - 1), fn ($i) => str_starts_with($zip->getNameIndex($i), 'word/media/att_'))));
         } finally {
@@ -115,10 +121,203 @@ class LaporanExternalAttachmentTest extends TestCase
             $this->assertTrue($dom->loadXML($xml, LIBXML_NONET));
             $xpath = new \DOMXPath($dom);
             $this->assertSame(1, $xpath->query('//*[local-name()="drawing"]')->length);
-            $this->assertStringContainsString('Foto Dokumen', $xml);
+            $this->assertStringNotContainsString('Foto Dokumen', $xml);
             $this->assertStringNotContainsString('${lampiran_external}', $xml);
+            $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+            $xpath->registerNamespace('r', 'http://schemas.openxmlformats.org/officeDocument/2006/relationships');
+            $sections = $xpath->query('//w:sectPr');
+            $this->assertSame(4, $sections->length);
+            $this->assertSame('0', $xpath->evaluate('string(w:pgMar/@w:left)', $sections->item(2)));
+            foreach (['top', 'right', 'bottom', 'header', 'footer', 'gutter'] as $margin) {
+                $this->assertSame('0', $xpath->evaluate('string(w:pgMar/@w:'.$margin.')', $sections->item(2)));
+            }
+            foreach ([1, 3] as $normalIndex) {
+                $this->assertSame(
+                    $xpath->evaluate('string(w:pgMar/@w:left)', $sections->item(0)),
+                    $xpath->evaluate('string(w:pgMar/@w:left)', $sections->item($normalIndex))
+                );
+            }
+            $this->assertSame(0, $xpath->query('//w:br[@w:type="page"] | //w:pageBreakBefore')->length);
+            foreach (['header', 'footer'] as $kind) {
+                $original = $xpath->evaluate('string(w:'.$kind.'Reference[@w:type="default"]/@r:id)', $sections->item(0));
+                $this->assertSame($original, $xpath->evaluate('string(w:'.$kind.'Reference[@w:type="default"]/@r:id)', $sections->item(3)));
+                $relations = new \DOMDocument;
+                $relations->loadXML($zip->getFromName('word/_rels/document.xml.rels'), LIBXML_NONET);
+                $relationXpath = new \DOMXPath($relations);
+                foreach ([1, 2] as $attachmentIndex) {
+                    $this->assertNotSame($original, $xpath->evaluate('string(w:'.$kind.'Reference[@w:type="default"]/@r:id)', $sections->item($attachmentIndex)));
+                    $this->assertSame(3, $xpath->query('w:'.$kind.'Reference', $sections->item($attachmentIndex))->length);
+                    foreach ($xpath->query('w:'.$kind.'Reference', $sections->item($attachmentIndex)) as $reference) {
+                        $id = $reference->getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id');
+                        $target = $relationXpath->evaluate('string(//*[local-name()="Relationship"][@Id="'.$id.'"]/@Target)');
+                        $part = new \DOMDocument;
+                        $this->assertTrue($part->loadXML($zip->getFromName('word/'.$target), LIBXML_NONET));
+                        $this->assertSame('', trim($part->textContent));
+                    }
+                }
+            }
+            $this->assertSame(1, $xpath->query('//w:p[w:r/w:drawing]/w:pPr/w:sectPr')->length);
+            $pageWidth = (int) $xpath->evaluate('string(w:pgSz/@w:w)', $sections->item(2));
+            $imageWidth = (int) $xpath->evaluate('string(//*[local-name()="extent"]/@cx)');
+            $this->assertSame($pageWidth * 635, $imageWidth);
         } finally {
             $zip->close();
+        }
+    }
+
+    #[Test]
+    public function lampiran_laporan_di_akhir_dokumen_memakai_section_nol_margin_tanpa_halaman_pemulihan(): void
+    {
+        Storage::fake('local');
+        $image = imagecreatetruecolor(600, 850);
+        imagefill($image, 0, 0, imagecolorallocate($image, 255, 255, 255));
+        imagestring($image, 5, 100, 300, 'ISI LAPORAN', imagecolorallocate($image, 0, 0, 0));
+        ob_start();
+        imagepng($image);
+        Storage::disk('local')->put('halaman.png', ob_get_clean());
+        $path = Storage::disk('local')->path('laporan.docx');
+        $document = new PhpWord;
+        $section = $document->addSection();
+        $section->addText('ISI UTAMA');
+        $section->addPageBreak();
+        $section->addText('${lampiran_harian}');
+        WordStyleService::prepare($document);
+        IOFactory::createWriter($document, 'Word2007')->save($path);
+
+        app(WordAttachmentService::class)->embedReportPages($path, [
+            ['halaman.png', '', true], ['halaman.png', '', true],
+        ], '${lampiran_harian}', 'LAPORAN HARIAN');
+
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($path));
+        try {
+            $dom = new \DOMDocument;
+            $this->assertTrue($dom->loadXML($zip->getFromName('word/document.xml'), LIBXML_NONET));
+            $xpath = new \DOMXPath($dom);
+            $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+            $this->assertSame(3, $xpath->query('//w:sectPr')->length);
+            $this->assertSame('0', $xpath->evaluate('string(/w:document/w:body/w:sectPr/w:pgMar/@w:left)'));
+            $this->assertSame(2, $xpath->query('//w:drawing')->length);
+            $this->assertSame(1, $xpath->query('//w:pageBreakBefore')->length);
+            $this->assertStringNotContainsString('${lampiran_harian}', $dom->textContent);
+            $media = $zip->getFromName('word/media/'.$xpath->evaluate('string(//*[local-name()="cNvPr"]/@name)'));
+            $size = getimagesizefromstring($media);
+            $this->assertEqualsWithDelta(600 / 850, $size[0] / $size[1], 0.002);
+        } finally {
+            $zip->close();
+        }
+    }
+
+    #[Test]
+    public function hasil_render_pemisah_tanpa_footer_dan_tanpa_halaman_kosong(): void
+    {
+        $textBinary = dirname(config('services.poppler.pdfinfo')).'/pdftotext'.(PHP_OS_FAMILY === 'Windows' ? '.exe' : '');
+        if (! is_executable($textBinary) || (! class_exists(\COM::class) && ! is_executable((string) config('services.libreoffice.binary')))) {
+            $this->markTestSkipped('Engine Word/LibreOffice dan pdftotext diperlukan untuk verifikasi pagination.');
+        }
+        Storage::fake('local');
+        $image = imagecreatetruecolor(600, 850);
+        ob_start();
+        imagepng($image);
+        Storage::disk('local')->put('halaman.png', ob_get_clean());
+        $path = Storage::disk('local')->path('render.docx');
+        $document = new PhpWord;
+        $section = $document->addSection();
+        $section->addHeader()->addText('HEADER UTAMA');
+        $section->addFooter()->addText('FOOTER UTAMA');
+        $section->addText('ISI UTAMA');
+        $section->addPageBreak();
+        $section->addText('${lampiran_harian}');
+        $section->addText('ISI SETELAH LAMPIRAN');
+        WordStyleService::prepare($document);
+        IOFactory::createWriter($document, 'Word2007')->save($path);
+        app(WordAttachmentService::class)->embedReportPages($path, [
+            ['halaman.png', '', true],
+        ], '${lampiran_harian}', 'LAPORAN HARIAN');
+        $pdf = Storage::disk('local')->path('render.pdf');
+        app(DocxToPdfService::class)->convert($path, $pdf);
+        $process = new Process([$textBinary, '-layout', $pdf, '-']);
+        $process->mustRun();
+        $pages = explode("\f", rtrim($process->getOutput(), "\f\r\n"));
+        $this->assertCount(4, $pages, 'Hanya boleh ada halaman utama, pemisah, lampiran, dan konten lanjutan.');
+        $this->assertStringContainsString('FOOTER UTAMA', $pages[0]);
+        $this->assertStringContainsString('LAPORAN HARIAN', $pages[1]);
+        foreach ([1, 2] as $index) {
+            $this->assertStringNotContainsString('FOOTER UTAMA', $pages[$index]);
+            $this->assertStringNotContainsString('HEADER UTAMA', $pages[$index]);
+        }
+        $this->assertStringContainsString('ISI SETELAH LAMPIRAN', $pages[3]);
+        $this->assertStringContainsString('FOOTER UTAMA', $pages[3]);
+    }
+
+    #[Test]
+    public function footer_utama_tetap_ada_setelah_nc_harian_dan_eksternal_disisipkan_berurutan(): void
+    {
+        Storage::fake('local');
+        $image = imagecreatetruecolor(600, 850);
+        ob_start();
+        imagepng($image);
+        Storage::disk('local')->put('halaman.png', ob_get_clean());
+        $path = Storage::disk('local')->path('gabungan.docx');
+        $document = new PhpWord;
+        $section = $document->addSection();
+        $section->addFooter()->addText('FOOTER UTAMA');
+        $section->addText('ISI UTAMA');
+        $section->addPageBreak();
+        $section->addText('E. LAMPIRAN');
+        $section->addText('Daftar dokumen eksternal, laporan harian, dan NC');
+        $section->addText('${lampiran_external}');
+        $section->addText('${lampiran_harian}');
+        WordStyleService::prepare($document);
+        IOFactory::createWriter($document, 'Word2007')->save($path);
+        $file = new LaporanNcFoto([
+            'file_name' => 'halaman.png', 'file_path' => 'halaman.png', 'file_status' => 'completed',
+        ]);
+        $nc = new LaporanNc;
+        $nc->setRelation('foto', collect([$file]));
+        $service = app(WordAttachmentService::class);
+        $service->append($path, collect([$nc]), true);
+        $service->embedReportPages($path, [['halaman.png', '', true]], '${lampiran_harian}', 'LAPORAN HARIAN');
+        $service->embedExternals($path, collect([new LaporanExternal([
+            'judul' => 'Dokumen Uji', 'file_name' => 'halaman.png', 'file_path' => 'halaman.png', 'file_status' => 'completed',
+        ])]));
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($path));
+        try {
+            $dom = new \DOMDocument;
+            $this->assertTrue($dom->loadXML($zip->getFromName('word/document.xml'), LIBXML_NONET));
+            $xpath = new \DOMXPath($dom);
+            $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+            $xpath->registerNamespace('r', 'http://schemas.openxmlformats.org/officeDocument/2006/relationships');
+            $id = $xpath->evaluate('string((//w:sectPr)[1]/w:footerReference[@w:type="default"]/@r:id)');
+            $relations = new \DOMDocument;
+            $relations->loadXML($zip->getFromName('word/_rels/document.xml.rels'), LIBXML_NONET);
+            $relationXpath = new \DOMXPath($relations);
+            $target = $relationXpath->evaluate('string(//*[local-name()="Relationship"][@Id="'.$id.'"]/@Target)');
+            $this->assertStringContainsString('FOOTER UTAMA', $zip->getFromName('word/'.$target));
+            $this->assertStringNotContainsString('${lampiran_', $dom->textContent);
+        } finally {
+            $zip->close();
+        }
+        $textBinary = dirname(config('services.poppler.pdfinfo')).'/pdftotext'.(PHP_OS_FAMILY === 'Windows' ? '.exe' : '');
+        if (is_executable($textBinary) && class_exists(\COM::class)) {
+            $pdf = Storage::disk('local')->path('gabungan.pdf');
+            app(DocxToPdfService::class)->convert($path, $pdf);
+            $process = new Process([$textBinary, '-layout', $pdf, '-']);
+            $process->mustRun();
+            $pages = explode("\f", $process->getOutput());
+            array_pop($pages);
+            $this->assertCount(8, $pages, json_encode($pages, JSON_UNESCAPED_UNICODE));
+            foreach ([0, 1] as $index) {
+                $this->assertStringContainsString('FOOTER UTAMA', $pages[$index]);
+            }
+            $this->assertStringContainsString('E. LAMPIRAN', $pages[1]);
+            foreach (range(2, 7) as $index) {
+                $this->assertStringNotContainsString('FOOTER UTAMA', $pages[$index]);
+            }
+            foreach ([2 => 'DOKUMEN EKSTERNAL', 4 => 'LAPORAN HARIAN', 6 => 'LAMPIRAN NON-CONFORMANCE'] as $index => $title) {
+                $this->assertStringContainsString($title, $pages[$index]);
+            }
         }
     }
 

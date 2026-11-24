@@ -9,18 +9,89 @@ use App\Models\LaporanAktivitas;
 use App\Models\LaporanHarian;
 use App\Models\LaporanLampiran;
 use App\Traits\SortsQuery;
+use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class LaporanHarianService
 {
     use SortsQuery;
 
     public const KATEGORI_LAINNYA = 'Lainnya';
+
+    public const CUACA_FIELDS = ['suhu', 'cuaca_pagi_id', 'kelembaban_pagi_id', 'cuaca_siang_id', 'kelembaban_siang_id', 'cuaca_sore_id', 'kelembaban_sore_id'];
+
+    public function previousDayDefaults(DataKapal $proyek, string $tanggal, array $drafts = []): array
+    {
+        abort_unless(auth()->user()?->canAccessDataKapal($proyek), 403);
+        $date = Carbon::parse($tanggal)->locale('id')->startOfDay();
+        $history = $proyek->laporanHarian()->whereDate('tanggal_laporan', '<', $date->toDateString())
+            ->orderByDesc('tanggal_laporan')->orderByDesc('id')->get(['id', 'tanggal_laporan', 'is_libur']);
+        $records = $history->unique(fn ($row) => $row->tanggal_laporan->toDateString())
+            ->keyBy(fn ($row) => $row->tanggal_laporan->toDateString());
+        $drafts = collect($drafts)->keyBy('tanggal_laporan');
+        $firstDate = collect([$history->last()?->tanggal_laporan?->toDateString(), $drafts->keys()->min()])->filter()->min();
+        $start = $proyek->tanggal_mulai_pelaksanaan?->copy()->startOfDay()
+            ?? ($firstDate ? Carbon::parse($firstDate)->startOfDay() : $date->copy());
+        $previous = $date->copy()->subDay();
+
+        while ($previous->gte($start)) {
+            $key = $previous->toDateString();
+            $draft = $drafts->get($key);
+            $record = $records->get($key);
+            if (! $draft && ! $record) {
+                $title = LaporanHarian::generateJudul($previous, $proyek);
+
+                return ['values' => [], 'info' => "{$title} ({$previous->translatedFormat('d F Y')}) belum diisi. Silakan lengkapi juga laporan tersebut."];
+            }
+            if ((bool) ($draft['is_libur'] ?? $record?->is_libur)) {
+                $previous->subDay();
+
+                continue;
+            }
+            if ($draft) {
+                $values = array_intersect_key($draft, array_flip(self::CUACA_FIELDS));
+                foreach (['personel', 'peralatan', 'consumable', 'aktivitas'] as $relation) {
+                    $values[$relation] = $draft[$relation] ?? [];
+                }
+            } else {
+                $source = $proyek->laporanHarian()->with(['personel', 'peralatan', 'consumable', 'aktivitas'])->findOrFail($record->id);
+                $values = $source->only(self::CUACA_FIELDS);
+                $values['personel'] = $source->personel->map(fn ($row) => $row->only(['jabatan', 'jumlah', 'keterangan']))->all();
+                foreach (['peralatan', 'consumable'] as $relation) {
+                    $values[$relation] = $source->{$relation}->map(fn ($row) => $row->only(['jenis', 'jumlah', 'keterangan']))->all();
+                }
+                $values['aktivitas'] = $this->aktivitasRowsFrom($source);
+            }
+            foreach ($values['aktivitas'] as &$row) {
+                $row = array_replace($this->newAktivitasRow($row['work_group_id'] ?? null), array_intersect_key($row, array_flip(['aktivitas', 'keterangan'])));
+            }
+            unset($row);
+            foreach (['personel', 'peralatan', 'consumable'] as $relation) {
+                $values[$relation] = array_map(fn ($row) => array_diff_key($row, array_flip(['id', 'row_key', 'laporan_harian_id'])), $values[$relation]);
+            }
+
+            return ['values' => $values, 'info' => 'Default dari laporan '.$previous->translatedFormat('d F Y').($draft ? ' (tab belum disimpan)' : '').'. Foto/dokumen diunggah sendiri.'];
+        }
+
+        return ['values' => [], 'info' => 'Belum ada laporan hari kerja sebelumnya. Isi data secara manual.'];
+    }
+
+    public function normalizeHari(array $data): array
+    {
+        $data['is_libur'] = (bool) ($data['is_libur'] ?? false);
+        $data['alasan_libur'] = $data['is_libur'] ? trim($data['alasan_libur'] ?? '') : null;
+        if ($data['is_libur'] && $data['alasan_libur'] === '') {
+            throw ValidationException::withMessages(['alasan_libur' => 'Alasan libur wajib diisi.']);
+        }
+
+        return $data;
+    }
 
     public function getFiltered(
         ?string $search = null,
@@ -96,7 +167,7 @@ class LaporanHarianService
 
     public function create(array $data): LaporanHarian
     {
-        return LaporanHarian::create($data);
+        return LaporanHarian::create($this->normalizeHari($data));
     }
 
     public function createMany(array $items): array
@@ -105,7 +176,7 @@ class LaporanHarianService
 
         DB::transaction(function () use ($items, &$created) {
             foreach ($items as $data) {
-                $created[] = LaporanHarian::create($data);
+                $created[] = $this->create($data);
             }
         });
 
@@ -114,10 +185,52 @@ class LaporanHarianService
 
     public function update(LaporanHarian $laporanHarian, array $data): LaporanHarian
     {
-        $laporanHarian->update($data);
+        $laporanHarian->update($this->normalizeHari(array_replace($laporanHarian->only(['is_libur', 'alasan_libur']), $data)));
         app(LaporanDocumentService::class)->invalidateHarian($laporanHarian);
 
         return $laporanHarian;
+    }
+
+    public function saveFormBatch(array $dataItems, array $forms, array $fotos, array $ncFotos): array
+    {
+        return DB::transaction(function () use ($dataItems, $forms, $fotos, $ncFotos) {
+            $reports = [];
+            $fotoCount = 0;
+            foreach ($dataItems as $index => $data) {
+                $report = $this->create($data);
+                $reports[] = $report;
+                $fotoCount += $this->syncFormDetails($report, $forms[$index], $fotos[$index] ?? [], $ncFotos[$index] ?? []);
+            }
+
+            return [$reports, $fotoCount];
+        });
+    }
+
+    public function saveForm(LaporanHarian $report, array $data, array $form, array $fotos, array $ncFotos): int
+    {
+        return DB::transaction(function () use ($report, $data, $form, $fotos, $ncFotos) {
+            $this->update($report, $data);
+
+            return $this->syncFormDetails($report, $form, $fotos, $ncFotos);
+        });
+    }
+
+    private function syncFormDetails(LaporanHarian $report, array $form, array $fotos, array $ncFotos): int
+    {
+        foreach (['personel' => 'jabatan', 'peralatan' => 'jenis', 'consumable' => 'jenis'] as $relation => $field) {
+            $report->{$relation}()->delete();
+            foreach ($form[$relation] ?? [] as $row) {
+                $data = array_intersect_key($row, array_flip([$field, 'jumlah', 'keterangan']));
+                $data = array_map(fn ($value) => $value === '' ? null : $value, $data);
+                if (array_filter($data, fn ($value) => $value !== null)) {
+                    $report->{$relation}()->create($data);
+                }
+            }
+        }
+        $count = $this->syncAktivitas($report, $form['aktivitas'] ?? [], $fotos);
+        $count += app(LaporanNcService::class)->syncNc($report, $form['nc'] ?? [], $ncFotos);
+
+        return $count;
     }
 
     public function delete(LaporanHarian $laporanHarian): void
@@ -195,7 +308,7 @@ class LaporanHarianService
             'id' => null,
             'work_group_id' => $workGroupId,
             'aktivitas' => '',
-            'pic' => '',
+            'keterangan' => '',
         ];
     }
 
@@ -214,17 +327,17 @@ class LaporanHarianService
             'id' => $aktivitas->id,
             'work_group_id' => $aktivitas->kurva_s_work_group_id,
             'aktivitas' => $aktivitas->aktivitas ?? '',
-            'pic' => $aktivitas->pic ?? '',
+            'keterangan' => $aktivitas->keterangan ?? '',
         ];
     }
 
     /**
      * Sinkronkan uraian aktivitas beserta foto lampirannya untuk satu laporan harian.
-     * - Baris tanpa uraian, PIC, dan foto baru diabaikan.
+     * - Baris tanpa uraian, keterangan, dan foto baru diabaikan.
      * - Baris tersimpan (id milik laporan ini) di-update; yang tidak dikirim dihapus beserta fotonya.
      * - Foto baru disimpan ke temp lalu diproses async (crop + WebP) oleh ProcessLaporanLampiran.
      *
-     * @param  array  $rows  [['row_key', 'id', 'work_group_id', 'aktivitas', 'pic'], ...]
+     * @param  array  $rows  [['row_key', 'id', 'work_group_id', 'aktivitas', 'keterangan'], ...]
      * @param  array  $fotos  [row_key => ['file' => UploadedFile|null, 'cropData' => ?array]]
      * @return int jumlah foto baru yang diantrikan
      */
@@ -241,9 +354,9 @@ class LaporanHarianService
                 $foto = $fotos[$row['row_key'] ?? ''] ?? [];
                 $file = ($foto['file'] ?? null) instanceof UploadedFile ? $foto['file'] : null;
                 $uraian = trim((string) ($row['aktivitas'] ?? ''));
-                $pic = trim((string) ($row['pic'] ?? ''));
+                $keterangan = trim((string) ($row['keterangan'] ?? ''));
 
-                if ($uraian === '' && $pic === '' && ! $file) {
+                if ($uraian === '' && $keterangan === '' && ! $file) {
                     continue;
                 }
 
@@ -253,7 +366,7 @@ class LaporanHarianService
                     'kurva_s_work_group_id' => $wgId,
                     'kategori' => $wgId ? $workGroups[$wgId] : null,
                     'aktivitas' => $uraian ?: null,
-                    'pic' => $pic ?: null,
+                    'keterangan' => $keterangan ?: null,
                 ];
 
                 $aktivitas = $existing->get((int) ($row['id'] ?? 0));
@@ -289,7 +402,7 @@ class LaporanHarianService
         });
 
         foreach ($jobs as [$lampiran, $tempPath, $cropData]) {
-            ProcessLaporanLampiran::dispatch($lampiran, $tempPath, $cropData);
+            ProcessLaporanLampiran::dispatch($lampiran, $tempPath, $cropData)->afterCommit();
         }
 
         app(LaporanDocumentService::class)->invalidateHarian($laporan);

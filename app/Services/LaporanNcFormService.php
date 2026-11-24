@@ -2,19 +2,16 @@
 
 namespace App\Services;
 
+use App\Enums\NcFileKategori;
 use App\Enums\NcFormJenis;
-use App\Enums\NcFormStatus;
 use App\Enums\NcStatus;
 use App\Jobs\ProcessNcFormFile;
 use App\Models\DataKapal;
 use App\Models\LaporanHarian;
 use App\Models\LaporanNc;
 use App\Models\LaporanNcForm;
-use App\Traits\HasDynamicLike;
-use App\Traits\SortsQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -31,49 +28,9 @@ use Illuminate\Validation\ValidationException;
  */
 class LaporanNcFormService
 {
-    use HasDynamicLike;
-    use SortsQuery;
-
     public function __construct(
         private LaporanNcWordService $wordService,
     ) {}
-
-    /**
-     * Daftar Form NC per kapal (panel Form NC di List NC) — search nomor,
-     * filter jenis & status, sorting whitelist, paginator 'formPage'.
-     */
-    public function getForKapal(
-        int $dataKapalId,
-        int $perPage = 10,
-        string $pageName = 'formPage',
-        string $search = '',
-        string $jenisFilter = '',
-        string $statusFilter = '',
-        string $sortField = '',
-        string $sortDir = 'desc'
-    ): LengthAwarePaginator {
-        $like = $this->getLikeOperator();
-
-        $query = LaporanNcForm::with(['laporanHarian:id,tanggal_laporan', 'createdBy:id,name', 'signedBy:id,name'])
-            ->withCount('ncs')
-            ->where('data_kapal_id', $dataKapalId)
-            ->when($search !== '', fn ($q) => $q->where('nomor', $like, "%{$search}%"))
-            ->when($jenisFilter !== '', fn ($q) => $q->where('jenis', $jenisFilter))
-            ->when($statusFilter === NcFormStatus::MenungguTtd->value, fn ($q) => $q->whereNull('file_status'))
-            ->when($statusFilter === NcFormStatus::Diproses->value, fn ($q) => $q->whereIn('file_status', ['pending', 'processing']))
-            ->when($statusFilter === NcFormStatus::Selesai->value, fn ($q) => $q->where('file_status', 'completed'))
-            ->when($statusFilter === NcFormStatus::Gagal->value, fn ($q) => $q->where('file_status', 'failed'));
-
-        $this->applySorting($query, [
-            'nomor' => 'nomor',
-            'jenis' => 'jenis',
-            'isi' => '(select count(*) from laporan_nc_form_item where laporan_nc_form_id = laporan_nc_form.id)',
-            'status' => "(case when file_status is null then 0 when file_status in ('pending', 'processing') then 1 when file_status = 'completed' then 2 else 3 end)",
-            'created' => 'id',
-        ], $sortField, $sortDir, 'created', 'desc');
-
-        return $query->paginate($perPage, ['*'], $pageName);
-    }
 
     /**
      * Form temuan per laporan harian (untuk badge di baris grup List NC).
@@ -143,7 +100,7 @@ class LaporanNcFormService
 
             if ($eligible === []) {
                 throw ValidationException::withMessages([
-                    'form' => 'Tidak ada NC Open terpilih yang bisa dimasukkan ke Form Penutupan (NC closed atau sudah ada di draft form penutupan lain).',
+                    'form' => 'Tidak ada NC Open terpilih yang bisa dimasukkan ke Form Penutupan (NC closed, sudah ada di draft form penutupan lain, atau belum punya file Close).',
                 ]);
             }
 
@@ -160,13 +117,16 @@ class LaporanNcFormService
     }
 
     /**
-     * NC yang boleh masuk Form Penutupan: Open & tidak ada di draft penutupan lain.
+     * NC yang boleh masuk Form Penutupan: Open, tidak ada di draft penutupan
+     * lain, dan sudah punya file Close selesai diproses (dokumen NCR Close
+     * hanya memuat lampiran Close — tanpa Close hasilnya kosong).
      */
     public function eligiblePenutupanQuery(int $dataKapalId): Builder
     {
         return LaporanNc::where('data_kapal_id', $dataKapalId)
             ->where('status', NcStatus::Open)
-            ->whereDoesntHave('forms', fn (Builder $q) => $q->where('jenis', NcFormJenis::Penutupan)->whereNull('signed_at'));
+            ->whereDoesntHave('forms', fn (Builder $q) => $q->where('jenis', NcFormJenis::Penutupan)->whereNull('signed_at'))
+            ->whereHas('foto', fn (Builder $q) => $q->where('kategori', NcFileKategori::Close)->where('file_status', 'completed'));
     }
 
     /**

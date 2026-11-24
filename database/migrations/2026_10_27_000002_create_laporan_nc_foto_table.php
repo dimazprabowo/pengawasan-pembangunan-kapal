@@ -8,12 +8,12 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Lampiran NC — banyak file Before/After untuk setiap NC.
+        // Lampiran NC — banyak file Open/Close untuk setiap NC.
         // Diunggah dari form Laporan Harian, diproses async (crop + WebP).
         Schema::create('laporan_nc_foto', function (Blueprint $table) {
             $table->id();
             $table->foreignId('laporan_nc_id')->constrained('laporan_nc')->cascadeOnDelete();
-            $table->string('kategori')->default('before');
+            $table->string('kategori')->default('open');
             $table->json('rendered_pages')->nullable();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();

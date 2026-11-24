@@ -3,11 +3,13 @@
 namespace App\Livewire\Pages;
 
 use App\Livewire\Traits\HasDataKapalFilter;
+use App\Livewire\Traits\HasNotification;
 use App\Models\DataKapal;
 use App\Models\LaporanHarian;
 use App\Models\Owner;
 use App\Models\User;
 use App\Services\DashboardService;
+use App\Services\FilePathService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Crypt;
@@ -16,13 +18,67 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
+use Livewire\WithPagination;
 use Spatie\Permission\Models\Role;
 
 #[Layout('layouts.app', ['title' => 'Dashboard'])]
 #[Title('Dashboard')]
 class Dashboard extends Component
 {
-    use AuthorizesRequests, HasDataKapalFilter;
+    use AuthorizesRequests, HasDataKapalFilter, HasNotification, WithPagination;
+
+    #[Url(as: 'pdf')]
+    public string $pdfTab = 'harian';
+
+    public string $search = '';
+
+    public int $perPage = 10;
+
+    public bool $filterChanged = false;
+
+    public function setPdfTab(string $type): void
+    {
+        $this->authorize('viewStats');
+        $this->authorize('viewAny', LaporanHarian::class);
+        abort_unless(in_array($type, self::LAPORAN_TIPES, true), 404);
+        $this->pdfTab = $type;
+        $this->resetPage('releasedPage');
+    }
+
+    public function updatingSearch(): void
+    {
+        $this->resetPage('releasedPage');
+        $this->filterChanged = true;
+    }
+
+    public function updatingPerPage(): void
+    {
+        $this->resetPage('releasedPage');
+        $this->filterChanged = true;
+    }
+
+    public function resetFilters(): void
+    {
+        $this->reset(['search', 'perPage']);
+        $this->resetPage('releasedPage');
+        $this->filterChanged = true;
+    }
+
+    public function downloadReleasedPdf(string $type, string $key, DashboardService $service)
+    {
+        $this->authorize('viewStats');
+        $this->authorize('viewAny', LaporanHarian::class);
+        $laporan = $service->findReleasedPdf($this->accessibleKapalIds(), $type, $key);
+        $this->authorize('downloadWord', $laporan);
+        $files = app(FilePathService::class);
+        if (! $files->exists($laporan->pdf_path)) {
+            $this->notifyError('File PDF tidak ditemukan. Silakan hubungi pengelola laporan.');
+
+            return null;
+        }
+
+        return $files->download($laporan->pdf_path, $laporan->pdf_name);
+    }
 
     private const LAPORAN_TIPES = ['harian', 'mingguan', 'bulanan'];
 
@@ -39,6 +95,7 @@ class Dashboard extends Component
 
     public function mount(): void
     {
+        $this->pdfTab = in_array($this->pdfTab, self::LAPORAN_TIPES, true) ? $this->pdfTab : 'harian';
         if (! Gate::allows('viewStats')) {
             $this->galanganKode = null;
             $this->kurvaSkapalKey = null;
@@ -56,6 +113,8 @@ class Dashboard extends Component
     {
         $this->authorize('viewStats');
         $this->kurvaSkapalKey = $key ?: null;
+        $this->reset(['search', 'filterChanged']);
+        $this->resetPage('releasedPage');
         $this->dispatchKurvaSUpdate();
     }
 
@@ -168,7 +227,16 @@ class Dashboard extends Component
                 $this->kurvaSkapalKey = null;
             }
 
+            $releasedPdfs = Gate::allows('laporan_view') && $selectedKurvaSkapal
+                ? $service->releasedPdfs(collect([$selectedKurvaSkapal->id]), $this->pdfTab, $this->search, $this->perPage)
+                : null;
+            if ($this->filterChanged && $releasedPdfs) {
+                $this->notifyInfo("Ditemukan {$releasedPdfs->total()} laporan PDF.");
+                $this->filterChanged = false;
+            }
+
             $data += [
+                'releasedPdfs' => $releasedPdfs,
                 'greeting' => $this->greeting(),
                 'totalUsers' => User::count(),
                 'totalOwners' => Owner::count(),

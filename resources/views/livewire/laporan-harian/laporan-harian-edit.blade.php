@@ -29,7 +29,7 @@
     x-on:lh-clear-draft.window="localStorage.removeItem(draftKey)"
     x-init="
         (function () {
-            let props = ['tanggal_laporan', 'suhu', 'cuaca_pagi_id', 'kelembaban_pagi_id', 'cuaca_siang_id', 'kelembaban_siang_id', 'cuaca_sore_id', 'kelembaban_sore_id', 'personel', 'peralatan', 'consumable', 'aktivitas', 'nc'];
+            let props = ['tanggal_laporan', 'is_libur', 'alasan_libur', 'suhu', 'cuaca_pagi_id', 'kelembaban_pagi_id', 'cuaca_siang_id', 'kelembaban_siang_id', 'cuaca_sore_id', 'kelembaban_sore_id', 'personel', 'peralatan', 'consumable', 'aktivitas', 'nc'];
             let raw = localStorage.getItem(draftKey);
             if (raw && $wire.autoSave) {
                 try {
@@ -120,7 +120,7 @@
         </div>
     </div>
 
-    {{-- Data Kapal Info Card --}}
+    {{-- Data Proyek Info Card --}}
     <x-data-kapal-info-card :data-kapal="$dataKapal" />
 
     <form wire:submit="save" x-on:submit="localStorage.removeItem(draftKey)">
@@ -169,8 +169,33 @@
                         </p>
                         @error('tanggal_laporan') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                     </div>
+                    <div class="md:col-span-2">
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+                            <div class="flex items-center gap-3">
+                                <x-toggle-switch wire:click="toggleLibur" target="toggleLibur"
+                                    :active="$is_libur" active-color="red"
+                                    role="switch" :aria-checked="$is_libur ? 'true' : 'false'"
+                                    aria-label="Hari libur laporan" title="Tandai sebagai hari libur" />
+                                <span class="text-sm text-gray-700 dark:text-gray-300">Hari Libur</span>
+                                @if($is_libur)
+                                    <span class="inline-flex items-center justify-center px-2 py-1 rounded-lg text-xs font-medium {{ \App\Enums\LaporanHariStatus::Libur->badgeClass() }}">{{ \App\Enums\LaporanHariStatus::Libur->label() }}</span>
+                                @endif
+                            </div>
+                            @if($is_libur)
+                                <p class="text-xs text-gray-500 dark:text-gray-400">Tab operasional disembunyikan saat libur. Isian tetap dipertahankan dan muncul kembali saat hari kerja.</p>
+                            @endif
+                        </div>
+                        @if($is_libur)
+                            <div class="mt-3">
+                                <x-input-label for="alasan-libur" value="Alasan Libur" :required="true" />
+                                <x-text-input id="alasan-libur" wire:model.blur="alasan_libur" placeholder="Contoh: Hari libur nasional atau penghentian pekerjaan sementara" class="mt-1 block w-full" />
+                                <x-input-error :messages="$errors->get('alasan_libur')" class="mt-1" />
+                            </div>
+                        @endif
+                    </div>
 
                     {{-- Section Sub-Tabs --}}
+                    @if(! $is_libur)
                     <div class="md:col-span-2 mt-2">
                         <div class="flex gap-1 overflow-x-auto custom-scrollbar bg-gray-100 dark:bg-gray-900/60 rounded-xl p-1">
                             @foreach($sectionMeta as $secKey => $meta)
@@ -266,6 +291,7 @@
                             :existing="$lampiranByAktivitas"
                         />
                     </div>
+                    @endif
                 </div>
             </div>
         </div>

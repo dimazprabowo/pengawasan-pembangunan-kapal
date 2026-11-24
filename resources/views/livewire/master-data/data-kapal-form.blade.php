@@ -80,14 +80,14 @@
             </a>
             <div class="min-w-0">
                 <h2 class="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
-                    {{ $editMode ? 'Edit Kapal' : 'Tambah Kapal' }}
+                    {{ $editMode ? 'Edit Proyek' : 'Tambah Proyek' }}
                     @if($editMode && $dataKapal?->kode)
                         <span class="px-2 py-0.5 rounded text-sm font-mono font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
                             title="Kode kapal (digenerate otomatis)">{{ $dataKapal->kode }}</span>
                     @endif
                 </h2>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    {{ $editMode ? 'Perbarui data kapal '.$nama : 'Isi form di bawah untuk menambahkan kapal baru' }}
+                    {{ $editMode ? 'Perbarui data proyek '.$nama : 'Isi form di bawah untuk menambahkan proyek baru' }}
                 </p>
             </div>
             {{-- Auto Save toggle + draft indicator (pojok kanan, indikator di bawah toggle) --}}

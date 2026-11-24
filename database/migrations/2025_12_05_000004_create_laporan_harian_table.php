@@ -13,6 +13,8 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('data_kapal_id')->nullable()->constrained('data_kapal')->nullOnDelete();
             $table->date('tanggal_laporan');
+            $table->boolean('is_libur')->default(false);
+            $table->string('alasan_libur', 1000)->nullable();
             $table->string('file_path')->nullable();
             $table->string('file_name')->nullable();
             $table->unsignedBigInteger('file_size')->nullable();

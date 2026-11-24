@@ -1,4 +1,4 @@
-<div>
+<div @if($needsPoll ?? false) wire:poll.visible.5s @endif>
     {{-- Breadcrumb + Context Kapal --}}
     <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div class="min-w-0">
@@ -16,14 +16,49 @@
                 {{ $dataKapal->owner?->name }}{{ $dataKapal->owner && $dataKapal->galangan ? ' · ' : '' }}{{ $dataKapal->galangan?->nama }}
             </p>
         </div>
-        <x-loading-button wire:click="gantiKapal" target="gantiKapal" variant="secondary" size="md" loadingText="Memuat..." title="Ganti data kapal">
-            <x-slot:icon>
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                </svg>
-            </x-slot:icon>
-            Ganti Kapal
-        </x-loading-button>
+        <div class="flex items-center gap-3 flex-shrink-0">
+            @php
+                $queueActive = $queueStatus['active'] ?? false;
+                $queuePending = $queueStatus['pending'] ?? 0;
+            @endphp
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border
+                {{ $queuePending > 0 && ! $queueActive
+                    ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800'
+                    : ($queueActive
+                        ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800'
+                        : 'bg-gray-50 text-gray-500 border-gray-200 dark:bg-gray-700/50 dark:text-gray-400 dark:border-gray-600') }}"
+                title="{{ $queueStatus['message'] ?? 'Status antrian' }}">
+                @if($queuePending > 0 && $queueActive)
+                    <svg class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Memproses {{ $queuePending }} antrian
+                @elseif($queuePending > 0)
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+                    </svg>
+                    Worker tidak aktif · {{ $queuePending }} antrian
+                @elseif($queueActive)
+                    <span class="relative flex h-2 w-2">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    Worker aktif
+                @else
+                    <span class="inline-flex rounded-full h-2 w-2 bg-gray-400 dark:bg-gray-500"></span>
+                    Worker idle
+                @endif
+            </span>
+            <x-loading-button wire:click="gantiKapal" target="gantiKapal" variant="secondary" size="md" loadingText="Memuat..." title="Ganti proyek">
+                <x-slot:icon>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                    </svg>
+                </x-slot:icon>
+                Ganti Proyek
+            </x-loading-button>
+        </div>
     </div>
 
     {{-- Tabs --}}
@@ -158,8 +193,8 @@
                         <x-sortable-header field="judul" :sort-field="$sortField" :sort-dir="$sortDir">Judul</x-sortable-header>
                         <x-sortable-header field="tanggal_laporan" :sort-field="$sortField" :sort-dir="$sortDir">Tanggal</x-sortable-header>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Pembuat</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dibuat</th>
-                        <x-sortable-header field="updated_at" :sort-field="$sortField" :sort-dir="$sortDir">Dibuat / Diubah</x-sortable-header>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dibuat / Diubah</th>
+                        <x-sortable-header field="updated_at" :sort-field="$sortField" :sort-dir="$sortDir">Pembuat / Pengubah</x-sortable-header>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
                     </tr>
                 </thead>
@@ -177,6 +212,9 @@
                             <td class="px-6 py-4">
                                 <div class="flex items-center gap-1.5 flex-wrap">
                                     <span class="text-sm font-medium text-gray-900 dark:text-white">{{ $laporan->judul }}</span>
+                                    @if($laporan->is_libur)
+                                        <span class="inline-flex px-2 py-0.5 rounded-lg text-xs font-medium {{ $laporan->status_hari->badgeClass() }}" title="{{ $laporan->alasan_libur }}">{{ $laporan->status_hari->label() }}</span>
+                                    @endif
                                     @if($laporan->isFileProcessing())
                                         <svg class="animate-spin w-4 h-4 text-blue-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" title="File lampiran sedang diproses">
                                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -202,12 +240,7 @@
                                                 .docx
                                             </span>
                                         @elseif($laporan->isDocCompleted())
-                                            <span title="Dokumen Word siap diunduh" class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                                                </svg>
-                                                .docx
-                                            </span>
+                                            <span title="Dokumen Word siap diunduh" class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">.docx</span>
                                         @elseif($laporan->isDocFailed())
                                             <span title="Generate dokumen Word gagal" class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
                                                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -215,6 +248,19 @@
                                                 </svg>
                                                 .docx
                                             </span>
+                                        @endif
+                                        @if($laporan->isPdfProcessing())
+                                            <span title="PDF sedang diproses" class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                                                <svg class="animate-spin w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                .pdf
+                                            </span>
+                                        @elseif($laporan->isPdfCompleted() && $laporan->hasPdf())
+                                            <span title="PDF terilis siap diunduh" class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">.pdf</span>
+                                        @elseif($laporan->isPdfFailed())
+                                            <span title="Generate PDF gagal" class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">.pdf</span>
                                         @endif
                                 </div>
                             </td>
@@ -244,8 +290,9 @@
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                {{ $laporan->created_at->translatedFormat('d M Y H:i') }}
+                            <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                                <div>Dibuat: {{ $laporan->created_at->translatedFormat('d M Y H:i') }}</div>
+                                <div class="text-gray-400 dark:text-gray-500">Diubah: {{ $laporan->updated_at->translatedFormat('d M Y H:i') }}</div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
                                 <div>Dibuat: {{ $laporan->user?->name ?? '—' }}</div>

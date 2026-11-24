@@ -8,6 +8,10 @@ use App\Models\LaporanLampiran;
 use App\Models\LaporanNc;
 use App\Models\LaporanNcForm;
 use App\Models\Owner;
+use App\Models\Pengujian;
+use App\Models\PengujianStatus;
+use App\Models\Rapat;
+use App\Models\RapatJenis;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -171,6 +175,49 @@ class LampiranFileRouteTest extends TestCase
         $response->assertOk();
         $this->assertStringContainsString('application/pdf', $response->headers->get('content-type'));
         $response->assertHeader('X-Frame-Options', 'SAMEORIGIN');
+    }
+
+    public function test_file_pengujian_dan_rapat_dapat_diframe_untuk_preview(): void
+    {
+        Storage::disk('local')->put('test/uji.pdf', 'fake-pdf-bytes');
+        $dk = $this->harian->dataKapal;
+
+        $pengujian = Pengujian::create([
+            'data_kapal_id' => $dk->id,
+            'nama_pengujian' => 'Uji preview file',
+            'pengujian_status_id' => PengujianStatus::firstOrFail()->id,
+        ]);
+        $pengujianFile = $pengujian->files()->create([
+            'file_path' => 'test/uji.pdf',
+            'file_name' => 'uji.pdf',
+            'file_size' => 14,
+            'file_status' => 'completed',
+        ]);
+
+        $rapat = Rapat::create([
+            'data_kapal_id' => $dk->id,
+            'tanggal' => now()->toDateString(),
+            'rapat_jenis_id' => RapatJenis::firstOrFail()->id,
+        ]);
+        $rapatFile = $rapat->files()->create([
+            'file_path' => 'test/uji.pdf',
+            'file_name' => 'uji.pdf',
+            'file_size' => 14,
+            'file_status' => 'completed',
+        ]);
+
+        $user = User::factory()->create(['owner_id' => $dk->owner_id]);
+        $user->givePermissionTo(
+            Permission::firstOrCreate(['name' => 'proyek_data_view', 'guard_name' => 'web'])
+        );
+
+        foreach ([route('pengujian-file.file', $pengujianFile), route('rapat-file.file', $rapatFile)] as $url) {
+            $response = $this->actingAs($user)->get($url);
+            $response->assertOk();
+            $this->assertStringContainsString('application/pdf', $response->headers->get('content-type'));
+            // X-Frame-Options: DENY memblokir <iframe> preview modal.
+            $response->assertHeader('X-Frame-Options', 'SAMEORIGIN');
+        }
     }
 
     public function test_halaman_biasa_tetap_dilindungi_frame_deny(): void

@@ -60,7 +60,7 @@
                 @if($readonly)
                     <div class="p-4 space-y-2">
                         <p class="text-sm text-gray-900 dark:text-white">{{ $row['aktivitas'] ?? '-' }}</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">PIC: {{ $row['pic'] ?? '-' }}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Keterangan: {{ $row['keterangan'] ?? '-' }}</p>
                     </div>
                 @else
                     <fieldset class="px-4 py-3 space-y-2">
@@ -73,10 +73,10 @@
                             @error($rowsModel.'.'.$rIndex.'.aktivitas') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">PIC</label>
-                            <input type="text" wire:model.live.debounce.400ms="{{ $rowsModel }}.{{ $rIndex }}.pic"
+                            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Keterangan (PIC atau Status)</label>
+                            <input type="text" wire:model.live.debounce.400ms="{{ $rowsModel }}.{{ $rIndex }}.keterangan"
                                 class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                                placeholder="Penanggung jawab aktivitas">
+                                placeholder="PIC atau status aktivitas">
                         </div>
                     </fieldset>
                 @endif

@@ -115,7 +115,7 @@
         </div>
     </div>
 
-    {{-- Data Kapal Info Card --}}
+    {{-- Data Proyek Info Card --}}
     <x-data-kapal-info-card :data-kapal="$dataKapal" />
 
     <form wire:submit="save" x-on:submit="localStorage.removeItem(draftKey)">
@@ -184,11 +184,11 @@
                     </div>
                 </div>
 
-                {{-- Ringkasan --}}
+                {{-- Executive Summary --}}
                 <div class="mt-6">
-                    <x-input-label for="ringkasan" value="Ringkasan" />
-                    <textarea wire:model="ringkasan" id="ringkasan" rows="4"
-                        placeholder="Masukkan ringkasan laporan bulanan (capaian, kendala, rencana bulan berikutnya)"
+                    <x-input-label for="ringkasan" value="Executive Summary" :required="true" />
+                    <textarea wire:model="ringkasan" id="ringkasan" rows="4" required
+                        placeholder="Masukkan executive summary (capaian, kendala, rencana bulan berikutnya)"
                         class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"></textarea>
                     @error('ringkasan') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                 </div>

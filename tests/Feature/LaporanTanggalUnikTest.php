@@ -104,6 +104,29 @@ class LaporanTanggalUnikTest extends TestCase
         );
     }
 
+    public function test_create_harian_tab_pertama_mengikuti_tanggal_laporan_terakhir(): void
+    {
+        [$dataKapal, $harian] = $this->kapalDanHarianBaru();
+
+        Livewire::actingAs($this->admin())
+            ->test(LaporanHarianCreate::class, ['dataKapal' => $dataKapal])
+            ->assertSet('items.0.tanggal_laporan', $harian->tanggal_laporan->copy()->addDay()->format('Y-m-d'));
+    }
+
+    public function test_create_harian_tab_pertama_mengisi_celah_laporan_terhapus(): void
+    {
+        [$dataKapal, $harian] = $this->kapalDanHarianBaru();
+        LaporanHarian::create([
+            'user_id' => $this->admin()->id,
+            'data_kapal_id' => $dataKapal->id,
+            'tanggal_laporan' => $harian->tanggal_laporan->copy()->addDays(2),
+        ]);
+
+        Livewire::actingAs($this->admin())
+            ->test(LaporanHarianCreate::class, ['dataKapal' => $dataKapal])
+            ->assertSet('items.0.tanggal_laporan', $harian->tanggal_laporan->copy()->addDay()->format('Y-m-d'));
+    }
+
     public function test_create_harian_rejects_tanggal_masa_depan(): void
     {
         $dataKapal = $this->dataKapalTanpaLaporanHarian();

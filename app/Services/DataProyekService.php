@@ -9,12 +9,14 @@ use App\Enums\PengujianStatus as DefaultPengujianStatus;
 use App\Enums\RapatCatalog;
 use App\Enums\RapatJenis as DefaultRapatJenis;
 use App\Enums\VendorCatalog;
+use App\Jobs\ProcessPengujianFile;
 use App\Jobs\ProcessRapatFile;
 use App\Models\DataKapal;
 use App\Models\KurvaSRencana;
 use App\Models\MaterialCategory;
 use App\Models\MaterialStatus;
 use App\Models\Pengujian;
+use App\Models\PengujianFile;
 use App\Models\PengujianStatus;
 use App\Models\ProjectMaterial;
 use App\Models\ProjectVendor;
@@ -34,7 +36,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
 /**
- * CRUD entity data proyek per data kapal (drawing register, vendor,
+ * CRUD entity data umum per data kapal (drawing register, vendor,
  * material, pengujian, rapat) + agregasi untuk laporan bulanan.
  */
 class DataProyekService
@@ -170,7 +172,8 @@ class DataProyekService
         $query = $this->applySearch(
             $dataKapal->pengujians()->getQuery()->reorder()
                 ->join('pengujian_statuses', 'pengujian_statuses.id', '=', 'pengujian.pengujian_status_id')
-                ->select('pengujian.*'),
+                ->select('pengujian.*')
+                ->with('files'),
             $search,
             ['pengujian.nama_pengujian', 'pengujian.hasil', 'pengujian.keterangan']
         )
@@ -199,7 +202,7 @@ class DataProyekService
             $dataKapal->rapats()->getQuery()->reorder()
                 ->join('rapat_jenis', 'rapat_jenis.id', '=', 'rapat.rapat_jenis_id')
                 ->select('rapat.*')
-                ->with('files'),
+                ->with(['files', 'jenis']),
             $search,
             ['rapat.lokasi', 'rapat.topik']
         )
@@ -398,6 +401,61 @@ class DataProyekService
             $this->deleteRapatFile($file);
         }
         $rapat->delete();
+    }
+
+    public function findPengujianFile(DataKapal $dataKapal, int $id): PengujianFile
+    {
+        return PengujianFile::whereHas('pengujian', fn ($q) => $q->where('data_kapal_id', $dataKapal->id))
+            ->with('pengujian')
+            ->findOrFail($id);
+    }
+
+    /**
+     * Simpan file lampiran pengujian (gambar/PDF) — record pending lalu diproses
+     * async oleh ProcessPengujianFile (gambar: crop + WebP; PDF: apa adanya).
+     */
+    public function addPengujianFiles(Pengujian $pengujian, array $entries): void
+    {
+        $files = app(FileStorageService::class);
+        $jobs = DB::transaction(function () use ($pengujian, $entries, $files) {
+            return collect($entries)->map(function ($entry) use ($pengujian, $files) {
+                $file = $entry['file'];
+                validator(['file' => $file], ['file' => file_upload_validation_rule('pengujian_file', true)])->validate();
+                $tempPath = $files->storeTemp($file, 'proyek-pengujian');
+                $record = $pengujian->files()->create([
+                    'file_name' => basename($file->getClientOriginalName()),
+                    'file_size' => $file->getSize(),
+                    'file_status' => 'pending',
+                    'uploaded_by' => auth()->id(),
+                ]);
+
+                return [$record, $tempPath, $entry['cropData'] ?? null];
+            })->all();
+        });
+
+        foreach ($jobs as [$record, $tempPath, $cropData]) {
+            ProcessPengujianFile::dispatch($record, $tempPath, $cropData)->afterCommit();
+        }
+    }
+
+    public function deletePengujianFile(PengujianFile $file): void
+    {
+        if ($file->file_path && Storage::disk()->exists($file->file_path)) {
+            Storage::disk()->delete($file->file_path);
+        }
+        $file->delete();
+    }
+
+    /**
+     * Hapus pengujian beserta seluruh file lampirannya (record + file fisik).
+     */
+    public function deletePengujian(Pengujian $pengujian): void
+    {
+        $pengujian->loadMissing('files');
+        foreach ($pengujian->files as $file) {
+            $this->deletePengujianFile($file);
+        }
+        $pengujian->delete();
     }
 
     public function delete(Model $model): void

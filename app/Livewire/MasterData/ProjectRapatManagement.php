@@ -57,6 +57,9 @@ class ProjectRapatManagement extends Component
     #[Locked]
     public string $deletingEntity = 'rapat';
 
+    // Modal daftar file tersimpan (ikon folder di sel File)
+    public ?int $filesModalId = null;
+
     // Lampiran rapat: upload pending per baris (key = row key drafts)
     public array $rapatUploads = [];
 
@@ -256,6 +259,16 @@ class ProjectRapatManagement extends Component
     }
 
     // ── Lampiran file (pola kolom file NC — satu kolom, banyak file) ─────
+
+    public function openFiles(int $id): void
+    {
+        $this->filesModalId = $id;
+    }
+
+    public function closeFiles(): void
+    {
+        $this->reset('filesModalId');
+    }
 
     /**
      * Simpan file yang sudah diupload pada baris rapat tersimpan.
@@ -497,6 +510,7 @@ class ProjectRapatManagement extends Component
         return view('livewire.master-data.project-rapat-management', [
             'items' => $items,
             'rows' => $rows,
+            'hasProcessing' => $items->getCollection()->contains(fn ($item) => $item->files->contains(fn ($file) => $file->isFileProcessing())),
             'catalogKind' => $kind,
             'catalogKinds' => RapatCatalog::cases(),
             'catalogItems' => $this->showCatalog ? $service->paginateRapatCatalog($kind) : null,

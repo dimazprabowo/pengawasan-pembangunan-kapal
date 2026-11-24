@@ -16,7 +16,7 @@ use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
-#[Layout('layouts.app', ['title' => 'Data Kapal'])]
+#[Layout('layouts.app', ['title' => 'Data Proyek'])]
 class DataKapalForm extends Component
 {
     use AuthorizesRequests, HasNotification;
@@ -188,7 +188,7 @@ class DataKapalForm extends Component
         } catch (AuthorizationException $e) {
             $this->notifyError('Anda tidak memiliki izin untuk melakukan aksi ini.');
         } catch (\Exception $e) {
-            \Log::error('Simpan data kapal gagal', ['error' => $e->getMessage()]);
+            \Log::error('Simpan data proyek gagal', ['error' => $e->getMessage()]);
             $this->notifyError('Terjadi kesalahan sistem. Silakan coba lagi.');
         }
     }

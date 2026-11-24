@@ -28,7 +28,7 @@ class RekapDataKapalExport implements FromCollection, ShouldAutoSize, WithHeadin
     {
         return [
             'No',
-            'Data Kapal',
+            'Data Proyek',
             'Owner',
             'Galangan',
             'Laporan Harian',

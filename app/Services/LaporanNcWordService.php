@@ -57,7 +57,7 @@ class LaporanNcWordService
 
         $attachmentNcs = $form->ncs->map(fn (LaporanNc $nc) => (clone $nc)->setRelation(
             'foto',
-            $nc->foto->filter(fn ($file) => $form->jenis !== NcFormJenis::Penutupan || $file->kategori === NcFileKategori::After)->values(),
+            $nc->foto->filter(fn ($file) => $form->jenis !== NcFormJenis::Penutupan || $file->kategori === NcFileKategori::Close)->values(),
         ));
         $this->fillNcTable($processor, $form);
         $this->fillLampiran($processor, $attachmentNcs);
@@ -84,7 +84,7 @@ class LaporanNcWordService
         $files = app(FilePathService::class);
         if (! $files->exists(self::TEMPLATE_PATH)) {
             throw new \RuntimeException(
-                'Template Form NC tidak ditemukan. Upload template pada master Data Kapal atau jalankan php build_laporan_nc_template.php'
+                'Template Form NC tidak ditemukan. Upload template pada master Data Proyek atau jalankan php build_laporan_nc_template.php'
             );
         }
 

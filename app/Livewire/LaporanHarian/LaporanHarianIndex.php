@@ -234,22 +234,27 @@ class LaporanHarianIndex extends Component
 
     public function render(LaporanHarianService $service, QueueStatusService $queueStatusService, KontrakPeriodeService $periodeService)
     {
+        $laporanList = $service->getFiltered(
+            $this->search,
+            $this->dataKapalId,
+            $this->perPage,
+            $this->sortField,
+            $this->sortDir,
+            $this->mingguFilter,
+            $this->bulanFilter
+        );
+        $queueStatus = $queueStatusService->getQueueStatusMessage();
+
         return view('livewire.laporan-harian.laporan-harian-index', [
-            'laporanList' => $service->getFiltered(
-                $this->search,
-                $this->dataKapalId,
-                $this->perPage,
-                $this->sortField,
-                $this->sortDir,
-                $this->mingguFilter,
-                $this->bulanFilter
-            ),
+            'laporanList' => $laporanList,
             'mingguOptions' => collect($periodeService->getMingguList($this->dataKapal))
                 ->when($this->allowedMingguKe($periodeService) !== null, fn ($c) => $c->filter(fn ($m) => in_array($m['minggu_ke'], $this->allowedMingguKe($periodeService), true)))
                 ->map(fn ($m) => ['value' => $m['minggu_ke'], 'label' => 'Minggu ke-'.$m['minggu_ke'].' ('.$m['label'].')'])->all(),
             'bulanOptions' => collect($periodeService->getBulanList($this->dataKapal))
                 ->map(fn ($b) => ['value' => $b['bulan_ke'], 'label' => 'Bulan ke-'.$b['bulan_ke'].' ('.$b['label'].')'])->all(),
-            'queueStatus' => $queueStatusService->getQueueStatusMessage(),
+            'queueStatus' => $queueStatus,
+            'needsPoll' => $queueStatus['pending'] > 0
+                || $laporanList->getCollection()->contains(fn ($l) => $l->isDocProcessing() || $l->isPdfProcessing()),
             'dataKapal' => $this->dataKapal,
         ]);
     }

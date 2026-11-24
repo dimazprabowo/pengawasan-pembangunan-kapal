@@ -8,20 +8,23 @@ use App\Livewire\Traits\HasNotification;
 use App\Livewire\Traits\HasTableSorting;
 use App\Models\DataKapal;
 use App\Models\Pengujian;
+use App\Models\PengujianFile;
 use App\Services\DataProyekService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 class ProjectPengujianManagement extends Component
 {
-    use AuthorizesRequests, HasDataKapalFilter, HasNotification, HasTableSorting, WithPagination;
+    use AuthorizesRequests, HasDataKapalFilter, HasNotification, HasTableSorting, WithFileUploads, WithPagination;
 
     #[Locked]
     public DataKapal $dataKapal;
@@ -53,6 +56,25 @@ class ProjectPengujianManagement extends Component
 
     #[Locked]
     public string $deletingEntity = 'pengujian';
+
+    // Modal daftar file tersimpan (ikon folder di sel File)
+    public ?int $filesModalId = null;
+
+    // Lampiran pengujian: upload pending per baris (key = row key drafts)
+    public array $pengujianUploads = [];
+
+    public bool $showCropperModal = false;
+
+    public ?string $croppingImageUrl = null;
+
+    public ?string $croppingFileKey = null;
+
+    public array $cropData = [];
+
+    public bool $showPreviewModal = false;
+
+    #[Locked]
+    public ?int $previewId = null;
 
     public function mount(DataKapal $dataKapal): void
     {
@@ -131,7 +153,7 @@ class ProjectPengujianManagement extends Component
     public function cancelRow(string $key): void
     {
         $this->authorize('viewAny', Pengujian::class);
-        unset($this->drafts[$key]);
+        unset($this->drafts[$key], $this->pengujianUploads[$key]);
         $this->dispatch('pengujian-row-saved', key: $key);
         $this->resetValidation();
     }
@@ -152,7 +174,16 @@ class ProjectPengujianManagement extends Component
                 }
             }
             $this->validate($rules);
-            $service->savePengujian($this->dataKapal, array_intersect_key($row, array_flip(['nama_pengujian', 'tanggal', 'pengujian_status_id', 'hasil', 'keterangan'])), $pengujian);
+            $pengujian = $service->savePengujian($this->dataKapal, array_intersect_key($row, array_flip(['nama_pengujian', 'tanggal', 'pengujian_status_id', 'hasil', 'keterangan'])), $pengujian);
+            // File lampiran yang diunggah saat baris masih draft ikut diproses
+            // setelah pengujian tersimpan (diproses async oleh ProcessPengujianFile).
+            $pendingFiles = $this->pengujianUploads[$key] ?? [];
+            if ($pendingFiles) {
+                $prefix = 'pengujianUploads.'.$key;
+                $this->validate([$prefix.'.*.file' => file_upload_validation_rule('pengujian_file', true)], [], [$prefix.'.*.file' => 'file pengujian']);
+                $service->addPengujianFiles($pengujian, $pendingFiles);
+                unset($this->pengujianUploads[$key]);
+            }
             unset($this->drafts[$key]);
             $this->dispatch('pengujian-row-saved', key: $key);
             $this->notifySuccess('Data pengujian berhasil disimpan.');
@@ -234,13 +265,158 @@ class ProjectPengujianManagement extends Component
         }
     }
 
+    // ── Lampiran file (pola kolom file rapat — satu kolom, banyak file) ──
+
+    public function openFiles(int $id): void
+    {
+        $this->filesModalId = $id;
+    }
+
+    public function closeFiles(): void
+    {
+        $this->reset('filesModalId');
+    }
+
+    /**
+     * Simpan file yang sudah diupload pada baris pengujian tersimpan.
+     * Baris draft tidak memanggil ini — filenya ikut diproses di saveRow().
+     */
+    public function uploadPengujianFiles(string $key, DataProyekService $service): void
+    {
+        try {
+            abort_unless(str_starts_with($key, 'row-'), 404);
+            $pengujian = $service->findPengujian($this->dataKapal, (int) substr($key, 4));
+            $this->authorize('update', $pengujian);
+            $prefix = 'pengujianUploads.'.$key;
+            $this->validate([
+                $prefix => ['required', 'array', 'min:1'],
+                $prefix.'.*.file' => file_upload_validation_rule('pengujian_file', true),
+            ], [], [$prefix => 'file pengujian', $prefix.'.*.file' => 'file pengujian']);
+            $service->addPengujianFiles($pengujian, $this->pengujianUploads[$key] ?? []);
+            unset($this->pengujianUploads[$key]);
+            $this->notifySuccess('File pengujian ditambahkan dan sedang diproses.');
+        } catch (AuthorizationException) {
+            $this->notifyError('Anda tidak memiliki izin untuk menambah file pengujian.');
+        } catch (ValidationException $e) {
+            $this->notifyValidationError($e);
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('ProjectPengujianManagement: upload file gagal', ['error' => $e->getMessage()]);
+            $this->notifyError('Terjadi kesalahan sistem. Silakan coba lagi.');
+        }
+    }
+
+    /**
+     * Hapus satu file dari antrian upload (sebelum disimpan).
+     */
+    public function removePengujianUpload(string $key, string $uploadKey): void
+    {
+        try {
+            $this->authorize(str_starts_with($key, 'new-') ? 'proyek_data_create' : 'proyek_data_update');
+            $entry = $this->pengujianUploads[$key][$uploadKey] ?? null;
+            if (is_object($entry['file'] ?? null)) {
+                $entry['file']->delete();
+            }
+            unset($this->pengujianUploads[$key][$uploadKey]);
+        } catch (AuthorizationException) {
+            $this->notifyError('Anda tidak memiliki izin untuk mengubah file pengujian.');
+        }
+    }
+
+    public function openPengujianFileCropper(string $key, string $uploadKey): void
+    {
+        $this->authorize('viewAny', Pengujian::class);
+        $path = $key.'.'.$uploadKey;
+        $entry = data_get($this->pengujianUploads, $path);
+        $file = $entry['file'] ?? null;
+        validator(['file' => $file], ['file' => ['required', 'image', 'max:20480']])->validate();
+        $this->croppingFileKey = $path;
+        $this->croppingImageUrl = $file->temporaryUrl();
+        $this->cropData = $entry['cropData'] ?? [];
+        $this->showCropperModal = true;
+    }
+
+    public function saveCrop(): void
+    {
+        if ($this->croppingFileKey !== null) {
+            data_set($this->pengujianUploads, $this->croppingFileKey.'.cropData', $this->cropData);
+        }
+        $this->closeCropper();
+    }
+
+    public function closeCropper(): void
+    {
+        $this->reset(['showCropperModal', 'croppingImageUrl', 'croppingFileKey', 'cropData']);
+    }
+
+    // ── Preview & download lampiran ──────────────────────────────────────
+
+    public function previewFile(int $fileId): void
+    {
+        $this->authorize('viewAny', Pengujian::class);
+        $this->previewId = $fileId;
+
+        if (! $this->previewItem?->isFileCompleted()) {
+            $this->notifyWarning('File belum tersedia.');
+            $this->closePreviewModal();
+
+            return;
+        }
+
+        $this->showPreviewModal = true;
+    }
+
+    public function closePreviewModal(): void
+    {
+        $this->reset(['showPreviewModal', 'previewId']);
+    }
+
+    public function getPreviewItemProperty(): ?PengujianFile
+    {
+        if (! $this->previewId) {
+            return null;
+        }
+
+        return PengujianFile::whereHas('pengujian', fn ($q) => $q->where('data_kapal_id', $this->dataKapal->id))
+            ->with('pengujian')
+            ->find($this->previewId);
+    }
+
+    public function getPreviewImageUrlProperty(): ?string
+    {
+        $item = $this->previewItem;
+
+        return $item?->isPreviewable() ? route('pengujian-file.file', $item) : null;
+    }
+
+    /**
+     * Dipanggil dari x-lampiran-preview-modal (downloadMethod).
+     */
+    public function downloadPreviewFile(int $id)
+    {
+        $this->authorize('viewAny', Pengujian::class);
+        $item = $this->previewItem;
+
+        if (! $item || $item->id !== $id || ! $item->file_path || ! Storage::disk()->exists($item->file_path)) {
+            $this->notifyError('File tidak ditemukan.');
+
+            return null;
+        }
+
+        return Storage::disk()->download($item->file_path, $item->file_name);
+    }
+
     public function confirmDelete(int $id, string $entity = 'pengujian'): void
     {
         $service = app(DataProyekService::class);
         $kind = PengujianCatalog::tryFrom($entity);
-        abort_unless($kind || $entity === 'pengujian', 404);
-        $model = $kind ? $service->findPengujianCatalog($kind, $id) : $service->findPengujian($this->dataKapal, $id);
-        $this->authorize('delete', $model);
+        abort_unless($kind || in_array($entity, ['pengujian', 'file'], true), 404);
+        $model = match (true) {
+            (bool) $kind => $service->findPengujianCatalog($kind, $id),
+            $entity === 'file' => $service->findPengujianFile($this->dataKapal, $id),
+            default => $service->findPengujian($this->dataKapal, $id),
+        };
+        $this->authorize($entity === 'file' ? 'update' : 'delete', $model instanceof PengujianFile ? $model->pengujian : $model);
         $this->deletingId = $id;
         $this->deletingEntity = $entity;
         $this->showDeleteModal = true;
@@ -256,17 +432,23 @@ class ProjectPengujianManagement extends Component
 
         try {
             $kind = PengujianCatalog::tryFrom($this->deletingEntity);
-            $model = $kind ? $service->findPengujianCatalog($kind, $this->deletingId) : $service->findPengujian($this->dataKapal, $this->deletingId);
-            $this->authorize('delete', $model);
             if ($kind) {
+                $model = $service->findPengujianCatalog($kind, $this->deletingId);
+                $this->authorize('delete', $model);
                 $service->deletePengujianCatalog($kind, $model->id);
                 if ($this->catalogEntity === $kind->value && $this->editingCatalogId === $model->id) {
                     $this->reset(['catalogName', 'editingCatalogId']);
                     $this->resetValidation();
                 }
+            } elseif ($this->deletingEntity === 'file') {
+                $model = $service->findPengujianFile($this->dataKapal, $this->deletingId);
+                $this->authorize('update', $model->pengujian);
+                $service->deletePengujianFile($model);
             } else {
-                $service->delete($model);
-                unset($this->drafts['row-'.$model->id]);
+                $model = $service->findPengujian($this->dataKapal, $this->deletingId);
+                $this->authorize('delete', $model);
+                $service->deletePengujian($model);
+                unset($this->drafts['row-'.$model->id], $this->pengujianUploads['row-'.$model->id]);
                 $this->dispatch('pengujian-row-saved', key: 'row-'.$model->id);
             }
             $this->reset(['showDeleteModal', 'deletingId']);
@@ -344,6 +526,7 @@ class ProjectPengujianManagement extends Component
         return view('livewire.master-data.project-pengujian-management', [
             'items' => $items,
             'rows' => $rows,
+            'hasProcessing' => $items->getCollection()->contains(fn ($item) => $item->files->contains(fn ($file) => $file->isFileProcessing())),
             'catalogKind' => $kind,
             'catalogKinds' => PengujianCatalog::cases(),
             'catalogItems' => $this->showCatalog ? $service->paginatePengujianCatalog($kind) : null,

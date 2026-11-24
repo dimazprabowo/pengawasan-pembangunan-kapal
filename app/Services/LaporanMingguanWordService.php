@@ -101,13 +101,14 @@ class LaporanMingguanWordService
         $files = app(FilePathService::class);
         [$relativePath, $localPath] = $this->saveDocument($processor, $laporan);
         try {
-            $this->embedHarianDocs($localPath, $this->resolveHarianDocs($laporan));
             $attachmentService = app(WordAttachmentService::class);
             $attachmentService->append($localPath, $ncs, true);
+            $this->embedHarianDocs($localPath, $this->resolveHarianDocs($laporan));
             $attachmentService->embedExternals(
                 $localPath,
                 $laporan->laporanExternal,
             );
+            $attachmentService->normalizePageBreaks($localPath);
             $files->commitLocalFile($localPath, $relativePath);
         } catch (\Throwable $e) {
             @unlink($localPath);
@@ -132,7 +133,7 @@ class LaporanMingguanWordService
         $files = app(FilePathService::class);
         if (! $files->exists(self::TEMPLATE_PATH)) {
             throw new \RuntimeException(
-                'Template Word mingguan tidak ditemukan. Upload template pada master Data Kapal atau sediakan default di penyimpanan: '.self::TEMPLATE_PATH
+                'Template Word mingguan tidak ditemukan. Upload template pada master Data Proyek atau sediakan default di penyimpanan: '.self::TEMPLATE_PATH
             );
         }
 
@@ -301,7 +302,7 @@ class LaporanMingguanWordService
 
         $w = [700, 5826, 2500];
         $table = $this->newTable();
-        $this->headerRow($table, $w, ['No', 'Aktivitas', 'PIC']);
+        $this->headerRow($table, $w, ['No', 'Aktivitas', 'Keterangan']);
 
         $groupFont = ['bold' => true, 'size' => 9, 'color' => self::NAVY];
         foreach ($groups as $g => $group) {
@@ -316,7 +317,7 @@ class LaporanMingguanWordService
                 $table->addRow(null, ['cantSplit' => true]);
                 $this->bodyCell($table, $w[0], $n.'.'.($i + 1), null, Jc::CENTER);
                 $this->bodyCell($table, $w[1], $a->aktivitas ?: '-');
-                $this->bodyCell($table, $w[2], $a->pic ?: '-');
+                $this->bodyCell($table, $w[2], $a->keterangan ?: '-');
             }
         }
 
@@ -519,7 +520,15 @@ class LaporanMingguanWordService
             return null;
         }
 
-        return app(FilePathService::class)->exists($harian->doc_path) ? $harian->doc_path : null;
+        $files = app(FilePathService::class);
+        if (! $files->exists($harian->doc_path)
+            || ! app(WordAttachmentService::class)->isBreakNormalized($files->localPath($harian->doc_path))) {
+            // Docx lama (pra-normalisasi break) mengandung halaman kosong di
+            // lampirannya; dianggap stale agar diregenerasi sekali.
+            return null;
+        }
+
+        return $harian->doc_path;
     }
 
     /**

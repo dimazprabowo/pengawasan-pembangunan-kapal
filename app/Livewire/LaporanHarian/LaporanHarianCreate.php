@@ -33,7 +33,7 @@ class LaporanHarianCreate extends Component
     // Foto lampiran per uraian aktivitas - struktur: [itemIndex => [row_key => ['file' => null, 'cropData' => null, 'is_cropped' => false]]]
     public array $lampiran = [];
 
-    // Foto bukti (before) per NC - struktur: [itemIndex => [row_key => ['file' => null, 'cropData' => null, 'is_cropped' => false]]]
+    // Foto bukti (open) per NC - struktur: [itemIndex => [row_key => ['file' => null, 'cropData' => null, 'is_cropped' => false]]]
     public array $ncFoto = [];
 
     // Delete NC confirmation modal
@@ -144,35 +144,35 @@ class LaporanHarianCreate extends Component
 
     public function addItem(): void
     {
-        // Auto-increment: hari ke-N mengikuti tanggal laporan terakhir + 1 hari,
-        // lewati tanggal yang sudah dipakai (di DB maupun di tab lain).
-        // Tanggal tidak boleh melebihi hari ini — bila hari esok sudah lewat,
-        // cari tanggal kosong dengan mundur dari hari ini.
-        $lastTanggal = $this->items[count($this->items) - 1]['tanggal_laporan'] ?? null;
+        $this->authorize('create', LaporanHarian::class);
+        $this->authorizeDataKapalAccess($this->dataKapal);
+        // Auto-increment: scan dari awal periode dan ambil tanggal kosong PERTAMA
+        // (celah di tengah karena laporan dihapus terisi dulu; tanpa celah hasilnya
+        // otomatis = tanggal laporan terakhir + 1). Batas atas = min(hari ini,
+        // tanggal selesai pelaksanaan). Tanggal terpakai = di DB maupun tab lain.
         $taken = $this->takenTanggalLaporan();
         $today = now()->startOfDay();
+        $selesaiPelaksanaan = $this->dataKapal->tanggal_selesai_pelaksanaan?->copy()->startOfDay();
+        $maxTanggal = $selesaiPelaksanaan && $selesaiPelaksanaan->lt($today) ? $selesaiPelaksanaan : $today;
 
-        $candidate = $lastTanggal
-            ? Carbon::parse($lastTanggal)->addDay()
-            : $today->copy();
-        if ($candidate->gt($today)) {
-            $candidate = $today->copy();
-        }
-        $guard = 0;
-        while (in_array($candidate->format('Y-m-d'), $taken) && $guard++ < 3660) {
-            $candidate->subDay();
+        $mulai = $this->dataKapal->tanggal_mulai_pelaksanaan?->copy()->startOfDay()
+            ?? LaporanHarian::where('data_kapal_id', $this->data_kapal_id)->min('tanggal_laporan')
+            ?? $today->copy();
+        $candidate = Carbon::parse($mulai)->startOfDay();
+        while ($candidate->lte($maxTanggal) && in_array($candidate->format('Y-m-d'), $taken, true)) {
+            $candidate->addDay();
         }
 
-        $mulaiPelaksanaan = $this->dataKapal->tanggal_mulai_pelaksanaan?->copy()->startOfDay();
-        if ($mulaiPelaksanaan && $candidate->lt($mulaiPelaksanaan)) {
-            $this->notifyWarning('Semua tanggal dalam periode pelaksanaan ('.$mulaiPelaksanaan->translatedFormat('d M Y').' s/d hari ini) sudah memiliki laporan.');
+        if ($candidate->gt($maxTanggal)) {
+            $this->notifyWarning('Semua tanggal sampai batas pelaporan ('.$maxTanggal->translatedFormat('d M Y').') sudah memiliki laporan.');
 
             return;
         }
 
         $tanggalLaporan = $candidate->format('Y-m-d');
+        $defaults = app(LaporanHarianService::class)->previousDayDefaults($this->dataKapal, $tanggalLaporan, $this->items);
 
-        $this->items[] = [
+        $this->items[] = array_replace([
             'tanggal_laporan' => $tanggalLaporan,
             'suhu' => '',
             'cuaca_pagi_id' => null,
@@ -186,12 +186,30 @@ class LaporanHarianCreate extends Component
             'consumable' => [],
             'aktivitas' => [],
             'nc' => [],
-        ];
+            'is_libur' => false,
+            'alasan_libur' => '',
+            'default_info' => $defaults['info'],
+        ], $defaults['values']);
         $this->lampiran[] = [];
         $this->ncFoto[] = [];
 
         $this->activeTab = count($this->items) - 1;
         $this->dispatch('laporan-item-added', index: $this->activeTab);
+    }
+
+    public function updatedItems(mixed $value, ?string $key = null): void
+    {
+        if ($key && str_ends_with($key, '.alasan_libur')) {
+            $this->validateOnly('items.'.$key);
+        }
+    }
+
+    public function toggleLibur(int $index): void
+    {
+        $this->authorize('create', LaporanHarian::class);
+        $this->authorizeDataKapalAccess($this->dataKapal);
+        abort_unless(isset($this->items[$index]), 404);
+        $this->items[$index]['is_libur'] = ! ($this->items[$index]['is_libur'] ?? false);
     }
 
     public function confirmRemoveItem(int $index): void
@@ -555,6 +573,12 @@ class LaporanHarianCreate extends Component
                         $fail('Tanggal laporan tidak boleh sebelum tanggal mulai pelaksanaan ('.$mulaiPelaksanaan->translatedFormat('d M Y').').');
                     }
                 },
+                function ($attribute, $value, $fail) {
+                    $selesaiPelaksanaan = $this->dataKapal->tanggal_selesai_pelaksanaan;
+                    if ($value && $selesaiPelaksanaan && Carbon::parse($value)->gt($selesaiPelaksanaan)) {
+                        $fail('Tanggal laporan tidak boleh melebihi tanggal selesai pelaksanaan ('.$selesaiPelaksanaan->translatedFormat('d M Y').').');
+                    }
+                },
                 // whereDate (bukan Rule::unique) agar perbandingan tanggal konsisten lintas driver DB
                 function ($attribute, $value, $fail) {
                     if ($value && LaporanHarian::where('data_kapal_id', $this->data_kapal_id)
@@ -590,6 +614,8 @@ class LaporanHarianCreate extends Component
             'ncFoto.*.*.preview' => 'nullable|image|max:5120',
         ];
 
+        $rules['items.*.is_libur'] = 'sometimes|boolean';
+        $rules['items.*.alasan_libur'] = 'nullable|required_if:items.*.is_libur,true|string|max:1000';
         $rules['items.*.suhu'] = 'nullable|numeric|min:-50|max:100';
         $rules['items.*.cuaca_pagi_id'] = 'nullable|exists:cuaca,id';
         $rules['items.*.kelembaban_pagi_id'] = 'nullable|exists:kelembaban,id';
@@ -612,7 +638,7 @@ class LaporanHarianCreate extends Component
         $rules['items.*.aktivitas'] = 'nullable|array';
         $rules['items.*.aktivitas.*.work_group_id'] = 'nullable|integer';
         $rules['items.*.aktivitas.*.aktivitas'] = 'nullable|string';
-        $rules['items.*.aktivitas.*.pic'] = 'nullable|string|max:255';
+        $rules['items.*.aktivitas.*.keterangan'] = 'nullable|string|max:255';
         $rules['items.*.nc'] = 'nullable|array';
         $rules['items.*.nc.*.work_group_id'] = 'nullable|integer';
         $rules['items.*.nc.*.kendala'] = 'nullable|string|max:2000';
@@ -648,6 +674,8 @@ class LaporanHarianCreate extends Component
                 $attributes["ncFoto.{$index}.{$rowKey}.file"] = "foto bukti NC pada laporan #{$num}";
             }
 
+            $attributes["items.{$index}.is_libur"] = "status hari libur laporan #{$num}";
+            $attributes["items.{$index}.alasan_libur"] = "alasan libur laporan #{$num}";
             $attributes["items.{$index}.suhu"] = "suhu laporan #{$num}";
             $attributes["items.{$index}.cuaca_pagi_id"] = "cuaca pagi laporan #{$num}";
             $attributes["items.{$index}.kelembaban_pagi_id"] = "kelembaban pagi laporan #{$num}";
@@ -663,6 +691,8 @@ class LaporanHarianCreate extends Component
     public function save(LaporanHarianService $service): void
     {
         $this->authorize('create', LaporanHarian::class);
+        $this->authorizeDataKapalAccess($this->dataKapal);
+        abort_unless($this->data_kapal_id === $this->dataKapal->id, 403);
 
         try {
             $this->validate();
@@ -685,6 +715,8 @@ class LaporanHarianCreate extends Component
                     'user_id' => $userId,
                     'data_kapal_id' => $this->data_kapal_id,
                     'tanggal_laporan' => $item['tanggal_laporan'],
+                    'is_libur' => $item['is_libur'] ?? false,
+                    'alasan_libur' => $item['alasan_libur'] ?? null,
                 ];
 
                 $itemData['suhu'] = $item['suhu'] ?: null;
@@ -698,72 +730,14 @@ class LaporanHarianCreate extends Component
                 $dataItems[] = $itemData;
             }
 
-            $createdLaporans = $service->createMany($dataItems);
-            $fotoCount = 0;
-
             // Process dynamic inputs and lampiran for each created laporan
-            foreach ($createdLaporans as $index => $laporan) {
-                $item = $this->items[$index];
-
-                // Save dynamic inputs
-
-                // Save personel - allow partial data (any field filled)
-                if (isset($item['personel']) && is_array($item['personel'])) {
-                    foreach ($item['personel'] as $personelData) {
-                        $hasData = ! empty($personelData['jabatan']) ||
-                                  ! empty($personelData['jumlah']) ||
-                                  ! empty($personelData['keterangan']);
-
-                        if ($hasData) {
-                            $laporan->personel()->create([
-                                'jabatan' => $personelData['jabatan'] ?: null,
-                                'jumlah' => $personelData['jumlah'] ?: null,
-                                'keterangan' => $personelData['keterangan'] ?: null,
-                            ]);
-                        }
-                    }
-                }
-
-                // Save peralatan - allow partial data (any field filled)
-                if (isset($item['peralatan']) && is_array($item['peralatan'])) {
-                    foreach ($item['peralatan'] as $peralatanData) {
-                        $hasData = ! empty($peralatanData['jenis']) ||
-                                  ! empty($peralatanData['jumlah']) ||
-                                  ! empty($peralatanData['keterangan']);
-
-                        if ($hasData) {
-                            $laporan->peralatan()->create([
-                                'jenis' => $peralatanData['jenis'] ?: null,
-                                'jumlah' => $peralatanData['jumlah'] ?: null,
-                                'keterangan' => $peralatanData['keterangan'] ?: null,
-                            ]);
-                        }
-                    }
-                }
-
-                // Save consumable - allow partial data (any field filled)
-                if (isset($item['consumable']) && is_array($item['consumable'])) {
-                    foreach ($item['consumable'] as $consumableData) {
-                        $hasData = ! empty($consumableData['jenis']) ||
-                                  ! empty($consumableData['jumlah']) ||
-                                  ! empty($consumableData['keterangan']);
-
-                        if ($hasData) {
-                            $laporan->consumable()->create([
-                                'jenis' => $consumableData['jenis'] ?: null,
-                                'jumlah' => $consumableData['jumlah'] ?: null,
-                                'keterangan' => $consumableData['keterangan'] ?: null,
-                            ]);
-                        }
-                    }
-                }
-
-                // Uraian aktivitas per kategori + foto lampirannya
-                $fotoCount += $service->syncAktivitas($laporan, $item['aktivitas'] ?? [], $this->lampiran[$index] ?? []);
-
-                // NC + foto bukti (before); dokumen after tetap diunggah via List NC
-                $fotoCount += app(LaporanNcService::class)->syncNc($laporan, $item['nc'] ?? [], $this->ncFoto[$index] ?? []);
-            }
+            // Save dynamic inputs
+            // Save personel - allow partial data (any field filled)
+            // Save peralatan - allow partial data (any field filled)
+            // Save consumable - allow partial data (any field filled)
+            // Uraian aktivitas per kategori + foto lampirannya
+            // NC + foto bukti (open); dokumen close tetap diunggah via List NC
+            [$createdLaporans, $fotoCount] = $service->saveFormBatch($dataItems, $this->items, $this->lampiran, $this->ncFoto);
 
             $count = count($dataItems);
             $message = "{$count} laporan harian berhasil ditambahkan!";

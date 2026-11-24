@@ -120,7 +120,7 @@
             </fieldset>
             @endif
 
-            {{-- File bukti temuan — kolom Before (kiri) & After (kanan); file baru ditambahkan saat disimpan --}}
+            {{-- File bukti temuan — kolom Open (kiri) & Close (kanan); file baru ditambahkan saat disimpan --}}
             @if($savedFotos->isNotEmpty() || $pendingFiles->isNotEmpty() || (! $readonly && $fotoModel !== ''))
             <div wire:key="nc-foto-{{ $rowKey }}" class="px-4 py-3 border-t border-gray-100 dark:border-gray-700/60">
                 <div class="flex items-center gap-1.5 mb-2">
@@ -134,10 +134,10 @@
                     @foreach(\App\Enums\NcFileKategori::cases() as $fileKategori)
                         @php
                             $files = $savedFotos->filter(fn ($f) => $f->kategori === $fileKategori);
-                            $isBeforeCol = $fileKategori === \App\Enums\NcFileKategori::Before;
-                            $afterPrefix = $baseRowKey.'_after_';
-                            $colPending = $pendingFiles->filter(fn ($e, $k) => $isBeforeCol !== str_starts_with((string) $k, $afterPrefix));
-                            $uploadPrefix = $isBeforeCol ? $baseRowKey.'_' : $afterPrefix;
+                            $isOpenCol = $fileKategori === \App\Enums\NcFileKategori::Open;
+                            $closePrefix = $baseRowKey.'_close_';
+                            $colPending = $pendingFiles->filter(fn ($e, $k) => $isOpenCol !== str_starts_with((string) $k, $closePrefix));
+                            $uploadPrefix = $isOpenCol ? $baseRowKey.'_' : $closePrefix;
                             $hasContent = $files->isNotEmpty() || $colPending->isNotEmpty() || (! $readonly && $fotoModel !== '');
                         @endphp
                         <div>
@@ -149,7 +149,7 @@
                                         $cropPreview = ($pendingFile['is_cropped'] ?? false) && is_object($pendingFile['preview'] ?? null) ? $pendingFile['preview'] : null;
                                         $isNewImage = str_starts_with((string) $newFile->getMimeType(), 'image/');
                                     @endphp
-                                    {{-- File Before baru terpilih — ditambahkan saat disimpan --}}
+                                    {{-- File baru terpilih — ditambahkan saat disimpan --}}
                                     <div wire:key="nc-pending-{{ $pendingKey }}" class="relative w-full h-32 bg-gray-50 dark:bg-gray-900/50 rounded-lg flex items-center justify-center p-1.5">
                                         @if($isNewImage)
                                             <img src="{{ $cropPreview?->temporaryUrl() ?? $newFile->temporaryUrl() }}" alt="Pratinjau file NC"
@@ -277,7 +277,7 @@
                                 <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">{{ $f->file_name }}</p>
                             @endforeach
 
-                            {{-- Dropzone file baru (form saja, tanpa batasan status NC) — marker "_after_" di key dipetakan ke kategori After saat syncNc --}}
+                            {{-- Dropzone file baru (form saja, tanpa batasan status NC) — marker "_close_" di key dipetakan ke kategori Close saat syncNc --}}
                             @unless($readonly || $fotoModel === '')
                                     <div x-data="{ uploading: false, progress: 0,
                                             async compressAndUpload(input) {

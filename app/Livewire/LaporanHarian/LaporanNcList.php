@@ -3,8 +3,6 @@
 namespace App\Livewire\LaporanHarian;
 
 use App\Enums\NcFileKategori;
-use App\Enums\NcFormJenis;
-use App\Enums\NcFormStatus;
 use App\Enums\NcStatus;
 use App\Exports\LaporanNcExport;
 use App\Livewire\Traits\HasDataKapalFilter;
@@ -191,27 +189,17 @@ class LaporanNcList extends Component
     // Aksi yang menunggu konfirmasi x-confirm-modal (event-driven)
     public ?int $deleteFormId = null;
 
+    // Modal daftar file NC per kategori (open/close) — ikon folder di sel File
+    public ?int $filesNcId = null;
+
+    public ?string $filesKategori = null;
+
     // Preview foto bukti / scan form: type 'foto' | 'form'
     public bool $showPreviewModal = false;
 
     public ?string $previewType = null;
 
     public ?int $previewId = null;
-
-    // Panel Form NC: search, filter, sorting & paginasi sendiri (paginator 'formPage')
-    public string $formSearch = '';
-
-    public string $formJenisFilter = '';
-
-    public string $formStatusFilter = '';
-
-    public int $formPerPage = 10;
-
-    public string $formSortField = 'created';
-
-    public string $formSortDir = 'desc';
-
-    public bool $formFilterChanged = false;
 
     public function mount(DataKapal $dataKapal): void
     {
@@ -349,49 +337,6 @@ class LaporanNcList extends Component
         $this->filterChanged = true;
     }
 
-    // ── Panel Form NC: filter & sorting (paginator 'formPage') ────────────
-    public function updatingFormSearch(): void
-    {
-        $this->resetPage('formPage');
-        $this->formFilterChanged = true;
-    }
-
-    public function updatingFormJenisFilter(): void
-    {
-        $this->resetPage('formPage');
-        $this->formFilterChanged = true;
-    }
-
-    public function updatingFormStatusFilter(): void
-    {
-        $this->resetPage('formPage');
-        $this->formFilterChanged = true;
-    }
-
-    public function updatingFormPerPage(): void
-    {
-        $this->resetPage('formPage');
-    }
-
-    public function resetFormFilters(): void
-    {
-        $this->reset(['formSearch', 'formJenisFilter', 'formStatusFilter', 'formPerPage']);
-        $this->resetPage('formPage');
-        $this->formFilterChanged = true;
-    }
-
-    public function formSortBy(string $field): void
-    {
-        if ($this->formSortField === $field) {
-            $this->formSortDir = $this->formSortDir === 'asc' ? 'desc' : 'asc';
-        } else {
-            $this->formSortField = $field;
-            $this->formSortDir = 'asc';
-        }
-
-        $this->resetPage('formPage');
-    }
-
     // ── Export ───────────────────────────────────────────────────────────
     public function exportExcel()
     {
@@ -428,12 +373,16 @@ class LaporanNcList extends Component
      */
     public function toggleSelectAll(): void
     {
+        // Hanya NC yang eligible penutupan (Open + punya file Close + bukan di draft lain)
         $pageIds = app(LaporanNcService::class)->filteredQuery(
             $this->dataKapal->id, $this->search, $this->statusFilter ?: null,
             $this->mingguFilter, $this->bulanFilter, $this->hariFilter
-        )->forPage($this->getPage(), $this->perPage)->where('status', NcStatus::Open)->pluck('id')->all();
+        )->forPage($this->getPage(), $this->perPage)->pluck('id')->all();
 
-        $this->toggleIds($pageIds);
+        $this->toggleIds(
+            app(LaporanNcFormService::class)->eligiblePenutupanQuery($this->dataKapal->id)
+                ->whereIn('id', $pageIds)->pluck('id')->all()
+        );
     }
 
     /**
@@ -704,6 +653,19 @@ class LaporanNcList extends Component
         }
     }
 
+    // ── Modal daftar file per NC + kategori (ikon folder di sel File) ────
+    public function openNcFiles(int $ncId, string $kategori): void
+    {
+        $this->authorize('viewAny', LaporanNc::class);
+        $this->filesNcId = $ncId;
+        $this->filesKategori = $kategori;
+    }
+
+    public function closeNcFiles(): void
+    {
+        $this->reset(['filesNcId', 'filesKategori']);
+    }
+
     // ── Preview & download file (foto bukti / scan form) ─────────────────
     public function previewFoto(int $fotoId): void
     {
@@ -794,23 +756,11 @@ class LaporanNcList extends Component
             $this->filterChanged = false;
         }
 
-        $formList = $formService->getForKapal(
-            $this->dataKapal->id, $this->formPerPage, 'formPage',
-            $this->formSearch, $this->formJenisFilter, $this->formStatusFilter,
-            $this->formSortField, $this->formSortDir
-        );
-
-        if ($this->formFilterChanged) {
-            $this->notifyInfo("Ditemukan {$formList->total()} form NC.");
-            $this->formFilterChanged = false;
-        }
-
         return view('livewire.laporan-harian.laporan-nc-list', [
             'ncList' => $ncList,
-            'formList' => $formList,
             'temuanByLaporan' => $formService->temuanByLaporan($ncList->getCollection()->pluck('laporan_harian_id')->unique()->all()),
-            'hasProcessing' => $ncList->getCollection()->contains(fn ($nc) => $nc->foto->contains(fn ($file) => $file->isFileProcessing()))
-                || $formList->getCollection()->contains->isFileProcessing(),
+            'hasProcessing' => $ncList->getCollection()->contains(fn ($nc) => $nc->foto->contains(fn ($file) => $file->isFileProcessing())
+                || $nc->forms->contains->isFileProcessing()),
             'hariOptions' => $service->tanggalOptions(
                 $this->dataKapal->id,
                 $this->allowedTanggalRanges($periodeService) ?? []
@@ -821,8 +771,6 @@ class LaporanNcList extends Component
             'bulanOptions' => collect($periodeService->getBulanList($this->dataKapal))
                 ->map(fn ($b) => ['value' => $b['bulan_ke'], 'label' => 'Bulan ke-'.$b['bulan_ke'].' ('.$b['label'].')'])->all(),
             'statusOptions' => collect(NcStatus::cases())->map(fn ($s) => ['value' => $s->value, 'label' => $s->label()])->all(),
-            'formJenisOptions' => collect(NcFormJenis::cases())->map(fn ($j) => ['value' => $j->value, 'label' => $j->label()])->all(),
-            'formStatusOptions' => collect(NcFormStatus::cases())->map(fn ($s) => ['value' => $s->value, 'label' => $s->label()])->all(),
         ]);
     }
 }

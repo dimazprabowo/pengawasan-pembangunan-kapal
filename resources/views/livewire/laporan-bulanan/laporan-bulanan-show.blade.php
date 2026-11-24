@@ -46,7 +46,7 @@
         </div>
     </div>
 
-    {{-- Data Kapal Info Card --}}
+    {{-- Data Proyek Info Card --}}
     <x-data-kapal-info-card :data-kapal="$laporan->dataKapal" />
 
     {{-- Detail Card --}}
@@ -92,7 +92,7 @@
             {{-- Ringkasan --}}
             @if($laporan->ringkasan)
             <div>
-                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Ringkasan</label>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Executive Summary</label>
                 <p class="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">{{ $laporan->ringkasan }}</p>
             </div>
             @endif
@@ -172,7 +172,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
                             <p class="text-sm text-green-700 dark:text-green-400">
-                                Template khusus tersedia untuk data kapal <strong>{{ $laporan->dataKapal->nama }}</strong>. Dokumen akan digenerate menggunakan template khusus.
+                                Template khusus tersedia untuk proyek <strong>{{ $laporan->dataKapal->nama }}</strong>. Dokumen akan digenerate menggunakan template khusus.
                             </p>
                         </div>
                     @else
@@ -181,7 +181,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                             </svg>
                             <p class="text-sm text-yellow-700 dark:text-yellow-400">
-                                Template khusus belum tersedia untuk data kapal <strong>{{ $laporan->dataKapal->nama }}</strong>. Dokumen akan digenerate menggunakan template default.
+                                Template khusus belum tersedia untuk proyek <strong>{{ $laporan->dataKapal->nama }}</strong>. Dokumen akan digenerate menggunakan template default.
                                 @can('data_kapal_upload_template')
                                     <a href="{{ route('master-data.data-kapal') }}" wire:navigate class="underline hover:text-yellow-800 dark:hover:text-yellow-300">Upload template di Master Data Kapal</a>
                                 @endcan
@@ -354,34 +354,70 @@
     {{-- Lembar Pengesahan (tanda tangan basah, PDF) --}}
     @can('update', $laporan)
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mt-6" @if($laporan->isPengesahanProcessing()) wire:poll.3s @endif>
-        <div class="px-5 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Lembar Pengesahan</h3>
-        </div>
-        <div class="p-5">
-            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                Upload scan lembar pengesahan bertanda tangan basah (khusus format PDF). Saat dokumen dirilis ke PDF, halaman pengesahan dari Word akan digantikan file ini.
-            </p>
-
+        <div class="px-5 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125"/>
+                </svg>
+                <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Lembar Pengesahan</h3>
+            </div>
             @if($laporan->isPengesahanProcessing())
-                <div class="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 mb-4">
-                    <svg class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                    <svg class="animate-spin w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    {{ $laporan->pengesahan_status === 'pending' ? 'Menunggu antrian...' : 'Memproses lembar pengesahan...' }}
-                </div>
+                    {{ $laporan->pengesahan_status === 'pending' ? 'Menunggu antrian...' : 'Sedang diproses...' }}
+                </span>
             @elseif($laporan->isPengesahanFailed())
-                <p class="text-sm text-red-700 dark:text-red-400 mb-4">Upload lembar pengesahan gagal: {{ $laporan->pengesahan_error ?? 'Terjadi kesalahan.' }}</p>
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                    Gagal
+                </span>
             @elseif($laporan->pengesahan_path && $laporan->isPengesahanCompleted())
-                <div class="flex items-center gap-3 p-3 mb-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Terupload
+                </span>
+            @else
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                    Belum diupload
+                </span>
+            @endif
+        </div>
+        <div class="p-6">
+            <div class="mb-4 flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <svg class="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <p class="text-sm text-blue-700 dark:text-blue-400">
+                    Upload scan lembar pengesahan bertanda tangan basah dalam format <strong>PDF</strong>. Saat dokumen dirilis ke PDF, halaman pengesahan dari Word akan digantikan file ini.
+                </p>
+            </div>
+
+            @if($laporan->isPengesahanFailed())
+                <div class="mb-4 flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                    <svg class="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <p class="text-sm text-red-700 dark:text-red-400">Upload lembar pengesahan gagal: {{ $laporan->pengesahan_error ?? 'Terjadi kesalahan.' }}</p>
+                </div>
+            @endif
+
+            @if($laporan->pengesahan_path && $laporan->isPengesahanCompleted())
+                <div class="mb-4 flex items-center gap-3 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg">
                     <svg class="w-8 h-8 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
                     <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ $laporan->pengesahan_name }}</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                        <p class="text-sm font-medium text-emerald-800 dark:text-emerald-300 truncate">{{ $laporan->pengesahan_name }}</p>
+                        <p class="text-xs text-emerald-600 dark:text-emerald-400">
                             {{ $laporan->pengesahan_size ? number_format($laporan->pengesahan_size / 1024, 0).' KB' : '' }}
-                            @if($laporan->pengesahan_processed_at) · {{ $laporan->pengesahan_processed_at->translatedFormat('d M Y H:i') }} @endif
+                            @if($laporan->pengesahan_processed_at) · Diupload {{ $laporan->pengesahan_processed_at->translatedFormat('d M Y, H:i') }} @endif
                             · Dipakai sebagai halaman pengesahan pada PDF rilis
                         </p>
                     </div>
@@ -400,16 +436,44 @@
                 </div>
             @endif
 
-            <form wire:submit="savePengesahan" class="flex flex-col sm:flex-row sm:items-center gap-3">
-                <div class="flex-1">
-                    <input type="file" wire:model="pengesahanFile" accept="application/pdf"
-                        class="block w-full text-sm text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 file:mr-4 file:py-2.5 file:px-4 file:border-0 file:text-sm file:font-semibold file:bg-gray-100 dark:file:bg-gray-600 file:text-gray-700 dark:file:text-gray-200 hover:file:bg-gray-200 dark:hover:file:bg-gray-500 focus:ring-2 focus:ring-blue-500" />
-                    <x-input-error :messages="$errors->get('pengesahanFile')" />
+            <form wire:submit="savePengesahan"
+                x-data="{ dragging: false }"
+                x-on:dragover.prevent="dragging = true"
+                x-on:dragleave.prevent="dragging = false"
+                x-on:drop.prevent="dragging = false; if ($event.dataTransfer.files.length) { $refs.pengesahanInput.files = $event.dataTransfer.files; $refs.pengesahanInput.dispatchEvent(new Event('change', { bubbles: true })); }">
+                <div
+                    :class="dragging ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500 ring-2 ring-blue-500/20' : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500'"
+                    class="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 border-2 border-dashed rounded-lg transition-all">
+                    <label class="flex items-center gap-3 flex-1 min-w-0 cursor-pointer">
+                        <span class="flex items-center justify-center w-10 h-10 rounded-lg flex-shrink-0 transition-colors"
+                            :class="dragging ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500'">
+                            <svg wire:loading.remove wire:target="pengesahanFile" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                            </svg>
+                            <svg wire:loading wire:target="pengesahanFile" class="animate-spin w-5 h-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </span>
+                        <span class="flex-1 min-w-0">
+                            @if($pengesahanFile)
+                                <span class="block text-sm font-medium text-gray-900 dark:text-white truncate">{{ $pengesahanFile->getClientOriginalName() }}</span>
+                                <span wire:loading.remove wire:target="pengesahanFile" class="block text-xs text-gray-500 dark:text-gray-400">Klik atau seret file lain untuk mengganti</span>
+                                <span wire:loading wire:target="pengesahanFile" class="block text-xs text-blue-600 dark:text-blue-400">Mengunggah file...</span>
+                            @else
+                                <span wire:loading.remove wire:target="pengesahanFile" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Seret &amp; letakkan PDF di sini, atau <span class="text-blue-600 dark:text-blue-400">pilih file</span></span>
+                                <span wire:loading.remove wire:target="pengesahanFile" class="block text-xs text-gray-400 dark:text-gray-500">Hanya PDF · maks {{ number_format(get_max_upload_size() / 1024, 0) }} MB</span>
+                                <span wire:loading wire:target="pengesahanFile" class="block text-sm text-blue-600 dark:text-blue-400">Mengunggah file...</span>
+                            @endif
+                        </span>
+                        <input x-ref="pengesahanInput" type="file" wire:model="pengesahanFile" accept="application/pdf" class="sr-only" />
+                    </label>
+                    <x-loading-button type="submit" target="savePengesahan" variant="primary" size="sm" loadingText="Mengunggah..." class="w-full sm:w-auto flex-shrink-0" :disabled="$laporan->isPengesahanProcessing()">
+                        <x-slot:icon><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg></x-slot:icon>
+                        {{ $laporan->pengesahan_path ? 'Ganti' : 'Upload' }}
+                    </x-loading-button>
                 </div>
-                <x-loading-button type="submit" target="savePengesahan" variant="primary" size="md" loadingText="Mengunggah..." class="w-full sm:w-auto" :disabled="$laporan->isPengesahanProcessing()">
-                    <x-slot:icon><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg></x-slot:icon>
-                    {{ $laporan->pengesahan_path ? 'Ganti File' : 'Upload' }}
-                </x-loading-button>
+                <x-input-error :messages="$errors->get('pengesahanFile')" />
             </form>
         </div>
     </div>
@@ -518,8 +582,8 @@
         :show="$showReleaseConfirm"
         showProperty="showReleaseConfirm"
         title="Release Dokumen ke PDF?"
-        message="Dokumen Word akan dikonversi menjadi PDF rilis. Jika PDF sudah ada, akan digantikan dengan yang baru."
-        type="regenerate"
+        message="Dokumen Word tetap tersimpan dan akan dikonversi menjadi PDF rilis. Hanya PDF rilis lama, jika ada, yang akan diganti."
+        type="release"
         :docName="$laporan->doc_name"
         confirmAction="releasePdf"
         cancelAction="cancelReleasePdf"

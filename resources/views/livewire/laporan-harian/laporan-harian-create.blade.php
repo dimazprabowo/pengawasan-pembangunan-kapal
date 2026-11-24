@@ -86,7 +86,7 @@
             <div class="min-w-0">
                 <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Tambah Laporan Harian</h2>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 truncate">
-                    {{ $dataKapal->nama }}{{ $dataKapal->owner ? ' · ' . $dataKapal->owner->name : '' }} — setiap tab adalah satu hari; tanggal otomatis mengikuti hari sebelumnya
+                    {{ $dataKapal->nama }}{{ $dataKapal->owner ? ' · ' . $dataKapal->owner->name : '' }} — setiap tab adalah satu hari; tanggal otomatis mengisi tanggal kosong pertama dalam periode
                 </p>
             </div>
             {{-- Auto Save toggle + draft indicator (pojok kanan, indikator di bawah toggle) --}}
@@ -183,7 +183,7 @@
                     wire:loading.attr="disabled"
                     wire:target="addItem"
                     class="flex items-center gap-2 px-3.5 py-2 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 text-xs font-medium text-gray-500 dark:text-gray-400 hover:border-blue-400 hover:text-blue-500 dark:hover:border-blue-500 dark:hover:text-blue-400 transition-colors whitespace-nowrap disabled:opacity-50"
-                    title="Tambah laporan — otomatis mengisi tanggal kosong terdekat">
+                    title="Tambah laporan — tanggal kosong pertama dalam periode (maks. batas pelaporan)">
                     <span class="flex items-center justify-center w-6 h-6 rounded-lg border border-dashed border-current">
                         <svg wire:loading.class="hidden" wire:target="addItem" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -195,7 +195,7 @@
                     </span>
                     <span class="flex flex-col leading-tight text-left">
                         <span class="font-semibold">Tambah Hari</span>
-                        <span class="text-[10px] opacity-75">-1 hari dari tanggal terakhir</span>
+                        <span class="text-[10px] opacity-75">tanggal kosong pertama</span>
                     </span>
                 </button>
             </div>
@@ -233,13 +233,39 @@
                             x-init="$watch('section', function (v) { localStorage.setItem('{{ $sectKey }}', v); })">
                             {{-- Tanggal digenerate otomatis (tampil di header tab hari) --}}
                             <div class="md:col-span-2">
-                                <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    {{ \App\Models\LaporanHarian::generateJudul($item['tanggal_laporan'] ?? null, $this->dataKapal) }}
-                                </p>
+                                <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                                    <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        {{ \App\Models\LaporanHarian::generateJudul($item['tanggal_laporan'] ?? null, $this->dataKapal) }}
+                                    </p>
+                                    <p class="text-xs text-blue-600 dark:text-blue-400 sm:text-right sm:max-w-md" role="status">{{ $item['default_info'] ?? '' }}</p>
+                                </div>
+                                <div class="mt-3 flex flex-col sm:flex-row sm:items-center gap-3">
+                                    <div class="flex items-center gap-3" wire:key="libur-toggle-{{ $index }}">
+                                        <x-toggle-switch wire:click="toggleLibur({{ $index }})" target="toggleLibur({{ $index }})"
+                                            :active="$item['is_libur'] ?? false" active-color="red"
+                                            role="switch" :aria-checked="($item['is_libur'] ?? false) ? 'true' : 'false'"
+                                            aria-label="Hari libur laporan {{ $index + 1 }}" title="Tandai sebagai hari libur" />
+                                        <span class="text-sm text-gray-700 dark:text-gray-300">Hari Libur</span>
+                                        @if($item['is_libur'] ?? false)
+                                            <span class="inline-flex items-center justify-center px-2 py-1 rounded-lg text-xs font-medium {{ \App\Enums\LaporanHariStatus::Libur->badgeClass() }}">{{ \App\Enums\LaporanHariStatus::Libur->label() }}</span>
+                                        @endif
+                                    </div>
+                                    @if($item['is_libur'] ?? false)
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">Tab operasional disembunyikan saat libur. Isian tetap dipertahankan dan muncul kembali saat hari kerja.</p>
+                                    @endif
+                                </div>
+                                @if($item['is_libur'] ?? false)
+                                    <div class="mt-3">
+                                        <x-input-label for="alasan-libur-{{ $index }}" value="Alasan Libur" :required="true" />
+                                        <x-text-input id="alasan-libur-{{ $index }}" wire:model.blur="items.{{ $index }}.alasan_libur" placeholder="Contoh: Hari libur nasional atau penghentian pekerjaan sementara" class="mt-1 block w-full" />
+                                        <x-input-error :messages="$errors->get('items.'.$index.'.alasan_libur')" class="mt-1" />
+                                    </div>
+                                @endif
                                 @error("items.{$index}.tanggal_laporan") <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                             </div>
 
                             {{-- Section Sub-Tabs --}}
+                            @if(! ($item['is_libur'] ?? false))
                             <div class="md:col-span-2 mt-2">
                                 <div class="flex gap-1 overflow-x-auto custom-scrollbar bg-gray-100 dark:bg-gray-900/60 rounded-xl p-1">
                                     @foreach($sectionMeta as $secKey => $meta)
@@ -336,6 +362,7 @@
                                     argsPrefix="{{ $index }}, "
                                 />
                             </div>
+                            @endif
                         </div>
                     </div>
                 </div>

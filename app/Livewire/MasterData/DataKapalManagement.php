@@ -146,7 +146,7 @@ class DataKapalManagement extends Component
             $this->notifySuccess('Kapal berhasil dihapus! Laporan terkait akan di-set null.');
             $this->showDeleteModal = false;
         } catch (AuthorizationException $e) {
-            $this->notifyError('Anda tidak dapat menghapus kapal ini.');
+            $this->notifyError('Anda tidak dapat menghapus proyek ini.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }
@@ -161,9 +161,9 @@ class DataKapalManagement extends Component
             $service->toggleStatus($dataKapal);
 
             $status = $dataKapal->fresh()->status->label();
-            $this->notifySuccess("Status kapal berhasil diubah menjadi {$status}!");
+            $this->notifySuccess("Status proyek berhasil diubah menjadi {$status}!");
         } catch (AuthorizationException $e) {
-            $this->notifyError('Anda tidak memiliki izin untuk mengubah status kapal.');
+            $this->notifyError('Anda tidak memiliki izin untuk mengubah status proyek.');
         } catch (\Exception $e) {
             $this->notifyError('Terjadi kesalahan: '.$e->getMessage());
         }

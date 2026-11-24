@@ -11,7 +11,9 @@ use App\Livewire\Pages\Dashboard;
 use App\Models\DataKapal;
 use App\Models\Galangan;
 use App\Models\KurvaSWorkGroup;
+use App\Models\LaporanBulanan;
 use App\Models\LaporanHarian;
+use App\Models\LaporanMingguan;
 use App\Models\LaporanNc;
 use App\Models\Owner;
 use App\Models\User;
@@ -19,6 +21,7 @@ use App\Services\DashboardService;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
@@ -57,6 +60,100 @@ class DashboardGalanganMapTest extends TestCase
             'owner_id' => $this->ownerB->id, 'galangan_id' => $this->galangan->id,
             'nama' => 'Kapal Beta', 'status' => DataKapalStatus::Active,
         ]);
+    }
+
+    public static function jenisPdf(): array
+    {
+        return [
+            'harian' => ['harian', LaporanHarian::class, []],
+            'mingguan' => ['mingguan', LaporanMingguan::class, ['minggu_ke' => 1]],
+            'bulanan' => ['bulanan', LaporanBulanan::class, ['bulan_ke' => 1]],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('jenisPdf')]
+    public function arsip_pdf_hanya_memuat_rilis_selesai_dan_kapal_terscope(string $type, string $model, array $extra): void
+    {
+        $user = $this->user(['dashboard_view', 'laporan_view', 'laporan_download']);
+        $this->actingAs($user);
+        $attributes = $extra + ['user_id' => $user->id, 'data_kapal_id' => $this->kapalA->id,
+            'tanggal_laporan' => today(), 'pdf_status' => 'completed', 'pdf_path' => 'reports/final.pdf',
+            'pdf_name' => 'final.pdf', 'pdf_generated_at' => now()];
+        $released = $model::create($attributes);
+        $model::create(array_replace($attributes, ['tanggal_laporan' => today()->subDay(), 'pdf_status' => 'processing']));
+        $model::create(array_replace($attributes, ['tanggal_laporan' => today()->subDays(2), 'pdf_path' => null]));
+        $foreign = $model::create(array_replace($attributes, ['data_kapal_id' => $this->kapalB->id]));
+
+        Storage::fake('local');
+        Storage::disk('local')->put('reports/final.pdf', '%PDF-1.4 test');
+        Livewire::test(Dashboard::class)
+            ->call('downloadReleasedPdf', $type, $released->getRouteKey())->assertFileDownloaded('final.pdf');
+        $user->revokePermissionTo('laporan_download');
+        Livewire::test(Dashboard::class)
+            ->call('downloadReleasedPdf', $type, $released->getRouteKey())->assertForbidden();
+        $user->givePermissionTo('laporan_download');
+
+        KurvaSWorkGroup::create(['data_kapal_id' => $this->kapalA->id, 'nama' => 'Hull', 'bobot' => 100, 'sort_order' => 0]);
+        Livewire::test(Dashboard::class)
+            ->assertSee('Pilih kapal untuk melihat laporan')
+            ->assertDontSee('Jenis laporan PDF')->assertDontSee('Cari nama kapal atau dokumen PDF...')
+            ->assertViewHas('releasedPdfs', null)
+            ->call('selectKurvaSkapal', $this->kapalA->getRouteKey())
+            ->call('setPdfTab', $type)
+            ->assertViewHas('releasedPdfs', fn ($rows) => $rows->total() === 1 && $rows->first()->id === $released->id)
+            ->set('search', 'tidak-ditemukan')->assertViewHas('releasedPdfs', fn ($rows) => $rows->total() === 0)
+            ->call('resetFilters')->assertSet('search', '')
+            ->assertViewHas('releasedPdfs', fn ($rows) => $rows->total() === 1)
+            ->call('downloadReleasedPdf', $type, $foreign->getRouteKey())->assertNotFound();
+    }
+
+    #[Test]
+    public function arsip_pdf_dilindungi_permission_dan_tab_url_divalidasi(): void
+    {
+        $this->actingAs($this->user(['dashboard_view']));
+        Livewire::withQueryParams(['pdf' => 'invalid'])->test(Dashboard::class)
+            ->assertSet('pdfTab', 'harian')->assertDontSee('Laporan PDF Terilis')
+            ->call('setPdfTab', 'mingguan')->assertForbidden();
+    }
+
+    #[Test]
+    public function target_loading_kurva_s_sama_dengan_aksi_di_baris_masing_masing(): void
+    {
+        KurvaSWorkGroup::create(['data_kapal_id' => $this->kapalA->id, 'nama' => 'Hull', 'bobot' => 100, 'sort_order' => 0]);
+        KurvaSWorkGroup::create(['data_kapal_id' => $this->kapalB->id, 'nama' => 'Hull', 'bobot' => 100, 'sort_order' => 0]);
+        $this->actingAs($this->user(['dashboard_view', 'laporan_view_all_data_kapal']));
+        $html = Livewire::test(Dashboard::class)->html();
+        $dom = new \DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html);
+        $xpath = new \DOMXPath($dom);
+        $rows = $xpath->query('//tr[starts-with(@*[name()="wire:key"], "kurvas-")]');
+        $this->assertSame(2, $rows->length);
+        foreach ($rows as $row) {
+            $targets = $xpath->query('.//svg[@*[name()="wire:target"]]', $row);
+            $this->assertSame(2, $targets->length);
+        }
+    }
+
+    #[Test]
+    public function setiap_tab_pdf_memiliki_spinner_loading_sendiri(): void
+    {
+        $this->actingAs($this->user(['dashboard_view', 'laporan_view', 'laporan_view_all_data_kapal']));
+        KurvaSWorkGroup::create(['data_kapal_id' => $this->kapalA->id, 'nama' => 'Hull', 'bobot' => 100, 'sort_order' => 0]);
+        $html = Livewire::test(Dashboard::class)
+            ->call('selectKurvaSkapal', $this->kapalA->getRouteKey())->html();
+        $dom = new \DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html);
+        $xpath = new \DOMXPath($dom);
+        $tabs = $xpath->query('//button[@role="tab"]');
+        $this->assertSame(3, $tabs->length);
+        foreach ($tabs as $tab) {
+            $action = $tab->attributes->getNamedItem('wire:click')->nodeValue;
+            $this->assertSame($action, $tab->attributes->getNamedItem('wire:target')->nodeValue);
+            $spinners = $xpath->query('.//svg[@*[name()="wire:loading"]]', $tab);
+            $this->assertSame(1, $spinners->length);
+            $this->assertSame($action, $spinners->item(0)->attributes->getNamedItem('wire:target')->nodeValue);
+        }
     }
 
     private function user(array $permissions, ?Owner $owner = null): User

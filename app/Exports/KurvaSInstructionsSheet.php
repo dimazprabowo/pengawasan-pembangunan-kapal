@@ -77,7 +77,7 @@ class KurvaSInstructionsSheet implements FromArray, WithColumnWidths, WithStyles
             ['CARA IMPORT'],
             ['  1. Isi data pada sheet "Rencana"'],
             ['  2. Simpan file (format .xlsx)'],
-            ['  3. Buka aplikasi > Menu Data Kapal'],
+            ['  3. Buka aplikasi > Menu Data Proyek'],
             ['  4. Klik tombol "Kurva S" > "Import Kurva S"'],
             ['  5. Upload file dan tunggu validasi'],
             ['  6. Data lama akan DIHAPUS dan diganti dengan data baru'],

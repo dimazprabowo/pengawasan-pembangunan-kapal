@@ -6,9 +6,16 @@ use App\Enums\GalanganStatus;
 use App\Enums\NcStatus;
 use App\Models\DataKapal;
 use App\Models\Galangan;
+use App\Models\LaporanBulanan;
 use App\Models\LaporanHarian;
+use App\Models\LaporanMingguan;
 use App\Models\LaporanNc;
+use App\Traits\HasDynamicLike;
+use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Crypt;
 
 /**
  * Agregasi dashboard peta galangan. Semua method menerima daftar id data kapal
@@ -16,7 +23,46 @@ use Illuminate\Support\Collection;
  */
 class DashboardService
 {
+    use HasDynamicLike;
+
     public function __construct(private KurvaSService $kurvaSService) {}
+
+    private function releasedPdfQuery(Collection $kapalIds, string $type): Builder
+    {
+        $model = match ($type) {
+            'harian' => LaporanHarian::class,
+            'mingguan' => LaporanMingguan::class,
+            'bulanan' => LaporanBulanan::class,
+            default => abort(404),
+        };
+
+        return $model::query()->whereIn('data_kapal_id', $kapalIds)
+            ->where('pdf_status', 'completed')->whereNotNull('pdf_path')->where('pdf_path', '!=', '')
+            ->whereNotNull('pdf_name')->where('pdf_name', '!=', '');
+    }
+
+    public function releasedPdfs(Collection $kapalIds, string $type, string $search = '', int $perPage = 10): LengthAwarePaginator
+    {
+        $like = $this->getLikeOperator();
+
+        return $this->releasedPdfQuery($kapalIds, $type)->with('dataKapal:id,nama')
+            ->when(trim($search) !== '', fn ($q) => $q->where(fn ($q) => $q
+                ->where('pdf_name', $like, '%'.trim($search).'%')
+                ->orWhereHas('dataKapal', fn ($q) => $q->where('nama', $like, '%'.trim($search).'%'))))
+            ->orderByDesc('pdf_generated_at')->orderByDesc('id')
+            ->paginate(in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10, ['*'], 'releasedPage');
+    }
+
+    public function findReleasedPdf(Collection $kapalIds, string $type, string $key): LaporanHarian|LaporanMingguan|LaporanBulanan
+    {
+        try {
+            $id = Crypt::decryptString($key);
+        } catch (DecryptException) {
+            abort(404);
+        }
+
+        return $this->releasedPdfQuery($kapalIds, $type)->findOrFail($id);
+    }
 
     /**
      * @param  Collection<int, int>  $kapalIds

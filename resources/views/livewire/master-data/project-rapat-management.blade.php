@@ -1,4 +1,4 @@
-<div class="space-y-4"
+<div class="space-y-4" @if($hasProcessing) wire:poll.4s @endif
     x-data="{ dirtyKeys: {}, get dirty() { return Object.keys(this.dirtyKeys).length > 0 || Object.values($wire.drafts).some(row => row.dirty); } }"
     x-on:input="const row = $event.target.closest('[data-draft-key]'); if (row) dirtyKeys[row.dataset.draftKey] = true;"
     x-on:rapat-row-saved="delete dirtyKeys[$event.detail.key]"
@@ -82,46 +82,25 @@ Kelola</x-loading-button>
                             <td class="p-3 text-center min-w-48 align-top">
                                 @php($rapatModel = str_starts_with($key, 'row-') ? $items->firstWhere('id', (int) substr($key, 4)) : null)
                                 <div class="flex flex-col items-center gap-1.5">
-                                    {{-- Daftar file + antrian upload dibatasi tinggi (scroll) agar baris tabel tidak memanjang --}}
-                                    <div class="w-full max-h-36 overflow-y-auto custom-scrollbar flex flex-col items-center gap-1.5 pt-1.5">
-                                    @if($rapatModel)
-                                        @foreach($rapatModel->files as $f)
-                                            <div wire:key="rapat-file-{{ $f->id }}" class="relative flex flex-col items-center gap-1 max-w-28">
-                                                @can('proyek_data_update')
-                                                    <button type="button" wire:click="confirmDelete({{ $f->id }}, 'file')" wire:loading.attr="disabled" wire:target="confirmDelete({{ $f->id }}, 'file')"
-                                                        class="absolute -top-1.5 -right-1.5 z-10 inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-                                                        title="Hapus file" aria-label="Hapus file">
-                                                        <svg wire:loading.class="hidden" wire:target="confirmDelete({{ $f->id }}, 'file')" class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 6l12 12M18 6L6 18"/></svg>
-                                                        <svg wire:loading wire:target="confirmDelete({{ $f->id }}, 'file')" class="animate-spin w-2.5 h-2.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                                                    </button>
-                                                @endcan
-                                                @if($f->isFileProcessing())
-                                                    <span class="inline-flex w-11 h-11 items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50" title="File sedang diproses">
-                                                        <svg class="animate-spin w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                                                    </span>
-                                                @elseif($f->isFileFailed())
-                                                    <span class="inline-flex w-11 h-11 items-center justify-center rounded-lg border border-red-200 dark:border-red-800/60 bg-red-50 dark:bg-red-900/20" title="Gagal memproses file{{ $f->file_error ? ': '.$f->file_error : '' }}">
-                                                        <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M12 3l9.66 16.59a1 1 0 01-.87 1.51H3.21a1 1 0 01-.87-1.51L12 3z"/></svg>
-                                                    </span>
-                                                @elseif($f->hasFile() && $f->isFileCompleted())
-                                                    <button type="button" wire:click="previewFile({{ $f->id }})"
-                                                        wire:loading.attr="disabled" wire:target="previewFile({{ $f->id }})"
-                                                        class="relative w-11 h-11 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-gray-50 dark:bg-gray-900/50 hover:border-blue-400 disabled:opacity-50"
-                                                        title="Preview {{ $f->file_name }}">
-                                                        @if($f->isImage())
-                                                            <img src="{{ route('rapat-file.file', $f) }}" alt="{{ $f->file_name }}" loading="lazy"
-                                                                wire:loading.class="hidden" wire:target="previewFile({{ $f->id }})"
-                                                                class="w-full h-full object-cover" />
-                                                        @else
-                                                            <svg wire:loading.class="hidden" wire:target="previewFile({{ $f->id }})" class="w-5 h-5 text-gray-400 mx-auto mt-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                                                        @endif
-                                                        <svg wire:loading wire:target="previewFile({{ $f->id }})" class="animate-spin w-4 h-4 text-blue-500 absolute inset-0 m-auto" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                                                    </button>
-                                                @endif
-                                                <span class="text-xs text-gray-500 dark:text-gray-400 truncate w-full text-center" title="{{ $f->file_name }}">{{ $f->file_name }}</span>
-                                            </div>
-                                        @endforeach
+                                    @if(!$rapatModel)
+                                        <span class="text-[11px] text-gray-400 dark:text-gray-500">File diproses setelah baris disimpan</span>
+                                    @elseif($rapatModel->files->isNotEmpty())
+                                        <button type="button" wire:click="openFiles({{ $rapatModel->id }})"
+                                            wire:loading.attr="disabled" wire:target="openFiles({{ $rapatModel->id }})"
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 text-xs font-medium text-gray-600 dark:text-gray-300 hover:border-blue-400 hover:text-blue-600 dark:hover:border-blue-500 dark:hover:text-blue-400 transition-colors disabled:opacity-50"
+                                            title="Lihat {{ $rapatModel->files->count() }} file rapat">
+                                            <svg wire:loading.class="hidden" wire:target="openFiles({{ $rapatModel->id }})" class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 24 24"><path d="M10 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V8a2 2 0 00-2-2h-8l-2-2z"/></svg>
+                                            <svg wire:loading wire:target="openFiles({{ $rapatModel->id }})" class="animate-spin w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                            {{ $rapatModel->files->count() }} file
+                                        </button>
+                                    @else
+                                        <span class="text-xs text-gray-400">Belum ada file.</span>
                                     @endif
+                                    {{-- Antrian upload dibatasi tinggi (scroll) agar baris tabel tidak memanjang; auto-scroll ke bawah saat isi berubah --}}
+                                    <div class="w-full max-h-36 overflow-y-auto custom-scrollbar pt-1.5"
+                                        x-data
+                                        x-init="$el.scrollTop = $el.scrollHeight; new MutationObserver(() => { $el.scrollTop = $el.scrollHeight }).observe($el, { childList: true, subtree: true })">
+                                    <div class="flex flex-col items-center gap-1.5 mt-1.5">
                                     @foreach(data_get($rapatUploads, $key, []) as $uploadKey => $entry)
                                         @if(is_object($entry['file'] ?? null))
                                             <div wire:key="rapat-upload-{{ $key }}-{{ $uploadKey }}" class="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300 max-w-full">
@@ -148,16 +127,18 @@ Kelola</x-loading-button>
                                     @endforeach
                                     <x-input-error :messages="collect($errors->get('rapatUploads.'.$key.'.*'))->flatten()->all()" />
                                     </div>
+                                    </div>
                                     @can(str_starts_with($key, 'new-') ? 'proyek_data_create' : 'proyek_data_update')
                                         <div x-data="{ uploading: false, progress: 0,
                                                 async uploadFiles(input) {
                                                     this.uploading = true;
                                                     try {
                                                         await window.lhUploadFiles($wire, input, 'rapatUploads.{{ $key }}.', e => this.progress = e.detail.progress);
-                                                    } finally { this.uploading = false; }
+                                                    } catch (_) {} finally { this.uploading = false; }
                                                 } }" class="w-full flex flex-col items-center gap-1.5">
-                                            <label class="flex w-full items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-sm text-gray-500 dark:text-gray-400 hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer" :class="{ 'opacity-50 pointer-events-none': uploading }">
-                                                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                            <label class="flex w-full items-center justify-center gap-1 px-2 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-xs text-gray-500 dark:text-gray-400 hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer" :class="{ 'opacity-50 pointer-events-none': uploading }">
+                                                <svg x-show="uploading" class="animate-spin w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                                <svg x-show="!uploading" class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                                                 <span class="truncate" x-text="uploading ? 'Mengunggah ' + progress + '%' : 'Tambah File (Foto/PDF)'"></span>
                                                 <input type="file" multiple class="sr-only" accept=".{{ implode(',.', get_allowed_mimes_array('rapat_file')) }}" x-on:change="uploadFiles($event.target)" :disabled="uploading" />
                                             </label>
@@ -264,6 +245,78 @@ Tambah</x-loading-button>
                         @endcan
                     </div>
                 </form>
+            </div>
+        </div>
+    @endif
+
+    {{-- Modal daftar file rapat (ikon folder di sel File) --}}
+    @if($filesModalId)
+        @php($filesRapat = $items->firstWhere('id', $filesModalId))
+        <div class="fixed inset-0 z-40 overflow-y-auto custom-scrollbar"
+            x-data="{ previousOverflow: document.body.style.overflow, init() { document.body.style.overflow = 'hidden'; }, destroy() { document.body.style.overflow = this.previousOverflow; } }"
+            x-on:keydown.escape.window="$wire.closeFiles()" role="dialog" aria-modal="true">
+            <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+                <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75" wire:click="closeFiles"></div>
+                <div class="inline-block w-full align-bottom bg-white dark:bg-gray-800 rounded-lg text-left shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+                    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 sm:px-5">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                            File Rapat{{ $filesRapat ? ' — '.($filesRapat->jenis?->label() ?? 'Rapat').' ('.$filesRapat->tanggal?->translatedFormat('d M Y').')' : '' }}
+                        </h3>
+                        <button type="button" wire:click="closeFiles" wire:loading.attr="disabled" wire:target="closeFiles"
+                            class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors disabled:opacity-50" title="Tutup" aria-label="Tutup">
+                            <svg wire:loading.class="hidden" wire:target="closeFiles" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            <svg wire:loading wire:target="closeFiles" class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                        </button>
+                    </div>
+                    <div class="px-4 py-4 sm:px-5 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                        <div class="flex flex-wrap justify-center gap-3">
+                        @forelse($filesRapat?->files ?? collect() as $f)
+                            <div wire:key="rapat-modal-file-{{ $f->id }}" class="flex flex-col items-center gap-1 max-w-28">
+                                <div class="relative">
+                                @can('proyek_data_update')
+                                    <button type="button" wire:click="confirmDelete({{ $f->id }}, 'file')" wire:loading.attr="disabled" wire:target="confirmDelete({{ $f->id }}, 'file')"
+                                        class="absolute -top-1.5 -right-1.5 z-10 inline-flex items-center justify-center w-5 h-5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-red-600 hover:text-white hover:bg-red-600 hover:border-red-600 dark:text-red-400 dark:hover:bg-red-600 dark:hover:border-red-600 shadow-sm transition-colors disabled:opacity-50"
+                                        title="Hapus file" aria-label="Hapus file">
+                                        <svg wire:loading.class="hidden" wire:target="confirmDelete({{ $f->id }}, 'file')" class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 6l12 12M18 6L6 18"/></svg>
+                                        <svg wire:loading wire:target="confirmDelete({{ $f->id }}, 'file')" class="animate-spin w-2.5 h-2.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                    </button>
+                                @endcan
+                                @if($f->isFileProcessing())
+                                    <span class="inline-flex w-16 h-16 items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50" title="File sedang diproses">
+                                        <svg class="animate-spin w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+                                    </span>
+                                @elseif($f->isFileFailed())
+                                    <span class="inline-flex w-16 h-16 items-center justify-center rounded-lg border border-red-200 dark:border-red-800/60 bg-red-50 dark:bg-red-900/20" title="Gagal memproses file{{ $f->file_error ? ': '.$f->file_error : '' }}">
+                                        <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    </span>
+                                @elseif($f->hasFile() && $f->isFileCompleted())
+                                    <button type="button" wire:click="previewFile({{ $f->id }})"
+                                        wire:loading.attr="disabled" wire:target="previewFile({{ $f->id }})"
+                                        class="relative inline-flex w-16 h-16 items-center justify-center rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 hover:border-blue-400 dark:hover:border-blue-500 transition-colors disabled:opacity-50"
+                                        title="Preview {{ $f->file_name }}">
+                                        @if($f->isImage())
+                                            <img src="{{ route('rapat-file.file', $f) }}" alt="{{ $f->file_name }}" loading="lazy"
+                                                wire:loading.class="hidden" wire:target="previewFile({{ $f->id }})"
+                                                class="w-full h-full object-cover">
+                                        @else
+                                            <svg wire:loading.class="hidden" wire:target="previewFile({{ $f->id }})" class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                        @endif
+                                        <svg wire:loading wire:target="previewFile({{ $f->id }})" class="animate-spin w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+                                    </button>
+                                @else
+                                    <span class="inline-flex w-16 h-16 items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50" title="File belum tersedia">
+                                        <svg class="w-6 h-6 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                    </span>
+                                @endif
+                                </div>
+                                <span class="text-xs text-gray-500 dark:text-gray-400 truncate w-full" title="{{ $f->file_name }}">{{ $f->file_name }}</span>
+                            </div>
+                        @empty
+                            <span class="py-8 text-xs text-gray-400">Belum ada file.</span>
+                        @endforelse
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     @endif

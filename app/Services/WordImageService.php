@@ -121,6 +121,7 @@ class WordImageService
             $image->crop($cw, $ch, $left, $top);
             $tmp = sys_get_temp_dir().'/'.uniqid('word_img_trim_').'.jpg';
             $image->toJpeg(88)->save($tmp);
+            unset($image);
 
             return $tmp;
         } catch (\Throwable $e) {

@@ -63,7 +63,7 @@
                 <th width="18%">Judul</th>
                 <th width="12%" class="text-center">Periode</th>
                 <th width="10%" class="text-center">Tanggal Laporan</th>
-                <th width="15%">Data Kapal</th>
+                <th width="15%">Data Proyek</th>
                 <th width="14%">Owner</th>
                 <th width="12%">Galangan</th>
                 <th width="8%">Pembuat</th>

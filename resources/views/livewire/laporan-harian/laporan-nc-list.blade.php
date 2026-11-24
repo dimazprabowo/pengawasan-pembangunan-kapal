@@ -74,7 +74,7 @@
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 @php
                     $selected = array_map('intval', $selectedNcIds);
-                    $pageOpenIds = $ncList->getCollection()->filter->isOpen()->pluck('id')->all();
+                    $pageOpenIds = $ncList->getCollection()->filter(fn ($nc) => $nc->isOpen() && ! $nc->isInDraftPenutupan() && $nc->hasCompletedCloseFile())->pluck('id')->all();
                     $allChecked = $pageOpenIds !== [] && array_diff($pageOpenIds, $selected) === [];
                 @endphp
                 <thead class="bg-gray-50 dark:bg-gray-700/50">
@@ -83,7 +83,7 @@
                             @can('create', \App\Models\LaporanNcForm::class)
                                 <input type="checkbox" wire:click="toggleSelectAll" @checked($allChecked) @disabled($pageOpenIds === [])
                                     wire:key="nc-select-all-{{ $allChecked ? 'on' : 'off' }}-{{ implode('-', $pageOpenIds) }}"
-                                    class="rounded text-blue-600 focus:ring-blue-500 cursor-pointer disabled:opacity-40" title="Pilih semua NC Open di halaman ini">
+                                    class="rounded text-blue-600 focus:ring-blue-500 cursor-pointer disabled:opacity-40" title="Pilih semua NC Open yang punya file Close di halaman ini">
                             @endcan
                         </th>
                         <th rowspan="2" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 align-middle">NC</th>
@@ -91,33 +91,38 @@
                         <th rowspan="2" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 align-middle">PIC</th>
                         <th rowspan="2" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 align-middle">Status</th>
                         <th colspan="2" class="px-4 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-600">File</th>
-                        <th colspan="2" class="px-4 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-600">Form</th>
+                        <th colspan="2" class="px-4 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-600">Form Open</th>
+                        <th colspan="2" class="px-4 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-600">Form Close</th>
                         <th rowspan="2" class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 align-middle">Aksi</th>
                     </tr>
                     <tr>
-                        <th class="px-4 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Before</th>
-                        <th class="px-4 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">After</th>
                         <th class="px-4 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Open</th>
                         <th class="px-4 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Close</th>
+                        <th class="px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Draft</th>
+                        <th class="px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">TTD</th>
+                        <th class="px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Draft</th>
+                        <th class="px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">TTD</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                     @forelse($ncList->getCollection()->groupBy('laporan_harian_id') as $laporanId => $ncs)
                         @php
-                            $openIds = $ncs->filter(fn ($nc) => $nc->isOpen() && ! $nc->isInDraftPenutupan())->pluck('id');
+                            $openIds = $ncs->filter(fn ($nc) => $nc->isOpen() && ! $nc->isInDraftPenutupan() && $nc->hasCompletedCloseFile())->pluck('id');
                             $groupAllChecked = $openIds->isNotEmpty() && $openIds->diff($selected)->isEmpty();
                             $laporan = $ncs->first()->laporanHarian;
                             $temuanForms = $temuanByLaporan->get($laporanId, collect());
                             $temuanDraft = $temuanForms->first(fn ($f) => $f->isDraft());
                         @endphp
-                        <tr wire:key="grp-{{ $laporanId }}" class="bg-gray-50 dark:bg-gray-700/40">
-                            <td colspan="10" class="px-4 py-2">
+                        {{-- Satu tbody per grup tanggal: rowspan sel Form Open tetap dalam tbody
+                             yang sama + hover grup menyorot seluruh baris yang di-merge --}}
+                        <tbody wire:key="tb-{{ $laporanId }}" class="group/date divide-y divide-gray-200 dark:divide-gray-700">
+                        <tr wire:key="grp-{{ $laporanId }}" class="bg-gray-50 dark:bg-gray-700/40 border-t border-gray-200 dark:border-gray-700">
+                            <td colspan="12" class="px-4 py-2">
                                 <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                                     <div class="flex items-center gap-3 min-w-0">
                                         @can('create', \App\Models\LaporanNcForm::class)
                                             <input type="checkbox" wire:click="toggleNcGroup('{{ $openIds->implode(',') }}')" @checked($groupAllChecked) @disabled($openIds->isEmpty())
                                                 wire:key="nc-grp-cb-{{ $laporanId }}-{{ $groupAllChecked ? 'on' : 'off' }}"
-                                                class="rounded text-blue-600 focus:ring-blue-500 cursor-pointer disabled:opacity-40" title="Pilih semua NC Open tanggal ini">
+                                                class="rounded text-blue-600 focus:ring-blue-500 cursor-pointer disabled:opacity-40" title="Pilih semua NC Open yang punya file Close tanggal ini">
                                         @endcan
                                         <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                                         <span class="text-xs font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">Laporan {{ $laporan?->tanggal_laporan?->translatedFormat('d M Y') ?? '-' }}</span>
@@ -141,17 +146,21 @@
                         @foreach($ncs as $nc)
                             @php
                                 $ncChecked = in_array($nc->id, $selected, true);
-                                $temuan = $nc->forms->filter(fn ($f) => $f->isTemuan())->sortByDesc('id')->first();
-                                $penutupan = $nc->forms->filter(fn ($f) => $f->isPenutupan())->sortByDesc('id')->first();
+                                $penutupanDraft = $nc->forms->filter(fn ($f) => $f->isPenutupan() && $f->isDraft())->sortByDesc('id')->first();
+                                $penutupanSigned = $nc->forms->filter(fn ($f) => $f->isPenutupan() && ! $f->isDraft())->sortByDesc('id')->first();
                             @endphp
-                            <tr wire:key="nc-{{ $nc->id }}" class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors {{ $ncChecked ? 'bg-blue-50/50 dark:bg-blue-900/10' : '' }}">
+                            <tr wire:key="nc-{{ $nc->id }}" class="group-hover/date:bg-gray-50 dark:group-hover/date:bg-gray-700/30 transition-colors {{ $ncChecked ? 'bg-blue-50/50 dark:bg-blue-900/10' : '' }}">
                                 <td class="px-4 py-3 text-center">
                                     @can('create', \App\Models\LaporanNcForm::class)
                                         @if($nc->isOpen())
                                             @if($nc->isInDraftPenutupan())
                                                 <input type="checkbox" disabled wire:key="nc-cb-{{ $nc->id }}-locked"
                                                     class="rounded text-blue-600 focus:ring-blue-500 opacity-40 cursor-not-allowed"
-                                                    title="Sudah ada di draft penutupan {{ $penutupan?->nomor }} — hapus draft itu dulu untuk memindahkan NC">
+                                                    title="Sudah ada di draft penutupan {{ $penutupanDraft?->nomor }} — hapus draft itu dulu untuk memindahkan NC">
+                                            @elseif(! $nc->hasCompletedCloseFile())
+                                                <input type="checkbox" disabled wire:key="nc-cb-{{ $nc->id }}-noclose"
+                                                    class="rounded text-blue-600 focus:ring-blue-500 opacity-40 cursor-not-allowed"
+                                                    title="Belum ada file Close — unggah file Close dulu agar NC bisa masuk Form Penutupan">
                                             @else
                                                 <input type="checkbox" wire:click="toggleNcSelect({{ $nc->id }})" @checked($ncChecked)
                                                     wire:key="nc-cb-{{ $nc->id }}-{{ $ncChecked ? 'on' : 'off' }}"
@@ -179,58 +188,19 @@
                                 </td>
                                 @foreach(\App\Enums\NcFileKategori::cases() as $fileCategory)
                                 <td wire:key="nc-files-{{ $nc->id }}-{{ $fileCategory->value }}" class="px-4 py-3 text-center min-w-48">
-                                    <div class="flex flex-wrap justify-center gap-2">
-                                    @forelse($nc->foto->filter(fn ($file) => $file->kategori === $fileCategory) as $f)
-                                    <div wire:key="nc-file-{{ $f->id }}" class="flex flex-col items-center gap-1 max-w-28">
-                                        <div class="relative">
-                                        @can('update', $nc)
-                                            <button type="button" wire:click="confirmDeleteFile({{ $f->id }})" wire:loading.attr="disabled" wire:target="confirmDeleteFile({{ $f->id }})"
-                                                class="absolute -top-1.5 -right-1.5 z-10 inline-flex items-center justify-center w-5 h-5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-red-600 hover:text-white hover:bg-red-600 hover:border-red-600 dark:text-red-400 dark:hover:bg-red-600 dark:hover:border-red-600 shadow-sm transition-colors disabled:opacity-50"
-                                                title="Hapus file" aria-label="Hapus file">
-                                                <svg wire:loading.class="hidden" wire:target="confirmDeleteFile({{ $f->id }})" class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 6l12 12M18 6L6 18"/></svg>
-                                                <svg wire:loading wire:target="confirmDeleteFile({{ $f->id }})" class="animate-spin w-2.5 h-2.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                                            </button>
-                                        @endcan
-                                        @if($f->isFileProcessing())
-                                            <span class="inline-flex w-11 h-11 items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50" title="Foto sedang diproses">
-                                                <svg class="animate-spin w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
-                                            </span>
-                                        @elseif($f->isFileFailed())
-                                            <span class="inline-flex w-11 h-11 items-center justify-center rounded-lg border border-red-200 dark:border-red-800/60 bg-red-50 dark:bg-red-900/20" title="Gagal memproses foto{{ $f->file_error ? ': '.$f->file_error : '' }}">
-                                                <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                            </span>
-                                        @elseif($f->hasFile() && $f->isFileCompleted())
-                                            @can('lampiranPreview', \App\Models\LaporanHarian::class)
-                                                <button type="button" wire:click="previewFoto({{ $f->id }})"
-                                                    wire:loading.attr="disabled" wire:target="previewFoto({{ $f->id }})"
-                                                    class="relative inline-flex w-11 h-11 items-center justify-center rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 hover:border-blue-400 dark:hover:border-blue-500 transition-colors disabled:opacity-50"
-                                                    title="Preview {{ $f->file_name }}">
-                                                    @if($f->isImage())
-                                                        <img src="{{ route('laporan-nc-foto.file', $f) }}" alt="{{ $f->file_name }}" loading="lazy"
-                                                            wire:loading.class="hidden" wire:target="previewFoto({{ $f->id }})"
-                                                            class="w-full h-full object-cover">
-                                                    @else
-                                                        <svg wire:loading.class="hidden" wire:target="previewFoto({{ $f->id }})" class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                                                    @endif
-                                                    <svg wire:loading wire:target="previewFoto({{ $f->id }})" class="animate-spin w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
-                                                </button>
-                                            @else
-                                                <span class="inline-flex w-11 h-11 items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50" title="Foto bukti tersedia">
-                                                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 00-2 2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                                                </span>
-                                            @endcan
-                                        @else
-                                            <span class="inline-flex w-11 h-11 items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50" title="Foto belum tersedia">
-                                                <svg class="w-5 h-5 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 00-2 2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                                            </span>
-                                        @endif
-                                        </div>
-                                        <span class="text-xs text-gray-500 dark:text-gray-400 truncate w-full" title="{{ $f->file_name }}">{{ $f->file_name }}</span>
-                                    </div>
-                                    @empty
+                                    @php $catFiles = $nc->foto->filter(fn ($file) => $file->kategori === $fileCategory); @endphp
+                                    @if($catFiles->isNotEmpty())
+                                        <button type="button" wire:click="openNcFiles({{ $nc->id }}, '{{ $fileCategory->value }}')"
+                                            wire:loading.attr="disabled" wire:target="openNcFiles({{ $nc->id }}, '{{ $fileCategory->value }}')"
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 text-xs font-medium text-gray-600 dark:text-gray-300 hover:border-blue-400 hover:text-blue-600 dark:hover:border-blue-500 dark:hover:text-blue-400 transition-colors disabled:opacity-50"
+                                            title="Lihat {{ $catFiles->count() }} file {{ $fileCategory->label() }}">
+                                            <svg wire:loading.class="hidden" wire:target="openNcFiles({{ $nc->id }}, '{{ $fileCategory->value }}')" class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 24 24"><path d="M10 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V8a2 2 0 00-2-2h-8l-2-2z"/></svg>
+                                            <svg wire:loading wire:target="openNcFiles({{ $nc->id }}, '{{ $fileCategory->value }}')" class="animate-spin w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                            {{ $catFiles->count() }} file
+                                        </button>
+                                    @else
                                         <span class="text-xs text-gray-400">Belum ada file.</span>
-                                    @endforelse
-                                    </div>
+                                    @endif
                                     @can('update', $nc)
                                         <div class="mt-2 space-y-2" x-data="{ uploading: false, progress: 0,
                                             async uploadFiles(input) {
@@ -278,53 +248,102 @@
                                     @endcan
                                 </td>
                                 @endforeach
-                                <td class="px-4 py-3 text-center">
-                                    @if($temuan)
-                                        @if($temuan->isFileCompleted())
-                                            @can('lampiranPreview', \App\Models\LaporanHarian::class)
-                                                <button type="button" wire:click="previewForm({{ $temuan->id }})"
-                                                    wire:loading.attr="disabled" wire:target="previewForm({{ $temuan->id }})"
-                                                    class="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded {{ $temuan->status()->badgeClass() }} hover:underline disabled:opacity-50"
-                                                    title="Preview scan {{ $temuan->nomor }}">
-                                                    {{ $temuan->nomor }}
-                                                    <svg wire:loading wire:target="previewForm({{ $temuan->id }})" class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                                                </button>
-                                            @else
-                                                <span class="text-[10px] px-1.5 py-0.5 rounded {{ $temuan->status()->badgeClass() }}" title="Form Temuan bertanda tangan">{{ $temuan->nomor }}</span>
-                                            @endcan
+                                @if($loop->first)
+                                    {{-- Form Temuan = satu per tanggal → sel digabung vertikal per grup --}}
+                                    <td wire:key="grp-fo-draft-{{ $laporanId }}" rowspan="{{ $ncs->count() }}" class="px-3 py-3 text-center align-middle border-l border-gray-100 dark:border-gray-700/60 group-hover/date:bg-gray-50 dark:group-hover/date:bg-gray-700/30 transition-colors">
+                                        @php $temuanDrafts = $temuanForms->filter(fn ($f) => $f->isDraft())->sortByDesc('id'); @endphp
+                                        @if($temuanDrafts->isNotEmpty())
+                                            <div class="flex flex-col items-center gap-2">
+                                                @foreach($temuanDrafts as $tf)
+                                                    <div wire:key="tf-d-{{ $tf->id }}" class="flex flex-col items-center gap-1">
+                                                        <span class="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded {{ $tf->status()->badgeClass() }}"
+                                                            title="Draft {{ $tf->nomor }} — upload scan TTD setelah dicetak & ditandatangani">
+                                                            @if($tf->isFileProcessing())
+                                                                <svg class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                                            @endif
+                                                            {{ $tf->nomor }}
+                                                        </span>
+                                                        @include('livewire.laporan-harian.partials.nc-form-actions', ['ncForm' => $tf, 'iconSize' => 'w-3.5 h-3.5'])
+                                                    </div>
+                                                @endforeach
+                                            </div>
                                         @else
-                                            <span class="text-[10px] px-1.5 py-0.5 rounded {{ $temuan->status()->badgeClass() }}" title="{{ $temuan->isDraft() ? 'Draft Form Temuan (menunggu TTD)' : 'Scan '.$temuan->status()->label() }}">
-                                                {{ $temuan->nomor }}{{ $temuan->isDraft() ? ' (draft)' : '' }}
-                                            </span>
+                                            <span class="text-xs text-gray-400">-</span>
                                         @endif
+                                    </td>
+                                    <td wire:key="grp-fo-ttd-{{ $laporanId }}" rowspan="{{ $ncs->count() }}" class="px-3 py-3 text-center align-middle border-l border-gray-100 dark:border-gray-700/60 group-hover/date:bg-gray-50 dark:group-hover/date:bg-gray-700/30 transition-colors">
+                                        @php $temuanSigneds = $temuanForms->filter(fn ($f) => ! $f->isDraft())->sortByDesc('id'); @endphp
+                                        @if($temuanSigneds->isNotEmpty())
+                                            <div class="flex flex-col items-center gap-2">
+                                                @foreach($temuanSigneds as $tf)
+                                                    <div wire:key="tf-s-{{ $tf->id }}" class="flex flex-col items-center gap-1">
+                                                        @if($tf->isFileCompleted())
+                                                            @can('lampiranPreview', \App\Models\LaporanHarian::class)
+                                                                <button type="button" wire:click="previewForm({{ $tf->id }})"
+                                                                    wire:loading.attr="disabled" wire:target="previewForm({{ $tf->id }})"
+                                                                    class="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded {{ $tf->status()->badgeClass() }} hover:underline disabled:opacity-50"
+                                                                    title="Preview scan {{ $tf->nomor }}">
+                                                                    {{ $tf->nomor }}
+                                                                    <svg wire:loading wire:target="previewForm({{ $tf->id }})" class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                                                </button>
+                                                            @else
+                                                                <span class="text-[10px] px-1.5 py-0.5 rounded {{ $tf->status()->badgeClass() }}" title="Form Temuan bertanda tangan">{{ $tf->nomor }}</span>
+                                                            @endcan
+                                                        @else
+                                                            <span class="text-[10px] px-1.5 py-0.5 rounded {{ $tf->status()->badgeClass() }}" title="Scan {{ $tf->status()->label() }}">{{ $tf->nomor }}</span>
+                                                        @endif
+                                                        @include('livewire.laporan-harian.partials.nc-form-actions', ['ncForm' => $tf, 'iconSize' => 'w-3.5 h-3.5'])
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @else
+                                            <span class="text-xs text-gray-400">-</span>
+                                        @endif
+                                    </td>
+                                @endif
+                                <td class="px-3 py-3 text-center">
+                                    @if($penutupanDraft)
+                                        <div class="flex flex-col items-center gap-1">
+                                            <span class="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded {{ $penutupanDraft->status()->badgeClass() }}"
+                                                title="Draft {{ $penutupanDraft->nomor }} — upload scan TTD untuk menutup NC ini">
+                                                @if($penutupanDraft->isFileProcessing())
+                                                    <svg class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                                @endif
+                                                {{ $penutupanDraft->nomor }}
+                                            </span>
+                                            @include('livewire.laporan-harian.partials.nc-form-actions', ['ncForm' => $penutupanDraft, 'iconSize' => 'w-3.5 h-3.5'])
+                                        </div>
                                     @else
                                         <span class="text-xs text-gray-400">-</span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-3 text-center">
-                                    @if($penutupan)
-                                        @if($nc->isOpen() && ! $penutupan->isDraft())
+                                <td class="px-3 py-3 text-center">
+                                    @if($penutupanSigned)
+                                        @if($nc->isOpen())
                                             {{-- NC di-reopen: penutupan signed lama hanya histori, bukan status aktif --}}
                                             <span class="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 dark:bg-gray-700/60 dark:text-gray-400 line-through"
-                                                title="Pernah ditutup via {{ $penutupan->nomor }} — dibuka kembali{{ $nc->reopened_at ? ' '.$nc->reopened_at->translatedFormat('d M Y') : '' }}{{ $nc->reopenedBy ? ' oleh '.$nc->reopenedBy->name : '' }}{{ $nc->reopen_note ? ': '.$nc->reopen_note : '' }}">
-                                                {{ $penutupan->nomor }}
+                                                title="Pernah ditutup via {{ $penutupanSigned->nomor }} — dibuka kembali{{ $nc->reopened_at ? ' '.$nc->reopened_at->translatedFormat('d M Y') : '' }}{{ $nc->reopenedBy ? ' oleh '.$nc->reopenedBy->name : '' }}{{ $nc->reopen_note ? ': '.$nc->reopen_note : '' }}">
+                                                {{ $penutupanSigned->nomor }}
                                             </span>
-                                        @elseif($penutupan->isFileCompleted())
-                                            @can('lampiranPreview', \App\Models\LaporanHarian::class)
-                                                <button type="button" wire:click="previewForm({{ $penutupan->id }})"
-                                                    wire:loading.attr="disabled" wire:target="previewForm({{ $penutupan->id }})"
-                                                    class="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded {{ $penutupan->status()->badgeClass() }} hover:underline disabled:opacity-50"
-                                                    title="Preview scan {{ $penutupan->nomor }}">
-                                                    {{ $penutupan->nomor }}
-                                                    <svg wire:loading wire:target="previewForm({{ $penutupan->id }})" class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                                                </button>
-                                            @else
-                                                <span class="text-[10px] px-1.5 py-0.5 rounded {{ $penutupan->status()->badgeClass() }}" title="Form Penutupan bertanda tangan">{{ $penutupan->nomor }}</span>
-                                            @endcan
                                         @else
-                                            <span class="text-[10px] px-1.5 py-0.5 rounded {{ $penutupan->status()->badgeClass() }}" title="{{ $penutupan->isDraft() ? 'Draft Form Penutupan (menunggu TTD)' : 'Scan '.$penutupan->status()->label() }}">
-                                                {{ $penutupan->nomor }}{{ $penutupan->isDraft() ? ' (draft)' : '' }}
-                                            </span>
+                                            <div class="flex flex-col items-center gap-1">
+                                                @if($penutupanSigned->isFileCompleted())
+                                                    @can('lampiranPreview', \App\Models\LaporanHarian::class)
+                                                        <button type="button" wire:click="previewForm({{ $penutupanSigned->id }})"
+                                                            wire:loading.attr="disabled" wire:target="previewForm({{ $penutupanSigned->id }})"
+                                                            class="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded {{ $penutupanSigned->status()->badgeClass() }} hover:underline disabled:opacity-50"
+                                                            title="Preview scan {{ $penutupanSigned->nomor }}">
+                                                            {{ $penutupanSigned->nomor }}
+                                                            <svg wire:loading wire:target="previewForm({{ $penutupanSigned->id }})" class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                                        </button>
+                                                    @else
+                                                        <span class="text-[10px] px-1.5 py-0.5 rounded {{ $penutupanSigned->status()->badgeClass() }}" title="Form Penutupan bertanda tangan">{{ $penutupanSigned->nomor }}</span>
+                                                    @endcan
+                                                @else
+                                                    <span class="text-[10px] px-1.5 py-0.5 rounded {{ $penutupanSigned->status()->badgeClass() }}" title="Scan {{ $penutupanSigned->status()->label() }}">{{ $penutupanSigned->nomor }}</span>
+                                                @endif
+                                                @include('livewire.laporan-harian.partials.nc-form-actions', ['ncForm' => $penutupanSigned, 'iconSize' => 'w-3.5 h-3.5'])
+                                            </div>
                                         @endif
                                     @else
                                         <span class="text-xs text-gray-400">-</span>
@@ -345,138 +364,22 @@
                                 </td>
                             </tr>
                         @endforeach
+                        </tbody>
                     @empty
+                        <tbody>
                         <tr>
-                            <td colspan="10" class="py-12 text-center">
+                            <td colspan="12" class="py-12 text-center">
                                 <svg class="h-12 w-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                                 <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Belum ada NC untuk kapal ini.</p>
                             </td>
                         </tr>
+                        </tbody>
                     @endforelse
-                </tbody>
             </table>
         </div>
         <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
             {{ $ncList->links() }}
         </div>
-    </div>
-
-    {{-- Panel Form NC: draft → cetak & TTD → unggah scan --}}
-    {{-- Tanpa overflow-hidden: popover filter yang flip ke atas jangan terpotong tepi card --}}
-    <div class="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-t-lg">
-            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Form NC (Non Conformance Report)</h3>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Unduh draft, cetak &amp; tanda tangani, lalu unggah scan-nya. Scan Form Penutupan otomatis menutup semua NC di dalamnya.</p>
-        </div>
-        <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row gap-3 sm:items-center">
-            <div class="flex-1">
-                <input wire:model.live.debounce.300ms="formSearch" type="text" placeholder="Cari nomor form..."
-                    class="w-full px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
-            </div>
-            <x-filter-popover :filters="['formJenisFilter', 'formStatusFilter']" :per-page="true" per-page-model="formPerPage" reset-method="resetFormFilters">
-                <div>
-                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Jenis</label>
-                    <x-searchable-select wire:model.live="formJenisFilter" :options="$formJenisOptions" placeholder="Semua Jenis" searchPlaceholder="Cari jenis..." />
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Status</label>
-                    <x-searchable-select wire:model.live="formStatusFilter" :options="$formStatusOptions" placeholder="Semua Status" searchPlaceholder="Cari status..." />
-                </div>
-            </x-filter-popover>
-        </div>
-        <div class="overflow-x-auto custom-scrollbar rounded-b-lg">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead class="bg-gray-50 dark:bg-gray-700/50">
-                    <tr>
-                        <x-sortable-header field="nomor" :sort-field="$formSortField" :sort-dir="$formSortDir" method="formSortBy" :compact="true">Nomor</x-sortable-header>
-                        <x-sortable-header field="jenis" :sort-field="$formSortField" :sort-dir="$formSortDir" method="formSortBy" :compact="true">Jenis</x-sortable-header>
-                        <x-sortable-header field="isi" :sort-field="$formSortField" :sort-dir="$formSortDir" method="formSortBy" :compact="true">Isi</x-sortable-header>
-                        <x-sortable-header field="status" :sort-field="$formSortField" :sort-dir="$formSortDir" method="formSortBy" :compact="true">Status</x-sortable-header>
-                        <th class="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                    @forelse($formList as $form)
-                        <tr wire:key="form-{{ $form->id }}" class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                            <td class="px-4 py-3 text-sm">
-                                <div class="font-medium text-gray-900 dark:text-white">{{ $form->nomor }}</div>
-                                <div class="text-xs text-gray-400">{{ $form->tanggal?->translatedFormat('d M Y') }} · {{ $form->createdBy?->name }}</div>
-                            </td>
-                            <td class="px-4 py-3">
-                                <span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ $form->jenis->badgeClass() }}">{{ $form->jenis->label() }}</span>
-                            </td>
-                            <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                                {{ $form->ncs_count }} NC
-                                @if($form->laporanHarian)
-                                    <div class="text-xs text-gray-400">Laporan {{ $form->laporanHarian->tanggal_laporan?->translatedFormat('d M Y') }}</div>
-                                @endif
-                            </td>
-                            <td class="px-4 py-3">
-                                <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full {{ $form->status()->badgeClass() }}">
-                                    @if($form->isFileProcessing())
-                                        <svg class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                                    @endif
-                                    {{ $form->status()->label() }}
-                                </span>
-                                @if($form->signed_at)
-                                    <div class="text-[10px] text-gray-400 mt-0.5">TTD diunggah {{ $form->signed_at->translatedFormat('d M Y') }}{{ $form->signedBy ? ' · '.$form->signedBy->name : '' }}</div>
-                                @endif
-                            </td>
-                            <td class="px-4 py-3 text-right whitespace-nowrap">
-                                <div class="inline-flex items-center gap-3">
-                                    @can('create', \App\Models\LaporanNcForm::class)
-                                        <button wire:click="downloadForm({{ $form->id }})" wire:loading.attr="disabled" wire:target="downloadForm({{ $form->id }})"
-                                            class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50" title="Unduh dokumen Word (draft untuk dicetak)">
-                                            <svg wire:loading.class="hidden" wire:target="downloadForm({{ $form->id }})" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                                            <svg wire:loading wire:target="downloadForm({{ $form->id }})" class="animate-spin w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                                        </button>
-                                    @endcan
-                                    @can('upload', $form)
-                                        <button wire:click="openUploadModal({{ $form->id }})" wire:loading.attr="disabled" wire:target="openUploadModal({{ $form->id }})"
-                                            class="{{ $form->isDraft() ? 'text-emerald-600 hover:text-emerald-800 dark:text-emerald-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400' }} disabled:opacity-50"
-                                            title="{{ $form->isDraft() ? ($form->isPenutupan() ? 'Upload scan TTD & tutup NC' : 'Upload scan TTD') : 'Ganti scan TTD' }}">
-                                            <svg wire:loading.class="hidden" wire:target="openUploadModal({{ $form->id }})" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-                                            <svg wire:loading wire:target="openUploadModal({{ $form->id }})" class="animate-spin w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                                        </button>
-                                    @endcan
-                                    @if($form->isFileCompleted())
-                                        @can('lampiranPreview', \App\Models\LaporanHarian::class)
-                                            <button wire:click="previewForm({{ $form->id }})" wire:loading.attr="disabled" wire:target="previewForm({{ $form->id }})"
-                                                class="text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 disabled:opacity-50" title="Preview scan bertanda tangan">
-                                                <svg wire:loading.class="hidden" wire:target="previewForm({{ $form->id }})" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                                                <svg wire:loading wire:target="previewForm({{ $form->id }})" class="animate-spin w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                                            </button>
-                                        @endcan
-                                    @endif
-                                    {{-- isDraft dicek eksplisit: Gate::before super admin mem-bypass cek state di Policy --}}
-                                    @if($form->isDraft())
-                                    @can('delete', $form)
-                                        <button wire:click="confirmDeleteForm({{ $form->id }})" wire:loading.attr="disabled" wire:target="confirmDeleteForm({{ $form->id }})"
-                                            class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50" title="Hapus draft">
-                                            <svg wire:loading.class="hidden" wire:target="confirmDeleteForm({{ $form->id }})" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                            <svg wire:loading wire:target="confirmDeleteForm({{ $form->id }})" class="animate-spin w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                                        </button>
-                                    @endcan
-                                    @endif
-                                </div>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="5" class="py-12 text-center">
-                                <svg class="h-12 w-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Belum ada Form NC. Generate Form Temuan dari baris tanggal laporan, atau centang NC Open untuk Form Penutupan.</p>
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-        @if($formList->hasPages())
-            <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-                {{ $formList->links() }}
-            </div>
-        @endif
     </div>
 
     {{-- Modal upload scan Form NC bertanda tangan --}}
@@ -565,6 +468,92 @@
 
     <x-delete-modal :show="$showDeleteFileModal" wire:model="showDeleteFileModal" title="Hapus File NC"
         message="File ini dan halaman hasil render akan dihapus permanen. Data NC tetap tersimpan. Lanjutkan?" confirmMethod="deleteNcFile" />
+
+    {{-- Modal daftar file per NC + kategori (ikon folder di sel File) --}}
+    @if($filesNcId)
+        @php
+            $filesNc = $ncList->getCollection()->firstWhere('id', $filesNcId);
+            $filesKategoriEnum = \App\Enums\NcFileKategori::tryFrom((string) $filesKategori);
+            $modalFiles = $filesNc && $filesKategoriEnum
+                ? $filesNc->foto->filter(fn ($file) => $file->kategori === $filesKategoriEnum)
+                : collect();
+        @endphp
+        <div class="fixed inset-0 z-50 overflow-y-auto custom-scrollbar"
+            x-data="{ previousOverflow: document.body.style.overflow, init() { document.body.style.overflow = 'hidden'; }, destroy() { document.body.style.overflow = this.previousOverflow; } }"
+            x-on:keydown.escape.window="$wire.closeNcFiles()">
+            <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+                <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75" wire:click="closeNcFiles"></div>
+                <div class="inline-block w-full align-bottom bg-white dark:bg-gray-800 rounded-lg text-left shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+                    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 sm:px-5">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                            File {{ $filesKategoriEnum?->label() ?? '' }} — {{ $filesNc?->nomor ?? '-' }}
+                        </h3>
+                        <button type="button" wire:click="closeNcFiles" wire:loading.attr="disabled" wire:target="closeNcFiles"
+                            class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors disabled:opacity-50" title="Tutup" aria-label="Tutup">
+                            <svg wire:loading.class="hidden" wire:target="closeNcFiles" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            <svg wire:loading wire:target="closeNcFiles" class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                        </button>
+                    </div>
+                    <div class="px-4 py-4 sm:px-5 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                        <div class="flex flex-wrap justify-center gap-3">
+                        @forelse($modalFiles as $f)
+                            <div wire:key="nc-modal-file-{{ $f->id }}" class="flex flex-col items-center gap-1 max-w-28">
+                                <div class="relative">
+                                @if($filesNc)
+                                    @can('update', $filesNc)
+                                        <button type="button" wire:click="confirmDeleteFile({{ $f->id }})" wire:loading.attr="disabled" wire:target="confirmDeleteFile({{ $f->id }})"
+                                            class="absolute -top-1.5 -right-1.5 z-10 inline-flex items-center justify-center w-5 h-5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-red-600 hover:text-white hover:bg-red-600 hover:border-red-600 dark:text-red-400 dark:hover:bg-red-600 dark:hover:border-red-600 shadow-sm transition-colors disabled:opacity-50"
+                                            title="Hapus file" aria-label="Hapus file">
+                                            <svg wire:loading.class="hidden" wire:target="confirmDeleteFile({{ $f->id }})" class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 6l12 12M18 6L6 18"/></svg>
+                                            <svg wire:loading wire:target="confirmDeleteFile({{ $f->id }})" class="animate-spin w-2.5 h-2.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                        </button>
+                                    @endcan
+                                @endif
+                                @if($f->isFileProcessing())
+                                    <span class="inline-flex w-16 h-16 items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50" title="Foto sedang diproses">
+                                        <svg class="animate-spin w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+                                    </span>
+                                @elseif($f->isFileFailed())
+                                    <span class="inline-flex w-16 h-16 items-center justify-center rounded-lg border border-red-200 dark:border-red-800/60 bg-red-50 dark:bg-red-900/20" title="Gagal memproses foto{{ $f->file_error ? ': '.$f->file_error : '' }}">
+                                        <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    </span>
+                                @elseif($f->hasFile() && $f->isFileCompleted())
+                                    @can('lampiranPreview', \App\Models\LaporanHarian::class)
+                                        <button type="button" wire:click="previewFoto({{ $f->id }})"
+                                            wire:loading.attr="disabled" wire:target="previewFoto({{ $f->id }})"
+                                            class="relative inline-flex w-16 h-16 items-center justify-center rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 hover:border-blue-400 dark:hover:border-blue-500 transition-colors disabled:opacity-50"
+                                            title="Preview {{ $f->file_name }}">
+                                            @if($f->isImage())
+                                                <img src="{{ route('laporan-nc-foto.file', $f) }}" alt="{{ $f->file_name }}" loading="lazy"
+                                                    wire:loading.class="hidden" wire:target="previewFoto({{ $f->id }})"
+                                                    class="w-full h-full object-cover">
+                                            @else
+                                                <svg wire:loading.class="hidden" wire:target="previewFoto({{ $f->id }})" class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                            @endif
+                                            <svg wire:loading wire:target="previewFoto({{ $f->id }})" class="animate-spin w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+                                        </button>
+                                    @else
+                                        <span class="inline-flex w-16 h-16 items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50" title="Foto bukti tersedia">
+                                            <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 00-2 2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                        </span>
+                                    @endcan
+                                @else
+                                    <span class="inline-flex w-16 h-16 items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50" title="Foto belum tersedia">
+                                        <svg class="w-6 h-6 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 00-2 2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                    </span>
+                                @endif
+                                </div>
+                                <span class="text-xs text-gray-500 dark:text-gray-400 truncate w-full" title="{{ $f->file_name }}">{{ $f->file_name }}</span>
+                            </div>
+                        @empty
+                            <span class="py-8 text-xs text-gray-400">Belum ada file.</span>
+                        @endforelse
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
     <x-image-crop-modal :show="$showCropperModal" :imageUrl="$croppingImageUrl" :cropData="$cropData" />
     <x-confirm-modal />
 

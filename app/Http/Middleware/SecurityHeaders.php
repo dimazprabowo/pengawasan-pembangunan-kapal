@@ -16,6 +16,8 @@ class SecurityHeaders
         'laporan-lampiran.file',
         'laporan-nc-foto.file',
         'laporan-nc-form.file',
+        'rapat-file.file',
+        'pengujian-file.file',
     ];
 
     public function handle(Request $request, Closure $next): Response

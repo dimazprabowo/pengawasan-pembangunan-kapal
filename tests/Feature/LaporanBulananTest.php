@@ -430,6 +430,27 @@ class LaporanBulananTest extends TestCase
         $this->assertEquals($bulan['selesai']->format('Y-m-d'), $laporan->periode_selesai->format('Y-m-d'));
     }
 
+    public function test_executive_summary_wajib_diisi(): void
+    {
+        $dataKapal = DataKapal::create([
+            'nama' => 'Kapal Uji Bulanan',
+            'status' => 'active',
+            'tanggal_mulai_pelaksanaan' => now()->subDays(60)->toDateString(),
+            'waktu_pelaksanaan_hari' => 100,
+        ]);
+
+        $bulanKe = app(KontrakPeriodeService::class)->getBulanOptions($dataKapal)[0]['value'];
+
+        Livewire::actingAs($this->admin())
+            ->test(LaporanBulananCreate::class, ['dataKapal' => $dataKapal])
+            ->set('tanggal_laporan', now()->format('Y-m-d'))
+            ->set('bulan_ke', $bulanKe)
+            ->call('save')
+            ->assertHasErrors(['ringkasan' => 'required']);
+
+        $this->assertSame(0, LaporanBulanan::where('data_kapal_id', $dataKapal->id)->count());
+    }
+
     public function test_bulan_ke_ganda_ditolak(): void
     {
         $dataKapal = $this->dataKapal();

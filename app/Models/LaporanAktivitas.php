@@ -18,7 +18,7 @@ class LaporanAktivitas extends Model
         'kurva_s_work_group_id',
         'kategori',
         'aktivitas',
-        'pic',
+        'keterangan',
     ];
 
     protected $casts = [

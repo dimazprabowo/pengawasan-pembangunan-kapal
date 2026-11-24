@@ -12,6 +12,7 @@ use App\Models\LaporanBulanan;
 use App\Services\FilePathService;
 use App\Services\KurvaSService;
 use App\Services\LaporanBulananService;
+use App\Services\QueueStatusService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -221,7 +222,7 @@ class LaporanBulananIndex extends Component
         );
     }
 
-    public function render(LaporanBulananService $service, KurvaSService $kurvaSService)
+    public function render(LaporanBulananService $service, KurvaSService $kurvaSService, QueueStatusService $queueStatusService)
     {
         $chartData = [];
         $progressHistory = [];
@@ -241,14 +242,20 @@ class LaporanBulananIndex extends Component
             }
         }
 
+        $laporanList = $service->getFiltered(
+            $this->search,
+            $this->dataKapalId,
+            $this->perPage,
+            $this->sortField,
+            $this->sortDir
+        );
+        $queueStatus = $queueStatusService->getQueueStatusMessage();
+
         return view('livewire.laporan-bulanan.laporan-bulanan-index', [
-            'laporanList' => $service->getFiltered(
-                $this->search,
-                $this->dataKapalId,
-                $this->perPage,
-                $this->sortField,
-                $this->sortDir
-            ),
+            'laporanList' => $laporanList,
+            'queueStatus' => $queueStatus,
+            'needsPoll' => $queueStatus['pending'] > 0
+                || $laporanList->getCollection()->contains(fn ($l) => $l->isDocProcessing() || $l->isPdfProcessing()),
             'dataKapal' => $this->dataKapal,
             'kurvaSChartData' => $chartData,
             'progressHistory' => $progressHistory,

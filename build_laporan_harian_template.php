@@ -52,6 +52,9 @@ $header = preg_replace('/<w:rFonts\b[^>]*\/>/', '', $z->getFromName('word/header
 // ── document.xml ──────────────────────────────────────────────────────────
 $xml = $normalizeRuns($z->getFromName('word/document.xml'));
 $xml = str_ireplace(['w:fill="0070C0"', 'w:fill="DEEAF6"'], ['w:fill="'.NAVY.'"', 'w:fill="D9E2F3"'], $xml);
+// Kolom laporan_aktivitas.pic → keterangan: placeholder template default
+// ikut di-rename; nama lama tetap diisi service untuk template custom lama.
+$xml = str_replace('aktivitas_pic', 'aktivitas_keterangan', $xml);
 
 $doc = new DOMDocument;
 $doc->preserveWhiteSpace = true;
@@ -135,6 +138,16 @@ foreach ($xp->query('/w:document/w:body/*') as $node) {
         break;
     }
     $prev = $node;
+}
+
+// 1d) Header kolom PIC di tabel Uraian Aktivitas → "Keterangan".
+// Kolom DB sudah di-rename laporan_aktivitas.keterangan (placeholder default
+// ${aktivitas_keterangan}; ${aktivitas_pic} lama tetap diisi service).
+// Teks "(PIC atau Status)" hanya untuk label field form, bukan header laporan.
+foreach ($xp->query('//w:t') as $t) {
+    if ($t->textContent === 'PIC' || $t->textContent === 'Keterangan (PIC atau Status)') {
+        $t->textContent = 'Keterangan';
+    }
 }
 
 // 2) Ambil isi blok info (paragraf "Label<tab>: nilai") sebelum tabel pertama

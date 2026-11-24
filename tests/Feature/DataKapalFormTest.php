@@ -30,7 +30,7 @@ class DataKapalFormTest extends TestCase
         $this->actingAs($this->admin())
             ->get(route('master-data.data-kapal'))
             ->assertOk()
-            ->assertSee('Data Kapal');
+            ->assertSee('Data Proyek');
     }
 
     public function test_create_page_renders_dan_edit_memakai_route_key_terenkripsi(): void
@@ -40,7 +40,7 @@ class DataKapalFormTest extends TestCase
         $this->actingAs($this->admin())
             ->get(route('master-data.data-kapal.create'))
             ->assertOk()
-            ->assertSee('Tambah Kapal');
+            ->assertSee('Tambah Proyek');
 
         $editUrl = route('master-data.data-kapal.edit', $dataKapal);
         $this->assertStringNotContainsString('/'.$dataKapal->id.'/', $editUrl);
@@ -48,7 +48,7 @@ class DataKapalFormTest extends TestCase
         $this->actingAs($this->admin())
             ->get($editUrl)
             ->assertOk()
-            ->assertSee('Edit Kapal')
+            ->assertSee('Edit Proyek')
             ->assertSee($dataKapal->nama);
     }
 

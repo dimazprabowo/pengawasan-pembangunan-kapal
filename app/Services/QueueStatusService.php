@@ -82,11 +82,15 @@ class QueueStatusService
     public function getQueueStatusMessage(): array
     {
         $isActive = $this->isQueueWorkerActive();
+        $pending = $this->getPendingJobsCount();
 
         if ($isActive) {
             return [
                 'active' => true,
-                'message' => 'Queue worker aktif - File sedang diproses',
+                'pending' => $pending,
+                'message' => $pending > 0
+                    ? "Queue worker aktif - {$pending} antrian sedang diproses"
+                    : 'Queue worker aktif - File sedang diproses',
                 'icon' => 'processing',
                 'color' => 'blue',
             ];
@@ -94,6 +98,7 @@ class QueueStatusService
 
         return [
             'active' => false,
+            'pending' => $pending,
             'message' => 'Queue worker tidak aktif - File menunggu diproses',
             'icon' => 'warning',
             'color' => 'amber',

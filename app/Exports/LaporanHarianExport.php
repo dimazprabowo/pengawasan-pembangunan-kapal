@@ -56,11 +56,13 @@ class LaporanHarianExport implements FromQuery, ShouldAutoSize, WithHeadings, Wi
             'No',
             'Judul',
             'Tanggal Laporan',
-            'Data Kapal',
+            'Data Proyek',
             'Owner',
             'Galangan',
             'Pembuat',
             'Tanggal Dibuat',
+            'Status Hari',
+            'Alasan Libur',
         ];
     }
 
@@ -78,6 +80,8 @@ class LaporanHarianExport implements FromQuery, ShouldAutoSize, WithHeadings, Wi
             $laporan->dataKapal->galangan->nama ?? '-',
             $laporan->user->name ?? '-',
             $laporan->created_at->format('d/m/Y H:i'),
+            $laporan->status_hari->label(),
+            $laporan->alasan_libur ?? '-',
         ];
     }
 

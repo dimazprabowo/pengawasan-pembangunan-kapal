@@ -13,6 +13,7 @@ use App\Models\LaporanLampiran;
 use App\Models\User;
 use App\Services\LaporanHarianService;
 use App\Services\LaporanHarianWordService;
+use App\Services\WordAttachmentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
@@ -120,7 +121,7 @@ class LaporanHarianAktivitasLampiranTest extends TestCase
         $wgLain = KurvaSWorkGroup::where('data_kapal_id', '!=', $this->dataKapal->id)->firstOrFail();
 
         app(LaporanHarianService::class)->syncAktivitas($laporan, [
-            ['row_key' => 'n1', 'id' => null, 'work_group_id' => $wgLain->id, 'aktivitas' => 'Aktivitas X', 'pic' => ''],
+            ['row_key' => 'n1', 'id' => null, 'work_group_id' => $wgLain->id, 'aktivitas' => 'Aktivitas X', 'keterangan' => ''],
         ]);
 
         $aktivitas = $laporan->aktivitas()->sole();
@@ -197,6 +198,53 @@ class LaporanHarianAktivitasLampiranTest extends TestCase
             $this->assertStringNotContainsString('Konstruksi Lambung', $text);
             $this->assertStringContainsString('Overhaul mesin induk', $text);
             $this->assertStringNotContainsString('${', $text);
+        } finally {
+            @unlink(storage_path('app/private/'.$docPath));
+            Storage::disk('local')->delete($path);
+        }
+    }
+
+    public function test_generate_word_tidak_menyisakan_paragraf_page_break_berdiri_sendiri(): void
+    {
+        $laporan = $this->laporan();
+        $path = 'laporan-lampiran/harian/test_'.uniqid().'.png';
+        $img = imagecreatetruecolor(40, 30);
+        ob_start();
+        imagepng($img);
+        Storage::disk('local')->put($path, ob_get_clean());
+        foreach (range(1, 5) as $i) {
+            $a = $laporan->aktivitas()->create(['kategori' => 'Permesinan', 'aktivitas' => 'Aktivitas '.$i]);
+            $a->lampiran()->create(['laporan_harian_id' => $laporan->id, 'file_path' => $path, 'file_name' => 'foto.png', 'file_status' => 'completed']);
+        }
+
+        $docPath = app(LaporanHarianWordService::class)->generate($laporan->fresh());
+
+        try {
+            $zip = new \ZipArchive;
+            $zip->open(storage_path('app/private/'.$docPath));
+            $xml = $zip->getFromName('word/document.xml');
+            $zip->close();
+
+            $doc = new \DOMDocument;
+            $doc->loadXML($xml);
+            $xp = new \DOMXPath($doc);
+            $xp->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+
+            // Tidak ada paragraf kosong berisi page break sebelum paragraf lain (penyebab halaman kosong)
+            $standalone = $xp->query('/w:document/w:body/w:p[.//w:br[@w:type="page"]][not(normalize-space())][following-sibling::*[1][self::w:p]]');
+            $this->assertSame(0, $standalone->length, $standalone->length ? $doc->saveXML($standalone->item(0)->nextSibling) : '');
+
+            // Break sebelum judul F dipindah menjadi pageBreakBefore
+            $lampiran = $xp->query('/w:document/w:body/w:p[contains(.,"F. Lampiran")]/w:pPr/w:pageBreakBefore');
+            $this->assertGreaterThan(0, $lampiran->length);
+
+            // Pemisah antar-halaman grid foto tetap ada tetapi dikempeskan (line exact 20)
+            $pemisah = $xp->query('/w:document/w:body/w:p[.//w:br[@w:type="page"]][following-sibling::w:tbl]/w:pPr/w:spacing[@w:line="20"][@w:lineRule="exact"]');
+            $this->assertGreaterThan(0, $pemisah->length);
+
+            // Signature normalisasi diset agar dokumen lama dikenali stale oleh mingguan/bulanan
+            $this->assertTrue(app(WordAttachmentService::class)
+                ->isBreakNormalized(storage_path('app/private/'.$docPath)));
         } finally {
             @unlink(storage_path('app/private/'.$docPath));
             Storage::disk('local')->delete($path);

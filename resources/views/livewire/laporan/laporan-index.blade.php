@@ -2,13 +2,13 @@
     {{-- Header --}}
     <div class="mb-6">
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Manajemen Laporan</h2>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Pilih data kapal untuk melihat dan mengelola laporan pengawasan pembangunan</p>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Pilih data proyek untuk melihat dan mengelola laporan pengawasan pembangunan</p>
     </div>
 
     {{-- Search + Filter + Actions --}}
     <div class="mb-6 flex flex-col lg:flex-row lg:items-center gap-3">
         <div class="flex-1">
-            <input wire:model.live.debounce.300ms="search" type="text" placeholder="Cari data kapal..."
+            <input wire:model.live.debounce.300ms="search" type="text" placeholder="Cari data proyek..."
                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
         </div>
 
@@ -59,7 +59,7 @@
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead class="bg-gray-50 dark:bg-gray-900">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Data Kapal</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Data Proyek</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Owner</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Galangan</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Laporan</th>
@@ -172,10 +172,10 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                                 </svg>
                                 @if($search || $ownerFilter || $galanganFilter)
-                                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Tidak ada data kapal yang cocok dengan filter</p>
+                                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Tidak ada data proyek yang cocok dengan filter</p>
                                 @else
-                                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Belum ada data kapal yang dapat diakses</p>
-                                    <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">Hubungi administrator untuk mendapatkan akses ke data data kapal</p>
+                                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Belum ada data proyek yang dapat diakses</p>
+                                    <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">Hubungi administrator untuk mendapatkan akses ke data proyek</p>
                                 @endif
                             </td>
                         </tr>

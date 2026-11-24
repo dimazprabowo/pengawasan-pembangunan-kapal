@@ -61,7 +61,7 @@ class LaporanBulananExport implements FromQuery, ShouldAutoSize, WithHeadings, W
             'Judul',
             'Periode',
             'Tanggal Laporan',
-            'Data Kapal',
+            'Data Proyek',
             'Owner',
             'Galangan',
             'Pembuat',

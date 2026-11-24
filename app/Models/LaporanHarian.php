@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\LaporanHariStatus;
 use App\Services\KontrakPeriodeService;
 use App\Traits\HasEncryptedRouteKey;
 use App\Traits\HasUserStamps;
@@ -12,6 +13,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class LaporanHarian extends Model
 {
@@ -20,14 +23,35 @@ class LaporanHarian extends Model
     /** user_id sudah menjadi creator */
     protected array $userStamps = ['updated_by'];
 
-    use HasEncryptedRouteKey, HasFactory, SoftDeletes;
+    use HasEncryptedRouteKey, HasFactory, LogsActivity, SoftDeletes;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()->useLogName('laporan_harian')
+            ->logOnly(['tanggal_laporan', 'data_kapal_id', 'is_libur', 'alasan_libur'])
+            ->logOnlyDirty()->dontSubmitEmptyLogs();
+    }
+
+    public function getStatusHariAttribute(): LaporanHariStatus
+    {
+        return $this->is_libur ? LaporanHariStatus::Libur : LaporanHariStatus::Kerja;
+    }
+
+    public function getKeteranganHariAttribute(): string
+    {
+        return $this->is_libur ? $this->status_hari->label().': '.$this->alasan_libur : $this->status_hari->label();
+    }
 
     protected $table = 'laporan_harian';
+
+    protected $attributes = ['is_libur' => false];
 
     protected $fillable = [
         'user_id',
         'data_kapal_id',
         'tanggal_laporan',
+        'is_libur',
+        'alasan_libur',
         'file_path',
         'file_name',
         'file_size',
@@ -56,6 +80,7 @@ class LaporanHarian extends Model
 
     protected $casts = [
         'tanggal_laporan' => 'date',
+        'is_libur' => 'boolean',
         'suhu' => 'decimal:2',
         'file_processed_at' => 'datetime',
         'doc_generated_at' => 'datetime',

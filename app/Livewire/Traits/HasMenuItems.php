@@ -68,7 +68,7 @@ trait HasMenuItems
         }
         if ($perms['data_kapal_view']) {
             $masterDataChildren[] = [
-                'name' => 'Data Kapal',
+                'name' => 'Data Proyek',
                 'route' => 'master-data.data-kapal',
                 'active' => $req->routeIs('master-data.data-kapal*'),
             ];

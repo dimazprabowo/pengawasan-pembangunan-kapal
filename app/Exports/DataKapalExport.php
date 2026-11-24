@@ -58,7 +58,7 @@ class DataKapalExport implements FromCollection, ShouldAutoSize, WithHeadings, W
         return [
             'No',
             'Kode',
-            'Data Kapal',
+            'Data Proyek',
             'Owner',
             'Kode Owner',
             'Deskripsi',
@@ -105,6 +105,6 @@ class DataKapalExport implements FromCollection, ShouldAutoSize, WithHeadings, W
 
     public function title(): string
     {
-        return 'Data Kapal';
+        return 'Data Proyek';
     }
 }

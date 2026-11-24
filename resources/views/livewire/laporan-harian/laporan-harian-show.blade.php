@@ -25,6 +25,11 @@
                 <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Detail Laporan Harian</h2>
             </div>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Informasi lengkap laporan</p>
+            @if($laporan->is_libur)
+                <div class="mt-2 flex flex-wrap items-center gap-2">
+                    <span class="px-2 py-1 rounded-lg text-xs font-medium {{ $laporan->status_hari->badgeClass() }}">{{ $laporan->status_hari->label() }}</span>
+                </div>
+            @endif
         </div>
         <div class="flex items-center gap-2">
             @can('update', $laporan)
@@ -46,7 +51,7 @@
         </div>
     </div>
 
-    {{-- Data Kapal Info Card --}}
+    {{-- Data Proyek Info Card --}}
     <x-data-kapal-info-card :data-kapal="$laporan->dataKapal" />
 
     {{-- Word Document Card (Harian only) --}}
@@ -100,7 +105,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
                             <p class="text-sm text-green-700 dark:text-green-400">
-                                Template khusus tersedia untuk data kapal <strong>{{ $laporan->dataKapal->nama }}</strong>. Dokumen akan digenerate menggunakan template khusus.
+                                Template khusus tersedia untuk proyek <strong>{{ $laporan->dataKapal->nama }}</strong>. Dokumen akan digenerate menggunakan template khusus.
                             </p>
                         </div>
                     @else
@@ -109,7 +114,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                             </svg>
                             <p class="text-sm text-yellow-700 dark:text-yellow-400">
-                                Template khusus belum tersedia untuk data kapal <strong>{{ $laporan->dataKapal->nama }}</strong>. Dokumen akan digenerate menggunakan template default. 
+                                Template khusus belum tersedia untuk proyek <strong>{{ $laporan->dataKapal->nama }}</strong>. Dokumen akan digenerate menggunakan template default.
                                 @can('data_kapal_upload_template')
                                     <a href="{{ route('master-data.data-kapal') }}" wire:navigate class="underline hover:text-yellow-800 dark:hover:text-yellow-300">Upload template di Master Data Kapal</a>
                                 @endcan
@@ -351,6 +356,17 @@
 
 
 
+            @if($laporan->is_libur)
+                <div class="rounded-lg border border-gray-200 bg-gray-50 px-5 py-8 text-center dark:border-gray-700 dark:bg-gray-700/30 sm:px-8" role="status">
+                    <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full {{ $laporan->status_hari->badgeClass() }}">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2Zm4-5 2 2 4-4" /></svg>
+                    </div>
+                    <span class="inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-semibold {{ $laporan->status_hari->badgeClass() }}">{{ $laporan->status_hari->label() }}</span>
+                    <h3 class="mt-3 text-lg font-semibold text-gray-900 dark:text-white">Keterangan Hari Libur</h3>
+                    <p class="mx-auto mt-2 max-w-2xl whitespace-pre-line break-words text-sm leading-relaxed text-gray-700 dark:text-gray-300">{{ $laporan->alasan_libur }}</p>
+                    <p class="mt-4 text-xs leading-relaxed text-gray-500 dark:text-gray-400">Laporan ini ditandai sebagai hari libur. Rincian operasional tidak ditampilkan.</p>
+                </div>
+            @else
             {{-- Weather Information for Harian --}}
                 @php
                     $hasWeatherData = $laporan->suhu || $laporan->cuacaPagi || $laporan->kelembabanPagi || $laporan->cuacaSiang || $laporan->kelembabanSiang || $laporan->cuacaSore || $laporan->kelembabanSore;
@@ -485,6 +501,7 @@
                         />
                     @endif
                 </x-laporan.section-wrapper>
+            @endif
         </div>
     </div>
 
@@ -553,8 +570,8 @@
         :show="$showReleaseConfirm"
         showProperty="showReleaseConfirm"
         title="Release Dokumen ke PDF?"
-        message="Dokumen Word akan dikonversi menjadi PDF rilis. Jika PDF sudah ada, akan digantikan dengan yang baru."
-        type="regenerate"
+        message="Dokumen Word tetap tersimpan dan akan dikonversi menjadi PDF rilis. Hanya PDF rilis lama, jika ada, yang akan diganti."
+        type="release"
         :docName="$laporan->doc_name"
         confirmAction="releasePdf"
         cancelAction="cancelReleasePdf"

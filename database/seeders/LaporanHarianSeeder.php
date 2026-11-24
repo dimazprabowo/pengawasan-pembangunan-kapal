@@ -103,7 +103,7 @@ class LaporanHarianSeeder extends Seeder
                     'kurva_s_work_group_id' => $wg->id,
                     'kategori' => $wg->nama,
                     'aktivitas' => $uraian,
-                    'pic' => ['QC Galangan', 'Surveyor BKI', 'Owner Surveyor'][($n + $k) % 3],
+                    'keterangan' => ['QC Galangan', 'Surveyor BKI', 'Owner Surveyor'][($n + $k) % 3],
                 ]);
             }
         }
@@ -113,7 +113,7 @@ class LaporanHarianSeeder extends Seeder
                 'kurva_s_work_group_id' => null,
                 'kategori' => null,
                 'aktivitas' => 'Rapat koordinasi harian dan pembahasan K3',
-                'pic' => 'Lead Inspector',
+                'keterangan' => 'Lead Inspector',
             ]);
         }
     }

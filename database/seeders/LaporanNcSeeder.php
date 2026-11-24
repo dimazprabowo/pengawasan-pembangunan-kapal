@@ -84,7 +84,10 @@ class LaporanNcSeeder extends Seeder
                             ]
                         );
 
-                        $this->seedFoto($nc, $creator);
+                        // NC closed selalu punya file Close; sebagian NC Open juga
+                        // (bukti perbaikan sudah ada, menunggu Form Penutupan)
+                        // agar checklist Form Penutupan bisa didemokan.
+                        $this->seedFoto($nc, $creator, $closed || $counter % 3 === 0);
                         $count++;
                     }
                 });
@@ -96,14 +99,14 @@ class LaporanNcSeeder extends Seeder
     }
 
     /**
-     * Foto NC nyata (WebP via Intervention): selalu 1 foto BEFORE; NC yang
-     * closed mendapat foto AFTER verifikasi perbaikan.
+     * Foto NC nyata (WebP via Intervention): selalu 1 foto OPEN; NC dengan
+     * $withClose mendapat foto CLOSE verifikasi perbaikan.
      */
-    private function seedFoto(LaporanNc $nc, User $uploader): void
+    private function seedFoto(LaporanNc $nc, User $uploader, bool $withClose): void
     {
-        $items = [['kategori' => NcFileKategori::Before, 'nama' => 'Foto Temuan '.$nc->nomor]];
-        if ($nc->status === NcStatus::Closed) {
-            $items[] = ['kategori' => NcFileKategori::After, 'nama' => 'Foto Perbaikan '.$nc->nomor];
+        $items = [['kategori' => NcFileKategori::Open, 'nama' => 'Foto Temuan '.$nc->nomor]];
+        if ($withClose) {
+            $items[] = ['kategori' => NcFileKategori::Close, 'nama' => 'Foto Perbaikan '.$nc->nomor];
         }
 
         foreach ($items as $item) {
@@ -122,9 +125,8 @@ class LaporanNcSeeder extends Seeder
     }
 
     /**
-     * Form NC: per laporan harian yang punya NC dibuat form TEMUAN (signed,
-     * dengan file PDF scan nyata). NC yang closed juga masuk form PENUTUPAN
-     * per kapal agar daftar form NC tampak seperti pengisian nyata.
+     * Form NC: per laporan harian yang punya NC dibuat form TEMUAN (sebagian
+     * signed dengan file PDF scan nyata, sebagian draft menunggu TTD).
      */
     private function seedForms($users): void
     {

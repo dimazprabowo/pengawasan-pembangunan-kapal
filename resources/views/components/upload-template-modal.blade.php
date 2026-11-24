@@ -19,7 +19,7 @@
                             Upload Template {{ ucfirst($tipe) }}
                         </h3>
                         <p class="text-sm text-gray-500 dark:text-gray-400">
-                            Upload file template laporan {{ $tipe }} untuk data kapal ini.
+                            Upload file template laporan {{ $tipe }} untuk proyek ini.
                         </p>
                     </div>
                     <div class="mb-6">

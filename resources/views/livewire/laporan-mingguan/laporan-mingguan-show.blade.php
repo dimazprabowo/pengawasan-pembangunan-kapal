@@ -46,7 +46,7 @@
         </div>
     </div>
 
-    {{-- Data Kapal Info Card --}}
+    {{-- Data Proyek Info Card --}}
     <x-data-kapal-info-card :data-kapal="$laporan->dataKapal" />
 
     {{-- Word Document Card --}}
@@ -100,7 +100,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
                             <p class="text-sm text-green-700 dark:text-green-400">
-                                Template khusus tersedia untuk data kapal <strong>{{ $laporan->dataKapal->nama }}</strong>. Dokumen akan digenerate menggunakan template khusus.
+                                Template khusus tersedia untuk proyek <strong>{{ $laporan->dataKapal->nama }}</strong>. Dokumen akan digenerate menggunakan template khusus.
                             </p>
                         </div>
                     @else
@@ -109,7 +109,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                             </svg>
                             <p class="text-sm text-yellow-700 dark:text-yellow-400">
-                                Template khusus belum tersedia untuk data kapal <strong>{{ $laporan->dataKapal->nama }}</strong>. Dokumen akan digenerate menggunakan template default.
+                                Template khusus belum tersedia untuk proyek <strong>{{ $laporan->dataKapal->nama }}</strong>. Dokumen akan digenerate menggunakan template default.
                                 @can('data_kapal_upload_template')
                                     <a href="{{ route('master-data.data-kapal') }}" wire:navigate class="underline hover:text-yellow-800 dark:hover:text-yellow-300">Upload template di Master Data Kapal</a>
                                 @endcan
@@ -585,8 +585,8 @@
             :show="$showReleaseConfirm"
             showProperty="showReleaseConfirm"
             title="Release Dokumen ke PDF?"
-            message="Dokumen Word akan dikonversi menjadi PDF rilis. Jika PDF sudah ada, akan digantikan dengan yang baru."
-            type="regenerate"
+            message="Dokumen Word tetap tersimpan dan akan dikonversi menjadi PDF rilis. Hanya PDF rilis lama, jika ada, yang akan diganti."
+            type="release"
             :docName="$laporan->doc_name"
             confirmAction="releasePdf"
             cancelAction="cancelReleasePdf"

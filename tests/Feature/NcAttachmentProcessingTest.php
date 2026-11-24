@@ -39,7 +39,7 @@ class NcAttachmentProcessingTest extends TestCase
             Storage::disk('local')->assertExists($page);
             $this->assertSame(IMAGETYPE_WEBP, getimagesize(Storage::disk('local')->path($page))[2]);
         }
-        $file = new LaporanNcFoto(['kategori' => 'after', 'file_name' => 'scan.pdf', 'file_path' => 'scan.pdf', 'file_status' => 'completed', 'rendered_pages' => $pages]);
+        $file = new LaporanNcFoto(['kategori' => 'close', 'file_name' => 'scan.pdf', 'file_path' => 'scan.pdf', 'file_status' => 'completed', 'rendered_pages' => $pages]);
         $nc = new LaporanNc(['nomor' => 'NC-001', 'kendala' => 'Las & sambungan']);
         $nc->setRelation('foto', collect([$file]));
         $document = new PhpWord;
@@ -56,11 +56,15 @@ class NcAttachmentProcessingTest extends TestCase
             $this->assertTrue($dom->loadXML($xml, LIBXML_NONET));
             $xpath = new \DOMXPath($dom);
             $this->assertSame(2, $xpath->query('//*[local-name()="drawing"]')->length);
-            $this->assertSame(2, $xpath->query('//*[local-name()="pageBreakBefore"]')->length);
-            $this->assertStringContainsString('Halaman 1', $xml);
-            $this->assertStringContainsString('Halaman 2', $xml);
-            $this->assertStringContainsString('After', $xml);
-            $this->assertStringContainsString('Las &amp; sambungan', $xml);
+            $this->assertSame(1, $xpath->query('//*[local-name()="pageBreakBefore"]')->length);
+            $this->assertStringNotContainsString('Halaman 1', $xml);
+            $this->assertStringNotContainsString('Halaman 2', $xml);
+            $this->assertStringNotContainsString('Close', $xml);
+            $this->assertStringNotContainsString('Las &amp; sambungan', $xml);
+            $this->assertStringNotContainsString('scan.pdf', $dom->textContent);
+            $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+            $this->assertSame('0', $xpath->evaluate('string(/w:document/w:body/w:sectPr/w:pgMar/@w:left)'));
+            $this->assertSame(3, $xpath->query('/w:document/w:body/w:sectPr/w:footerReference')->length);
             $this->assertStringNotContainsString('altChunk', $xml);
             $this->assertSame(2, count(array_filter(range(0, $zip->numFiles - 1), fn ($i) => str_starts_with($zip->getNameIndex($i), 'word/media/att_'))));
         } finally {

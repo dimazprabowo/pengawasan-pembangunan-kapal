@@ -96,7 +96,7 @@ $p('${tabel_info_umum}');
 
 // ══ A. RESUME ════════════════════════════════════════════════════════════
 $section->addTitle('A. RESUME', 1);
-$section->addTitle('1. Ringkasan Kegiatan Major', 2);
+$section->addTitle('1. Ringkasan Kegiatan Utama', 2);
 // ${ringkasan} di dalam ${blok_ringkasan}: service meng-clone blok per baris
 // input sehingga tiap paragraf logis menjadi <w:p> sendiri. Tanpa itu newline
 // menjadi <w:br/> dalam satu paragraf justify dan baris sebelum break ikut

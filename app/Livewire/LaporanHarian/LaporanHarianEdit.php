@@ -38,6 +38,10 @@ class LaporanHarianEdit extends Component
 
     public string $tanggal_laporan = '';
 
+    public bool $is_libur = false;
+
+    public string $alasan_libur = '';
+
     public ?float $suhu = null;
 
     public ?int $cuaca_pagi_id = null;
@@ -75,7 +79,7 @@ class LaporanHarianEdit extends Component
     // Foto baru per uraian aktivitas - struktur: [row_key => ['file' => null, 'cropData' => null, 'is_cropped' => false]]
     public array $foto = [];
 
-    // Foto bukti (before) baru per NC - struktur: [row_key => ['file' => null, 'cropData' => null, 'is_cropped' => false]]
+    // Foto bukti (open) baru per NC - struktur: [row_key => ['file' => null, 'cropData' => null, 'is_cropped' => false]]
     public array $ncFoto = [];
 
     // Preferensi autosave draft per user (persisten via cache)
@@ -134,6 +138,8 @@ class LaporanHarianEdit extends Component
         $this->data_kapal_id = $laporanHarian->data_kapal_id;
         $this->autoSave = Cache::get('lh_draft_autosave:'.auth()->id(), true);
         $this->tanggal_laporan = $laporanHarian->tanggal_laporan->format('Y-m-d');
+        $this->is_libur = (bool) $laporanHarian->is_libur;
+        $this->alasan_libur = $laporanHarian->alasan_libur ?? '';
 
         $this->suhu = $laporanHarian->suhu;
         $this->cuaca_pagi_id = $laporanHarian->cuaca_pagi_id;
@@ -226,6 +232,8 @@ class LaporanHarianEdit extends Component
             'foto.*.preview' => 'nullable|image|max:5120',
         ];
 
+        $rules['is_libur'] = 'required|boolean';
+        $rules['alasan_libur'] = 'nullable|required_if:is_libur,true|string|max:1000';
         $rules['suhu'] = 'nullable|numeric|min:-50|max:100';
         $rules['cuaca_pagi_id'] = 'nullable|exists:cuaca,id';
         $rules['kelembaban_pagi_id'] = 'nullable|exists:kelembaban,id';
@@ -280,7 +288,7 @@ class LaporanHarianEdit extends Component
                 $rules["aktivitas.{$i}.aktivitas"] = 'required|string';
             }
         }
-        $rules['aktivitas.*.pic'] = 'nullable|string|max:255';
+        $rules['aktivitas.*.keterangan'] = 'nullable|string|max:255';
 
         return $rules;
     }
@@ -299,11 +307,14 @@ class LaporanHarianEdit extends Component
         $attributes = [
             'data_kapal_id' => 'data kapal',
             'tanggal_laporan' => 'tanggal laporan',
+            'is_libur' => 'status hari libur',
+            'alasan_libur' => 'alasan libur',
             'foto.*.file' => 'foto lampiran',
             'foto.*.preview' => 'pratinjau foto',
             'ncFoto.*.file' => 'foto bukti NC',
             'ncFoto.*.preview' => 'pratinjau foto',
             'aktivitas.*.aktivitas' => 'uraian aktivitas',
+            'aktivitas.*.keterangan' => 'keterangan aktivitas',
             'nc.*.kendala' => 'kendala NC',
         ];
 
@@ -551,9 +562,23 @@ class LaporanHarianEdit extends Component
         });
     }
 
+    public function updatedAlasanLibur(): void
+    {
+        $this->validateOnly('alasan_libur');
+    }
+
+    public function toggleLibur(): void
+    {
+        $this->authorize('update', $this->laporan);
+        $this->authorizeDataKapalAccess($this->dataKapal);
+        $this->is_libur = ! $this->is_libur;
+    }
+
     public function save(LaporanHarianService $service): void
     {
         $this->authorize('update', $this->laporan);
+        $this->authorizeDataKapalAccess($this->dataKapal);
+        abort_unless($this->data_kapal_id === $this->dataKapal->id && $this->laporan->data_kapal_id === $this->dataKapal->id, 403);
 
         try {
             $this->validate();
@@ -566,6 +591,8 @@ class LaporanHarianEdit extends Component
             $data = [
                 'data_kapal_id' => $this->data_kapal_id,
                 'tanggal_laporan' => $this->tanggal_laporan,
+                'is_libur' => $this->is_libur,
+                'alasan_libur' => $this->alasan_libur,
             ];
 
             $data['suhu'] = $this->suhu;
@@ -576,63 +603,19 @@ class LaporanHarianEdit extends Component
             $data['cuaca_sore_id'] = $this->cuaca_sore_id;
             $data['kelembaban_sore_id'] = $this->kelembaban_sore_id;
 
-            $service->update($this->laporan, $data);
-
             // Update dynamic inputs
-
             // Sync personel - allow partial data (any field filled)
-            $this->laporan->personel()->delete();
-            foreach ($this->personel as $personelData) {
-                $hasData = ! empty($personelData['jabatan']) ||
-                          ! empty($personelData['jumlah']) ||
-                          ! empty($personelData['keterangan']);
-
-                if ($hasData) {
-                    $this->laporan->personel()->create([
-                        'jabatan' => $personelData['jabatan'] ?: null,
-                        'jumlah' => $personelData['jumlah'] ?: null,
-                        'keterangan' => $personelData['keterangan'] ?: null,
-                    ]);
-                }
-            }
-
             // Sync peralatan - allow partial data (any field filled)
-            $this->laporan->peralatan()->delete();
-            foreach ($this->peralatan as $peralatanData) {
-                $hasData = ! empty($peralatanData['jenis']) ||
-                          ! empty($peralatanData['jumlah']) ||
-                          ! empty($peralatanData['keterangan']);
-
-                if ($hasData) {
-                    $this->laporan->peralatan()->create([
-                        'jenis' => $peralatanData['jenis'] ?: null,
-                        'jumlah' => $peralatanData['jumlah'] ?: null,
-                        'keterangan' => $peralatanData['keterangan'] ?: null,
-                    ]);
-                }
-            }
-
             // Sync consumable - allow partial data (any field filled)
-            $this->laporan->consumable()->delete();
-            foreach ($this->consumable as $consumableData) {
-                $hasData = ! empty($consumableData['jenis']) ||
-                          ! empty($consumableData['jumlah']) ||
-                          ! empty($consumableData['keterangan']);
-
-                if ($hasData) {
-                    $this->laporan->consumable()->create([
-                        'jenis' => $consumableData['jenis'] ?: null,
-                        'jumlah' => $consumableData['jumlah'] ?: null,
-                        'keterangan' => $consumableData['keterangan'] ?: null,
-                    ]);
-                }
-            }
-
             // Uraian aktivitas per kategori + foto lampirannya (update/insert/hapus by id)
-            $fotoCount = $service->syncAktivitas($this->laporan, $this->aktivitas, $this->foto);
-
-            // NC + foto bukti (before); dokumen after tetap diunggah via List NC
-            $fotoCount += app(LaporanNcService::class)->syncNc($this->laporan, $this->nc, $this->ncFoto);
+            // NC + foto bukti (open); dokumen close tetap diunggah via List NC
+            $fotoCount = $service->saveForm($this->laporan, $data, [
+                'personel' => $this->personel,
+                'peralatan' => $this->peralatan,
+                'consumable' => $this->consumable,
+                'aktivitas' => $this->aktivitas,
+                'nc' => $this->nc,
+            ], $this->foto, $this->ncFoto);
 
             $message = 'Laporan Harian berhasil diupdate!';
             if ($fotoCount > 0) {

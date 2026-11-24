@@ -61,6 +61,19 @@ class LaporanNcFormTest extends TestCase
         return $laporan;
     }
 
+    /**
+     * File Close completed — syarat eligibility Form Penutupan.
+     */
+    private function beriCloseFile(LaporanNc $nc): void
+    {
+        $nc->foto()->create([
+            'kategori' => 'close',
+            'file_name' => 'close-'.$nc->id.'.png',
+            'file_path' => 'close/'.$nc->id.'.png',
+            'file_status' => 'completed',
+        ]);
+    }
+
     #[Test]
     public function form_temuan_berisi_nc_hari_itu_dan_generate_ulang_menyegarkan_draft(): void
     {
@@ -102,6 +115,7 @@ class LaporanNcFormTest extends TestCase
         Storage::fake('local');
         $hari1 = $this->laporanDenganNc(now()->subDays(4)->toDateString(), ['A']);
         $hari2 = $this->laporanDenganNc(now()->subDays(3)->toDateString(), ['B', 'C']);
+        LaporanNc::all()->each(fn (LaporanNc $nc) => $this->beriCloseFile($nc));
         $ids = LaporanNc::pluck('id')->all();
 
         [$form, $skipped] = $this->forms->createPenutupan($this->dataKapal->id, $ids);
@@ -125,6 +139,7 @@ class LaporanNcFormTest extends TestCase
     public function nc_di_draft_penutupan_lain_dilewati_dan_hapus_draft_membebaskannya(): void
     {
         $this->laporanDenganNc(now()->subDays(3)->toDateString(), ['A', 'B']);
+        LaporanNc::all()->each(fn (LaporanNc $nc) => $this->beriCloseFile($nc));
         [$a, $b] = LaporanNc::orderBy('id')->get()->all();
 
         [$draft] = $this->forms->createPenutupan($this->dataKapal->id, [$a->id]);
@@ -160,7 +175,7 @@ class LaporanNcFormTest extends TestCase
     }
 
     #[Test]
-    public function ncr_close_hanya_memuat_foto_dan_halaman_pdf_after(): void
+    public function ncr_close_hanya_memuat_foto_dan_halaman_pdf_close(): void
     {
         Storage::fake('local');
         // Template Form NC dibaca dari disk yang sama — copy build artifact
@@ -174,7 +189,7 @@ class LaporanNcFormTest extends TestCase
         });
         $laporan = $this->laporanDenganNc(now()->subDays(3)->toDateString(), ['Las porositas']);
         $nc = $laporan->ncs()->firstOrFail();
-        foreach (['before', 'after'] as $kategori) {
+        foreach (['open', 'close'] as $kategori) {
             $imagePath = $kategori.'/foto.png';
             Storage::disk('local')->put($imagePath, UploadedFile::fake()->image('foto.png')->getContent());
             Storage::disk('local')->put($kategori.'/scan.pdf', '%PDF-1.4');
@@ -189,13 +204,13 @@ class LaporanNcFormTest extends TestCase
             $this->assertTrue($zip->open($path));
             $xml = $zip->getFromName('word/document.xml');
             $this->assertStringContainsString('NCR - CLOSE', $xml);
-            $this->assertStringContainsString('After', $xml);
-            $this->assertStringContainsString('after-scan.pdf', $xml);
-            $this->assertStringNotContainsString('— Before —', $xml);
-            $this->assertStringNotContainsString('before-scan.pdf', $xml);
+            $this->assertStringContainsString('Close', $xml);
+            $this->assertStringContainsString('close-scan.pdf', $xml);
+            $this->assertStringNotContainsString('— Open —', $xml);
+            $this->assertStringNotContainsString('open-scan.pdf', $xml);
             $document = new \DOMDocument;
             $this->assertTrue($document->loadXML($xml, LIBXML_NONET));
-            $this->assertSame(2, substr_count($document->textContent, '— After —'));
+            $this->assertSame(2, substr_count($document->textContent, '— Close —'));
             $this->assertCount(4, $form->ncs->first()->foto);
         } finally {
             $zip->close();
@@ -204,19 +219,25 @@ class LaporanNcFormTest extends TestCase
     }
 
     #[Test]
-    public function ncr_close_tanpa_after_tidak_memakai_before_sebagai_pengganti(): void
+    public function ncr_close_tanpa_file_close_tidak_memakai_open_sebagai_pengganti(): void
     {
         $laporan = $this->laporanDenganNc(now()->subDays(3)->toDateString(), ['Las porositas']);
         $nc = $laporan->ncs()->firstOrFail();
-        $nc->foto()->create(['kategori' => 'before', 'file_name' => 'before.pdf', 'file_status' => 'pending']);
-        [$form] = $this->forms->createPenutupan($this->dataKapal->id, [$nc->id]);
+        $nc->foto()->create(['kategori' => 'open', 'file_name' => 'open.pdf', 'file_status' => 'pending']);
+        // Form dibuat langsung (bypass eligibility) — tujuannya menguji aturan
+        // generator dokumen, bukan eligibility penutupan.
+        $form = LaporanNcForm::create([
+            'data_kapal_id' => $this->dataKapal->id, 'jenis' => 'penutupan',
+            'nomor' => $this->dataKapal->kode.'-NCR-001', 'tanggal' => now()->toDateString(),
+        ]);
+        $form->ncs()->sync([$nc->id]);
         $path = app(LaporanNcWordService::class)->generate($form);
         $zip = new \ZipArchive;
         try {
             $this->assertTrue($zip->open($path));
             $xml = $zip->getFromName('word/document.xml');
             $this->assertStringContainsString('NCR - CLOSE', $xml);
-            $this->assertStringNotContainsString('— Before —', $xml);
+            $this->assertStringNotContainsString('— Open —', $xml);
             $this->assertStringNotContainsString('Lampiran', $xml);
         } finally {
             $zip->close();
@@ -250,6 +271,7 @@ class LaporanNcFormTest extends TestCase
     {
         $this->laporanDenganNc(now()->subDays(3)->toDateString(), ['A']);
         $nc = LaporanNc::firstOrFail();
+        $this->beriCloseFile($nc);
 
         Livewire::test(LaporanNcList::class, ['dataKapal' => $this->dataKapal])
             ->call('toggleNcSelect', $nc->id)
@@ -257,6 +279,25 @@ class LaporanNcFormTest extends TestCase
             ->assertSet('selectedNcIds', []);
 
         $this->assertSame(1, LaporanNcForm::where('jenis', 'penutupan')->count());
+    }
+
+    #[Test]
+    public function penutupan_menolak_nc_tanpa_file_close(): void
+    {
+        $this->laporanDenganNc(now()->subDays(3)->toDateString(), ['A', 'B']);
+        [$a, $b] = LaporanNc::orderBy('id')->get()->all();
+
+        // Tanpa file Close → tidak eligible sama sekali
+        $this->expectException(ValidationException::class);
+        try {
+            $this->forms->createPenutupan($this->dataKapal->id, [$a->id, $b->id]);
+        } finally {
+            // Setelah A diberi file Close, hanya A yang masuk; B dilewati
+            $this->beriCloseFile($a);
+            [$form, $skipped] = $this->forms->createPenutupan($this->dataKapal->id, [$a->id, $b->id]);
+            $this->assertSame(1, $skipped);
+            $this->assertSame([$a->id], $form->ncs()->pluck('laporan_nc.id')->all());
+        }
     }
 
     #[Test]

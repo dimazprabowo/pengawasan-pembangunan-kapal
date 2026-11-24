@@ -212,7 +212,7 @@ class LaporanNcTest extends TestCase
     }
 
     #[Test]
-    public function multi_file_before_dari_form_dan_after_tidak_mengubah_status_nc(): void
+    public function multi_file_open_dari_form_dan_close_tidak_mengubah_status_nc(): void
     {
         Queue::fake();
         Storage::fake('local');
@@ -223,28 +223,28 @@ class LaporanNcTest extends TestCase
         ]);
         $nc = LaporanNc::firstOrFail();
         $this->assertCount(2, $nc->foto);
-        $this->assertSame(['before'], $nc->foto->pluck('kategori')->map->value->unique()->values()->all());
+        $this->assertSame(['open'], $nc->foto->pluck('kategori')->map->value->unique()->values()->all());
         $nc->update(['status' => 'closed', 'closed_at' => now()]);
-        $this->service->addFiles($nc, [['file' => UploadedFile::fake()->image('after.jpg')]], NcFileKategori::After);
+        $this->service->addFiles($nc, [['file' => UploadedFile::fake()->image('close.jpg')]], NcFileKategori::Close);
         $this->assertSame('closed', $nc->fresh()->status->value);
         $this->assertCount(3, $nc->fresh()->foto);
         Queue::assertPushed(ProcessNcFoto::class, 3);
     }
 
     #[Test]
-    public function file_after_dari_form_tersimpan_dengan_marker_key(): void
+    public function file_close_dari_form_tersimpan_dengan_marker_key(): void
     {
         Queue::fake();
         Storage::fake('local');
         $laporan = $this->laporan();
         $this->service->syncNc($laporan, [['row_key' => 'a', 'kendala' => 'Temuan']], [
-            'a_satu' => ['file' => UploadedFile::fake()->image('before.jpg')],
-            'a_after_dua' => ['file' => UploadedFile::fake()->image('after.jpg')],
+            'a_satu' => ['file' => UploadedFile::fake()->image('open.jpg')],
+            'a_close_dua' => ['file' => UploadedFile::fake()->image('close.jpg')],
         ]);
         $nc = LaporanNc::firstOrFail();
         $this->assertCount(2, $nc->foto);
         $this->assertSame(
-            ['after', 'before'],
+            ['close', 'open'],
             $nc->foto->pluck('kategori')->map->value->sort()->values()->all()
         );
         $this->assertTrue($nc->fresh()->isOpen());
@@ -252,7 +252,7 @@ class LaporanNcTest extends TestCase
     }
 
     #[Test]
-    public function list_nc_upload_before_after_dan_hapus_individual(): void
+    public function list_nc_upload_open_close_dan_hapus_individual(): void
     {
         Queue::fake();
         Storage::fake('local');
@@ -260,11 +260,11 @@ class LaporanNcTest extends TestCase
         $this->service->syncNc($laporan, [['row_key' => 'a', 'kendala' => 'Temuan']]);
         $nc = LaporanNc::firstOrFail();
         $component = Livewire::test(LaporanNcList::class, ['dataKapal' => $this->dataKapal])
-            ->set('ncUploads.'.$nc->id.'.before.satu.file', UploadedFile::fake()->image('before.jpg'))
-            ->call('uploadNcFiles', $nc->id, 'before')
+            ->set('ncUploads.'.$nc->id.'.open.satu.file', UploadedFile::fake()->image('open.jpg'))
+            ->call('uploadNcFiles', $nc->id, 'open')
             ->assertHasNoErrors()
-            ->set('ncUploads.'.$nc->id.'.after.dua.file', UploadedFile::fake()->image('after.jpg'))
-            ->call('uploadNcFiles', $nc->id, 'after')
+            ->set('ncUploads.'.$nc->id.'.close.dua.file', UploadedFile::fake()->image('close.jpg'))
+            ->call('uploadNcFiles', $nc->id, 'close')
             ->assertHasNoErrors();
         $this->assertCount(2, $nc->fresh()->foto);
         $this->assertTrue($nc->fresh()->isOpen());
@@ -310,8 +310,8 @@ class LaporanNcTest extends TestCase
         $user->givePermissionTo('laporan_view');
         $this->actingAs($user);
         Livewire::test(LaporanNcList::class, ['dataKapal' => $this->dataKapal])
-            ->set('ncUploads.'.$nc->id.'.before.satu.file', UploadedFile::fake()->image('before.jpg'))
-            ->call('uploadNcFiles', $nc->id, 'before');
+            ->set('ncUploads.'.$nc->id.'.open.satu.file', UploadedFile::fake()->image('open.jpg'))
+            ->call('uploadNcFiles', $nc->id, 'open');
         $this->assertCount(0, $nc->fresh()->foto);
         Queue::assertNothingPushed();
     }
@@ -325,7 +325,7 @@ class LaporanNcTest extends TestCase
         Storage::fake('local');
         $this->service->syncNc($this->laporan(), [['row_key' => 'a', 'kendala' => 'Temuan']]);
         $nc = LaporanNc::firstOrFail();
-        $file = $nc->foto()->create(['kategori' => 'after', 'file_name' => 'scan.pdf', 'file_status' => 'pending']);
+        $file = $nc->foto()->create(['kategori' => 'close', 'file_name' => 'scan.pdf', 'file_status' => 'pending']);
         Storage::disk('local')->put('temp/nc.pdf', Pdf::loadHTML('<p>Scan NC</p>')->output());
         (new ProcessNcFoto($file, 'temp/nc.pdf'))->handle(app(QueueStatusService::class));
         $file->refresh();

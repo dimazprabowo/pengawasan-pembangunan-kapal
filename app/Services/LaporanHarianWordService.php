@@ -32,7 +32,7 @@ class LaporanHarianWordService
      */
     public function generate(LaporanHarian $laporan): string
     {
-        $laporan->loadMissing([
+        $laporan->loadMissing($laporan->is_libur ? ['user', 'dataKapal.owner', 'dataKapal.galangan'] : [
             'user',
             'dataKapal.owner',
             'dataKapal.galangan',
@@ -50,6 +50,10 @@ class LaporanHarianWordService
             'lampiran',
         ]);
 
+        if ($laporan->is_libur) {
+            $laporan = $this->holidayReportData($laporan);
+        }
+
         // Try to use template from Data Kapal first
         $templateFullPath = null;
         $templateSource = 'default';
@@ -66,7 +70,7 @@ class LaporanHarianWordService
 
             if (! $files->exists(self::TEMPLATE_PATH)) {
                 throw new \RuntimeException(
-                    'Template Word tidak ditemukan. Harap upload template pada master Data Kapal atau pastikan template default tersedia di penyimpanan: '.self::TEMPLATE_PATH
+                    'Template Word tidak ditemukan. Harap upload template pada master Data Proyek atau pastikan template default tersedia di penyimpanan: '.self::TEMPLATE_PATH
                 );
             }
 
@@ -96,7 +100,10 @@ class LaporanHarianWordService
         $values = [];
 
         // Basic Info
-        $values['judul'] = $laporan->judul ?? '-';
+        $values['judul'] = $laporan->judul.($laporan->is_libur ? ' — '.$laporan->keterangan_hari : '');
+        $values['status_hari'] = $laporan->status_hari->label();
+        $values['alasan_libur'] = $laporan->alasan_libur ?? '-';
+        $values['keterangan_hari'] = $laporan->keterangan_hari;
         $values['lokasi'] = $laporan->dataKapal?->galangan?->nama ?? '-';
         $values['no_kapal'] = $laporan->dataKapal?->nama ?? '-';
         $values['kode_proyek'] = $laporan->dataKapal?->kode ?? '-';
@@ -159,7 +166,7 @@ class LaporanHarianWordService
             $processor->setValue('personel_no', '1');
             $processor->setValue('personel_jabatan', '-');
             $processor->setValue('personel_jumlah', '-');
-            $processor->setValue('personel_keterangan', '-');
+            $processor->setValue('personel_keterangan', $laporan->is_libur ? $laporan->status_hari->label() : '-');
 
             return;
         }
@@ -188,7 +195,7 @@ class LaporanHarianWordService
             $processor->setValue('peralatan_no', '1');
             $processor->setValue('peralatan_jenis', '-');
             $processor->setValue('peralatan_jumlah', '-');
-            $processor->setValue('peralatan_keterangan', '-');
+            $processor->setValue('peralatan_keterangan', $laporan->is_libur ? $laporan->status_hari->label() : '-');
 
             return;
         }
@@ -220,7 +227,7 @@ class LaporanHarianWordService
             $processor->setValue('consumable_no', '1');
             $processor->setValue('consumable_jenis', '-');
             $processor->setValue('consumable_jumlah', '-');
-            $processor->setValue('consumable_keterangan', '-');
+            $processor->setValue('consumable_keterangan', $laporan->is_libur ? $laporan->status_hari->label() : '-');
 
             return;
         }
@@ -258,7 +265,7 @@ class LaporanHarianWordService
                 $processor->setValue('aktivitas_kategori#1', '-');
                 $processor->setValue('aktivitas_no#1', '1');
                 $processor->setValue('aktivitas_aktivitas#1', '-');
-                $processor->setValue('aktivitas_pic#1', '-');
+                $this->setAktivitasKeterangan($processor, '#1', $laporan->is_libur ? $laporan->status_hari->label() : '-');
 
                 return;
             }
@@ -274,13 +281,25 @@ class LaporanHarianWordService
                     $i = $r + 1;
                     $processor->setValue("aktivitas_no#{$b}#{$i}", (string) $i);
                     $processor->setValue("aktivitas_aktivitas#{$b}#{$i}", $row->aktivitas ?? '-');
-                    $processor->setValue("aktivitas_pic#{$b}#{$i}", $row->pic ?? '-');
+                    $this->setAktivitasKeterangan($processor, "#{$b}#{$i}", $row->keterangan ?? '-');
                 }
             }
         } catch (\Exception $e) {
             \Log::warning('LaporanWordService: Skipping aktivitas section (template tanpa blok ${blok_kategori}?)', [
                 'error' => $e->getMessage(),
             ]);
+        }
+    }
+
+    /**
+     * Isi placeholder keterangan aktivitas. Nama baru ${aktivitas_keterangan}
+     * dipakai template default; ${aktivitas_pic} tetap diisi agar template
+     * custom per Data Kapal yang diupload sebelum rename tetap berfungsi.
+     */
+    private function setAktivitasKeterangan(TemplateProcessor $processor, string $suffix, string $value): void
+    {
+        foreach (['aktivitas_keterangan', 'aktivitas_pic'] as $name) {
+            $processor->setValue($name.$suffix, $value);
         }
     }
 
@@ -298,7 +317,7 @@ class LaporanHarianWordService
         $pages = $fotos->chunk(self::FOTO_PER_HALAMAN)->values();
 
         try {
-            $processor->setValue('lampiran_kosong', $fotos->isEmpty() ? 'Tidak ada dokumentasi foto.' : '');
+            $processor->setValue('lampiran_kosong', $laporan->is_libur ? $laporan->status_hari->label() : ($fotos->isEmpty() ? 'Tidak ada dokumentasi foto.' : ''));
             // 0 halaman → blok dihapus
             $processor->cloneBlock('blok_lampiran', $pages->count(), true, true);
 
@@ -377,6 +396,20 @@ class LaporanHarianWordService
     // SAVE DOCUMENT
     // ────────────────────────────────────────────────────────────────────────────
 
+    private function holidayReportData(LaporanHarian $laporan): LaporanHarian
+    {
+        $document = clone $laporan;
+        $document->suhu = null;
+        foreach (['cuacaPagi', 'kelembabanPagi', 'cuacaSiang', 'kelembabanSiang', 'cuacaSore', 'kelembabanSore'] as $relation) {
+            $document->setRelation($relation, null);
+        }
+        foreach (['personel', 'peralatan', 'consumable', 'aktivitas', 'lampiran'] as $relation) {
+            $document->setRelation($relation, $document->newCollection());
+        }
+
+        return $document;
+    }
+
     private function saveDocument(TemplateProcessor $processor, LaporanHarian $laporan): string
     {
         $filename = sprintf(
@@ -388,6 +421,7 @@ class LaporanHarianWordService
         $files = app(FilePathService::class);
         $local = $files->tempPath('docx');
         $processor->saveAs($local);
+        app(WordAttachmentService::class)->normalizePageBreaks($local);
         $this->ensureFooter($local, $laporan);
         $files->commitLocalFile($local, 'laporan/word/'.$filename);
 

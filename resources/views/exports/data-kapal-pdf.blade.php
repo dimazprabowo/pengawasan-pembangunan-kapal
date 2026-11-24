@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Data Data Kapal</title>
+    <title>Data Data Proyek</title>
     <style>
         body { font-family: Arial, sans-serif; font-size: 12px; }
         h1 { text-align: center; font-size: 18px; margin-bottom: 20px; }
@@ -16,14 +16,14 @@
     </style>
 </head>
 <body>
-    <h1>Data Data Kapal</h1>
+    <h1>Data Data Proyek</h1>
     <p>Dicetak pada: {{ now()->format('d/m/Y H:i') }}</p>
     
     <table>
         <thead>
             <tr>
                 <th width="5%">No</th>
-                <th width="20%">Data Kapal</th>
+                <th width="20%">Data Proyek</th>
                 <th width="20%">Owner</th>
                 <th width="30%">Deskripsi</th>
                 <th width="5%" class="text-center">Laporan Harian</th>

@@ -2,16 +2,26 @@
 
 namespace App\Traits;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 
 trait HasEncryptedRouteKey
 {
     /**
      * Get the value of the model's route key.
+     *
+     * Crypt::encryptString memakai random IV — ciphertext baru tiap panggil,
+     * sehingga route() menghasilkan URL berbeda tiap render (<img>/<iframe>
+     * reload terus, signed URL gagal). Di-cache per model agar URL stabil;
+     * ciphertext lama tetap valid karena semuanya decrypt ke id yang sama.
      */
     public function getRouteKey(): mixed
     {
-        return Crypt::encryptString($this->getKey());
+        return Cache::remember(
+            'route-key:'.static::class.':'.$this->getKey(),
+            now()->addDays(30),
+            fn () => Crypt::encryptString($this->getKey())
+        );
     }
 
     /**

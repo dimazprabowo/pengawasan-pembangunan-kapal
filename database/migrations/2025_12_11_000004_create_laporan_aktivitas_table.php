@@ -16,7 +16,8 @@ return new class extends Migration
             // Snapshot nama kategori saat disimpan agar laporan lama tetap utuh walau work group di-rename/dihapus
             $table->string('kategori')->nullable();
             $table->text('aktivitas')->nullable();
-            $table->string('pic')->nullable();
+            // Keterangan aktivitas (PIC atau status) — label UI "Keterangan (PIC atau Status)"
+            $table->string('keterangan')->nullable();
             $table->timestamps();
 
             $table->index('laporan_harian_id');

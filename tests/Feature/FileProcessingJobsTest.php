@@ -6,6 +6,7 @@ use App\Jobs\ProcessLaporanExternal;
 use App\Jobs\ProcessLaporanLampiran;
 use App\Jobs\ProcessNcFormFile;
 use App\Jobs\ProcessNcFoto;
+use App\Jobs\ProcessPengujianFile;
 use App\Jobs\ProcessRapatFile;
 use App\Models\DataKapal;
 use App\Models\LaporanAktivitas;
@@ -15,6 +16,9 @@ use App\Models\LaporanLampiran;
 use App\Models\LaporanNc;
 use App\Models\LaporanNcForm;
 use App\Models\LaporanNcFoto;
+use App\Models\Pengujian;
+use App\Models\PengujianFile;
+use App\Models\PengujianStatus;
 use App\Models\Rapat;
 use App\Models\RapatFile;
 use App\Models\RapatJenis;
@@ -38,7 +42,7 @@ class FileProcessingJobsTest extends TestCase
 
     public static function kinds(): array
     {
-        return [['lampiran'], ['nc'], ['form'], ['external'], ['external-pdf'], ['rapat']];
+        return [['lampiran'], ['nc'], ['form'], ['external'], ['external-pdf'], ['rapat'], ['pengujian']];
     }
 
     private function fixture(string $kind): array
@@ -65,6 +69,10 @@ class FileProcessingJobsTest extends TestCase
                 'data_kapal_id' => $kapal->id, 'tanggal' => today(),
                 'rapat_jenis_id' => RapatJenis::firstOrCreate(['nama' => 'Mingguan'])->id,
             ])->id]),
+            'pengujian' => PengujianFile::create($attributes + ['pengujian_id' => Pengujian::create([
+                'data_kapal_id' => $kapal->id, 'nama_pengujian' => 'NDT Uji',
+                'pengujian_status_id' => PengujianStatus::firstOrCreate(['nama' => 'Direncanakan'])->id,
+            ])->id]),
             default => LaporanExternal::create($attributes + ['judul' => 'Uji File', 'rendered_pages' => ['old/page.webp']]),
         };
         Storage::disk('local')->put('old/file.webp', 'previous file');
@@ -88,6 +96,7 @@ class FileProcessingJobsTest extends TestCase
             'lampiran' => new ProcessLaporanLampiran($model, $temp, $crop),
             'nc' => new ProcessNcFoto($model, $temp, $crop),
             'rapat' => new ProcessRapatFile($model, $temp, $crop),
+            'pengujian' => new ProcessPengujianFile($model, $temp, $crop),
             'form' => new ProcessNcFormFile($model, $temp, 'old/file.webp'),
             default => new ProcessLaporanExternal($model->id, $temp),
         };
@@ -149,7 +158,7 @@ class FileProcessingJobsTest extends TestCase
         $this->assertSame('failed', $model->fresh()->file_status);
         $this->assertSame('old/file.webp', $model->fresh()->file_path);
         Storage::disk('local')->assertExists([$temp, 'old/file.webp']);
-        $this->assertCount(in_array($kind, ['lampiran', 'form', 'rapat']) ? 2 : 3, Storage::disk('local')->allFiles());
+        $this->assertCount(in_array($kind, ['lampiran', 'form', 'rapat', 'pengujian']) ? 2 : 3, Storage::disk('local')->allFiles());
 
         $reject = false;
         $job->handle(app(QueueStatusService::class));

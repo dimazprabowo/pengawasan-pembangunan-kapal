@@ -15,6 +15,168 @@ class WordAttachmentService
     private const EXTERNAL_ANCHOR = '${lampiran_external}';
 
     /**
+     * Signature ZIP archive comment: dokumen sudah melewati normalizePageBreaks.
+     * Docx laporan lama (tanpa signature) dianggap stale oleh resolve*Docs dan
+     * diregenerasi sekali, agar halaman lampiran tidak merender ulang halaman
+     * kosong dari dokumen sumber yang dibuat sebelum perbaikan.
+     */
+    public const BREAK_SIGNATURE = 'pb-norm-1';
+
+    public function isBreakNormalized(string $docxPath): bool
+    {
+        $zip = new ZipArchive;
+        if ($zip->open($docxPath) !== true) {
+            return false;
+        }
+        $current = $zip->getArchiveComment() === self::BREAK_SIGNATURE;
+        $zip->close();
+
+        return $current;
+    }
+
+    /**
+     * Normalisasi paragraf kosong berisi <w:br w:type="page"/> — sumber halaman
+     * kosong "terkadang": bila isi sebelumnya berakhir pas di batas bawah halaman,
+     * paragraf itu sendiri terdorong ke halaman baru dan break-nya membuat satu
+     * halaman lagi. Dipanggil pasca-save oleh generator harian/mingguan/bulanan:
+     *  - diikuti paragraf → dipindah jadi w:pageBreakBefore pada paragraf
+     *    berikutnya (mustahil menghasilkan halaman kosong);
+     *  - diikuti elemen lain (tabel, altChunk, dst.) → paragraf wajib ada sebagai
+     *    pemisah tetapi dikempeskan ke ±1pt agar tak mungkin terdorong sendirian;
+     *  - di akhir dokumen (sebelum sectPr akhir) → dihapus.
+     * Paragraf dengan teks, gambar, atau sectPr (batas section) tidak disentuh.
+     */
+    public function normalizePageBreaks(string $docxPath): void
+    {
+        $zip = new ZipArchive;
+        if ($zip->open($docxPath) !== true) {
+            return;
+        }
+
+        $xml = $zip->getFromName('word/document.xml');
+        if ($xml === false) {
+            $zip->close();
+
+            return;
+        }
+        $zip->setArchiveComment(self::BREAK_SIGNATURE);
+
+        $doc = new DOMDocument;
+        $doc->preserveWhiteSpace = true;
+        $doc->loadXML($xml);
+        $xp = new DOMXPath($doc);
+        $xp->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+        $w = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+
+        $changed = false;
+
+        // Batas section back-to-back: paragraf kosong pembawa sectPr tepat setelah
+        // paragraf batas section lain menutup section yang isinya hanya dirinya
+        // sendiri -> satu halaman kosong ber-footer induk di antara dua lampiran.
+        do {
+            $removed = false;
+            foreach (iterator_to_array($xp->query('/w:document/w:body/w:p[w:pPr/w:sectPr]')) as $p) {
+                if (trim($p->textContent) !== ''
+                    || $xp->query('.//w:drawing | .//w:pict | .//w:br | .//w:t | .//w:instrText | .//w:fldChar', $p)->length > 0) {
+                    continue;
+                }
+                $prev = $p->previousSibling;
+                while ($prev !== null && ! $prev instanceof DOMElement) {
+                    $prev = $prev->previousSibling;
+                }
+                if ($prev instanceof DOMElement && $prev->localName === 'p'
+                    && $xp->query('w:pPr/w:sectPr', $prev)->length > 0) {
+                    $p->parentNode->removeChild($p);
+                    $removed = $changed = true;
+                }
+            }
+        } while ($removed);
+
+        foreach (iterator_to_array($xp->query('/w:document/w:body/w:p[.//w:br[@w:type="page"]]')) as $p) {
+            if (trim($p->textContent) !== ''
+                || $xp->query('.//w:drawing | .//w:pict | w:pPr/w:sectPr', $p)->length > 0) {
+                continue;
+            }
+
+            $next = $p->nextSibling;
+            while ($next !== null && (! $next instanceof DOMElement
+                || in_array($next->localName, ['bookmarkStart', 'bookmarkEnd', 'proofErr', 'permStart', 'permEnd'], true))) {
+                $next = $next->nextSibling;
+            }
+
+            if ($next instanceof DOMElement && $next->localName === 'p'
+                && $xp->query('w:pPr/w:sectPr', $next)->length === 0) {
+                $pPr = $xp->query('w:pPr', $next)->item(0);
+                if (! $pPr instanceof DOMElement) {
+                    $pPr = $doc->createElementNS($w, 'w:pPr');
+                    $next->insertBefore($pPr, $next->firstChild);
+                }
+                if ($xp->query('w:pageBreakBefore', $pPr)->length === 0) {
+                    $anchor = null;
+                    foreach ($xp->query('w:pStyle | w:keepNext | w:keepLines', $pPr) as $el) {
+                        $anchor = $el;
+                    }
+                    $pbb = $doc->createElementNS($w, 'w:pageBreakBefore');
+                    if ($anchor instanceof DOMElement) {
+                        $anchor->parentNode->insertBefore($pbb, $anchor->nextSibling);
+                    } else {
+                        $pPr->insertBefore($pbb, $pPr->firstChild);
+                    }
+                }
+                $p->parentNode->removeChild($p);
+                $changed = true;
+            } elseif ($next instanceof DOMElement && $next->localName === 'sectPr') {
+                $p->parentNode->removeChild($p);
+                $changed = true;
+            } else {
+                $this->shrinkBreakParagraph($doc, $xp, $p);
+                $changed = true;
+            }
+        }
+
+        if ($changed) {
+            $zip->addFromString('word/document.xml', $doc->saveXML());
+        }
+        $zip->close();
+    }
+
+    /**
+     * Paragraf pemisah antar-elemen non-paragraf (tabel/altChunk) wajib ada;
+     * kempeskan ke ±1pt agar tidak mungkin terdorong sendirian ke halaman baru.
+     */
+    private function shrinkBreakParagraph(DOMDocument $doc, DOMXPath $xp, DOMElement $p): void
+    {
+        $w = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+        $pPr = $xp->query('w:pPr', $p)->item(0);
+        if (! $pPr instanceof DOMElement) {
+            $pPr = $doc->createElementNS($w, 'w:pPr');
+            $p->insertBefore($pPr, $p->firstChild);
+        }
+        foreach ($xp->query('w:spacing', $pPr) as $s) {
+            $pPr->removeChild($s);
+        }
+        $spacing = $doc->createElementNS($w, 'w:spacing');
+        $spacing->setAttributeNS($w, 'w:before', '0');
+        $spacing->setAttributeNS($w, 'w:after', '0');
+        $spacing->setAttributeNS($w, 'w:line', '20');
+        $spacing->setAttributeNS($w, 'w:lineRule', 'exact');
+        $pPr->appendChild($spacing);
+        foreach ($xp->query('w:r', $p) as $r) {
+            $rPr = $xp->query('w:rPr', $r)->item(0);
+            if (! $rPr instanceof DOMElement) {
+                $rPr = $doc->createElementNS($w, 'w:rPr');
+                $r->insertBefore($rPr, $r->firstChild);
+            }
+            foreach (['w:sz', 'w:szCs'] as $tag) {
+                foreach ($xp->query($tag, $rPr) as $s) {
+                    $rPr->removeChild($s);
+                }
+                $rPr->appendChild($doc->createElementNS($w, $tag))->setAttributeNS($w, 'w:val', '2');
+            }
+        }
+    }
+
+    /**
      * Halaman pembatas lampiran terpusat dua sumbu: page break + sel tabel
      * tanpa garis setinggi (hampir) satu halaman dengan vAlign=center
      * (vertikal) + jc=center (horizontal). Tinggi 13400 < area konten A4
@@ -55,21 +217,20 @@ class WordAttachmentService
                 if (! Storage::disk()->exists($file->file_path)) {
                     throw new RuntimeException('File lampiran NC tidak ditemukan.');
                 }
-                $caption = $nc->nomor.' — '.$file->kategori->label().' — '.$nc->kendala;
                 if ($file->isImage() && $includePhotos) {
-                    $images[] = [$file->file_path, $caption, false];
+                    $images[] = [$file->file_path, '', false];
                 } elseif ($file->isPdf()) {
                     if (empty($file->rendered_pages)) {
                         throw new RuntimeException('Halaman PDF NC belum tersedia.');
                     }
-                    foreach ($file->rendered_pages as $page => $image) {
-                        $images[] = [$image, $caption.' — '.$file->file_name.' — Halaman '.($page + 1), true];
+                    foreach ($file->rendered_pages as $image) {
+                        $images[] = [$image, '', true];
                     }
                 }
             }
         }
 
-        $this->insertImages($path, $images, null, 'LAMPIRAN NON-CONFORMANCE');
+        $this->insertImages($path, $images, null, 'LAMPIRAN NON-CONFORMANCE', true);
     }
 
     /**
@@ -90,20 +251,19 @@ class WordAttachmentService
             if (! Storage::disk()->exists($external->file_path)) {
                 throw new RuntimeException('File dokumen eksternal tidak ditemukan.');
             }
-            $caption = $external->judul ?: $external->file_name;
             if ($external->isImage()) {
-                $images[] = [$external->file_path, $caption, true];
+                $images[] = [$external->file_path, '', true];
             } elseif ($external->isPdf()) {
                 if (empty($external->rendered_pages)) {
                     throw new RuntimeException('Halaman PDF dokumen eksternal belum tersedia.');
                 }
-                foreach ($external->rendered_pages as $page => $image) {
-                    $images[] = [$image, $caption.' — '.$external->file_name.' — Halaman '.($page + 1), true];
+                foreach ($external->rendered_pages as $image) {
+                    $images[] = [$image, '', true];
                 }
             }
         }
 
-        $this->insertImages($path, $images, self::EXTERNAL_ANCHOR, $coverTitle);
+        $this->insertImages($path, $images, self::EXTERNAL_ANCHOR, $coverTitle, true);
     }
 
     /**
@@ -175,7 +335,7 @@ class WordAttachmentService
      */
     public function embedReportPages(string $path, array $images, string $anchorText, string $coverTitle): void
     {
-        $this->insertImages($path, $images, $anchorText, $coverTitle);
+        $this->insertImages($path, $images, $anchorText, $coverTitle, true);
     }
 
     /**
@@ -185,8 +345,15 @@ class WordAttachmentService
      * @param  string|null  $anchorText  teks dalam paragraf marker yang digantikan gambar
      * @param  string|null  $coverTitle  judul halaman pembatas yang disisipkan sebelum gambar
      */
-    private function insertImages(string $path, array $images, ?string $anchorText = null, ?string $coverTitle = null): void
+    private function insertImages(string $path, array $images, ?string $anchorText = null, ?string $coverTitle = null, bool $borderless = false): void
     {
+        // Halaman render (±2400x3400 px) dibaca & di-clone GD satu per satu saat
+        // crop margin — ratusan halaman pada bulanan melampaui limit default.
+        $memoryLimit = ini_parse_quantity(ini_get('memory_limit'));
+        if ($memoryLimit > 0 && $memoryLimit < 512 * 1024 * 1024) {
+            ini_set('memory_limit', '512M');
+        }
+
         $zip = new ZipArchive;
         if ($zip->open($path) !== true) {
             throw new RuntimeException('Dokumen Word tidak dapat dibuka.');
@@ -230,18 +397,44 @@ class WordAttachmentService
             }
             $insertBefore = $anchor ?? $section;
 
-            if ($coverTitle !== null && $images) {
-                $cover = $document->createDocumentFragment();
-                if (! $cover->appendXML(self::coverPageXml($coverTitle))) {
-                    throw new RuntimeException('Struktur lampiran Word tidak valid.');
+            $attachmentSection = null;
+            $restoreSection = null;
+            if ($borderless && $images) {
+                $layout = $anchor instanceof DOMElement
+                    ? $xpath->query('following::w:sectPr[1]', $anchor)->item(0)
+                    : $section;
+                if (! $layout instanceof DOMElement) {
+                    throw new RuntimeException('Pengaturan halaman lampiran tidak ditemukan.');
                 }
-                $body->insertBefore($cover, $insertBefore);
+                $pageWidth = (int) $xpath->evaluate('string(w:pgSz/@w:w)', $layout) ?: 11906;
+                $pageHeight = (int) $xpath->evaluate('string(w:pgSz/@w:h)', $layout) ?: 16838;
+                $normalSection = $layout->cloneNode(true);
+                $attachmentSection = $this->borderlessSection($normalSection, $zip, $relations, $types);
+                $this->endSectionBefore($body, $insertBefore, $normalSection, $xpath);
+                if ($coverTitle !== null) {
+                    $cover = $document->createDocumentFragment();
+                    if (! $cover->appendXML(self::coverPageXml($coverTitle))) {
+                        throw new RuntimeException('Struktur lampiran Word tidak valid.');
+                    }
+                    $cover->removeChild($cover->firstChild);
+                    $body->insertBefore($cover, $insertBefore);
+                    $coverSection = $attachmentSection->cloneNode(true);
+                    $coverMargins = $coverSection->getElementsByTagNameNS($coverSection->namespaceURI, 'pgMar')->item(0);
+                    $normalMargins = $normalSection->getElementsByTagNameNS($normalSection->namespaceURI, 'pgMar')->item(0);
+                    if ($normalMargins instanceof DOMElement) {
+                        $coverSection->replaceChild($normalMargins->cloneNode(true), $coverMargins);
+                    }
+                    $body->insertBefore($this->sectionBreak($document, $coverSection), $insertBefore);
+                }
+                $restoreSection = $layout;
+                $availableWidth = $pageWidth * 635;
+                $availableHeight = max(1, $pageHeight - 40) * 635;
             }
 
             $first = true;
             $wordImage = app(WordImageService::class);
-            $bounds = $this->sourceBounds($images, $wordImage);
-            foreach ($images as [$image, $caption, $pdfPage]) {
+            $bounds = $borderless ? [] : $this->sourceBounds($images, $wordImage);
+            foreach ($images as [$image, , $pdfPage]) {
                 $fullPath = app(FilePathService::class)->localPath($image);
                 $size = @getimagesize($fullPath);
                 if (! $size || $size[0] < 1 || $size[1] < 1) {
@@ -281,13 +474,14 @@ class WordAttachmentService
                         }
                     }
                 }
-                $caption = htmlspecialchars($caption, ENT_XML1 | ENT_QUOTES, 'UTF-8');
-                $pageBreak = $pdfPage || $first ? '<w:pageBreakBefore/>' : '';
+                $imageBreak = ($borderless ? ! $first : ($pdfPage || $first)) ? '<w:pageBreakBefore/>' : '';
                 $first = false;
-                $xml = $caption === '' ? ''
-                    : '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:pPr>'.$pageBreak.'<w:keepNext/></w:pPr><w:r><w:t xml:space="preserve">'.$caption.'</w:t></w:r></w:p>';
-                $imageBreak = $caption === '' ? $pageBreak : '';
+                $xml = '';
                 $xml .= '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:pPr>'.$imageBreak.'<w:jc w:val="center"/></w:pPr><w:r><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><wp:extent cx="'.$width.'" cy="'.$height.'"/><wp:docPr id="'.$id.'" name="'.$key.'"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="'.$name.'"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="'.$key.'"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="'.$width.'" cy="'.$height.'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>';
+                if ($borderless) {
+                    $xml = str_replace('<w:pPr>', '<w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/><w:ind w:left="0" w:right="0" w:firstLine="0"/>', $xml);
+                    $xml = str_replace('<w:r><w:drawing>', '<w:r><w:rPr><w:sz w:val="2"/></w:rPr><w:drawing>', $xml);
+                }
                 $fragment = $document->createDocumentFragment();
                 if (! $fragment->appendXML($xml)) {
                     throw new RuntimeException('Struktur lampiran Word tidak valid.');
@@ -296,6 +490,23 @@ class WordAttachmentService
                 $id++;
             }
 
+            if ($attachmentSection instanceof DOMElement) {
+                $following = $anchor?->nextSibling;
+                while ($following !== null && ! $following instanceof DOMElement) {
+                    $following = $following->nextSibling;
+                }
+                if ($restoreSection === $section && ($following === null || $following === $section)) {
+                    $body->replaceChild($attachmentSection, $section);
+                } else {
+                    $this->endSectionBefore($body, $insertBefore, $attachmentSection, $xpath);
+                    if ($following instanceof DOMElement && $following->localName === 'p'
+                        && trim($following->textContent) === ''
+                        && $restoreSection?->parentNode?->parentNode === $following
+                        && $xpath->query('.//w:drawing | .//w:pict | .//w:br', $following)->length === 0) {
+                        $body->removeChild($following);
+                    }
+                }
+            }
             if ($anchor instanceof DOMElement) {
                 $body->removeChild($anchor);
             }
@@ -340,6 +551,96 @@ class WordAttachmentService
      * Kunci grup crop: halaman render PDF (`{dir}/{uuid}/page-N.*`) per
      * direktori dokumen; gambar tunggal per file.
      */
+    private function endSectionBefore(DOMElement $body, \DOMNode $before, DOMElement $section, DOMXPath $xpath): void
+    {
+        $previous = $before->previousSibling;
+        while ($previous !== null) {
+            if (! $previous instanceof DOMElement) {
+                $previous = $previous->previousSibling;
+
+                continue;
+            }
+            if ($previous->localName !== 'p' || trim($previous->textContent) !== ''
+                || $xpath->query('.//w:drawing | .//w:pict | .//w:sectPr', $previous)->length > 0
+                || $xpath->query('.//w:br[@w:type="page"] | w:pPr/w:pageBreakBefore', $previous)->length === 0) {
+                break;
+            }
+            $remove = $previous;
+            $previous = $previous->previousSibling;
+            $body->removeChild($remove);
+        }
+        $boundary = $this->sectionBreak($body->ownerDocument, $section);
+        if ($previous instanceof DOMElement && $previous->localName === 'p'
+            && ! str_contains($previous->textContent, '${')
+            && $xpath->query('w:pPr/w:sectPr', $previous)->length === 0) {
+            $properties = $xpath->query('w:pPr', $previous)->item(0);
+            if (! $properties instanceof DOMElement) {
+                $properties = $body->ownerDocument->createElementNS($section->namespaceURI, 'w:pPr');
+                $previous->insertBefore($properties, $previous->firstChild);
+            }
+            $properties->appendChild($boundary->firstChild->lastChild->cloneNode(true));
+        } else {
+            $body->insertBefore($boundary, $before);
+        }
+    }
+
+    private function sectionBreak(DOMDocument $document, DOMElement $section): DOMElement
+    {
+        $namespace = $section->namespaceURI;
+        $paragraph = $document->createElementNS($namespace, 'w:p');
+        $properties = $document->createElementNS($namespace, 'w:pPr');
+        $spacing = $document->createElementNS($namespace, 'w:spacing');
+        foreach (['before' => '0', 'after' => '0', 'line' => '1', 'lineRule' => 'exact'] as $name => $value) {
+            $spacing->setAttributeNS($namespace, 'w:'.$name, $value);
+        }
+        $properties->appendChild($spacing);
+        $properties->appendChild($section->cloneNode(true));
+        $paragraph->appendChild($properties);
+
+        return $paragraph;
+    }
+
+    private function borderlessSection(DOMElement $normal, ZipArchive $zip, DOMDocument $relations, DOMDocument $types): DOMElement
+    {
+        $section = $normal->cloneNode(true);
+        $namespace = $section->namespaceURI;
+        $document = $section->ownerDocument;
+        foreach (iterator_to_array($section->childNodes) as $child) {
+            if (in_array($child->localName, ['headerReference', 'footerReference', 'pgBorders', 'cols'], true)) {
+                $section->removeChild($child);
+            }
+        }
+        $margins = $section->getElementsByTagNameNS($namespace, 'pgMar')->item(0);
+        if (! $margins instanceof DOMElement) {
+            $margins = $section->appendChild($document->createElementNS($namespace, 'w:pgMar'));
+        }
+        foreach (['top', 'right', 'bottom', 'left', 'header', 'footer', 'gutter'] as $name) {
+            $margins->setAttributeNS($namespace, 'w:'.$name, '0');
+        }
+        foreach (['footer' => 'ftr', 'header' => 'hdr'] as $kind => $root) {
+            $id = 'attachment_'.bin2hex(random_bytes(8));
+            $name = $kind.'_'.$id.'.xml';
+            $zip->addFromString('word/'.$name, '<?xml version="1.0" encoding="UTF-8"?><w:'.$root.' xmlns:w="'.$namespace.'"><w:p/></w:'.$root.'>');
+            $relation = $relations->createElementNS($relations->documentElement->namespaceURI, 'Relationship');
+            $relation->setAttribute('Id', $id);
+            $relation->setAttribute('Type', 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/'.$kind);
+            $relation->setAttribute('Target', $name);
+            $relations->documentElement->appendChild($relation);
+            $override = $types->createElementNS($types->documentElement->namespaceURI, 'Override');
+            $override->setAttribute('PartName', '/word/'.$name);
+            $override->setAttribute('ContentType', 'application/vnd.openxmlformats-officedocument.wordprocessingml.'.$kind.'+xml');
+            $types->documentElement->appendChild($override);
+            foreach (['default', 'first', 'even'] as $type) {
+                $reference = $document->createElementNS($namespace, 'w:'.$kind.'Reference');
+                $reference->setAttributeNS($namespace, 'w:type', $type);
+                $reference->setAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'r:id', $id);
+                $section->insertBefore($reference, $section->firstChild);
+            }
+        }
+
+        return $section;
+    }
+
     private static function boundsKey(string $image): string
     {
         return preg_match('/(^|\/)page-\d+\.\w+$/', $image) ? dirname($image) : $image;

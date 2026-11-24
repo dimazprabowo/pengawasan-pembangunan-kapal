@@ -12,7 +12,7 @@ use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
- * Lampiran gambar/PDF Before/After NC (banyak file per LaporanNc).
+ * Lampiran gambar/PDF Open/Close NC (banyak file per LaporanNc).
  */
 class LaporanNcFoto extends Model
 {

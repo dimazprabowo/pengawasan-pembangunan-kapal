@@ -56,7 +56,7 @@ class GalanganExport implements FromCollection, ShouldAutoSize, WithHeadings, Wi
             'Email',
             'PIC',
             'Telepon PIC',
-            'Jumlah Data Kapal',
+            'Jumlah Data Proyek',
             'Status',
             'Dibuat Pada',
         ];

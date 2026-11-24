@@ -20,6 +20,7 @@ use App\Livewire\Pages\Dashboard;
 use App\Models\LaporanLampiran;
 use App\Models\LaporanNcForm;
 use App\Models\LaporanNcFoto;
+use App\Models\PengujianFile;
 use App\Models\RapatFile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -200,6 +201,21 @@ Route::middleware(['auth', 'verified', 'active'])->group(function () {
             'Cache-Control' => 'private, max-age=86400, immutable',
         ]);
     })->middleware('can:proyek_data_view')->name('rapat-file.file');
+
+    // File lampiran pengujian (pola yang sama: izin + scope data kapal, ID terenkripsi)
+    Route::get('/pengujian-file/{file}/file', function (PengujianFile $file) {
+        $dataKapal = $file->loadMissing('pengujian.dataKapal')->pengujian?->dataKapal;
+
+        abort_unless($dataKapal && auth()->user()->canAccessDataKapal($dataKapal), 403);
+        abort_unless(
+            $file->isFileCompleted() && $file->file_path && Storage::disk()->exists($file->file_path),
+            404
+        );
+
+        return Storage::disk()->response($file->file_path, $file->file_name, [
+            'Cache-Control' => 'private, max-age=86400, immutable',
+        ]);
+    })->middleware('can:proyek_data_view')->name('pengujian-file.file');
 
     // Settings Routes - each route checks its own permission
     Route::prefix('settings')->name('settings.')->group(function () {

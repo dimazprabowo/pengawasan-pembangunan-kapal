@@ -60,7 +60,7 @@
         <thead>
             <tr>
                 <th width="5%" class="text-center">No</th>
-                <th width="25%">Data Kapal</th>
+                <th width="25%">Data Proyek</th>
                 <th width="20%">Owner</th>
                 <th width="15%">Galangan</th>
                 <th width="8%" class="text-center">Harian</th>

@@ -44,7 +44,7 @@ Kelola</x-loading-button>
         @endif
         @if(empty($bulanOptions))
             <div class="mx-4 mb-4 rounded-lg border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20 px-3 py-2 text-xs text-yellow-700 dark:text-yellow-300">
-                Opsi "Bulan ke-" belum tersedia — generate plan Kurva-S pada Data Kapal ini terlebih dahulu agar baris vendor bisa disimpan.
+                Opsi "Bulan ke-" belum tersedia — generate plan Kurva-S pada Data Proyek ini terlebih dahulu agar baris vendor bisa disimpan.
             </div>
         @endif
         <div class="relative overflow-x-auto custom-scrollbar">

@@ -115,7 +115,7 @@
                 </svg>
                 <div>
                     <p class="text-sm font-medium text-amber-800 dark:text-amber-300">Kontrak belum diatur</p>
-                    <p class="text-xs text-amber-700 dark:text-amber-400 mt-1">Laporan bulanan membutuhkan tanggal mulai &amp; waktu pelaksanaan untuk menentukan periode bulan. Atur pelaksanaan di menu Master Data → Data Kapal terlebih dahulu.</p>
+                    <p class="text-xs text-amber-700 dark:text-amber-400 mt-1">Laporan bulanan membutuhkan tanggal mulai &amp; waktu pelaksanaan untuk menentukan periode bulan. Atur pelaksanaan di menu Master Data → Data Proyek terlebih dahulu.</p>
                 </div>
             </div>
         </div>
@@ -192,11 +192,11 @@
                     </div>
                 </div>
 
-                {{-- Ringkasan --}}
+                {{-- Executive Summary --}}
                 <div class="mt-6">
-                    <x-input-label for="ringkasan" value="Ringkasan" />
-                    <textarea wire:model="ringkasan" id="ringkasan" rows="4"
-                        placeholder="Masukkan ringkasan laporan bulanan (capaian, kendala, rencana bulan berikutnya)"
+                    <x-input-label for="ringkasan" value="Executive Summary" :required="true" />
+                    <textarea wire:model="ringkasan" id="ringkasan" rows="4" required
+                        placeholder="Masukkan executive summary (capaian, kendala, rencana bulan berikutnya)"
                         class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"></textarea>
                     @error('ringkasan') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                 </div>

@@ -63,7 +63,7 @@
                 <th width="20%">Nama Galangan</th>
                 <th width="15%">Lokasi</th>
                 <th width="15%">Kontak</th>
-                <th width="10%" class="text-center">Data Kapal</th>
+                <th width="10%" class="text-center">Data Proyek</th>
                 <th width="10%" class="text-center">Status</th>
                 <th width="13%">Dibuat</th>
             </tr>

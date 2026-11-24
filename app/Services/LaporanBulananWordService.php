@@ -76,8 +76,10 @@ class LaporanBulananWordService
         $files = app(FilePathService::class);
         [$relativePath, $localPath] = $this->saveDocument($processor, $laporan);
         try {
-            app(WordAttachmentService::class)->embedExternals($localPath, $laporan->laporanExternal, 'DOKUMEN PENDUKUNG');
+            $attachment = app(WordAttachmentService::class);
+            $attachment->embedExternals($localPath, $laporan->laporanExternal, 'DOKUMEN PENDUKUNG');
             $this->embedMingguanDocs($localPath, $this->resolveMingguanDocs($laporan));
+            $attachment->normalizePageBreaks($localPath);
             $files->commitLocalFile($localPath, $relativePath);
         } catch (\Throwable $e) {
             @unlink($localPath);
@@ -102,7 +104,7 @@ class LaporanBulananWordService
         $files = app(FilePathService::class);
         if (! $files->exists(self::TEMPLATE_PATH)) {
             throw new \RuntimeException(
-                'Template Word bulanan tidak ditemukan. Upload template pada master Data Kapal atau sediakan default di penyimpanan: '.self::TEMPLATE_PATH
+                'Template Word bulanan tidak ditemukan. Upload template pada master Data Proyek atau sediakan default di penyimpanan: '.self::TEMPLATE_PATH
             );
         }
 
@@ -222,7 +224,7 @@ class LaporanBulananWordService
         $specs = collect($laporan->dataKapal?->spesifikasi ?? []);
 
         if ($specs->isEmpty()) {
-            $processor->setValue('tabel_spesifikasi', 'Spesifikasi kapal belum diisi pada master Data Kapal.');
+            $processor->setValue('tabel_spesifikasi', 'Spesifikasi kapal belum diisi pada master Data Proyek.');
 
             return;
         }
@@ -693,7 +695,15 @@ class LaporanBulananWordService
             return null;
         }
 
-        return app(FilePathService::class)->exists($mingguan->doc_path) ? $mingguan->doc_path : null;
+        $files = app(FilePathService::class);
+        if (! $files->exists($mingguan->doc_path)
+            || ! app(WordAttachmentService::class)->isBreakNormalized($files->localPath($mingguan->doc_path))) {
+            // Docx lama (pra-normalisasi break) mengandung halaman kosong di
+            // lampirannya; dianggap stale agar diregenerasi sekali.
+            return null;
+        }
+
+        return $mingguan->doc_path;
     }
 
     /**

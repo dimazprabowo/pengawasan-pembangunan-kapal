@@ -62,7 +62,7 @@
                 <th width="5%" class="text-center">No</th>
                 <th width="20%">Judul</th>
                 <th width="10%" class="text-center">Tanggal Laporan</th>
-                <th width="15%">Data Kapal</th>
+                <th width="15%">Data Proyek</th>
                 <th width="15%">Owner</th>
                 <th width="15%">Galangan</th>
                 <th width="10%">Pembuat</th>
@@ -73,7 +73,7 @@
             @forelse($laporanList as $index => $laporan)
                 <tr>
                     <td class="text-center">{{ $index + 1 }}</td>
-                    <td>{{ $laporan->judul }}</td>
+                    <td>{{ $laporan->judul }}@if($laporan->is_libur)<br>{{ $laporan->keterangan_hari }}@endif</td>
                     <td class="text-center">{{ $laporan->tanggal_laporan->format('d/m/Y') }}</td>
                     <td>{{ $laporan->dataKapal->nama ?? '-' }}</td>
                     <td>{{ $laporan->dataKapal->owner->name ?? '-' }}</td>

@@ -6,6 +6,7 @@ use App\Traits\HasUserStamps;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -53,5 +54,10 @@ class Pengujian extends Model
     public function status(): BelongsTo
     {
         return $this->belongsTo(PengujianStatus::class, 'pengujian_status_id');
+    }
+
+    public function files(): HasMany
+    {
+        return $this->hasMany(PengujianFile::class);
     }
 }

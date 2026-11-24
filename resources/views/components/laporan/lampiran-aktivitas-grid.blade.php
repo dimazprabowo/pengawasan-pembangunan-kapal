@@ -1,5 +1,5 @@
 @props([
-    'groups' => [],          // [['nama' => ..., 'rows' => [i => ['row_key', 'id', 'aktivitas', 'pic']]]]
+    'groups' => [],          // [['nama' => ..., 'rows' => [i => ['row_key', 'id', 'aktivitas', 'keterangan']]]]
     'fotoModel' => '',       // path wire:model foto baru, mis. "lampiran.0" / "foto"
     'fotos' => [],           // [row_key => ['file' => ..., 'is_cropped' => bool]]
     'existing' => collect(), // foto tersimpan, keyBy laporan_aktivitas_id
@@ -260,8 +260,8 @@
                         @else
                             <p class="text-sm italic text-red-500 dark:text-red-400">Uraian aktivitas belum diisi</p>
                         @endif
-                        @if(! empty($row['pic']))
-                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">PIC: {{ $row['pic'] }}</p>
+                        @if(! empty($row['keterangan']))
+                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Keterangan: {{ $row['keterangan'] }}</p>
                         @endif
                         @if($existingFoto && $existingFoto->file_size)
                             <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5" title="{{ $existingFoto->file_name }}">

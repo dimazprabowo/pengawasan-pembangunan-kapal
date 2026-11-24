@@ -311,7 +311,7 @@
                                                 <a href="{{ route('master-data.data-kapal.proyek', $kapal) }}" wire:navigate
                                                    x-data="{ nav: false }" x-on:click="nav = true" x-on:livewire:navigated.window="nav = false"
                                                    class="ml-auto inline-flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline">
-                                                    Data Proyek
+                                                    Data Umum
                                                     <span x-show="!nav">&rarr;</span>
                                                     <svg x-show="nav" x-cloak class="w-3 h-3 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                                                 </a>
@@ -334,6 +334,77 @@
 
     {{-- Statistik Kurva-S: tabel progres per kapal + panel grafik --}}
     @include('livewire.pages.dashboard-kurva-s')
+
+    @can('laporan_view')
+        <section class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700" aria-label="Arsip laporan PDF">
+            <div class="px-5 py-5 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1">Pusat Dokumen</p>
+                    <h3 class="text-base font-semibold text-gray-900 dark:text-white">Laporan PDF Terilis</h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Dokumen final dari kapal yang dapat Anda akses, diurutkan berdasarkan rilis terbaru.</p>
+                </div>
+                @if ($releasedPdfs)
+                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ $releasedPdfs->total() }} dokumen · {{ $selectedKurvaSkapal->nama }}</span>
+                @endif
+            </div>
+            @if ($releasedPdfs)
+            <div class="px-5 pt-4 pb-1 flex flex-wrap gap-2" role="tablist" aria-label="Jenis laporan PDF">
+                @foreach (['harian' => 'Harian', 'mingguan' => 'Mingguan', 'bulanan' => 'Bulanan'] as $type => $label)
+                    <button type="button" role="tab" aria-selected="{{ $pdfTab === $type ? 'true' : 'false' }}"
+                        wire:key="pdf-tab-{{ $type }}" wire:click="setPdfTab('{{ $type }}')" wire:target="setPdfTab('{{ $type }}')" wire:loading.attr="disabled"
+                        class="shrink-0 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 {{ $pdfTab === $type ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600' }}">
+                        <svg wire:loading wire:target="setPdfTab('{{ $type }}')" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+                        {{ $label }}</button>
+                @endforeach
+            </div>
+            <div class="p-5 flex flex-col sm:flex-row gap-3">
+                <div class="flex-1">
+                    <label for="released-pdf-search" class="sr-only">Cari laporan PDF</label>
+                    <x-text-input id="released-pdf-search" wire:model.live.debounce.300ms="search" placeholder="Cari nama kapal atau dokumen PDF..." class="block w-full" />
+                </div>
+                <x-filter-popover :per-page="true" />
+            </div>
+            <div class="overflow-x-auto custom-scrollbar" role="tabpanel" aria-label="Daftar laporan PDF {{ $pdfTab }}" wire:loading.class="opacity-50" wire:target="setPdfTab,search,perPage,gotoPage,nextPage,previousPage,resetFilters">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-700/50 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        <tr><th class="px-5 py-3 text-left">Dokumen / Kapal</th><th class="px-5 py-3 text-left">Tanggal Laporan</th><th class="px-5 py-3 text-left">Dirilis</th><th class="px-5 py-3 text-right">Aksi</th></tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                        @forelse ($releasedPdfs as $pdf)
+                            @php
+                                $downloadAction = "downloadReleasedPdf('".$pdfTab."', '".$pdf->getRouteKey()."')";
+                            @endphp
+                            <tr wire:key="released-{{ $pdfTab }}-{{ $pdf->id }}" class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                                <td class="px-5 py-4"><p class="text-sm font-medium text-gray-900 dark:text-white">{{ $pdf->dataKapal?->nama ?? '-' }}</p><p class="text-xs text-gray-500 dark:text-gray-400 mt-1 break-all">{{ $pdf->pdf_name }}</p></td>
+                                <td class="px-5 py-4 text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">{{ $pdf->tanggal_laporan?->translatedFormat('d M Y') ?? '-' }}</td>
+                                <td class="px-5 py-4 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ $pdf->pdf_generated_at?->translatedFormat('d M Y H:i') ?? '-' }}</td>
+                                <td class="px-5 py-4 text-right">
+                                    @can('downloadWord', $pdf)
+                                        <x-loading-button wire:click="{{ $downloadAction }}" :target="$downloadAction" variant="secondary" size="sm" loadingText="Mengunduh..." class="w-32" title="Unduh laporan PDF">
+                                            <x-slot:icon><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v12m-4-4 4 4 4-4M4 17v3h16v-3"/></svg></x-slot:icon>
+                                            Unduh PDF
+                                        </x-loading-button>
+                                    @else
+                                        <span class="text-xs text-gray-400">Tanpa akses unduh</span>
+                                    @endcan
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="4" class="py-12 text-center"><svg class="h-12 w-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6M7 3h7l4 4v14H6V3z"/></svg><p class="mt-3 text-sm text-gray-500 dark:text-gray-400">Tidak ada laporan PDF terilis yang sesuai.</p></td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+            <div class="px-5 py-3 border-t border-gray-200 dark:border-gray-700">{{ $releasedPdfs->links() }}</div>
+            @else
+                <div class="flex flex-col items-center justify-center py-16 px-6 text-center">
+                    <svg class="w-16 h-16 text-blue-200 dark:text-blue-900/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6M7 3h7l4 4v14H6V3z"/></svg>
+                    <p class="mt-3 text-sm font-medium text-gray-700 dark:text-gray-200">Pilih kapal untuk melihat laporan</p>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400 max-w-xs">Klik salah satu kapal pada tabel Progres Kurva-S untuk melihat laporan PDF terilisnya.</p>
+                </div>
+            @endif
+        </section>
+    @endcan
 
     {{-- Aktivitas terbaru + aksi cepat --}}
     <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">

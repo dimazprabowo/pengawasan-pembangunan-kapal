@@ -52,14 +52,14 @@
         class="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl shadow-[0_25px_60px_-10px_rgba(0,0,0,0.6)] dark:shadow-[0_25px_60px_-10px_rgba(0,0,0,0.9)] border border-gray-200 dark:border-gray-600 overflow-hidden outline-none"
     >
         {{-- Top accent stripe --}}
-        <div class="h-1 @if($type === 'regenerate') bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 @else bg-gradient-to-r from-red-500 via-red-600 to-red-700 @endif"></div>
+        <div class="h-1 @if(in_array($type, ['regenerate', 'release'], true)) bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 @else bg-gradient-to-r from-red-500 via-red-600 to-red-700 @endif"></div>
 
         {{-- Body --}}
         <div class="px-6 pt-5 pb-4">
             {{-- Icon + Title row --}}
             <div class="flex items-start gap-4">
-                <div class="flex-shrink-0 w-11 h-11 rounded-full @if($type === 'regenerate') bg-amber-50 dark:bg-amber-900/20 ring-4 ring-amber-100 dark:ring-amber-900/30 @else bg-red-50 dark:bg-red-900/20 ring-4 ring-red-100 dark:ring-red-900/30 @endif flex items-center justify-center">
-                    @if($type === 'regenerate')
+                <div class="flex-shrink-0 w-11 h-11 rounded-full @if(in_array($type, ['regenerate', 'release'], true)) bg-amber-50 dark:bg-amber-900/20 ring-4 ring-amber-100 dark:ring-amber-900/30 @else bg-red-50 dark:bg-red-900/20 ring-4 ring-red-100 dark:ring-red-900/30 @endif flex items-center justify-center">
+                    @if(in_array($type, ['regenerate', 'release'], true))
                         <svg class="w-5 h-5 text-amber-500 dark:text-amber-400" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/>
                         </svg>
@@ -92,14 +92,14 @@
 
             {{-- Warning detail box --}}
             @if($docName)
-            <div class="mt-4 rounded-xl border border-red-200 dark:border-red-700/70 bg-red-50 dark:bg-red-950/40 px-4 py-3.5">
+            <div class="mt-4 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/40 px-4 py-3.5">
                 <div class="flex items-start gap-2.5">
-                    <svg class="w-4 h-4 text-red-600 dark:text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd"/>
+                    <svg class="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6Zm0 0v6h6" />
                     </svg>
                     <div class="min-w-0">
-                        <p class="text-xs font-semibold text-red-700 dark:text-red-400">File akan dihapus permanen</p>
-                        <p class="mt-0.5 text-xs text-red-600 dark:text-red-400/90 font-mono truncate">{{ $docName }}</p>
+                        <p class="text-xs font-semibold text-gray-700 dark:text-gray-300">{{ match ($type) { 'release' => 'Dokumen Word sumber (tetap tersimpan)', 'regenerate' => 'Dokumen yang akan dibuat ulang', default => 'File akan dihapus permanen' } }}</p>
+                        <p class="mt-0.5 text-xs text-gray-600 dark:text-gray-400 font-mono break-all">{{ $docName }}</p>
                     </div>
                 </div>
             </div>
@@ -130,10 +130,10 @@
                 wire:loading.attr="disabled"
                 wire:target="{{ $confirmAction }}"
                 type="button"
-                class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg @if($type === 'regenerate') bg-amber-500 hover:bg-amber-600 shadow-sm shadow-amber-500/20 @else bg-red-600 hover:bg-red-700 shadow-sm shadow-red-500/20 @endif text-white transition-all duration-200 disabled:opacity-60"
+                class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg @if(in_array($type, ['regenerate', 'release'], true)) bg-amber-500 hover:bg-amber-600 shadow-sm shadow-amber-500/20 @else bg-red-600 hover:bg-red-700 shadow-sm shadow-red-500/20 @endif text-white transition-all duration-200 disabled:opacity-60"
             >
                 <svg wire:loading.class="hidden" wire:target="{{ $confirmAction }}" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    @if($type === 'regenerate')
+                    @if(in_array($type, ['regenerate', 'release'], true))
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                     @else
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
@@ -144,10 +144,10 @@
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
                 <span wire:loading.remove wire:target="{{ $confirmAction }}">
-                    @if($type === 'regenerate') Ya, Generate Ulang @else Ya, Hapus @endif
+                    @if($type === 'release') Ya, Release PDF @elseif($type === 'regenerate') Ya, Generate Ulang @else Ya, Hapus @endif
                 </span>
                 <span wire:loading wire:target="{{ $confirmAction }}">
-                    @if($type === 'regenerate') Memproses... @else Menghapus... @endif
+                    @if(in_array($type, ['regenerate', 'release'], true)) Memproses... @else Menghapus... @endif
                 </span>
             </button>
         </div>

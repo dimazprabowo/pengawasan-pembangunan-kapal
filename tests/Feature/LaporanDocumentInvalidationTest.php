@@ -27,6 +27,19 @@ class LaporanDocumentInvalidationTest extends TestCase
 {
     use RefreshDatabase;
 
+    #[Test]
+    public function modal_release_pdf_tidak_menyatakan_word_akan_dihapus(): void
+    {
+        $this->blade('<x-document-confirm-modal :show="true" type="release" doc-name="laporan.docx" />')
+            ->assertSee('Dokumen Word sumber (tetap tersimpan)')->assertSee('laporan.docx')
+            ->assertSee('Ya, Release PDF')->assertDontSee('File akan dihapus permanen')
+            ->assertDontSee('Ya, Hapus')->assertDontSee('Ya, Generate Ulang');
+        $this->blade('<x-document-confirm-modal :show="true" type="delete" doc-name="laporan.docx" />')
+            ->assertSee('File akan dihapus permanen')->assertSee('Ya, Hapus');
+        $this->blade('<x-document-confirm-modal :show="true" type="regenerate" doc-name="laporan.docx" />')
+            ->assertSee('Dokumen yang akan dibuat ulang')->assertSee('Ya, Generate Ulang');
+    }
+
     protected function setUp(): void
     {
         parent::setUp();

@@ -4,14 +4,14 @@ namespace App\Enums;
 
 enum NcFileKategori: string
 {
-    case Before = 'before';
-    case After = 'after';
+    case Open = 'open';
+    case Close = 'close';
 
     public function label(): string
     {
         return match ($this) {
-            self::Before => 'Before',
-            self::After => 'After',
+            self::Open => 'Open',
+            self::Close => 'Close',
         };
     }
 }

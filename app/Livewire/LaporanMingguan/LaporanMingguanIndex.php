@@ -13,6 +13,7 @@ use App\Services\FilePathService;
 use App\Services\KontrakPeriodeService;
 use App\Services\KurvaSService;
 use App\Services\LaporanMingguanService;
+use App\Services\QueueStatusService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -229,7 +230,7 @@ class LaporanMingguanIndex extends Component
         );
     }
 
-    public function render(LaporanMingguanService $service, KurvaSService $kurvaSService, KontrakPeriodeService $periodeService)
+    public function render(LaporanMingguanService $service, KurvaSService $kurvaSService, KontrakPeriodeService $periodeService, QueueStatusService $queueStatusService)
     {
         $chartData = [];
         $progressHistory = [];
@@ -282,15 +283,21 @@ class LaporanMingguanIndex extends Component
             }
         }
 
+        $laporanList = $service->getFiltered(
+            $this->search,
+            $this->dataKapalId,
+            $this->perPage,
+            $this->sortField,
+            $this->sortDir,
+            $this->bulanFilter
+        );
+        $queueStatus = $queueStatusService->getQueueStatusMessage();
+
         return view('livewire.laporan-mingguan.laporan-mingguan-index', [
-            'laporanList' => $service->getFiltered(
-                $this->search,
-                $this->dataKapalId,
-                $this->perPage,
-                $this->sortField,
-                $this->sortDir,
-                $this->bulanFilter
-            ),
+            'laporanList' => $laporanList,
+            'queueStatus' => $queueStatus,
+            'needsPoll' => $queueStatus['pending'] > 0
+                || $laporanList->getCollection()->contains(fn ($l) => $l->isDocProcessing() || $l->isPdfProcessing()),
             'bulanOptions' => collect($periodeService->getBulanList($this->dataKapal))
                 ->map(fn ($b) => ['value' => $b['bulan_ke'], 'label' => 'Bulan ke-'.$b['bulan_ke'].' ('.$b['label'].')'])->all(),
             'dataKapal' => $this->dataKapal,

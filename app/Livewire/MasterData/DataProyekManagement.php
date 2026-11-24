@@ -11,12 +11,12 @@ use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /**
- * Shell tab Data Proyek per data kapal: drawing register, vendor,
+ * Shell tab Data Umum per data kapal: drawing register, vendor,
  * material, pengujian, rapat, dan penandatangan — sumber data BAB 2 & 3
  * laporan bulanan.
  * Tiap tab di-render oleh komponen nested-nya sendiri.
  */
-#[Layout('layouts.app', ['title' => 'Data Proyek'])]
+#[Layout('layouts.app', ['title' => 'Data Umum'])]
 class DataProyekManagement extends Component
 {
     use AuthorizesRequests, HasDataKapalFilter;
