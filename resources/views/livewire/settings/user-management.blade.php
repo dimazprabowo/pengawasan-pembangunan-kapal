@@ -110,13 +110,13 @@
                                     <div class="flex flex-wrap gap-1">
                                         @foreach($user->roles as $role)
                                             @php $colorClass = $roleColors[$role->name] ?? 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'; @endphp
-                                            <span class="px-2 py-1 text-xs font-medium rounded-full {{ $colorClass }}">
+                                            <span class="inline-block px-2 py-1 text-xs font-medium text-center rounded-full {{ $colorClass }}">
                                                 {{ ucfirst($role->name) }}
                                             </span>
                                         @endforeach
                                     </div>
                                 @else
-                                    <span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400">No Role</span>
+                                    <span class="inline-block px-2 py-1 text-xs font-medium text-center rounded-full bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400">No Role</span>
                                 @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
@@ -133,7 +133,7 @@
                                         :disabled="$user->id == auth()->id()"
                                         :title="$user->id == auth()->id() ? 'Tidak dapat menonaktifkan akun sendiri' : 'Aktifkan/Nonaktifkan'" />
                                 @else
-                                    <span class="px-2 py-1 text-xs font-medium rounded-full {{ $user->is_active ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400' }}">
+                                    <span class="inline-block px-2 py-1 text-xs font-medium text-center rounded-full {{ $user->is_active ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400' }}">
                                         {{ $user->is_active ? 'Aktif' : 'Nonaktif' }}
                                     </span>
                                 @endcan

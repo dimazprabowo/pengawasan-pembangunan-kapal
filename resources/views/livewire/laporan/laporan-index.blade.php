@@ -82,7 +82,7 @@
                                     <div class="ml-4">
                                         <div class="flex items-center gap-2">
                                             <div class="text-sm font-medium text-gray-900 dark:text-white">{{ $dataKapal->nama }}</div>
-                                            <span class="px-1.5 py-0.5 rounded text-xs font-mono font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                                            <span class="inline-block px-1.5 py-0.5 rounded text-center text-xs font-mono font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
                                                 title="Kode proyek">{{ $dataKapal->kode }}</span>
                                         </div>
                                     </div>
@@ -108,19 +108,19 @@
                                 <div class="space-y-1">
                                     <div class="flex items-center gap-2">
                                         <span class="text-xs text-gray-500 dark:text-gray-400 w-16">Harian:</span>
-                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-center text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
                                             {{ $dataKapal->laporan_harian_count }}
                                         </span>
                                     </div>
                                     <div class="flex items-center gap-2">
                                         <span class="text-xs text-gray-500 dark:text-gray-400 w-16">Mingguan:</span>
-                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400">
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-center text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400">
                                             {{ $dataKapal->laporan_mingguan_count }}
                                         </span>
                                     </div>
                                     <div class="flex items-center gap-2">
                                         <span class="text-xs text-gray-500 dark:text-gray-400 w-16">Bulanan:</span>
-                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400">
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-center text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400">
                                             {{ $dataKapal->laporan_bulanan_count }}
                                         </span>
                                     </div>

@@ -8,7 +8,7 @@
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">Progres Kurva-S per Kapal</h3>
                 <p class="text-xs text-gray-500 dark:text-gray-400">Deviasi terburuk ditampilkan paling atas. Klik baris untuk melihat grafik.</p>
             </div>
-            <span class="shrink-0 rounded-full bg-blue-50 dark:bg-blue-900/20 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:text-blue-300">{{ $kurvaSKapal->count() }} kapal</span>
+            <span class="inline-block shrink-0 rounded-full text-center bg-blue-50 dark:bg-blue-900/20 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:text-blue-300">{{ $kurvaSKapal->count() }} kapal</span>
         </div>
 
         <div class="flex-1 overflow-x-auto custom-scrollbar">

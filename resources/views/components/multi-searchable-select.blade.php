@@ -145,7 +145,7 @@
             
             {{-- Selected Count Badge --}}
             <template x-if="selectedOptions.length > 0">
-                <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
+                <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-center text-xs font-semibold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
                     <span x-text="selectedOptions.length"></span>
                 </span>
             </template>

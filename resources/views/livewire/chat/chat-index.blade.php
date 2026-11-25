@@ -217,7 +217,7 @@
                     {{-- Date Separator --}}
                     @if($lastDate !== $messageDate)
                         <div class="flex items-center justify-center my-4">
-                            <span class="px-3 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-full">
+                            <span class="inline-block px-3 py-1 text-xs font-medium text-center text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-full">
                                 @if($message->created_at->isToday())
                                     Hari Ini
                                 @elseif($message->created_at->isYesterday())

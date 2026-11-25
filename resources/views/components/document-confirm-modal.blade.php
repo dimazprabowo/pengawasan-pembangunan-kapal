@@ -7,6 +7,8 @@
     'docName' => null,
     'confirmAction' => 'confirm',
     'cancelAction' => 'cancel',
+    'showConfirm' => true,
+    'cancelLabel' => 'Batal',
 ])
 
 @if($show)
@@ -90,6 +92,8 @@
                 </button>
             </div>
 
+            {{ $slot }}
+
             {{-- Warning detail box --}}
             @if($docName)
             <div class="mt-4 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/40 px-4 py-3.5">
@@ -122,9 +126,10 @@
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span wire:loading.remove wire:target="{{ $cancelAction }}">Batal</span>
+                <span wire:loading.remove wire:target="{{ $cancelAction }}">{{ $cancelLabel }}</span>
                 <span wire:loading wire:target="{{ $cancelAction }}">Membatalkan...</span>
             </button>
+            @if($showConfirm)
             <button
                 wire:click="{{ $confirmAction }}"
                 wire:loading.attr="disabled"
@@ -150,6 +155,7 @@
                     @if(in_array($type, ['regenerate', 'release'], true)) Memproses... @else Menghapus... @endif
                 </span>
             </button>
+            @endif
         </div>
     </div>
 </div>

@@ -44,7 +44,7 @@
                     class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all">
                     <span>{{ $group['nama'] }}</span>
                     @if(count($group['rows'] ?? []) > 0)
-                        <span class="min-w-[18px] px-1 rounded-full bg-gray-200 dark:bg-gray-700 text-[10px] leading-4 text-center">{{ count($group['rows']) }}</span>
+                        <span class="inline-block min-w-[18px] px-1 rounded-full bg-gray-200 dark:bg-gray-700 text-[10px] leading-4 text-center">{{ count($group['rows']) }}</span>
                     @endif
                 </button>
             @endforeach

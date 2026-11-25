@@ -45,7 +45,7 @@
                             </div>
                             <div class="flex flex-wrap gap-1.5">
                                 @foreach($group['dates'] as $date)
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-white dark:bg-gray-800 border border-yellow-300 dark:border-yellow-700 text-xs font-medium text-yellow-800 dark:text-yellow-300">{{ $date }}</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-center bg-white dark:bg-gray-800 border border-yellow-300 dark:border-yellow-700 text-xs font-medium text-yellow-800 dark:text-yellow-300">{{ $date }}</span>
                                 @endforeach
                             </div>
                         </div>

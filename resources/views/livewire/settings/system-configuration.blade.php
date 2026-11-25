@@ -61,7 +61,7 @@
                                 @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 py-1 text-xs font-medium rounded-full
+                                <span class="inline-block px-2 py-1 text-xs font-medium text-center rounded-full
                                     @if($config->category->value === 'threshold') bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400
                                     @elseif($config->category->value === 'sla') bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400
                                     @elseif($config->category->value === 'notification') bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400
@@ -84,7 +84,7 @@
                                         activeColor="blue"
                                         title="Aktifkan/Nonaktifkan" />
                                 @else
-                                    <span class="px-2 py-1 text-xs font-medium rounded-full {{ $config->is_active ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400' }}">
+                                    <span class="inline-block px-2 py-1 text-xs font-medium text-center rounded-full {{ $config->is_active ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400' }}">
                                         {{ $config->is_active ? 'Aktif' : 'Nonaktif' }}
                                     </span>
                                 @endcan

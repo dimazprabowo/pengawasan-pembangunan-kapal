@@ -14,7 +14,7 @@
         <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2 min-w-0">
             <span class="truncate">{{ $title }}</span>
             @if(count($rows) > 0)
-                <span class="min-w-[20px] px-1.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-[10px] leading-4 text-center text-blue-700 dark:text-blue-300">{{ count($rows) }}</span>
+                <span class="inline-block min-w-[20px] px-1.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-[10px] leading-4 text-center text-blue-700 dark:text-blue-300">{{ count($rows) }}</span>
             @endif
         </h4>
         @if(!$readonly)

@@ -21,7 +21,7 @@ enum MaterialStatus: string
 
     public function badgeClass(): string
     {
-        return match ($this) {
+        return 'text-center '.match ($this) {
             self::Direncanakan => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
             self::Pengadaan => 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
             self::Tiba => 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400',

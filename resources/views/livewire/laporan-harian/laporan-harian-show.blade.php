@@ -27,7 +27,7 @@
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Informasi lengkap laporan</p>
             @if($laporan->is_libur)
                 <div class="mt-2 flex flex-wrap items-center gap-2">
-                    <span class="px-2 py-1 rounded-lg text-xs font-medium {{ $laporan->status_hari->badgeClass() }}">{{ $laporan->status_hari->label() }}</span>
+                    <span class="inline-block px-2 py-1 rounded-lg text-xs font-medium {{ $laporan->status_hari->badgeClass() }}">{{ $laporan->status_hari->label() }}</span>
                 </div>
             @endif
         </div>
@@ -68,7 +68,7 @@
 
                 {{-- Status Badge --}}
                 @if($laporan->isDocProcessing())
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-center text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
                         <svg class="animate-spin w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -76,21 +76,21 @@
                         {{ $laporan->doc_status === 'pending' ? 'Menunggu antrian...' : 'Sedang diproses...' }}
                     </span>
                 @elseif($laporan->isDocCompleted())
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-center text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                         </svg>
                         Siap diunduh
                     </span>
                 @elseif($laporan->isDocFailed())
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-center text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
                         Gagal
                     </span>
                 @else
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-center text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
                         Belum digenerate
                     </span>
                 @endif
@@ -300,7 +300,7 @@
             <div class="px-5 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
                 <div class="flex items-center justify-between">
                     <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Informasi Laporan</h3>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-center text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
                         Harian
                     </span>
             </div>
@@ -312,18 +312,18 @@
             <div>
                 <p class="text-base font-semibold text-gray-900 dark:text-white leading-snug">{{ $laporan->judul }}</p>
                 <div class="mt-2.5 flex flex-wrap items-center gap-2">
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700/60 dark:text-gray-300">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-center text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700/60 dark:text-gray-300">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                         {{ $laporan->tanggal_laporan->translatedFormat('l, d F Y') }}
                     </span>
                     @if($hariKe)
-                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/25 dark:text-blue-300">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-center text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/25 dark:text-blue-300">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             Hari ke-{{ $hariKe }}
                         </span>
                     @endif
                     @if($mingguKe)
-                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-indigo-50 text-indigo-700 dark:bg-indigo-900/25 dark:text-indigo-300">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-center text-xs font-medium bg-indigo-50 text-indigo-700 dark:bg-indigo-900/25 dark:text-indigo-300">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                             Minggu ke-{{ $mingguKe }}
                         </span>

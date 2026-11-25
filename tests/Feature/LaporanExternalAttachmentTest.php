@@ -15,7 +15,9 @@ use App\Services\PdfPageService;
 use App\Services\WordAttachmentService;
 use App\Services\WordStyleService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\ViewErrorBag;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\TemplateProcessor;
@@ -27,6 +29,77 @@ use ZipArchive;
 
 class LaporanExternalAttachmentTest extends TestCase
 {
+    #[Test]
+    public function dokumen_pendukung_show_memisahkan_konten_dan_aksi_tanpa_memotong_judul(): void
+    {
+        $filename = str_repeat('nama-dokumen-pendukung-', 12).'.pdf';
+        $document = new LaporanExternal([
+            'judul' => 'Dokumen pendukung dengan judul panjang untuk layar mobile',
+            'deskripsi' => 'Deskripsi dokumen pendukung laporan bulan ke-2',
+            'file_name' => $filename, 'file_path' => 'dokumen.pdf',
+            'file_size' => 1234, 'file_status' => 'completed',
+        ]);
+        $document->id = 1;
+        $view = $this->blade('<x-laporan-mingguan.external-reports-show-section :laporanExternal="$documents" />', ['documents' => collect([$document])]);
+        $view->assertSee('Dokumen Pendukung')->assertDontSee('Laporan External')
+            ->assertSee($document->judul)->assertSee($filename)->assertDontSee('truncate');
+        $this->assertDocumentCardLayout((string) $view, $filename);
+    }
+
+    #[Test]
+    public function form_dokumen_pendukung_membungkus_metadata_dan_file_upload_baru(): void
+    {
+        $filename = str_repeat('nama-dokumen-pendukung-', 12).'.pdf';
+        $documents = [
+            ['id' => 1, 'judul' => 'Judul dokumen tersimpan', 'deskripsi' => 'Deskripsi panjang',
+                'file_status' => 'completed', 'existing_file_name' => $filename, 'existing_file_size' => 1234],
+            ['id' => 'new-1', 'judul' => '', 'deskripsi' => '',
+                'file' => UploadedFile::fake()->create($filename, 1, 'application/pdf')],
+        ];
+        view()->share('errors', new ViewErrorBag);
+        $view = $this->blade('<x-laporan-mingguan.external-reports-section :laporanExternal="$documents" :deletingExternalId="null" />', compact('documents'));
+        $view->assertSee('Dokumen Pendukung')->assertSee('Tambah Dokumen')
+            ->assertSee($filename)->assertDontSee('truncate');
+        $this->assertDocumentCardLayout((string) $view, $filename);
+        $this->assertStringContainsString('grid-cols-[1rem_minmax(0,1fr)_auto]', (string) $view);
+    }
+
+    private function assertDocumentCardLayout(string $html, string $filename): void
+    {
+        $dom = new \DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NONET);
+        $xpath = new \DOMXPath($dom);
+        $cards = $xpath->query('//div[contains(@class, "grid-cols-[1.25rem_minmax(0,1fr)_auto]")]');
+        $this->assertSame(1, $cards->length);
+        $content = $xpath->query('./div[contains(@class, "min-w-0") and contains(@class, "[overflow-wrap:anywhere]")]', $cards->item(0));
+        $this->assertSame(1, $content->length);
+        $this->assertStringContainsString($filename, $content->item(0)->textContent);
+        $this->assertSame(3, $xpath->query('./*', $cards->item(0))->length);
+    }
+
+    #[Test]
+    public function teks_runtime_tidak_lagi_memakai_nama_laporan_external(): void
+    {
+        $obsolete = '/\\b(?:laporan\\s+(?:external|eksternal)|dokumen\\s+eksternal)\\b/i';
+        foreach ([app_path(), config_path(), resource_path('views')] as $directory) {
+            foreach (app('files')->allFiles($directory) as $file) {
+                if ($file->getExtension() !== 'php') {
+                    continue;
+                }
+                $source = $file->getContents();
+                if (str_ends_with($file->getFilename(), '.blade.php')) {
+                    $text = preg_replace('/\{\{--[\s\S]*?--\}\}/', '', $source);
+                } else {
+                    $text = implode(' ', array_map(
+                        fn ($token) => is_array($token) && $token[0] === T_CONSTANT_ENCAPSED_STRING ? $token[1] : '',
+                        token_get_all($source)
+                    ));
+                }
+                $this->assertDoesNotMatchRegularExpression($obsolete, $text, $file->getPathname());
+            }
+        }
+    }
+
     private function makeDocxWithExternalMarker(string $path): void
     {
         $document = new PhpWord;
@@ -49,7 +122,7 @@ class LaporanExternalAttachmentTest extends TestCase
         Storage::fake('local');
         $image = imagecreatetruecolor(200, 100);
         imagefill($image, 0, 0, imagecolorallocate($image, 255, 255, 255));
-        imagestring($image, 5, 10, 40, 'DOKUMEN EKSTERNAL', imagecolorallocate($image, 0, 0, 0));
+        imagestring($image, 5, 10, 40, 'DOKUMEN PENDUKUNG', imagecolorallocate($image, 0, 0, 0));
         ob_start();
         imagepng($image);
         $data = base64_encode(ob_get_clean());
@@ -399,7 +472,7 @@ class LaporanExternalAttachmentTest extends TestCase
             foreach (range(2, 7) as $index) {
                 $this->assertStringNotContainsString('FOOTER UTAMA', $pages[$index]);
             }
-            foreach ([2 => 'DOKUMEN EKSTERNAL', 4 => 'LAPORAN HARIAN', 6 => 'LAMPIRAN NON-CONFORMANCE'] as $index => $title) {
+            foreach ([2 => 'DOKUMEN PENDUKUNG', 4 => 'LAPORAN HARIAN', 6 => 'LAMPIRAN NON-CONFORMANCE'] as $index => $title) {
                 $this->assertStringContainsString($title, $pages[$index]);
             }
         }

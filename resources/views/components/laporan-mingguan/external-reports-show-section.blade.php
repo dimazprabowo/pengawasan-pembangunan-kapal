@@ -6,8 +6,8 @@
 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mt-6">
     <div class="px-5 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
         <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
-            Laporan External
-            <span class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+            Dokumen Pendukung
+            <span class="inline-block ml-2 px-2 py-0.5 text-xs font-semibold text-center rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                 {{ $laporanExternal->count() }}
             </span>
         </h3>
@@ -15,7 +15,7 @@
     <div class="p-5">
         <div class="space-y-2">
             @foreach($laporanExternal as $external)
-                <div class="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div wire:key="external-show-{{ $external->id }}" class="grid grid-cols-[1.25rem_minmax(0,1fr)_auto] items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                     @if($external->isFileProcessing())
                         <svg class="animate-spin w-5 h-5 text-blue-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -30,28 +30,28 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                         </svg>
                     @endif
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ $external->judul }}</p>
+                    <div class="min-w-0 space-y-1 [overflow-wrap:anywhere]">
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">{{ $external->judul }}</p>
                         @if($external->deskripsi)
-                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ $external->deskripsi }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 whitespace-pre-line">{{ $external->deskripsi }}</p>
                         @endif
                         @if($external->isFileFailed() && $external->file_error)
                             <p class="text-xs text-red-600 dark:text-red-400">{{ $external->file_error }}</p>
                         @endif
+                        @if($external->file_name)
+                            @php
+                                $extension = strtoupper(pathinfo($external->file_name, PATHINFO_EXTENSION));
+                            @endphp
+                            <div class="pt-1 text-xs text-gray-500 dark:text-gray-400">
+                                <p>{{ $external->file_name }}</p>
+                                <p class="mt-1">{{ $extension }}
+                                    @if($external->file_size)
+                                        • {{ number_format($external->file_size / 1024, 1) }} KB
+                                    @endif
+                                </p>
+                            </div>
+                        @endif
                     </div>
-                    @if($external->file_name)
-                        @php
-                            $extension = strtoupper(pathinfo($external->file_name, PATHINFO_EXTENSION));
-                        @endphp
-                        <div class="text-xs text-gray-500 dark:text-gray-400 text-right">
-                            <p>{{ $external->file_name }}</p>
-                            <p>{{ $extension }}
-                                @if($external->file_size)
-                                    • {{ number_format($external->file_size / 1024, 1) }} KB
-                                @endif
-                            </p>
-                        </div>
-                    @endif
                     @if($external->hasFile() && $external->isFileCompleted())
                         <button wire:click="downloadExternalFile({{ $external->id }})"
                             wire:loading.attr="disabled"

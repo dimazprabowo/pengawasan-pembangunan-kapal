@@ -99,7 +99,7 @@
                                     <div class="ml-4">
                                         <div class="flex items-center gap-2">
                                             <div class="text-sm font-medium text-gray-900 dark:text-white">{{ $dataKapal->nama }}</div>
-                                            <span class="px-1.5 py-0.5 rounded text-xs font-mono font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                                            <span class="inline-block px-1.5 py-0.5 rounded text-center text-xs font-mono font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
                                                 title="Kode kapal">{{ $dataKapal->kode }}</span>
                                         </div>
                                         @if($dataKapal->hasPelaksanaan())
@@ -134,7 +134,7 @@
                                     <div wire:key="tpl-{{ $dataKapal->id }}-{{ $tipe }}" class="flex items-center gap-2">
                                         <span class="text-xs text-gray-500 dark:text-gray-400 w-16">{{ $tipeLabel }}:</span>
                                         @if($dataKapal->hasTemplate($tipe))
-                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-center text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
                                                 <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                                                 </svg>
@@ -210,21 +210,21 @@
                                     {{-- Harian --}}
                                     <div class="flex items-center gap-2">
                                         <span class="text-xs text-gray-500 dark:text-gray-400 w-16">Harian:</span>
-                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-center text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
                                             {{ $dataKapal->getLaporanCount('harian') }} laporan
                                         </span>
                                     </div>
                                     {{-- Mingguan --}}
                                     <div class="flex items-center gap-2">
                                         <span class="text-xs text-gray-500 dark:text-gray-400 w-16">Mingguan:</span>
-                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-center text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
                                             {{ $dataKapal->getLaporanCount('mingguan') }} laporan
                                         </span>
                                     </div>
                                     {{-- Bulanan --}}
                                     <div class="flex items-center gap-2">
                                         <span class="text-xs text-gray-500 dark:text-gray-400 w-16">Bulanan:</span>
-                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-center text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
                                             {{ $dataKapal->getLaporanCount('bulanan') }} laporan
                                         </span>
                                     </div>
@@ -244,7 +244,7 @@
                                             'inactive' => 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400',
                                         ];
                                     @endphp
-                                    <span class="px-2 py-1 text-xs font-medium rounded-full {{ $statusColors[$dataKapal->status->value] ?? $statusColors['inactive'] }}">
+                                    <span class="inline-block px-2 py-1 text-xs font-medium text-center rounded-full {{ $statusColors[$dataKapal->status->value] ?? $statusColors['inactive'] }}">
                                         {{ $dataKapal->status->label() }}
                                     </span>
                                 @endcan

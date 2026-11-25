@@ -182,7 +182,7 @@
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ $nc->pic ?? '-' }}</td>
                                 <td class="px-4 py-3">
-                                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ $nc->status->badgeClass() }}">{{ $nc->status->label() }}</span>
+                                    <span class="inline-block text-xs font-semibold px-2 py-0.5 rounded-full {{ $nc->status->badgeClass() }}">{{ $nc->status->label() }}</span>
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap text-sm">
                                     @if($nc->closed_at)
@@ -295,10 +295,10 @@
                                                                     <svg wire:loading wire:target="previewForm({{ $tf->id }})" class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                                                                 </button>
                                                             @else
-                                                                <span class="text-[10px] px-1.5 py-0.5 rounded {{ $tf->status()->badgeClass() }}" title="Form Temuan bertanda tangan">{{ $tf->nomor }}</span>
+                                                                <span class="inline-block text-[10px] px-1.5 py-0.5 rounded {{ $tf->status()->badgeClass() }}" title="Form Temuan bertanda tangan">{{ $tf->nomor }}</span>
                                                             @endcan
                                                         @else
-                                                            <span class="text-[10px] px-1.5 py-0.5 rounded {{ $tf->status()->badgeClass() }}" title="Scan {{ $tf->status()->label() }}">{{ $tf->nomor }}</span>
+                                                            <span class="inline-block text-[10px] px-1.5 py-0.5 rounded {{ $tf->status()->badgeClass() }}" title="Scan {{ $tf->status()->label() }}">{{ $tf->nomor }}</span>
                                                         @endif
                                                         @include('livewire.laporan-harian.partials.nc-form-actions', ['ncForm' => $tf, 'iconSize' => 'w-3.5 h-3.5'])
                                                     </div>
@@ -329,7 +329,7 @@
                                     @if($penutupanSigned)
                                         @if($nc->isOpen())
                                             {{-- NC di-reopen: penutupan signed lama hanya histori, bukan status aktif --}}
-                                            <span class="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 dark:bg-gray-700/60 dark:text-gray-400 line-through"
+                                            <span class="inline-block text-[10px] text-center px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 dark:bg-gray-700/60 dark:text-gray-400 line-through"
                                                 title="Pernah ditutup via {{ $penutupanSigned->nomor }} — dibuka kembali{{ $nc->reopened_at ? ' '.$nc->reopened_at->translatedFormat('d M Y') : '' }}{{ $nc->reopenedBy ? ' oleh '.$nc->reopenedBy->name : '' }}{{ $nc->reopen_note ? ': '.$nc->reopen_note : '' }}">
                                                 {{ $penutupanSigned->nomor }}
                                             </span>
@@ -345,10 +345,10 @@
                                                             <svg wire:loading wire:target="previewForm({{ $penutupanSigned->id }})" class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                                                         </button>
                                                     @else
-                                                        <span class="text-[10px] px-1.5 py-0.5 rounded {{ $penutupanSigned->status()->badgeClass() }}" title="Form Penutupan bertanda tangan">{{ $penutupanSigned->nomor }}</span>
+                                                        <span class="inline-block text-[10px] px-1.5 py-0.5 rounded {{ $penutupanSigned->status()->badgeClass() }}" title="Form Penutupan bertanda tangan">{{ $penutupanSigned->nomor }}</span>
                                                     @endcan
                                                 @else
-                                                    <span class="text-[10px] px-1.5 py-0.5 rounded {{ $penutupanSigned->status()->badgeClass() }}" title="Scan {{ $penutupanSigned->status()->label() }}">{{ $penutupanSigned->nomor }}</span>
+                                                    <span class="inline-block text-[10px] px-1.5 py-0.5 rounded {{ $penutupanSigned->status()->badgeClass() }}" title="Scan {{ $penutupanSigned->status()->label() }}">{{ $penutupanSigned->nomor }}</span>
                                                 @endif
                                                 @include('livewire.laporan-harian.partials.nc-form-actions', ['ncForm' => $penutupanSigned, 'iconSize' => 'w-3.5 h-3.5'])
                                             </div>
@@ -447,7 +447,7 @@
                                 <li wire:key="upnc-{{ $ncInfo->id }}" class="flex items-start gap-2.5 p-2 rounded-lg bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700">
                                     <span class="text-xs font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">{{ $ncInfo->nomor ?? 'NC' }}</span>
                                     <p class="text-xs text-gray-600 dark:text-gray-300 line-clamp-1 flex-1">{{ $ncInfo->kendala }}</p>
-                                    <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full {{ $ncInfo->status->badgeClass() }}">{{ $ncInfo->status->label() }}</span>
+                                    <span class="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-full {{ $ncInfo->status->badgeClass() }}">{{ $ncInfo->status->label() }}</span>
                                 </li>
                             @endforeach
                         </ul>

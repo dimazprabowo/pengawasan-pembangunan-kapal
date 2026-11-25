@@ -104,6 +104,11 @@ class LaporanMingguanCreate extends Component
         $this->loadAvailableLaporanHarian();
         $this->loadKurvaSOptions();
         $this->fullProgressHistory = $this->buildFullProgressHistory();
+        $week = request()->integer('minggu');
+        if ($week && in_array($week, array_column($this->mingguOptions, 'value'))) {
+            $this->minggu_ke = $week;
+            $this->updatedMingguKe();
+        }
     }
 
     public function toggleAutoSave(): void
@@ -265,9 +270,9 @@ class LaporanMingguanCreate extends Component
             'ringkasan' => 'ringkasan',
             'laporan_harian_ids' => 'laporan harian',
             'minggu_ke' => 'minggu ke',
-            'laporanExternal.*.judul' => 'judul laporan external',
-            'laporanExternal.*.deskripsi' => 'deskripsi laporan external',
-            'laporanExternal.*.file' => 'file laporan external',
+            'laporanExternal.*.judul' => 'judul dokumen pendukung',
+            'laporanExternal.*.deskripsi' => 'deskripsi dokumen pendukung',
+            'laporanExternal.*.file' => 'file dokumen pendukung',
         ];
     }
 
@@ -422,7 +427,7 @@ class LaporanMingguanCreate extends Component
             $this->externalToDelete = null;
             $this->deletingExternalId = null;
             $this->showDeleteExternalModal = false;
-            $this->notifySuccess('Laporan external berhasil dihapus.');
+            $this->notifySuccess('Dokumen pendukung berhasil dihapus.');
         }
     }
 

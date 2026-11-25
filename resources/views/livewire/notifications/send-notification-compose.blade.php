@@ -31,7 +31,7 @@
                     <div class="flex-1">
                         <div class="flex items-center gap-2 flex-wrap">
                             <span class="text-sm font-semibold text-gray-900 dark:text-white">Semua Pengguna</span>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-center text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
                                 {{ $totalUsers }} user
                             </span>
                         </div>
@@ -47,7 +47,7 @@
                         <div class="flex items-center gap-2 flex-wrap">
                             <span class="text-sm font-semibold text-gray-900 dark:text-white">Pengguna Tertentu</span>
                             @if(count($selectedUserIds) > 0)
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-center text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
                                     {{ count($selectedUserIds) }} dipilih
                                 </span>
                             @endif
@@ -64,7 +64,7 @@
                     @if(count($selectedUsers) > 0)
                         <div class="flex flex-wrap gap-2">
                             @foreach($selectedUsers as $su)
-                                <span class="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
+                                <span class="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full text-center text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
                                     <span class="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0">
                                         {{ strtoupper(substr($su->name, 0, 1)) }}
                                     </span>
@@ -284,7 +284,7 @@
                 <div class="flex items-center justify-between gap-2">
                     <dt class="text-gray-500 dark:text-gray-400 flex-shrink-0">Tipe</dt>
                     <dd>
-                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium {{ $currentType['bg'] }} {{ $currentType['text'] }}">
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-center text-xs font-medium {{ $currentType['bg'] }} {{ $currentType['text'] }}">
                             {{ $currentType['label'] }}
                         </span>
                     </dd>

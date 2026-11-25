@@ -92,9 +92,9 @@ class LaporanBulananCreate extends Component
             'periode_mulai' => 'periode mulai',
             'periode_selesai' => 'periode selesai',
             'ringkasan' => 'executive summary',
-            'laporanExternal.*.judul' => 'judul laporan external',
-            'laporanExternal.*.deskripsi' => 'deskripsi laporan external',
-            'laporanExternal.*.file' => 'file laporan external',
+            'laporanExternal.*.judul' => 'judul dokumen pendukung',
+            'laporanExternal.*.deskripsi' => 'deskripsi dokumen pendukung',
+            'laporanExternal.*.file' => 'file dokumen pendukung',
         ];
     }
 
@@ -153,7 +153,7 @@ class LaporanBulananCreate extends Component
             $this->externalToDelete = null;
             $this->deletingExternalId = null;
             $this->showDeleteExternalModal = false;
-            $this->notifySuccess('Laporan external berhasil dihapus.');
+            $this->notifySuccess('Dokumen pendukung berhasil dihapus.');
         }
     }
 

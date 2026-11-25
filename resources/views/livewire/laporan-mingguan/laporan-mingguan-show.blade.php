@@ -63,7 +63,7 @@
 
                 {{-- Status Badge --}}
                 @if($laporan->isDocProcessing())
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-center text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
                         <svg class="animate-spin w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -71,21 +71,21 @@
                         {{ $laporan->doc_status === 'pending' ? 'Menunggu antrian...' : 'Sedang diproses...' }}
                     </span>
                 @elseif($laporan->isDocCompleted())
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-center text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                         </svg>
                         Siap diunduh
                     </span>
                 @elseif($laporan->isDocFailed())
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-center text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
                         Gagal
                     </span>
                 @else
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-center text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
                         Belum digenerate
                     </span>
                 @endif
@@ -294,7 +294,7 @@
         <div class="px-5 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-center justify-between">
                 <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Informasi Laporan</h3>
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-center text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
                     Mingguan
                 </span>
             </div>
@@ -388,7 +388,7 @@
             <div class="flex items-center justify-between">
                 <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
                     Laporan Harian Teragregasi
-                    <span class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                    <span class="inline-block ml-2 px-2 py-0.5 text-xs font-semibold text-center rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                         {{ count($availableLaporanHarian) }} laporan harian otomatis dipilih
                     </span>
                 </h3>
@@ -429,7 +429,7 @@
             <div class="flex items-center justify-between">
                 <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
                     Lampiran Harian Terpilih
-                    <span class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                    <span class="inline-block ml-2 px-2 py-0.5 text-xs font-semibold text-center rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                         {{ $laporan->lampiran->count() }}/{{ count($lampiranHarianList) }} dipilih
                     </span>
                 </h3>
@@ -477,10 +477,10 @@
         <div class="px-5 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
             <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
                 Rekap Non-Conformity (NC)
-                <span class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                <span class="inline-block ml-2 px-2 py-0.5 text-xs font-semibold text-center rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
                     {{ $ncRekap->where('status.value', 'open')->count() }} open
                 </span>
-                <span class="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+                <span class="inline-block ml-1 px-2 py-0.5 text-xs font-semibold text-center rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
                     {{ $ncRekap->where('status.value', 'closed')->count() }} closed
                 </span>
             </h3>
@@ -509,7 +509,7 @@
                             <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 max-w-xs"><p class="line-clamp-2" title="{{ $nc->tindakan }}">{{ $nc->tindakan ?? '-' }}</p></td>
                             <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ $nc->pic ?? '-' }}</td>
                             <td class="px-4 py-3">
-                                <span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ $nc->status->badgeClass() }}">{{ $nc->status->label() }}</span>
+                                <span class="inline-block text-xs font-semibold px-2 py-0.5 rounded-full {{ $nc->status->badgeClass() }}">{{ $nc->status->label() }}</span>
                                 @if($nc->isClosed() && $nc->closed_at)
                                     <div class="text-[10px] text-gray-400 mt-0.5">{{ $nc->closed_at->translatedFormat('d M Y') }}{{ $nc->closedBy ? ' · '.$nc->closedBy->name : '' }}</div>
                                 @endif
@@ -557,6 +557,8 @@
         />
 
         {{-- Regenerate Confirmation Modal --}}
+        @include('livewire.laporan-bulanan.partials.missing-reports')
+
         <x-document-confirm-modal
             :show="$showRegenerateConfirm"
             showProperty="showRegenerateConfirm"

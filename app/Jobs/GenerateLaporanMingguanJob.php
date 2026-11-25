@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\LaporanMingguan;
+use App\Services\LaporanCompletenessService;
 use App\Services\LaporanDocumentService;
 use App\Services\LaporanMingguanWordService;
 use App\Services\QueueStatusService;
@@ -11,6 +12,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Validation\ValidationException;
 
 class GenerateLaporanMingguanJob implements ShouldQueue
 {
@@ -32,6 +34,13 @@ class GenerateLaporanMingguanJob implements ShouldQueue
 
         // Load dataKapal relationship for template detection
         $this->laporan->load('dataKapal');
+        try {
+            app(LaporanCompletenessService::class)->prepareForGeneration($this->laporan);
+        } catch (ValidationException $e) {
+            $this->laporan->update(['doc_status' => 'failed', 'doc_error' => $e->validator->errors()->first()]);
+
+            return;
+        }
 
         // Delete old generated doc if re-generating
         app(LaporanDocumentService::class)->deleteDocFile($this->laporan->doc_path);

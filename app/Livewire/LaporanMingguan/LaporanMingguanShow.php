@@ -4,6 +4,7 @@ namespace App\Livewire\LaporanMingguan;
 
 use App\Jobs\GenerateLaporanMingguanJob;
 use App\Jobs\ReleaseLaporanMingguanPdfJob;
+use App\Livewire\Traits\ChecksLaporanCompleteness;
 use App\Livewire\Traits\HasDataKapalFilter;
 use App\Livewire\Traits\HasNotification;
 use App\Models\DataKapal;
@@ -26,6 +27,7 @@ use Livewire\Component;
 class LaporanMingguanShow extends Component
 {
     use AuthorizesRequests, HasDataKapalFilter, HasNotification;
+    use ChecksLaporanCompleteness;
 
     public LaporanMingguan $laporan;
 
@@ -237,6 +239,9 @@ class LaporanMingguanShow extends Component
     public function confirmRegenerate(): void
     {
         $this->authorize('generateWord', $this->laporan);
+        if (! $this->checkSourceCompleteness()) {
+            return;
+        }
 
         if ($this->laporan->isDocCompleted()) {
             $this->showRegenerateConfirm = true;
@@ -256,6 +261,9 @@ class LaporanMingguanShow extends Component
     {
         $this->showRegenerateConfirm = false;
         $this->authorize('generateWord', $this->laporan);
+        if (! $this->checkSourceCompleteness()) {
+            return;
+        }
 
         if ($this->laporan->isDocProcessing()) {
             $this->notifyWarning('Dokumen sedang dalam proses generate. Mohon tunggu.');

@@ -17,7 +17,7 @@ enum NcFormJenis: string
 
     public function badgeClass(): string
     {
-        return match ($this) {
+        return 'text-center '.match ($this) {
             self::Temuan => 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
             self::Penutupan => 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
         };

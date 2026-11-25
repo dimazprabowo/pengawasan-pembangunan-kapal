@@ -238,7 +238,7 @@ class WordAttachmentService
      * (tepat di bawah tabel dokumen eksternal). Bila marker tidak ada di
      * template custom, konten disisipkan di akhir dokumen seperti lampiran NC.
      */
-    public function embedExternals(string $path, Collection $externals, string $coverTitle = 'DOKUMEN EKSTERNAL'): void
+    public function embedExternals(string $path, Collection $externals, string $coverTitle = 'DOKUMEN PENDUKUNG'): void
     {
         $images = [];
         foreach ($externals->values() as $external) {
@@ -246,16 +246,16 @@ class WordAttachmentService
                 continue;
             }
             if (! $external->isFileCompleted()) {
-                throw new RuntimeException('Dokumen eksternal belum selesai diproses.');
+                throw new RuntimeException('Dokumen pendukung belum selesai diproses.');
             }
             if (! Storage::disk()->exists($external->file_path)) {
-                throw new RuntimeException('File dokumen eksternal tidak ditemukan.');
+                throw new RuntimeException('File dokumen pendukung tidak ditemukan.');
             }
             if ($external->isImage()) {
                 $images[] = [$external->file_path, '', true];
             } elseif ($external->isPdf()) {
                 if (empty($external->rendered_pages)) {
-                    throw new RuntimeException('Halaman PDF dokumen eksternal belum tersedia.');
+                    throw new RuntimeException('Halaman PDF dokumen pendukung belum tersedia.');
                 }
                 foreach ($external->rendered_pages as $image) {
                     $images[] = [$image, '', true];

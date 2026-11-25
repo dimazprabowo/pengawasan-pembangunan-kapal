@@ -29,7 +29,7 @@
         <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2 min-w-0">
             <span class="truncate">{{ $title }}</span>
             @if(count($rows) > 0)
-                <span class="min-w-[20px] px-1.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-[10px] leading-4 text-center text-amber-700 dark:text-amber-300">{{ count($rows) }}</span>
+                <span class="inline-block min-w-[20px] px-1.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-[10px] leading-4 text-center text-amber-700 dark:text-amber-300">{{ count($rows) }}</span>
             @endif
         </h4>
         @unless($readonly)
@@ -61,12 +61,12 @@
             <div class="flex items-center justify-between gap-2 px-4 py-2.5 border-b {{ $isClosed ? 'border-emerald-100 dark:border-emerald-800/50 bg-emerald-50 dark:bg-emerald-900/20' : 'border-amber-100 dark:border-amber-800/40 bg-amber-50/60 dark:bg-amber-900/10' }}">
                 <div class="flex items-center gap-2 min-w-0">
                     @if($nc?->nomor)
-                        <span class="text-xs font-bold tracking-wide px-2 py-0.5 rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300">{{ $nc->nomor }}</span>
+                        <span class="inline-block text-xs font-bold text-center tracking-wide px-2 py-0.5 rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300">{{ $nc->nomor }}</span>
                     @else
                         <span class="text-xs font-semibold text-gray-600 dark:text-gray-400">NC #{{ $i + 1 }}</span>
                     @endif
                     @if($nc)
-                        <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full {{ $nc->status->badgeClass() }}">{{ $nc->status->label() }}</span>
+                        <span class="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-full {{ $nc->status->badgeClass() }}">{{ $nc->status->label() }}</span>
                     @endif
                 </div>
                 @unless($readonly || $isClosed)
@@ -168,7 +168,7 @@
                                         </div>
                                         <div class="absolute top-1.5 right-1.5 flex items-center gap-1 bg-white/90 dark:bg-gray-800/90 rounded-lg shadow-sm px-1 py-0.5">
                                             @if($fotos[$pendingKey]['is_cropped'] ?? false)
-                                                <span class="text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded">Cropped</span>
+                                                <span class="inline-block text-[10px] text-center bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded">Cropped</span>
                                             @endif
                                             @if($isNewImage)
                                             <button type="button" wire:click="openNcCropper({{ $argsPrefix }}'{{ $pendingKey }}')"

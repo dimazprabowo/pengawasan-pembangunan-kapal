@@ -13,7 +13,7 @@
                 <p class="mt-2 text-sm text-blue-100 max-w-xl">
                     Pantau sebaran galangan, progres pembangunan kapal, dan temuan NC dalam satu layar.
                 </p>
-                <span class="mt-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">
+                <span class="mt-3 inline-flex items-center gap-2 rounded-full text-center bg-white/15 px-3 py-1 text-xs font-semibold">
                     <span class="w-2 h-2 rounded-full bg-emerald-400"></span>{{ $authUserRole }}
                 </span>
             </div>
@@ -163,8 +163,8 @@
                                         <span class="block text-sm font-medium text-gray-900 dark:text-white truncate" x-text="m.nama"></span>
                                         <span class="block text-xs text-gray-500 dark:text-gray-400 truncate" x-text="[m.kota, m.provinsi].filter(Boolean).join(', ') || m.kode"></span>
                                     </span>
-                                    <span x-show="m.lat === null" class="shrink-0 rounded-full bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">Tanpa lokasi</span>
-                                    <span x-show="m.lat !== null && m.nc > 0" class="shrink-0 rounded-full bg-red-100 dark:bg-red-900/30 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:text-red-300" x-text="m.nc + ' NC'"></span>
+                                    <span x-show="m.lat === null" class="inline-block shrink-0 rounded-full text-center bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">Tanpa lokasi</span>
+                                    <span x-show="m.lat !== null && m.nc > 0" class="shrink-0 rounded-full text-center bg-red-100 dark:bg-red-900/30 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:text-red-300" x-text="m.nc + ' NC'"></span>
                                 </button>
                             </li>
                         </template>
@@ -208,7 +208,7 @@
                                     <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ $g->nama }}</h3>
                                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ collect([$g->kota, $g->provinsi])->filter()->join(', ') ?: '-' }}</p>
                                 </div>
-                                <span class="shrink-0 rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-[11px] font-semibold text-gray-600 dark:text-gray-300">{{ $g->kode }}</span>
+                                <span class="inline-block shrink-0 rounded-full text-center bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-[11px] font-semibold text-gray-600 dark:text-gray-300">{{ $g->kode }}</span>
                             </div>
                             @if ($g->alamat)
                                 <p class="mt-2 text-xs text-gray-600 dark:text-gray-300">{{ $g->alamat }}</p>
@@ -261,7 +261,7 @@
                                             <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">{{ $kapal->nama }}</p>
                                             <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ $kapal->owner?->name ?? '-' }}{{ $kapal->nomor_kontrak_galangan ? ' · '.$kapal->nomor_kontrak_galangan : '' }}</p>
                                         </div>
-                                        <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $kapal->progress_status->badgeClass() }}">{{ $kapal->progress_status->label() }}</span>
+                                        <span class="inline-block shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $kapal->progress_status->badgeClass() }}">{{ $kapal->progress_status->label() }}</span>
                                     </div>
 
                                     <div class="mt-3">

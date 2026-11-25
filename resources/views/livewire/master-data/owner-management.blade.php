@@ -91,12 +91,12 @@
                                 @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-center text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400">
                                     {{ $owner->users_count }} user
                                 </span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-center text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400">
                                     {{ $owner->data_kapal_count }} kapal
                                 </span>
                             </td>
@@ -115,7 +115,7 @@
                                             'suspended' => 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
                                         ];
                                     @endphp
-                                    <span class="px-2 py-1 text-xs font-medium rounded-full {{ $statusColors[$owner->status->value] ?? $statusColors['inactive'] }}">
+                                    <span class="inline-block px-2 py-1 text-xs font-medium text-center rounded-full {{ $statusColors[$owner->status->value] ?? $statusColors['inactive'] }}">
                                         {{ $owner->status->label() }}
                                     </span>
                                 @endcan

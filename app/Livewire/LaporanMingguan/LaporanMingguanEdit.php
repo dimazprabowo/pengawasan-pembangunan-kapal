@@ -300,9 +300,9 @@ class LaporanMingguanEdit extends Component
             'ringkasan' => 'ringkasan',
             'laporan_harian_ids' => 'laporan harian',
             'minggu_ke' => 'minggu ke',
-            'laporanExternal.*.judul' => 'judul laporan external',
-            'laporanExternal.*.deskripsi' => 'deskripsi laporan external',
-            'laporanExternal.*.file' => 'file laporan external',
+            'laporanExternal.*.judul' => 'judul dokumen pendukung',
+            'laporanExternal.*.deskripsi' => 'deskripsi dokumen pendukung',
+            'laporanExternal.*.file' => 'file dokumen pendukung',
         ];
     }
 
@@ -480,7 +480,7 @@ class LaporanMingguanEdit extends Component
             $this->externalToDelete = null;
             $this->deletingExternalId = null;
             $this->showDeleteExternalModal = false;
-            $this->notifySuccess('Laporan external berhasil dihapus.');
+            $this->notifySuccess('Dokumen pendukung berhasil dihapus.');
         }
     }
 

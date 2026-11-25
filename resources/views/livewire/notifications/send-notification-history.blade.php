@@ -56,7 +56,7 @@
                         <div class="min-w-0">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ $item->title }}</p>
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $cfg['bg'] }} {{ $cfg['text'] }}">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-center text-xs font-medium {{ $cfg['bg'] }} {{ $cfg['text'] }}">
                                     {{ $cfg['label'] }}
                                 </span>
                             </div>

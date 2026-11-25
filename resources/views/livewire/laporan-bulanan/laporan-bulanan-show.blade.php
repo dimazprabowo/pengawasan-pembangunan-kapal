@@ -55,7 +55,7 @@
         <div class="px-5 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-center justify-between">
                 <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Informasi Laporan</h3>
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-center text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
                     Bulanan
                 </span>
             </div>
@@ -135,7 +135,7 @@
 
                 {{-- Status Badge --}}
                 @if($laporan->isDocProcessing())
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-center text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
                         <svg class="animate-spin w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -143,21 +143,21 @@
                         {{ $laporan->doc_status === 'pending' ? 'Menunggu antrian...' : 'Sedang diproses...' }}
                     </span>
                 @elseif($laporan->isDocCompleted())
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-center text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                         </svg>
                         Siap diunduh
                     </span>
                 @elseif($laporan->isDocFailed())
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-center text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
                         Gagal
                     </span>
                 @else
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-center text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
                         Belum digenerate
                     </span>
                 @endif
@@ -362,7 +362,7 @@
                 <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Lembar Pengesahan</h3>
             </div>
             @if($laporan->isPengesahanProcessing())
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-center text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
                     <svg class="animate-spin w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -370,21 +370,21 @@
                     {{ $laporan->pengesahan_status === 'pending' ? 'Menunggu antrian...' : 'Sedang diproses...' }}
                 </span>
             @elseif($laporan->isPengesahanFailed())
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-center text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
                     Gagal
                 </span>
             @elseif($laporan->pengesahan_path && $laporan->isPengesahanCompleted())
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-center text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                     </svg>
                     Terupload
                 </span>
             @else
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-center text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
                     Belum diupload
                 </span>
             @endif
@@ -484,7 +484,7 @@
         <div class="px-5 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
             <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
                 Laporan Mingguan dalam Bulan Ini
-                <span class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full @if($laporanMingguanBulan->count() > 0) bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 @else bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 @endif">
+                <span class="inline-block ml-2 px-2 py-0.5 text-xs font-semibold text-center rounded-full @if($laporanMingguanBulan->count() > 0) bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 @else bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 @endif">
                     {{ $laporanMingguanBulan->count() }} laporan
                 </span>
             </h3>
@@ -519,7 +519,7 @@
                                 </div>
                             </div>
                             @if($mingguan->total_progress !== null)
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 whitespace-nowrap">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-center text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 whitespace-nowrap">
                                     +{{ number_format((float) $mingguan->total_progress, 2) }}%
                                 </span>
                             @endif
@@ -554,6 +554,8 @@
     <x-laporan-mingguan.external-reports-show-section :laporanExternal="$laporan->laporanExternal" />
 
     {{-- Regenerate Confirmation Modal --}}
+    @include('livewire.laporan-bulanan.partials.missing-reports')
+
     <x-document-confirm-modal
         :show="$showRegenerateConfirm"
         showProperty="showRegenerateConfirm"

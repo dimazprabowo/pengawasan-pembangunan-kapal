@@ -36,6 +36,7 @@
 - `.gitlab-ci.yml`: test → build&push registry → deploy SSH (manual di main). Variabel CI/CD: `DEPLOY_HOST/USER/SSH_KEY/DIR` + `VITE_REVERB_*` (lihat DEPLOYMENT.md).
 
 ## Verification
+- Header section dengan penjelasan dan badge: di mobile tumpuk penjelasan lebar penuh lalu grup badge (`flex-wrap`), sejajarkan kembali mulai `sm`; jangan membuat setiap badge selebar satu baris. Regresi header/badge: `php artisan test --filter=BadgeAlignmentTest` (tanpa seeder).
 - `php artisan migrate:fresh --seed` (DB lokal PostgreSQL; PHPUnit memakai SQLite `:memory:`).
 - Laporan harian: `php artisan test --filter="LaporanHarianAktivitasLampiranTest|LaporanNavigationTest|LaporanTanggalUnikTest"`.
 - `php artisan view:cache`, `npm run build`, `./vendor/bin/pint <file yang diubah>`.

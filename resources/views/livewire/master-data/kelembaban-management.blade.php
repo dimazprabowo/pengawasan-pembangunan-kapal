@@ -93,7 +93,7 @@
                                             'inactive' => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400',
                                         ];
                                     @endphp
-                                    <span class="px-2 py-1 text-xs font-medium rounded-full {{ $statusColors[$kelembaban->status->value] ?? $statusColors['inactive'] }}">
+                                    <span class="inline-block px-2 py-1 text-xs font-medium text-center rounded-full {{ $statusColors[$kelembaban->status->value] ?? $statusColors['inactive'] }}">
                                         {{ $kelembaban->status->label() }}
                                     </span>
                                 @endcan

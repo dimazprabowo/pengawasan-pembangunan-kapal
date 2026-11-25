@@ -112,7 +112,8 @@ class LaporanHarianCreate extends Component
         $this->dataKapal = $dataKapal;
         $this->data_kapal_id = $dataKapal->id;
         $this->autoSave = Cache::get('lh_draft_autosave:'.auth()->id(), true);
-        $this->addItem();
+        $requested = request()->query('tanggal');
+        $this->addItem(is_string($requested) ? $requested : null);
     }
 
     public function toggleAutoSave(): void
@@ -145,7 +146,7 @@ class LaporanHarianCreate extends Component
         return array_merge($this->usedTanggalLaporan(), $fromForm);
     }
 
-    public function addItem(): void
+    public function addItem(?string $requestedTanggal = null): void
     {
         $this->authorize('create', LaporanHarian::class);
         $this->authorizeDataKapalAccess($this->dataKapal);
@@ -162,6 +163,13 @@ class LaporanHarianCreate extends Component
             ?? LaporanHarian::where('data_kapal_id', $this->data_kapal_id)->min('tanggal_laporan')
             ?? $today->copy();
         $candidate = Carbon::parse($mulai)->startOfDay();
+        if ($requestedTanggal !== null && preg_match('/^\d{4}-\d{2}-\d{2}$/D', $requestedTanggal)
+            && Carbon::hasFormatWithModifiers($requestedTanggal, 'Y-m-d')) {
+            $requested = Carbon::createFromFormat('!Y-m-d', $requestedTanggal);
+            if ($requested->toDateString() === $requestedTanggal && $requested->betweenIncluded(Carbon::parse($mulai)->startOfDay(), $maxTanggal)) {
+                $candidate = $requested;
+            }
+        }
         while ($candidate->lte($maxTanggal) && in_array($candidate->format('Y-m-d'), $taken, true)) {
             $candidate->addDay();
         }

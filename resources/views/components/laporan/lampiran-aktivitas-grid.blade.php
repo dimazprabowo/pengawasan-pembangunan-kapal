@@ -190,7 +190,7 @@
                                 </div>
                                 <div class="absolute top-1.5 right-1.5 flex items-center gap-1 bg-white/90 dark:bg-gray-800/90 rounded-lg shadow-sm px-1 py-0.5">
                                     @if($fotos[$rowKey]['is_cropped'] ?? false)
-                                        <span class="text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded">Cropped</span>
+                                        <span class="inline-block text-[10px] text-center bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded">Cropped</span>
                                     @endif
                                     <button type="button" wire:click="openCropper({{ $argsPrefix }}'{{ $rowKey }}')"
                                         wire:loading.attr="disabled" wire:target="openCropper({{ $argsPrefix }}'{{ $rowKey }}')"

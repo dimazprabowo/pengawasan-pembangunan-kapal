@@ -69,7 +69,7 @@ class ProcessLaporanExternal implements ShouldQueue
             $mime = (new \finfo(FILEINFO_MIME_TYPE))->buffer($fileContent);
             $isImage = str_starts_with((string) $mime, 'image/');
             if (! $isImage && $mime !== 'application/pdf') {
-                throw new \RuntimeException('Tipe dokumen eksternal tidak didukung.');
+                throw new \RuntimeException('Tipe dokumen pendukung tidak didukung.');
             }
             $extension = $isImage ? 'webp' : 'pdf';
 
@@ -97,13 +97,13 @@ class ProcessLaporanExternal implements ShouldQueue
                 'file_processed_at' => now(),
                 'file_error' => null,
             ]))) {
-                throw new \RuntimeException('Gagal memperbarui metadata dokumen eksternal.');
+                throw new \RuntimeException('Gagal memperbarui metadata dokumen pendukung.');
             }
         } catch (\Throwable $e) {
             $files->deleteFiles(array_merge([$stored['path'] ?? null], $pages));
             $laporanExternal->fresh()?->update([
                 'file_status' => 'failed',
-                'file_error' => 'Dokumen eksternal gagal diproses. Silakan unggah ulang.',
+                'file_error' => 'Dokumen pendukung gagal diproses. Silakan unggah ulang.',
             ]);
             throw $e;
         }
@@ -130,7 +130,7 @@ class ProcessLaporanExternal implements ShouldQueue
         if ($laporanExternal && $laporanExternal->file_status !== 'completed') {
             $laporanExternal->update([
                 'file_status' => 'failed',
-                'file_error' => 'Dokumen eksternal gagal diproses. Silakan unggah ulang.',
+                'file_error' => 'Dokumen pendukung gagal diproses. Silakan unggah ulang.',
             ]);
         }
 

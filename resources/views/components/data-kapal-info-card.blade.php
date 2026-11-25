@@ -12,10 +12,10 @@
         <div class="flex items-center gap-2">
             <span class="text-sm font-semibold text-blue-900 dark:text-blue-100">{{ $dataKapal->nama }}</span>
             @if($dataKapal->kode)
-                <span class="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 font-mono text-xs font-semibold text-blue-800 dark:text-blue-200" title="Kode Proyek">{{ $dataKapal->kode }}</span>
+                <span class="inline-block px-1.5 py-0.5 rounded text-center bg-blue-100 dark:bg-blue-900/40 font-mono text-xs font-semibold text-blue-800 dark:text-blue-200" title="Kode Proyek">{{ $dataKapal->kode }}</span>
             @endif
             @if($dataKapal->status)
-                <span class="px-1.5 py-0.5 rounded text-xs font-semibold {{ $dataKapal->status->badgeClass() }}">{{ $dataKapal->status->label() }}</span>
+                <span class="inline-block px-1.5 py-0.5 rounded text-xs font-semibold {{ $dataKapal->status->badgeClass() }}">{{ $dataKapal->status->label() }}</span>
             @endif
         </div>
     </div>
