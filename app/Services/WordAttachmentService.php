@@ -6,13 +6,21 @@ use DOMDocument;
 use DOMElement;
 use DOMXPath;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use RuntimeException;
 use ZipArchive;
 
 class WordAttachmentService
 {
     private const EXTERNAL_ANCHOR = '${lampiran_external}';
+
+    private const REPORT_PAGE_SIZE = 2400;
+
+    private const REPORT_PAGE_QUALITY = 85;
+
+    private const READY_IMAGE_VERSION = 1;
 
     /**
      * Signature ZIP archive comment: dokumen sudah melewati normalizePageBreaks.
@@ -292,7 +300,56 @@ class WordAttachmentService
             $files->put($manifest, (string) json_encode($pages));
         }
 
-        return array_map(fn (string $page) => [$page, '', true], $pages);
+        return array_map(fn (string $page) => [$this->preparedReportPage($page), '', true], $pages);
+    }
+
+    private function preparedReportPage(string $page): string
+    {
+        $files = app(FilePathService::class);
+        $source = $files->localPath($page);
+        $sourceHash = hash_file('sha256', $source);
+        if ($sourceHash === false) {
+            throw new RuntimeException('Gambar halaman laporan tidak dapat dibaca.');
+        }
+        $key = hash('sha256', implode(':', [self::READY_IMAGE_VERSION, self::REPORT_PAGE_SIZE, self::REPORT_PAGE_QUALITY, $sourceHash]));
+        $path = dirname($page).'/word-ready/'.pathinfo($page, PATHINFO_FILENAME).'-'.$key.'.jpg';
+        $checksumPath = $path.'.sha256';
+        if ($files->exists($path) && $files->exists($checksumPath)
+            && hash_file('sha256', $files->localPath($path)) === $files->disk()->get($checksumPath)) {
+            return $path;
+        }
+
+        $prepared = app(WordImageService::class)->prepareImageForWord($source, self::REPORT_PAGE_SIZE, self::REPORT_PAGE_SIZE, self::REPORT_PAGE_QUALITY);
+        $temporary = null;
+        try {
+            if ($prepared === $source || (@getimagesize($prepared)[2] ?? null) !== IMAGETYPE_JPEG) {
+                throw new RuntimeException('Gambar halaman laporan gagal disiapkan.');
+            }
+            $checksum = hash_file('sha256', $prepared);
+            if ($checksum === false) {
+                throw new RuntimeException('Checksum gambar halaman laporan tidak dapat dibaca.');
+            }
+            if ($files->isLocalDisk()) {
+                $destination = $files->disk()->path($path);
+                File::ensureDirectoryExists(dirname($destination));
+                $temporary = $destination.'.'.Str::uuid().'.tmp';
+                if (! copy($prepared, $temporary) || ! rename($temporary, $destination)) {
+                    throw new RuntimeException('Cache gambar halaman laporan gagal disimpan.');
+                }
+            } else {
+                $files->put($path, (string) file_get_contents($prepared));
+            }
+            $files->put($checksumPath, $checksum);
+
+            return $path;
+        } finally {
+            if ($prepared !== $source) {
+                @unlink($prepared);
+            }
+            if ($temporary !== null && is_file($temporary)) {
+                @unlink($temporary);
+            }
+        }
     }
 
     /**
@@ -481,7 +538,9 @@ class WordAttachmentService
                     $relation->setAttribute('Type', 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image');
                     $relation->setAttribute('Target', 'media/'.$name);
                     $relations->documentElement->appendChild($relation);
-                    $prepared = $wordImage->prepareImageForWord($fullPath, $pdfPage ? 2400 : 900, $pdfPage ? 2400 : 900, 85);
+                    $ready = $pdfPage && $size[2] === IMAGETYPE_JPEG
+                        && str_starts_with($image, 'laporan/lampiran-pages/') && str_contains($image, '/word-ready/');
+                    $prepared = $ready ? $fullPath : $wordImage->prepareImageForWord($fullPath, $pdfPage ? self::REPORT_PAGE_SIZE : 900, $pdfPage ? self::REPORT_PAGE_SIZE : 900, self::REPORT_PAGE_QUALITY);
                     $final = $prepared;
                     try {
                         if ($pdfPage && isset($bounds[self::boundsKey($image)])) {

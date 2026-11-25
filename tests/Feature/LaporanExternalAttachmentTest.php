@@ -13,6 +13,7 @@ use App\Services\LaporanDocumentService;
 use App\Services\LaporanMingguanWordService;
 use App\Services\PdfPageService;
 use App\Services\WordAttachmentService;
+use App\Services\WordImageService;
 use App\Services\WordStyleService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\UploadedFile;
@@ -536,6 +537,9 @@ class LaporanExternalAttachmentTest extends TestCase
             });
         });
 
+        $images = $this->partialMock(WordImageService::class, function ($mock): void {
+            $mock->shouldReceive('prepareImageForWord')->passthru();
+        });
         $service = app(WordAttachmentService::class);
         $first = $service->reportPageImages($docPath);
         $second = $service->reportPageImages($docPath);
@@ -548,10 +552,54 @@ class LaporanExternalAttachmentTest extends TestCase
             $this->assertSame('', $caption);
             $this->assertTrue($fullPage);
             Storage::disk('local')->assertExists($page);
+            $this->assertSame(IMAGETYPE_JPEG, getimagesize(Storage::disk('local')->path($page))[2]);
+            $this->assertSame(hash_file('sha256', Storage::disk('local')->path($page)), Storage::disk('local')->get($page.'.sha256'));
         }
+        $images->shouldHaveReceived('prepareImageForWord')->twice();
+        $expectedHashes = array_map(fn ($page) => hash_file('sha256', Storage::disk('local')->path($page[0])), $first);
+        $output = Storage::disk('local')->path('with-ready-pages.docx');
+        $this->makeDocxWithExternalMarker($output);
+        $service->embedReportPages($output, $first, '${lampiran_external}', 'LAPORAN HARIAN');
+        $images->shouldHaveReceived('prepareImageForWord')->twice();
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($output));
+        try {
+            $embedded = [];
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $name = $zip->getNameIndex($i);
+                if (str_starts_with($name, 'word/media/')) {
+                    $embedded[] = hash('sha256', $zip->getFromName($name));
+                }
+            }
+            sort($expectedHashes);
+            sort($embedded);
+            $this->assertSame($expectedHashes, $embedded, 'Gambar siap-sisip tidak boleh di-encode ulang.');
+        } finally {
+            $zip->close();
+        }
+        Storage::disk('local')->put($first[0][0], 'broken JPEG');
+        $this->assertSame($first, $service->reportPageImages($docPath));
+        $images->shouldHaveReceived('prepareImageForWord')->times(3);
+        Storage::disk('local')->put($first[0][0].'.sha256', str_repeat('0', 64));
+        $this->assertSame($first, $service->reportPageImages($docPath));
+        $images->shouldHaveReceived('prepareImageForWord')->times(4);
+        Storage::disk('local')->delete($first[0][0]);
+        $this->assertSame($first, $service->reportPageImages($docPath));
+        $images->shouldHaveReceived('prepareImageForWord')->times(5);
+        $this->assertSame(1, $conversions, 'Cache siap-sisip hilang/rusak tidak perlu konversi PDF ulang.');
+        $sources = json_decode(Storage::disk('local')->get('laporan/lampiran-pages/'.sha1($docPath).'/pages.json'), true);
+        $sourcePath = Storage::disk('local')->path($sources[0]);
+        $mtime = filemtime($sourcePath);
+        $replacement = UploadedFile::fake()->image('replacement.png', 120, 180);
+        Storage::disk('local')->put($sources[0], (string) file_get_contents($replacement->getRealPath()));
+        touch($sourcePath, $mtime);
+        $changed = $service->reportPageImages($docPath);
+        $this->assertNotSame($first[0][0], $changed[0][0], 'Perubahan isi harus terdeteksi meskipun mtime tetap.');
+        $this->assertSame($first[1][0], $changed[1][0]);
+        $images->shouldHaveReceived('prepareImageForWord')->times(6);
 
         // Halaman cache hilang → dirender ulang, bukan mengembalikan path mati.
-        Storage::disk('local')->delete($first[0][0]);
+        Storage::disk('local')->delete($sources[0]);
         $this->assertCount(2, $service->reportPageImages($docPath));
         $this->assertSame(2, $conversions);
 

@@ -2,8 +2,11 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Str;
 use RuntimeException;
-use Symfony\Component\Process\Process;
+use Symfony\Component\Process\ExecutableFinder;
 
 /**
  * Konversi DOCX → PDF untuk fitur Release laporan bulanan.
@@ -25,6 +28,7 @@ class DocxToPdfService
 
     public function convert(string $docxAbsolutePath, string $pdfAbsolutePath): void
     {
+        $this->lastError = null;
         if (! is_file($docxAbsolutePath)) {
             throw new RuntimeException('File dokumen Word tidak ditemukan.');
         }
@@ -63,7 +67,9 @@ class DocxToPdfService
 
     private function libreOfficeAvailable(): bool
     {
-        return $this->libreOfficeBinary() !== null;
+        $binary = $this->libreOfficeBinary();
+
+        return $binary !== null && (new ExecutableFinder)->find($binary) !== null;
     }
 
     private function libreOfficeBinary(): ?string
@@ -73,7 +79,7 @@ class DocxToPdfService
         return $binary && trim((string) $binary) !== '' ? (string) $binary : null;
     }
 
-    private function convertViaWord(string $source, string $target): bool
+    protected function convertViaWord(string $source, string $target): bool
     {
         if (! $this->wordComAvailable()) {
             return false;
@@ -129,29 +135,40 @@ class DocxToPdfService
             return false;
         }
 
-        $outDir = dirname($target);
-        if (! is_dir($outDir)) {
-            mkdir($outDir, 0775, true);
-        }
+        $workingDir = sys_get_temp_dir().DIRECTORY_SEPARATOR.'simpro-convert-'.Str::uuid();
+        $outDir = $workingDir.DIRECTORY_SEPARATOR.'output';
+        $profile = $workingDir.DIRECTORY_SEPARATOR.'profile';
 
         try {
-            $process = new Process([
-                $binary, '--headless', '--norestore', '--convert-to', 'pdf', '--outdir', $outDir, $source,
+            File::ensureDirectoryExists($outDir, 0700);
+            File::ensureDirectoryExists($profile, 0700);
+            $profileUri = 'file:///'.implode('/', array_map('rawurlencode', explode('/', ltrim(str_replace('\\', '/', $profile), '/'))));
+            $profileUri = str_replace('%3A', ':', $profileUri);
+            $process = Process::timeout(180)->run([
+                $binary, '-env:UserInstallation='.$profileUri, '--headless', '--norestore',
+                '--convert-to', 'pdf:writer_pdf_Export', '--outdir', $outDir, $source,
             ]);
-            $process->setTimeout(180);
-            $process->run();
+            if (! $process->successful()) {
+                throw new RuntimeException('Proses konversi keluar dengan kode '.($process->exitCode() ?? 'tidak diketahui').'.');
+            }
 
             // LibreOffice menamai output mengikuti nama file sumber.
             $produced = $outDir.DIRECTORY_SEPARATOR.pathinfo($source, PATHINFO_FILENAME).'.pdf';
-            if (is_file($produced) && $produced !== $target) {
-                rename($produced, $target);
+            if (! is_file($produced) || filesize($produced) === 0) {
+                throw new RuntimeException('Proses konversi tidak menghasilkan PDF.');
             }
+            File::ensureDirectoryExists(dirname($target));
+            if (! copy($produced, $target)) {
+                throw new RuntimeException('Hasil konversi PDF gagal disimpan.');
+            }
+
+            return true;
         } catch (\Throwable $e) {
             $this->lastError ??= 'LibreOffice: '.$e->getMessage();
 
             return false;
+        } finally {
+            File::deleteDirectory($workingDir);
         }
-
-        return is_file($target) && filesize($target) > 0;
     }
 }

@@ -31,6 +31,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         # soffice headless: konversi DOCX→PDF lampiran rantai laporan
         # (DocxToPdfService — di Windows ada fallback Word COM)
         libreoffice-writer \
+        fontconfig \
+        fonts-dejavu-core \
         fonts-liberation \
         libpq-dev \
         libicu-dev \
@@ -56,6 +58,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && rm -f /etc/nginx/sites-enabled/default
+
+ENV SOFFICE_BINARY=/usr/bin/soffice \
+    SAL_USE_VCLPLUGIN=svp
+
+RUN <<'SHELL'
+set -eu
+fc-cache -f
+test -x "$SOFFICE_BINARY"
+su -s /bin/sh www-data <<'CONVERT'
+set -eu
+work="$(mktemp -d)"
+trap 'rm -r "$work"' EXIT
+printf '%s\n' '{\rtf1\ansi\deff0 {\fonttbl {\f0 Liberation Sans;}}\f0\fs20 SIMPRO PDF conversion check}' > "$work/smoke.rtf"
+/usr/bin/soffice "-env:UserInstallation=file://$work/profile" --headless --norestore --convert-to pdf:writer_pdf_Export --outdir "$work" "$work/smoke.rtf" >/dev/null
+test -s "$work/smoke.pdf"
+pdfinfo "$work/smoke.pdf" >/dev/null
+CONVERT
+SHELL
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
