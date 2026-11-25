@@ -76,7 +76,11 @@ class LaporanHarianService
                 $values[$relation] = array_map(fn ($row) => array_diff_key($row, array_flip(['id', 'row_key', 'laporan_harian_id'])), $values[$relation]);
             }
 
-            return ['values' => $values, 'info' => 'Default dari laporan '.$previous->translatedFormat('d F Y').($draft ? ' (tab belum disimpan)' : '').'. Foto/dokumen diunggah sendiri.'];
+            return [
+                'values' => $values,
+                'info' => 'Default dari laporan '.$previous->translatedFormat('d F Y').($draft ? ' (tab belum disimpan)' : '').'. Foto/dokumen diunggah sendiri.',
+                'prefilled' => true,
+            ];
         }
 
         return ['values' => [], 'info' => 'Belum ada laporan hari kerja sebelumnya. Isi data secara manual.'];

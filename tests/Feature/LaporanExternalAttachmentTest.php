@@ -2,11 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Models\LaporanBulanan;
 use App\Models\LaporanExternal;
+use App\Models\LaporanMingguan;
 use App\Models\LaporanNc;
 use App\Models\LaporanNcFoto;
 use App\Services\DocxToPdfService;
+use App\Services\LaporanBulananWordService;
 use App\Services\LaporanDocumentService;
+use App\Services\LaporanMingguanWordService;
 use App\Services\PdfPageService;
 use App\Services\WordAttachmentService;
 use App\Services\WordStyleService;
@@ -14,6 +18,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\PhpWord;
+use PhpOffice\PhpWord\TemplateProcessor;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Symfony\Component\Process\Process;
@@ -160,6 +165,85 @@ class LaporanExternalAttachmentTest extends TestCase
             $pageWidth = (int) $xpath->evaluate('string(w:pgSz/@w:w)', $sections->item(2));
             $imageWidth = (int) $xpath->evaluate('string(//*[local-name()="extent"]/@cx)');
             $this->assertSame($pageWidth * 635, $imageWidth);
+        } finally {
+            $zip->close();
+        }
+    }
+
+    #[Test]
+    public function daftar_dokumen_pendukung_hanya_memuat_judul_dan_deskripsi(): void
+    {
+        Storage::fake('local');
+        foreach ([
+            [LaporanMingguanWordService::class, LaporanMingguan::class],
+            [LaporanBulananWordService::class, LaporanBulanan::class],
+        ] as [$service, $model]) {
+            $path = Storage::disk('local')->path('daftar.docx');
+            $document = new PhpWord;
+            $document->addSection()->addText('${tabel_external}');
+            WordStyleService::prepare($document);
+            IOFactory::createWriter($document, 'Word2007')->save($path);
+            $processor = new TemplateProcessor($path);
+            $laporan = new $model;
+            $laporan->setRelation('laporanExternal', collect([
+                new LaporanExternal(['judul' => 'Berita Acara Uji', 'deskripsi' => 'Hasil pemeriksaan tangki', 'file_name' => 'rahasia-nama-file.pdf', 'file_path' => 'dokumen.pdf']),
+                new LaporanExternal(['judul' => 'Dokumen Tanpa Deskripsi', 'file_name' => 'lain.pdf', 'file_path' => 'lain.pdf']),
+            ]));
+            (new \ReflectionMethod($service, 'fillExternal'))->invoke(app($service), $processor, $laporan);
+            $processor->saveAs($path);
+            $zip = new ZipArchive;
+            $this->assertTrue($zip->open($path));
+            try {
+                $dom = new \DOMDocument;
+                $this->assertTrue($dom->loadXML($zip->getFromName('word/document.xml'), LIBXML_NONET));
+                $xpath = new \DOMXPath($dom);
+                $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+                foreach ($xpath->query('//w:tbl/w:tr') as $row) {
+                    $this->assertSame(2, $xpath->query('w:tc', $row)->length);
+                }
+                $this->assertSame('Judul', $xpath->evaluate('string((//w:tbl/w:tr)[1]/w:tc[1]//w:t)'));
+                $this->assertSame('Deskripsi', $xpath->evaluate('string((//w:tbl/w:tr)[1]/w:tc[2]//w:t)'));
+                $this->assertStringContainsString('Hasil pemeriksaan tangki', $dom->textContent);
+                $this->assertSame('-', $xpath->evaluate('string((//w:tbl/w:tr)[3]/w:tc[2]//w:t)'));
+                $this->assertStringNotContainsString('rahasia-nama-file.pdf', $dom->textContent);
+                $this->assertStringNotContainsString('lain.pdf', $dom->textContent);
+            } finally {
+                $zip->close();
+            }
+        }
+    }
+
+    #[Test]
+    public function sampul_tanpa_header_footer_tetapi_isi_tetap_memilikinya(): void
+    {
+        Storage::fake('local');
+        $path = Storage::disk('local')->path('sampul.docx');
+        $document = new PhpWord;
+        $section = $document->addSection();
+        $section->addHeader()->addText('HEADER ISI');
+        $section->addFooter()->addText('FOOTER ISI');
+        $section->addHeader('first')->addText('HEADER SAMPUL LAMA');
+        $section->addFooter('first')->addText('FOOTER SAMPUL LAMA');
+        $section->addText('SAMPUL');
+        $section->addPageBreak();
+        $section->addText('ISI');
+        WordStyleService::prepare($document);
+        IOFactory::createWriter($document, 'Word2007')->save($path);
+
+        WordStyleService::hideCoverHeaderFooter($path);
+        WordStyleService::hideCoverHeaderFooter($path);
+
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($path));
+        try {
+            $dom = new \DOMDocument;
+            $this->assertTrue($dom->loadXML($zip->getFromName('word/document.xml'), LIBXML_NONET));
+            $xpath = new \DOMXPath($dom);
+            $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+            $this->assertSame(1, $xpath->query('//w:sectPr/w:titlePg')->length);
+            $this->assertSame(0, $xpath->query('//w:sectPr/*[@w:type="first"]')->length);
+            $this->assertSame(1, $xpath->query('//w:sectPr/w:headerReference[@w:type="default"]')->length);
+            $this->assertSame(1, $xpath->query('//w:sectPr/w:footerReference[@w:type="default"]')->length);
         } finally {
             $zip->close();
         }

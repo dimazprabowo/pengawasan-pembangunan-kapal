@@ -147,7 +147,7 @@ $c->addText('${ttd_nama}', ['bold' => true, 'underline' => 'single'], $center);
 // ══ E. LAMPIRAN ══════════════════════════════════════════════════════════
 $section->addPageBreak();
 $section->addTitle('E. LAMPIRAN', 1);
-$section->addTitle('1. Dokumen Eksternal', 2);
+$section->addTitle('1. Dokumen Pendukung', 2);
 $p('${tabel_external}');
 $section->addTitle('2. Laporan Harian', 2);
 $p('${tabel_lampiran_harian}');

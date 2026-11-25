@@ -102,12 +102,14 @@ class LaporanMingguanWordService
         [$relativePath, $localPath] = $this->saveDocument($processor, $laporan);
         try {
             $attachmentService = app(WordAttachmentService::class);
-            $attachmentService->append($localPath, $ncs, true);
+            $attachmentService->append($localPath, $ncs, true, '3. LAMPIRAN NON-CONFORMANCE');
             $this->embedHarianDocs($localPath, $this->resolveHarianDocs($laporan));
             $attachmentService->embedExternals(
                 $localPath,
                 $laporan->laporanExternal,
+                '1. DOKUMEN PENDUKUNG',
             );
+            WordStyleService::hideCoverHeaderFooter($localPath);
             $attachmentService->normalizePageBreaks($localPath);
             $files->commitLocalFile($localPath, $relativePath);
         } catch (\Throwable $e) {
@@ -390,28 +392,20 @@ class LaporanMingguanWordService
         $rows = $laporan->laporanExternal->values();
 
         if ($rows->isEmpty()) {
-            $processor->setValue('tabel_external', 'Tidak ada dokumen eksternal.');
+            $processor->setValue('tabel_external', 'Tidak ada dokumen pendukung.');
 
             return;
         }
 
-        $w = [500, 3326, 3000, 2200];
+        $w = [3600, 5426];
         $table = $this->newTable();
-        $this->headerRow($table, $w, ['No', 'Judul Dokumen', 'Nama File', 'Keterangan']);
+        $this->headerRow($table, $w, ['Judul', 'Deskripsi']);
 
         foreach ($rows as $i => $ext) {
             $table->addRow(null, ['cantSplit' => true]);
             $bg = $i % 2 ? self::ZEBRA : null;
-            $this->bodyCell($table, $w[0], (string) ($i + 1), $bg, Jc::CENTER);
-            $this->bodyCell($table, $w[1], $ext->judul ?: '-', $bg);
-            $this->bodyCell($table, $w[2], $ext->file_name ?: '-', $bg);
-            $keterangan = match (true) {
-                $ext->isFileCompleted() && $ext->hasFile() => 'Terlampir',
-                $ext->isFileProcessing() => 'Sedang diproses',
-                $ext->isFileFailed() => 'Gagal diproses',
-                default => '-',
-            };
-            $this->bodyCell($table, $w[3], $keterangan, $bg);
+            $this->bodyCell($table, $w[0], $ext->judul ?: '-', $bg);
+            $this->bodyCell($table, $w[1], $ext->deskripsi ?: '-', $bg);
         }
 
         WordStyleService::setComplexBlock($processor, 'tabel_external', $table);
@@ -541,13 +535,13 @@ class LaporanMingguanWordService
     private function embedHarianDocs(string $docxPath, array $chunks): void
     {
         $attachment = app(WordAttachmentService::class);
-        $images = [];
+        $groups = [];
         foreach ($chunks as $chunk) {
-            $images = array_merge($images, $attachment->reportPageImages($chunk));
+            $groups[] = $attachment->reportPageImages($chunk);
         }
 
-        if ($images) {
-            $attachment->embedReportPages($docxPath, $images, '${lampiran_harian}', 'LAPORAN HARIAN');
+        if (array_merge(...$groups) !== []) {
+            $attachment->embedGroupedReportPages($docxPath, $groups, '${lampiran_harian}', '2. LAPORAN HARIAN');
 
             return;
         }

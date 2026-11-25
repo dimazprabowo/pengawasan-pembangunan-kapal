@@ -77,8 +77,9 @@ class LaporanBulananWordService
         [$relativePath, $localPath] = $this->saveDocument($processor, $laporan);
         try {
             $attachment = app(WordAttachmentService::class);
-            $attachment->embedExternals($localPath, $laporan->laporanExternal, 'DOKUMEN PENDUKUNG');
+            $attachment->embedExternals($localPath, $laporan->laporanExternal->filter(fn ($e) => $e->hasFile())->values(), '4.1 DOKUMEN PENDUKUNG');
             $this->embedMingguanDocs($localPath, $this->resolveMingguanDocs($laporan));
+            WordStyleService::hideCoverHeaderFooter($localPath);
             $attachment->normalizePageBreaks($localPath);
             $files->commitLocalFile($localPath, $relativePath);
         } catch (\Throwable $e) {
@@ -611,12 +612,11 @@ class LaporanBulananWordService
         }
 
         $t = $this->newTable();
-        $this->headerRow($t, [800, 5226, 3000], ['No', 'Judul', 'File']);
-        foreach ($rows as $i => $e) {
+        $this->headerRow($t, [3600, 5426], ['Judul', 'Deskripsi']);
+        foreach ($rows as $e) {
             $t->addRow();
-            $t->addCell(800, $this->bodyCell())->addText((string) ($i + 1), $this->smallFont(), $this->center());
-            $t->addCell(5226, $this->bodyCell())->addText($e->judul ?: '-', $this->smallFont());
-            $t->addCell(3000, $this->bodyCell())->addText($e->file_name ?? '-', $this->smallFont());
+            $t->addCell(3600, $this->bodyCell())->addText($e->judul ?: '-', $this->smallFont());
+            $t->addCell(5426, $this->bodyCell())->addText($e->deskripsi ?: '-', $this->smallFont());
         }
 
         WordStyleService::setComplexBlock($processor, 'tabel_external', $t);
@@ -717,13 +717,13 @@ class LaporanBulananWordService
     private function embedMingguanDocs(string $docxPath, array $chunks): void
     {
         $attachment = app(WordAttachmentService::class);
-        $images = [];
+        $groups = [];
         foreach ($chunks as $chunk) {
-            $images = array_merge($images, $attachment->reportPageImages($chunk));
+            $groups[] = $attachment->reportPageImages($chunk);
         }
 
-        if ($images) {
-            $attachment->embedReportPages($docxPath, $images, '${lampiran_mingguan}', 'LAPORAN MINGGUAN');
+        if (array_merge(...$groups) !== []) {
+            $attachment->embedGroupedReportPages($docxPath, $groups, '${lampiran_mingguan}', '4.2 LAPORAN MINGGUAN');
 
             return;
         }

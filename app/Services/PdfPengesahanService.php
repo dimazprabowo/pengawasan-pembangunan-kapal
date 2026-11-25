@@ -127,6 +127,23 @@ class PdfPengesahanService
 
     private function unite(array $parts, string $output): void
     {
+        $level = 0;
+        while (count($parts) > 20) {
+            $merged = [];
+            foreach (array_chunk($parts, 20) as $index => $batch) {
+                if (count($batch) === 1) {
+                    $merged[] = $batch[0];
+
+                    continue;
+                }
+                $part = dirname($output).DIRECTORY_SEPARATOR.'batch-'.$level.'-'.$index.'.pdf';
+                $this->unite($batch, $part);
+                $merged[] = $part;
+            }
+            $parts = $merged;
+            $level++;
+        }
+
         $process = new Process([...array_map('strval', array_merge([config('services.poppler.pdfunite')], $parts, [$output]))]);
         $process->setTimeout(180);
         $process->mustRun();

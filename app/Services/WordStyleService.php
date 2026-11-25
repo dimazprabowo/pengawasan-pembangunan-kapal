@@ -15,6 +15,34 @@ use PhpOffice\PhpWord\TemplateProcessor;
 
 final class WordStyleService
 {
+    public static function hideCoverHeaderFooter(string $path): void
+    {
+        $zip = new \ZipArchive;
+        if ($zip->open($path) !== true) {
+            throw new \RuntimeException('Dokumen Word tidak dapat dibuka.');
+        }
+        try {
+            $document = new \DOMDocument;
+            if (! $document->loadXML((string) $zip->getFromName('word/document.xml'), LIBXML_NONET)) {
+                throw new \RuntimeException('Struktur dokumen Word tidak valid.');
+            }
+            $xpath = new \DOMXPath($document);
+            $namespace = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+            $xpath->registerNamespace('w', $namespace);
+            $section = $xpath->query('//w:sectPr')->item(0);
+            if (! $section instanceof \DOMElement) {
+                throw new \RuntimeException('Pengaturan halaman Word tidak ditemukan.');
+            }
+            foreach (iterator_to_array($xpath->query('w:headerReference[@w:type="first"] | w:footerReference[@w:type="first"] | w:titlePg', $section)) as $node) {
+                $section->removeChild($node);
+            }
+            $section->insertBefore($document->createElementNS($namespace, 'w:titlePg'), $xpath->query('w:textDirection | w:bidi | w:rtlGutter | w:docGrid | w:printerSettings | w:sectPrChange', $section)->item(0));
+            $zip->addFromString('word/document.xml', $document->saveXML());
+        } finally {
+            $zip->close();
+        }
+    }
+
     public static function prepare(PhpWord|AbstractElement $document): void
     {
         if ($document instanceof PhpWord) {

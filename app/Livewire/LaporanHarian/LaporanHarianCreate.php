@@ -96,6 +96,9 @@ class LaporanHarianCreate extends Component
     // Tab hari aktif — server-side single source of truth (entangled ke Alpine)
     public int $activeTab = 0;
 
+    // Info modal saat tab baru diisi default dari laporan hari kerja sebelumnya
+    public ?string $prefillInfo = null;
+
     public function updatedActiveTab(int $value): void
     {
         $this->activeTab = max(0, min($value, count($this->items) - 1));
@@ -195,6 +198,15 @@ class LaporanHarianCreate extends Component
 
         $this->activeTab = count($this->items) - 1;
         $this->dispatch('laporan-item-added', index: $this->activeTab);
+
+        if ($defaults['prefilled'] ?? false) {
+            $this->prefillInfo = $defaults['info'];
+        }
+    }
+
+    public function closePrefillInfo(): void
+    {
+        $this->prefillInfo = null;
     }
 
     public function updatedItems(mixed $value, ?string $key = null): void

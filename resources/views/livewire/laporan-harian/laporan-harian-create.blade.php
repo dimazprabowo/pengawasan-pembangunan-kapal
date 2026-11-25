@@ -127,7 +127,7 @@
                     $watch('activeTab', function (v) { localStorage.setItem('lh-tab:{{ auth()->id() }}:create:{{ $dataKapal->id }}', v); });
                 })();
              "
-             x-on:laporan-item-added.window="$nextTick(() => { $el.querySelector('[data-tab=\'' + $event.detail.index + '\']')?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' }); })"
+             x-on:laporan-item-added.window="activeTab = $event.detail.index; $nextTick(() => { $el.querySelector('[data-tab=\'' + $event.detail.index + '\']')?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' }); })"
              x-on:laporan-item-removed.window="$nextTick(() => { $el.querySelector('[data-tab=\'' + activeTab + '\']')?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' }); })">
             {{-- Tab Bar (day stepper cards) --}}
             <div class="flex items-stretch gap-2 overflow-x-auto custom-scrollbar pb-1 mb-4">
@@ -450,6 +450,37 @@
         :cropData="$cropData"
         :previewTarget="($croppingItemIndex !== null && $croppingRowKey) ? ($croppingContext === 'nc' ? 'ncFoto.'.$croppingItemIndex.'.'.$croppingRowKey.'.preview' : 'lampiran.'.$croppingItemIndex.'.'.$croppingRowKey.'.preview') : null"
     />
+
+    {{-- Info prefill dari laporan hari kerja sebelumnya --}}
+    @if($prefillInfo)
+        <div class="fixed inset-0 z-50 overflow-y-auto custom-scrollbar" x-data x-init="return () => { document.body.style.overflow = '' }">
+            <div class="flex items-center justify-center min-h-screen px-4 py-6">
+                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75" wire:click="closePrefillInfo"></div>
+                <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md z-10">
+                    <div class="px-4 py-4 sm:p-6">
+                        <div class="flex items-start gap-3">
+                            <span class="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex-shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </span>
+                            <div class="min-w-0">
+                                <h3 class="text-lg font-medium text-gray-900 dark:text-white">Data Terisi Otomatis</h3>
+                                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                    {{ $prefillInfo }} Periksa dan sesuaikan isian sebelum disimpan.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-900 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-2 rounded-b-lg">
+                        <x-loading-button wire:click="closePrefillInfo" target="closePrefillInfo" variant="primary" size="lg" class="w-full sm:w-auto">
+                            Mengerti
+                        </x-loading-button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 
     {{-- Konfirmasi buang perubahan saat Batal --}}
     <x-confirm-modal />

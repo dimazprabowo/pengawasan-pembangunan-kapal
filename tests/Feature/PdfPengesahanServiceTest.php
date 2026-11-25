@@ -68,6 +68,26 @@ class PdfPengesahanServiceTest extends TestCase
         $this->assertStringNotContainsString('GENERATE', $text);
     }
 
+    public function test_laporan_126_halaman_mempertahankan_urutan_dan_pengesahan_multi_halaman(): void
+    {
+        $pages = array_map(fn (int $page) => sprintf('HALAMAN-%03d', $page), range(1, 126));
+        $pages[1] = 'LEMBAR PENGESAHAN KOSONG';
+        $target = $this->makePdf($pages);
+        $pengesahan = $this->makePdf(['TANDA TANGAN PERTAMA', 'TANDA TANGAN KEDUA']);
+
+        app(PdfPengesahanService::class)->replace($target, $pengesahan);
+
+        $text = $this->text($target);
+        $this->assertStringNotContainsString('KOSONG', $text);
+        $expected = array_merge(['HALAMAN-001', 'TANDA TANGAN PERTAMA', 'TANDA TANGAN KEDUA'], array_slice($pages, 2));
+        $offset = 0;
+        foreach ($expected as $label) {
+            $position = strpos($text, $label, $offset);
+            $this->assertNotFalse($position, $label);
+            $offset = $position + strlen($label);
+        }
+    }
+
     public function test_gagal_bila_halaman_pengesahan_tidak_ditemukan(): void
     {
         $target = $this->makePdf(['COVER', 'BAB 1']);

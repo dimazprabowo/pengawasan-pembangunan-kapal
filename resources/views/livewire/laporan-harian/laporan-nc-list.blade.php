@@ -57,7 +57,7 @@
                 </div>
                 <div class="flex items-center gap-2 w-full sm:w-auto">
                     <x-cancel-button wire:click="clearSelection" target="clearSelection" size="md" label="Batal Pilih" class="w-full sm:w-auto" />
-                    <x-loading-button wire:click="generatePenutupan" target="generatePenutupan" variant="success" size="md" loadingText="Membuat..." class="w-full sm:w-auto" title="Generate Form Penutupan">
+                    <x-loading-button wire:click="openPenutupanModal" target="openPenutupanModal" variant="success" size="md" loadingText="Memuat..." class="w-full sm:w-auto" title="Generate Form Penutupan">
                         <x-slot:icon>
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                         </x-slot:icon>
@@ -90,6 +90,7 @@
                         <th rowspan="2" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 align-middle">Kendala / Tindakan</th>
                         <th rowspan="2" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 align-middle">PIC</th>
                         <th rowspan="2" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 align-middle">Status</th>
+                        <th rowspan="2" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 align-middle">Tgl Close</th>
                         <th colspan="2" class="px-4 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-600">File</th>
                         <th colspan="2" class="px-4 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-600">Form Open</th>
                         <th colspan="2" class="px-4 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-600">Form Close</th>
@@ -116,7 +117,7 @@
                              yang sama + hover grup menyorot seluruh baris yang di-merge --}}
                         <tbody wire:key="tb-{{ $laporanId }}" class="group/date divide-y divide-gray-200 dark:divide-gray-700">
                         <tr wire:key="grp-{{ $laporanId }}" class="bg-gray-50 dark:bg-gray-700/40 border-t border-gray-200 dark:border-gray-700">
-                            <td colspan="12" class="px-4 py-2">
+                            <td colspan="13" class="px-4 py-2">
                                 <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                                     <div class="flex items-center gap-3 min-w-0">
                                         @can('create', \App\Models\LaporanNcForm::class)
@@ -172,9 +173,6 @@
                                 <td class="px-4 py-3 text-sm">
                                     <div class="font-medium text-gray-900 dark:text-white">{{ $nc->nomor ?? '-' }}</div>
                                     <div class="text-xs text-gray-400">{{ $nc->laporanHarian?->tanggal_laporan?->translatedFormat('d M Y') }} · {{ $nc->createdBy?->name }}</div>
-                                    @if($nc->isClosed())
-                                        <div class="text-xs text-emerald-600 dark:text-emerald-400">Closed {{ $nc->closed_at?->translatedFormat('d M Y') }}{{ $nc->closedBy ? ' · '.$nc->closedBy->name : '' }}</div>
-                                    @endif
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 max-w-xs">
                                     <p class="line-clamp-2" title="{{ $nc->kendala }}">{{ $nc->kendala }}</p>
@@ -185,6 +183,16 @@
                                 <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ $nc->pic ?? '-' }}</td>
                                 <td class="px-4 py-3">
                                     <span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ $nc->status->badgeClass() }}">{{ $nc->status->label() }}</span>
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm">
+                                    @if($nc->closed_at)
+                                        <span class="text-gray-900 dark:text-white">{{ $nc->closed_at->translatedFormat('d M Y') }}</span>
+                                        @if($nc->closedBy)
+                                            <div class="text-xs text-gray-400">{{ $nc->closedBy->name }}</div>
+                                        @endif
+                                    @else
+                                        <span class="text-xs text-gray-400">—</span>
+                                    @endif
                                 </td>
                                 @foreach(\App\Enums\NcFileKategori::cases() as $fileCategory)
                                 <td wire:key="nc-files-{{ $nc->id }}-{{ $fileCategory->value }}" class="px-4 py-3 text-center min-w-48">
@@ -368,7 +376,7 @@
                     @empty
                         <tbody>
                         <tr>
-                            <td colspan="12" class="py-12 text-center">
+                            <td colspan="13" class="py-12 text-center">
                                 <svg class="h-12 w-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                                 <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Belum ada NC untuk kapal ini.</p>
                             </td>
@@ -381,6 +389,41 @@
             {{ $ncList->links() }}
         </div>
     </div>
+
+    {{-- Modal tanggal Form Penutupan --}}
+    @if($showPenutupanModal)
+        <div class="fixed inset-0 z-50 overflow-y-auto custom-scrollbar" x-data x-init="return () => { document.body.style.overflow = '' }">
+            <div class="flex items-center justify-center min-h-screen px-4 py-6">
+                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75" wire:click="closePenutupanModal"></div>
+                <form wire:submit="generatePenutupan" class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md z-10">
+                    <div class="px-4 py-4 sm:p-6 space-y-4">
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Generate Form Penutupan</h3>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                {{ count($selectedNcIds) }} NC dipilih. Tentukan tanggal yang tercetak pada dokumen Form Penutupan.
+                            </p>
+                        </div>
+                        <div>
+                            <x-input-label for="penutupan-tanggal" value="Tanggal Form" :required="true" />
+                            <x-tanggal-picker id="penutupan-tanggal" wire:model="penutupanTanggal"
+                                placeholder="Pilih tanggal form" display-format="j F Y" class="mt-1"
+                                :min-date="$penutupanMinTanggal" />
+                            @if($penutupanMinTanggal)
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Minimal {{ \Carbon\Carbon::parse($penutupanMinTanggal)->locale('id')->translatedFormat('d F Y') }} — tanggal temuan NC terakhir yang dipilih.</p>
+                            @endif
+                            <x-input-error :messages="$errors->get('penutupanTanggal')" class="mt-1" />
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-900 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-2 rounded-b-lg">
+                        <x-loading-button type="submit" target="generatePenutupan" variant="success" size="lg" loadingText="Membuat..." class="w-full sm:w-auto">
+                            Generate &amp; Unduh
+                        </x-loading-button>
+                        <x-cancel-button wire:click="closePenutupanModal" target="closePenutupanModal" variant="secondary" size="lg" class="mt-3 sm:mt-0 w-full sm:w-auto" />
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
 
     {{-- Modal upload scan Form NC bertanda tangan --}}
     @if($showUploadModal && $this->uploadForm)

@@ -3,9 +3,9 @@
 <div class="mt-6">
     <div class="flex items-center justify-between mb-2">
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Laporan External Tambahan
+            Dokumen Pendukung
             <span class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full @if(count($laporanExternal) > 0) bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 @else bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 @endif">
-                {{ count($laporanExternal) }} laporan
+                {{ count($laporanExternal) }} dokumen
             </span>
         </label>
         <button type="button" wire:click="addExternalReport" wire:key="add-external-btn"
@@ -19,7 +19,7 @@
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span wire:loading.remove wire:target="addExternalReport"><span class="hidden sm:inline">Tambah Laporan</span><span class="sm:hidden">Tambah</span></span>
+                <span wire:loading.remove wire:target="addExternalReport"><span class="hidden sm:inline">Tambah Dokumen</span><span class="sm:hidden">Tambah</span></span>
                 <span wire:loading wire:target="addExternalReport">Memproses...</span>
             @else
                 <svg wire:loading.remove wire:target="addExternalReport" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -107,7 +107,7 @@
                                     wire:click="confirmDeleteExternal('{{ $external['id'] }}')"
                                     wire:loading.attr="disabled"
                                     wire:target="confirmDeleteExternal('{{ $external['id'] }}')"
-                                    class="text-red-400 hover:text-red-600 p-1 disabled:opacity-50" title="Hapus laporan">
+                                    class="text-red-400 hover:text-red-600 p-1 disabled:opacity-50" title="Hapus dokumen">
                                     <svg wire:loading.class="hidden" wire:target="confirmDeleteExternal('{{ $external['id'] }}')" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                     </svg>
@@ -123,7 +123,7 @@
                         <div class="flex items-start justify-between gap-4 mb-3">
                             <div class="flex-1 min-w-0">
                                 <input type="text" wire:model="laporanExternal.{{ $index }}.judul"
-                                    placeholder="Judul laporan (wajib)"
+                                    placeholder="Judul dokumen (wajib)"
                                     class="w-full px-3 py-2 text-sm font-medium text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:focus:ring-blue-600 transition-colors">
                                 @error('laporanExternal.'.$index.'.judul')
                                     <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
@@ -133,7 +133,7 @@
                                 wire:click="confirmDeleteExternal('{{ $external['id'] }}')"
                                 wire:loading.attr="disabled"
                                 wire:target="confirmDeleteExternal('{{ $external['id'] }}')"
-                                class="text-red-400 hover:text-red-600 p-1 disabled:opacity-50" title="Hapus laporan">
+                                class="text-red-400 hover:text-red-600 p-1 disabled:opacity-50" title="Hapus dokumen">
                                 <svg wire:loading.class="hidden" wire:target="confirmDeleteExternal('{{ $external['id'] }}')" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                 </svg>
@@ -221,10 +221,10 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
             </svg>
             <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Belum ada laporan external tambahan
+                Belum ada dokumen pendukung
             </p>
             <p class="text-xs text-gray-400 dark:text-gray-500">
-                Klik "Tambah Laporan" untuk menambahkan laporan external
+                Klik "Tambah Dokumen" untuk menambahkan dokumen pendukung
             </p>
         </div>
     @endif

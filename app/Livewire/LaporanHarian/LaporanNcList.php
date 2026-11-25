@@ -179,6 +179,14 @@ class LaporanNcList extends Component
 
     public $signedFile = null;
 
+    // Generate Form Penutupan: modal tanggal form (default hari ini)
+    public bool $showPenutupanModal = false;
+
+    public ?string $penutupanTanggal = null;
+
+    // Batas bawah tanggal Form Penutupan = tanggal temuan (open) terakhir NC terpilih
+    public ?string $penutupanMinTanggal = null;
+
     // Reopen NC: modal dengan alasan wajib (audit trail)
     public bool $showReopenModal = false;
 
@@ -447,15 +455,66 @@ class LaporanNcList extends Component
     }
 
     /**
+     * Buka modal tanggal Form Penutupan untuk NC terpilih.
+     */
+    public function openPenutupanModal(): void
+    {
+        try {
+            $this->authorize('create', LaporanNcForm::class);
+        } catch (AuthorizationException) {
+            $this->notifyError('Anda tidak memiliki izin untuk membuat Form NC.');
+
+            return;
+        }
+
+        $this->penutupanMinTanggal = $this->latestOpenTanggal($this->selectedNcIds);
+        $today = now()->toDateString();
+        $this->penutupanTanggal = $this->penutupanMinTanggal && $this->penutupanMinTanggal > $today
+            ? $this->penutupanMinTanggal
+            : $today;
+        $this->resetValidation();
+        $this->showPenutupanModal = true;
+    }
+
+    public function closePenutupanModal(): void
+    {
+        $this->reset(['showPenutupanModal', 'penutupanTanggal', 'penutupanMinTanggal']);
+        $this->resetValidation();
+    }
+
+    /**
+     * Tanggal temuan (open) terakhir dari NC terpilih — tanggal penutupan
+     * tidak boleh lebih awal dari tanggal ini.
+     *
+     * @param  array<int|string>  $ncIds
+     */
+    private function latestOpenTanggal(array $ncIds): ?string
+    {
+        $tanggal = LaporanHarian::whereIn('id',
+            LaporanNc::where('data_kapal_id', $this->dataKapal->id)
+                ->whereIn('id', array_map('intval', $ncIds))
+                ->select('laporan_harian_id')
+        )->max('tanggal_laporan');
+
+        return $tanggal ? Carbon::parse($tanggal)->toDateString() : null;
+    }
+
+    /**
      * Buat draft Form Penutupan dari NC terpilih (lintas hari), lalu unduh docx.
      */
     public function generatePenutupan(LaporanNcFormService $service)
     {
         try {
             $this->authorize('create', LaporanNcForm::class);
+            $this->validate(
+                ['penutupanTanggal' => array_filter(['required', 'date', $this->penutupanMinTanggal ? 'after_or_equal:'.$this->penutupanMinTanggal : null])],
+                [],
+                ['penutupanTanggal' => 'tanggal form penutupan']
+            );
 
-            [$form, $skipped] = $service->createPenutupan($this->dataKapal->id, array_map('intval', $this->selectedNcIds));
+            [$form, $skipped] = $service->createPenutupan($this->dataKapal->id, array_map('intval', $this->selectedNcIds), $this->penutupanTanggal);
             $this->selectedNcIds = [];
+            $this->closePenutupanModal();
             $this->notifySuccess("{$form->nomor} berisi {$form->ncs()->count()} NC."
                 .($skipped > 0 ? " {$skipped} NC dilewati (closed / sudah di draft penutupan lain)." : '')
                 .' Unggah scan bertanda tangan untuk menutup NC.');

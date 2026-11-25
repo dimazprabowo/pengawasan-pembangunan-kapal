@@ -10,6 +10,7 @@ use App\Models\DataKapal;
 use App\Models\LaporanHarian;
 use App\Models\LaporanNc;
 use App\Models\LaporanNcForm;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
@@ -87,11 +88,12 @@ class LaporanNcFormService
      * Buat draft Form Penutupan dari NC Open terpilih (boleh lintas hari).
      *
      * @param  array<int>  $ncIds
+     * @param  string|null  $tanggal  Tanggal form (Y-m-d); default hari ini
      * @return array{0: LaporanNcForm, 1: int} [form, jumlah NC yang dilewati]
      */
-    public function createPenutupan(int $dataKapalId, array $ncIds): array
+    public function createPenutupan(int $dataKapalId, array $ncIds, ?string $tanggal = null): array
     {
-        return DB::transaction(function () use ($dataKapalId, $ncIds) {
+        return DB::transaction(function () use ($dataKapalId, $ncIds, $tanggal) {
             $eligible = $this->eligiblePenutupanQuery($dataKapalId)
                 ->whereIn('id', $ncIds)
                 ->orderBy('id')
@@ -104,11 +106,24 @@ class LaporanNcFormService
                 ]);
             }
 
+            $tanggalForm = $tanggal ?: now()->toDateString();
+
+            // Tanggal penyelesaian (close) tidak boleh lebih awal dari tanggal
+            // temuan/rekomendasi terakhir NC yang dipilih.
+            $maxOpen = LaporanHarian::whereIn('id',
+                LaporanNc::whereIn('id', $eligible)->select('laporan_harian_id')
+            )->max('tanggal_laporan');
+            if ($maxOpen && Carbon::parse($tanggalForm)->lt(Carbon::parse($maxOpen))) {
+                throw ValidationException::withMessages([
+                    'penutupanTanggal' => 'Tanggal penyelesaian tidak boleh lebih awal dari tanggal temuan NC ('.Carbon::parse($maxOpen)->locale('id')->translatedFormat('d F Y').').',
+                ]);
+            }
+
             $form = LaporanNcForm::create([
                 'data_kapal_id' => $dataKapalId,
                 'jenis' => NcFormJenis::Penutupan,
                 'nomor' => $this->nextNomor($dataKapalId),
-                'tanggal' => now()->toDateString(),
+                'tanggal' => $tanggalForm,
             ]);
             $form->ncs()->sync($eligible);
 
@@ -155,7 +170,7 @@ class LaporanNcFormService
                 $closed = $form->ncs()->where('status', NcStatus::Open)->get()
                     ->each(fn (LaporanNc $nc) => $nc->update([
                         'status' => NcStatus::Closed,
-                        'closed_at' => now(),
+                        'closed_at' => $form->tanggal?->copy()->endOfDay() ?? now(),
                         'closed_by' => $userId,
                     ]));
             }

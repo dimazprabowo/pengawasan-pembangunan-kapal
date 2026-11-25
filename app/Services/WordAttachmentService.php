@@ -20,7 +20,7 @@ class WordAttachmentService
      * diregenerasi sekali, agar halaman lampiran tidak merender ulang halaman
      * kosong dari dokumen sumber yang dibuat sebelum perbaikan.
      */
-    public const BREAK_SIGNATURE = 'pb-norm-1';
+    public const BREAK_SIGNATURE = 'pb-norm-5';
 
     public function isBreakNormalized(string $docxPath): bool
     {
@@ -206,10 +206,10 @@ class WordAttachmentService
     /**
      * Sisipkan lampiran NC di akhir dokumen (sebelum sectPr).
      */
-    public function append(string $path, Collection $ncs, bool $includePhotos = false): void
+    public function append(string $path, Collection $ncs, bool $includePhotos = false, string $coverTitle = 'LAMPIRAN NON-CONFORMANCE'): void
     {
         $images = [];
-        foreach ($ncs as $nc) {
+        foreach ($ncs->values() as $nc) {
             foreach ($nc->foto as $file) {
                 if (! $file->isFileCompleted()) {
                     throw new RuntimeException('Lampiran NC belum selesai diproses.');
@@ -230,7 +230,7 @@ class WordAttachmentService
             }
         }
 
-        $this->insertImages($path, $images, null, 'LAMPIRAN NON-CONFORMANCE', true);
+        $this->insertImages($path, [['cover' => $images ? $coverTitle : null, 'images' => $images]], null, true);
     }
 
     /**
@@ -241,7 +241,7 @@ class WordAttachmentService
     public function embedExternals(string $path, Collection $externals, string $coverTitle = 'DOKUMEN EKSTERNAL'): void
     {
         $images = [];
-        foreach ($externals as $external) {
+        foreach ($externals->values() as $external) {
             if (! $external->hasFile()) {
                 continue;
             }
@@ -263,7 +263,7 @@ class WordAttachmentService
             }
         }
 
-        $this->insertImages($path, $images, self::EXTERNAL_ANCHOR, $coverTitle, true);
+        $this->insertImages($path, [['cover' => $coverTitle, 'images' => $images]], self::EXTERNAL_ANCHOR, true);
     }
 
     /**
@@ -335,17 +335,34 @@ class WordAttachmentService
      */
     public function embedReportPages(string $path, array $images, string $anchorText, string $coverTitle): void
     {
-        $this->insertImages($path, $images, $anchorText, $coverTitle, true);
+        $this->insertImages($path, [['cover' => $coverTitle, 'images' => $images]], $anchorText, true);
+    }
+
+    /**
+     * Seperti embedReportPages untuk beberapa dokumen sumber: semua halaman
+     * berada di belakang SATU halaman pembatas kategori ($coverTitle, ditentukan
+     * caller agar sesuai penomoran daftar lampiran di atasnya).
+     *
+     * @param  array<array<array{0: string, 1: string, 2: bool}>>  $groups  daftar gambar per dokumen
+     */
+    public function embedGroupedReportPages(string $path, array $groups, string $anchorText, string $coverTitle): void
+    {
+        $images = [];
+        foreach ($groups as $group) {
+            foreach ($group as $item) {
+                $images[] = $item;
+            }
+        }
+        $this->insertImages($path, [['cover' => $coverTitle, 'images' => $images]], $anchorText, true);
     }
 
     /**
      * Sisipkan gambar ke paket docx sebagai inline drawing.
      *
-     * @param  array<array{0: string, 1: string, 2: bool}>  $images  [path storage, caption, fullPage]
+     * @param  array<array{cover: string|null, images: array<array{0: string, 1: string, 2: bool}>}>  $groups  grup lampiran; tiap grup diawali halaman pembatas 'cover' lalu gambar-gambarnya
      * @param  string|null  $anchorText  teks dalam paragraf marker yang digantikan gambar
-     * @param  string|null  $coverTitle  judul halaman pembatas yang disisipkan sebelum gambar
      */
-    private function insertImages(string $path, array $images, ?string $anchorText = null, ?string $coverTitle = null, bool $borderless = false): void
+    private function insertImages(string $path, array $groups, ?string $anchorText = null, bool $borderless = false): void
     {
         // Halaman render (±2400x3400 px) dibaca & di-clone GD satu per satu saat
         // crop margin — ratusan halaman pada bulanan melampaui limit default.
@@ -375,6 +392,13 @@ class WordAttachmentService
             $availableWidth = max(1, $pageWidth - $left - $right) * 635;
             $availableHeight = max(1, $pageHeight - $top - $bottom - 720) * 635;
             $typeXpath = new DOMXPath($types);
+            $groups = array_values(array_filter($groups, fn ($group) => ! empty($group['images'])));
+            $images = [];
+            foreach ($groups as $group) {
+                foreach ($group['images'] as $item) {
+                    $images[] = $item;
+                }
+            }
             if ($images && $typeXpath->query('//*[local-name()="Default" and @Extension="jpg"]')->length === 0) {
                 $type = $types->createElementNS($types->documentElement->namespaceURI, 'Default');
                 $type->setAttribute('Extension', 'jpg');
@@ -411,20 +435,13 @@ class WordAttachmentService
                 $normalSection = $layout->cloneNode(true);
                 $attachmentSection = $this->borderlessSection($normalSection, $zip, $relations, $types);
                 $this->endSectionBefore($body, $insertBefore, $normalSection, $xpath);
-                if ($coverTitle !== null) {
-                    $cover = $document->createDocumentFragment();
-                    if (! $cover->appendXML(self::coverPageXml($coverTitle))) {
-                        throw new RuntimeException('Struktur lampiran Word tidak valid.');
-                    }
-                    $cover->removeChild($cover->firstChild);
-                    $body->insertBefore($cover, $insertBefore);
-                    $coverSection = $attachmentSection->cloneNode(true);
-                    $coverMargins = $coverSection->getElementsByTagNameNS($coverSection->namespaceURI, 'pgMar')->item(0);
-                    $normalMargins = $normalSection->getElementsByTagNameNS($normalSection->namespaceURI, 'pgMar')->item(0);
-                    if ($normalMargins instanceof DOMElement) {
-                        $coverSection->replaceChild($normalMargins->cloneNode(true), $coverMargins);
-                    }
-                    $body->insertBefore($this->sectionBreak($document, $coverSection), $insertBefore);
+                // Section halaman pembatas: header/footer kosong seperti lampiran,
+                // tetapi margin normal agar judul tetap terpusat pada area teks.
+                $coverSection = $attachmentSection->cloneNode(true);
+                $coverMargins = $coverSection->getElementsByTagNameNS($coverSection->namespaceURI, 'pgMar')->item(0);
+                $normalMargins = $normalSection->getElementsByTagNameNS($normalSection->namespaceURI, 'pgMar')->item(0);
+                if ($normalMargins instanceof DOMElement) {
+                    $coverSection->replaceChild($normalMargins->cloneNode(true), $coverMargins);
                 }
                 $restoreSection = $layout;
                 $availableWidth = $pageWidth * 635;
@@ -434,60 +451,79 @@ class WordAttachmentService
             $first = true;
             $wordImage = app(WordImageService::class);
             $bounds = $borderless ? [] : $this->sourceBounds($images, $wordImage);
-            foreach ($images as [$image, , $pdfPage]) {
-                $fullPath = app(FilePathService::class)->localPath($image);
-                $size = @getimagesize($fullPath);
-                if (! $size || $size[0] < 1 || $size[1] < 1) {
-                    throw new RuntimeException('Gambar lampiran tidak dapat dibaca.');
-                }
-                $key = 'att_'.bin2hex(random_bytes(12));
-                $name = $key.'.jpg';
-                $relation = $relations->createElementNS($relations->documentElement->namespaceURI, 'Relationship');
-                $relation->setAttribute('Id', $key);
-                $relation->setAttribute('Type', 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image');
-                $relation->setAttribute('Target', 'media/'.$name);
-                $relations->documentElement->appendChild($relation);
-                $prepared = $wordImage->prepareImageForWord($fullPath, $pdfPage ? 2400 : 900, $pdfPage ? 2400 : 900, 85);
-                $final = $prepared;
-                try {
-                    if ($pdfPage && isset($bounds[self::boundsKey($image)])) {
-                        // Pangkas margin putih dengan kotak yang SAMA untuk semua
-                        // halaman satu dokumen sumber, lalu ukur ulang hasil crop.
-                        $trimmed = $wordImage->cropToBounds($prepared, $bounds[self::boundsKey($image)]);
-                        if ($trimmed !== $prepared) {
-                            $final = $trimmed;
-                            $size = @getimagesize($final) ?: $size;
-                        }
-                    }
-                    $maxWidth = $pdfPage ? $availableWidth : min($availableWidth, 6 * 360000);
-                    $maxHeight = $pdfPage ? $availableHeight : min($availableHeight, 6 * 360000);
-                    $scale = min($maxWidth / $size[0], $maxHeight / $size[1]);
-                    $width = (int) round($size[0] * $scale);
-                    $height = (int) round($size[1] * $scale);
-                    if (getimagesize($final)[2] !== IMAGETYPE_JPEG || ! $zip->addFromString('word/media/'.$name, file_get_contents($final))) {
-                        throw new RuntimeException('Gagal menyisipkan lampiran.');
-                    }
-                } finally {
-                    foreach (array_unique([$prepared, $final]) as $tmp) {
-                        if ($tmp !== $fullPath) {
-                            @unlink($tmp);
-                        }
-                    }
-                }
-                $imageBreak = ($borderless ? ! $first : ($pdfPage || $first)) ? '<w:pageBreakBefore/>' : '';
-                $first = false;
-                $xml = '';
-                $xml .= '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:pPr>'.$imageBreak.'<w:jc w:val="center"/></w:pPr><w:r><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><wp:extent cx="'.$width.'" cy="'.$height.'"/><wp:docPr id="'.$id.'" name="'.$key.'"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="'.$name.'"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="'.$key.'"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="'.$width.'" cy="'.$height.'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>';
+            foreach ($groups as $groupIndex => $group) {
                 if ($borderless) {
-                    $xml = str_replace('<w:pPr>', '<w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/><w:ind w:left="0" w:right="0" w:firstLine="0"/>', $xml);
-                    $xml = str_replace('<w:r><w:drawing>', '<w:r><w:rPr><w:sz w:val="2"/></w:rPr><w:drawing>', $xml);
+                    // Tutup section gambar grup sebelumnya sebelum pembatas berikut.
+                    if ($groupIndex > 0) {
+                        $this->endSectionBefore($body, $insertBefore, $attachmentSection->cloneNode(true), $xpath);
+                    }
+                    if (($group['cover'] ?? null) !== null) {
+                        $cover = $document->createDocumentFragment();
+                        if (! $cover->appendXML(self::coverPageXml($group['cover']))) {
+                            throw new RuntimeException('Struktur lampiran Word tidak valid.');
+                        }
+                        $cover->removeChild($cover->firstChild);
+                        $body->insertBefore($cover, $insertBefore);
+                        $body->insertBefore($this->sectionBreak($document, $coverSection->cloneNode(true)), $insertBefore);
+                    }
                 }
-                $fragment = $document->createDocumentFragment();
-                if (! $fragment->appendXML($xml)) {
-                    throw new RuntimeException('Struktur lampiran Word tidak valid.');
+                $groupFirst = true;
+                foreach ($group['images'] as [$image, , $pdfPage]) {
+                    $fullPath = app(FilePathService::class)->localPath($image);
+                    $size = @getimagesize($fullPath);
+                    if (! $size || $size[0] < 1 || $size[1] < 1) {
+                        throw new RuntimeException('Gambar lampiran tidak dapat dibaca.');
+                    }
+                    $key = 'att_'.bin2hex(random_bytes(12));
+                    $name = $key.'.jpg';
+                    $relation = $relations->createElementNS($relations->documentElement->namespaceURI, 'Relationship');
+                    $relation->setAttribute('Id', $key);
+                    $relation->setAttribute('Type', 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image');
+                    $relation->setAttribute('Target', 'media/'.$name);
+                    $relations->documentElement->appendChild($relation);
+                    $prepared = $wordImage->prepareImageForWord($fullPath, $pdfPage ? 2400 : 900, $pdfPage ? 2400 : 900, 85);
+                    $final = $prepared;
+                    try {
+                        if ($pdfPage && isset($bounds[self::boundsKey($image)])) {
+                            // Pangkas margin putih dengan kotak yang SAMA untuk semua
+                            // halaman satu dokumen sumber, lalu ukur ulang hasil crop.
+                            $trimmed = $wordImage->cropToBounds($prepared, $bounds[self::boundsKey($image)]);
+                            if ($trimmed !== $prepared) {
+                                $final = $trimmed;
+                                $size = @getimagesize($final) ?: $size;
+                            }
+                        }
+                        $maxWidth = $pdfPage ? $availableWidth : min($availableWidth, 6 * 360000);
+                        $maxHeight = $pdfPage ? $availableHeight : min($availableHeight, 6 * 360000);
+                        $scale = min($maxWidth / $size[0], $maxHeight / $size[1]);
+                        $width = (int) round($size[0] * $scale);
+                        $height = (int) round($size[1] * $scale);
+                        if (getimagesize($final)[2] !== IMAGETYPE_JPEG || ! $zip->addFromString('word/media/'.$name, file_get_contents($final))) {
+                            throw new RuntimeException('Gagal menyisipkan lampiran.');
+                        }
+                    } finally {
+                        foreach (array_unique([$prepared, $final]) as $tmp) {
+                            if ($tmp !== $fullPath) {
+                                @unlink($tmp);
+                            }
+                        }
+                    }
+                    $imageBreak = ($borderless ? ! $groupFirst : ($pdfPage || $first)) ? '<w:pageBreakBefore/>' : '';
+                    $groupFirst = false;
+                    $first = false;
+                    $xml = '';
+                    $xml .= '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:pPr>'.$imageBreak.'<w:jc w:val="center"/></w:pPr><w:r><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><wp:extent cx="'.$width.'" cy="'.$height.'"/><wp:docPr id="'.$id.'" name="'.$key.'"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="'.$name.'"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="'.$key.'"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="'.$width.'" cy="'.$height.'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>';
+                    if ($borderless) {
+                        $xml = str_replace('<w:pPr>', '<w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/><w:ind w:left="0" w:right="0" w:firstLine="0"/>', $xml);
+                        $xml = str_replace('<w:r><w:drawing>', '<w:r><w:rPr><w:sz w:val="2"/></w:rPr><w:drawing>', $xml);
+                    }
+                    $fragment = $document->createDocumentFragment();
+                    if (! $fragment->appendXML($xml)) {
+                        throw new RuntimeException('Struktur lampiran Word tidak valid.');
+                    }
+                    $body->insertBefore($fragment, $insertBefore);
+                    $id++;
                 }
-                $body->insertBefore($fragment, $insertBefore);
-                $id++;
             }
 
             if ($attachmentSection instanceof DOMElement) {

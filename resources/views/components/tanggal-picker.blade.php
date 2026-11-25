@@ -5,6 +5,7 @@
     'siblingKey' => 'tanggal_laporan',
     'placeholder' => 'Pilih tanggal',
     'required' => false,
+    'minDate' => null,
     'maxDate' => null,
     'displayFormat' => null,
 ])
@@ -36,6 +37,9 @@
                     },
                 },
                 defaultDate: $wire.get(@js($tanggalModelPath)) || null,
+                @if($minDate)
+                minDate: @js($minDate),
+                @endif
                 @if($maxDate)
                 maxDate: @js($maxDate),
                 @endif
