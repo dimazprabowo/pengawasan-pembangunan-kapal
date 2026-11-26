@@ -336,7 +336,11 @@
     @include('livewire.pages.dashboard-kurva-s')
 
     @can('laporan_view')
-        <section class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700" aria-label="Arsip laporan PDF">
+        <section class="relative bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700" aria-label="Arsip laporan PDF">
+            <div wire:loading.flex wire:target="selectKurvaSkapal"
+                 class="absolute inset-0 z-10 items-center justify-center rounded-lg bg-white/80 dark:bg-gray-800/80">
+                <svg class="animate-spin w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+            </div>
             <div class="px-5 py-5 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1">Pusat Dokumen</p>

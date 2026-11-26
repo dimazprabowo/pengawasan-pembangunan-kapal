@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\LaporanExternal;
 use App\Services\FileStorageService;
+use App\Services\LaporanDocumentService;
 use App\Services\PdfPageService;
 use App\Services\QueueStatusService;
 use Illuminate\Bus\Queueable;
@@ -108,6 +109,9 @@ class ProcessLaporanExternal implements ShouldQueue
             throw $e;
         }
 
+        if ($laporanExternal->laporan_harian_id && $laporanExternal->laporanHarian) {
+            app(LaporanDocumentService::class)->invalidateHarian($laporanExternal->laporanHarian);
+        }
         $files->deleteFiles($oldPaths);
         $files->deleteTemp($this->tempPath);
     }

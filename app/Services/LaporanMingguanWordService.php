@@ -389,26 +389,9 @@ class LaporanMingguanWordService
     // ──────────────────────────────────────────────────────────────────
     private function fillExternal(TemplateProcessor $processor, LaporanMingguan $laporan): void
     {
-        $rows = $laporan->laporanExternal->values();
-
-        if ($rows->isEmpty()) {
-            $processor->setValue('tabel_external', 'Tidak ada dokumen pendukung.');
-
-            return;
-        }
-
-        $w = [3600, 5426];
-        $table = $this->newTable();
-        $this->headerRow($table, $w, ['Judul', 'Deskripsi']);
-
-        foreach ($rows as $i => $ext) {
-            $table->addRow(null, ['cantSplit' => true]);
-            $bg = $i % 2 ? self::ZEBRA : null;
-            $this->bodyCell($table, $w[0], $ext->judul ?: '-', $bg);
-            $this->bodyCell($table, $w[1], $ext->deskripsi ?: '-', $bg);
-        }
-
-        WordStyleService::setComplexBlock($processor, 'tabel_external', $table);
+        WordStyleService::attachmentList($processor, 'tabel_external', ['Judul', 'Deskripsi'],
+            $laporan->laporanExternal->map(fn ($row) => [$row->judul ?: '-', $row->deskripsi ?: '-'])->all(),
+            'Tidak ada dokumen pendukung.');
     }
 
     // ──────────────────────────────────────────────────────────────────

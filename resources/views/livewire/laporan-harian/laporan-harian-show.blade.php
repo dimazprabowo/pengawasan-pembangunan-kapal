@@ -481,7 +481,13 @@
                 </x-laporan.section-wrapper>
 
             {{-- Lampiran Section — foto per uraian aktivitas --}}
-            <x-laporan.section-wrapper label="F. Lampiran" :isEmpty="$laporan->lampiran->count() === 0" :count="$laporan->lampiran->count()" countLabel="foto">
+            <x-laporan.section-wrapper label="F. Lampiran" :isEmpty="false">
+                <h4 class="text-sm font-semibold text-gray-900 dark:text-white">1. Dokumen Pendukung</h4>
+                <x-laporan-mingguan.external-reports-show-section :laporan-external="$laporan->laporanExternal" />
+                @if($laporan->laporanExternal->isEmpty())
+                    <x-laporan.empty-state icon="aktivitas" message="Belum ada dokumen pendukung" />
+                @endif
+                <h4 class="mt-4 text-sm font-semibold text-gray-900 dark:text-white">2. Dokumentasi</h4>
                 <x-laporan.lampiran-aktivitas-grid
                     :groups="$aktivitasGroups"
                     :existing="$lampiranByAktivitas"

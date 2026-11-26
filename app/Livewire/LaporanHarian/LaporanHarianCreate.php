@@ -3,6 +3,7 @@
 namespace App\Livewire\LaporanHarian;
 
 use App\Livewire\Traits\HasDataKapalFilter;
+use App\Livewire\Traits\HasHarianExternal;
 use App\Livewire\Traits\HasNotification;
 use App\Models\Cuaca;
 use App\Models\DataKapal;
@@ -23,6 +24,7 @@ use Livewire\WithFileUploads;
 class LaporanHarianCreate extends Component
 {
     use AuthorizesRequests, HasDataKapalFilter, HasNotification, WithFileUploads;
+    use HasHarianExternal;
 
     public DataKapal $dataKapal;
 
@@ -252,6 +254,9 @@ class LaporanHarianCreate extends Component
 
         $index = $this->deletingCardIndex;
 
+        $this->laporanExternal = array_values(array_replace(array_fill(0, count($this->items), []), $this->laporanExternal));
+        unset($this->laporanExternal[$index]);
+        $this->laporanExternal = array_values($this->laporanExternal);
         unset($this->items[$index]);
         unset($this->lampiran[$index]);
         unset($this->ncFoto[$index]);
@@ -716,11 +721,12 @@ class LaporanHarianCreate extends Component
 
         try {
             $this->validate();
+            $this->validateHarianExternal();
         } catch (ValidationException $e) {
             $this->notifyValidationError($e);
             $firstKey = collect($e->validator->errors()->keys())
-                ->first(fn ($k) => str_starts_with($k, 'items.') || str_starts_with($k, 'lampiran.') || str_starts_with($k, 'ncFoto.'));
-            if ($firstKey && preg_match('/^(items|lampiran|ncFoto)\.(\d+)/', $firstKey, $m)) {
+                ->first(fn ($k) => str_starts_with($k, 'items.') || str_starts_with($k, 'lampiran.') || str_starts_with($k, 'ncFoto.') || str_starts_with($k, 'laporanExternal.'));
+            if ($firstKey && preg_match('/^(items|lampiran|ncFoto|laporanExternal)\.(\d+)/', $firstKey, $m)) {
                 $this->activeTab = (int) $m[2];
             }
             throw $e;
@@ -757,7 +763,7 @@ class LaporanHarianCreate extends Component
             // Save consumable - allow partial data (any field filled)
             // Uraian aktivitas per kategori + foto lampirannya
             // NC + foto bukti (open); dokumen close tetap diunggah via List NC
-            [$createdLaporans, $fotoCount] = $service->saveFormBatch($dataItems, $this->items, $this->lampiran, $this->ncFoto);
+            [$createdLaporans, $fotoCount] = $service->saveFormBatch($dataItems, $this->items, $this->lampiran, $this->ncFoto, $this->laporanExternal);
 
             $count = count($dataItems);
             $message = "{$count} laporan harian berhasil ditambahkan!";

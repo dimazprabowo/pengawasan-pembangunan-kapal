@@ -71,6 +71,7 @@ class LaporanHarianShow extends Component
             'cuacaSore',
             'kelembabanSore',
             'lampiran',
+            'laporanExternal',
             'personel',
             'peralatan',
             'consumable',
@@ -433,15 +434,27 @@ class LaporanHarianShow extends Component
             ->all();
     }
 
+    public function downloadExternalFile(int $id)
+    {
+        $this->authorize('view', $this->laporan);
+        $this->authorize('laporan_lampiran_download');
+        $this->authorizeDataKapalAccess($this->dataKapal);
+        $external = $this->laporan->laporanExternal()->findOrFail($id);
+        abort_unless($external->isFileCompleted() && $external->file_path, 404);
+
+        return Storage::disk('local')->download($external->file_path, $external->file_name);
+    }
+
     public function refreshLampiranStatus(): void
     {
-        $this->laporan->load(['lampiran', 'ncs.foto']);
+        $this->authorize('view', $this->laporan);
+        $this->laporan->load(['lampiran', 'ncs.foto', 'laporanExternal']);
         $this->dispatch('lh-reload-thumbs');
     }
 
     public function hasProcessingLampiran(): bool
     {
-        return $this->laporan->lampiran->contains(function ($lampiran) {
+        return $this->laporan->laporanExternal->contains(fn ($row) => $row->isFileProcessing()) || $this->laporan->lampiran->contains(function ($lampiran) {
             return $lampiran->isFileProcessing();
         });
     }

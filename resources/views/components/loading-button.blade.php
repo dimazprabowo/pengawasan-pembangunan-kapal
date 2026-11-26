@@ -8,6 +8,7 @@
 @php
     $variants = [
         'primary'   => 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500',
+        'soft-primary' => 'bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 dark:text-blue-400 dark:hover:text-blue-300 focus:ring-blue-500',
         'success'   => 'bg-emerald-600 hover:bg-emerald-700 text-white focus:ring-emerald-500',
         'danger'    => 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500',
         'warning'   => 'bg-yellow-600 hover:bg-yellow-700 text-white focus:ring-yellow-500',
@@ -15,6 +16,7 @@
     ];
 
     $sizes = [
+        'compact' => 'px-2.5 py-1.5 text-xs gap-1',
         'xs' => 'px-2 py-1 text-xs gap-1',
         'sm' => 'px-2.5 py-1.5 text-sm gap-1',
         'md' => 'px-3 py-2 text-sm gap-1.5',
@@ -22,6 +24,7 @@
     ];
 
     $spinnerSizes = [
+        'compact' => 'h-3.5 w-3.5',
         'xs' => 'h-3 w-3',
         'sm' => 'h-3.5 w-3.5',
         'md' => 'h-4 w-4',

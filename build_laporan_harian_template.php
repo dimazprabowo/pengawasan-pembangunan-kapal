@@ -196,6 +196,17 @@ if (! str_contains($xml, 'kode_proyek')) {
     $xml = preg_replace('/(<w:tbl>(?:(?!<w:tbl\b).)*?)(<\/w:tbl>)/s', '$1'.$kodeRow.'$2', $xml, 1);
 }
 
+if (! str_contains($xml, '${tabel_external}')) {
+    $xml = str_replace('F. Lampiran: Dokumentasi', 'F. Lampiran', $xml);
+    $paragraph = fn (string $value, bool $heading = false) => '<w:p><w:pPr><w:spacing w:before="120" w:after="120"/></w:pPr><w:r><w:rPr>'.($heading ? '<w:b/><w:color w:val="'.NAVY.'"/>' : '').'</w:rPr><w:t>'.$value.'</w:t></w:r></w:p>';
+    $listing = $paragraph('1. Dokumen Pendukung', true).$paragraph('${tabel_external}')
+        .$paragraph('2. Dokumentasi', true).$paragraph('${tabel_dokumentasi}')
+        .$paragraph('${lampiran_external}').$paragraph('${pemisah_dokumentasi}');
+    $xml = preg_replace_callback('/<w:p[ >](?:(?!<\/w:p>).)*?\$\{blok_lampiran\}.*?<\/w:p>/s', fn ($m) => $listing.$m[0], $xml, 1);
+}
+
+$xml = preg_replace('/<w:p(?:\s[^>]*)?>(?:(?!<\/w:p>).)*?\$\{lampiran_kosong\}(?:(?!<\/w:p>).)*?<\/w:p>/s', '', $xml);
+
 $z->addFromString('word/document.xml', $xml);
 $z->addFromString('word/styles.xml', $styles);
 $z->addFromString('word/header1.xml', $header);

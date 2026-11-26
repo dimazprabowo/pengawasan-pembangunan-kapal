@@ -2,17 +2,28 @@
 
 namespace App\Models;
 
+use App\Traits\HasUserStamps;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class LaporanExternal extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUserStamps, LogsActivity;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()->useLogName('laporan_external')
+            ->logOnly(['laporan_harian_id', 'laporan_mingguan_id', 'laporan_bulanan_id', 'judul', 'deskripsi', 'file_path', 'file_status'])
+            ->logOnlyDirty()->dontSubmitEmptyLogs();
+    }
 
     protected $table = 'laporan_external';
 
     protected $fillable = [
+        'laporan_harian_id',
         'laporan_mingguan_id',
         'laporan_bulanan_id',
         'judul',
@@ -33,6 +44,11 @@ class LaporanExternal extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    public function laporanHarian(): BelongsTo
+    {
+        return $this->belongsTo(LaporanHarian::class);
+    }
 
     public function laporanMingguan(): BelongsTo
     {

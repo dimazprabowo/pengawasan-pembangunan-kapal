@@ -94,6 +94,31 @@ final class WordStyleService
         return $t;
     }
 
+    public static function attachmentList(TemplateProcessor $processor, string $macro, array $headers, array $rows, string $empty): void
+    {
+        if (! $rows) {
+            $processor->setValue($macro, $empty);
+
+            return;
+        }
+        $widths = [3600, 5426];
+        $table = new Table([
+            'borderSize' => 4, 'borderColor' => '8EAADB', 'cellMargin' => 80,
+            'alignment' => JcTable::CENTER, 'width' => 9026, 'unit' => TblWidth::TWIP, 'layout' => 'fixed',
+        ]);
+        $table->addRow(null, ['tblHeader' => true, 'cantSplit' => true]);
+        foreach ($headers as $index => $header) {
+            $table->addCell($widths[$index], ['bgColor' => '1F3864'])->addText($header, ['bold' => true, 'color' => 'FFFFFF', 'size' => 9]);
+        }
+        foreach ($rows as $index => $row) {
+            $table->addRow(null, ['cantSplit' => true]);
+            foreach ($row as $column => $value) {
+                $table->addCell($widths[$column], $index % 2 ? ['bgColor' => 'F2F5FB'] : [])->addText((string) $value, ['size' => 9]);
+            }
+        }
+        self::setComplexBlock($processor, $macro, $table);
+    }
+
     private static function prepareElement(AbstractElement $element): void
     {
         if (method_exists($element, 'getParagraphStyle')) {

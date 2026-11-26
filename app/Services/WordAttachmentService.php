@@ -28,7 +28,7 @@ class WordAttachmentService
      * diregenerasi sekali, agar halaman lampiran tidak merender ulang halaman
      * kosong dari dokumen sumber yang dibuat sebelum perbaikan.
      */
-    public const BREAK_SIGNATURE = 'pb-norm-5';
+    public const BREAK_SIGNATURE = 'pb-norm-6';
 
     public function isBreakNormalized(string $docxPath): bool
     {
@@ -77,6 +77,29 @@ class WordAttachmentService
         $w = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 
         $changed = false;
+        $section = $xp->query('/w:document/w:body/w:sectPr')->item(0);
+        $last = $section?->previousSibling;
+        while ($last !== null) {
+            if (! $last instanceof DOMElement) {
+                $last = $last->previousSibling;
+
+                continue;
+            }
+            if ($last->localName !== 'p' || trim($last->textContent) !== ''
+                || $xp->query('.//w:drawing | .//w:pict | .//w:object | .//w:sectPr | .//w:fldChar | .//w:instrText | .//w:bookmarkStart | .//w:bookmarkEnd | .//w:sym | .//w:footnoteReference | .//w:endnoteReference | .//w:commentReference | .//*[local-name()="oMath"]', $last)->length > 0) {
+                break;
+            }
+            $previous = $last->previousSibling;
+            $last->parentNode->removeChild($last);
+            $last = $previous;
+            $changed = true;
+        }
+        if ($last instanceof DOMElement && $last->localName === 'tbl') {
+            $paragraph = $doc->createElementNS($w, 'w:p');
+            $this->shrinkBreakParagraph($doc, $xp, $paragraph);
+            $section->parentNode->insertBefore($paragraph, $section);
+            $changed = true;
+        }
 
         // Batas section back-to-back: paragraf kosong pembawa sectPr tepat setelah
         // paragraf batas section lain menutup section yang isinya hanya dirinya
@@ -381,6 +404,61 @@ class WordAttachmentService
         } finally {
             $files->delete($source);
             @unlink($pdfLocal);
+        }
+    }
+
+    public function embedDivider(string $path, string $anchorText, string $title): void
+    {
+        $zip = new ZipArchive;
+        if ($zip->open($path) !== true) {
+            throw new RuntimeException('Dokumen Word tidak dapat dibuka.');
+        }
+        try {
+            $document = $this->xml($zip->getFromName('word/document.xml'));
+            $xpath = new DOMXPath($document);
+            $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+            $body = $xpath->query('/w:document/w:body')->item(0);
+            $anchor = null;
+            foreach ($xpath->query('w:p', $body) as $paragraph) {
+                if (str_contains($paragraph->textContent, $anchorText)) {
+                    $anchor = $paragraph;
+                    break;
+                }
+            }
+            if (! $anchor instanceof DOMElement) {
+                return;
+            }
+            $normal = $xpath->query('following::w:sectPr[1]', $anchor)->item(0);
+            if (! $normal instanceof DOMElement) {
+                throw new RuntimeException('Pengaturan halaman pemisah tidak ditemukan.');
+            }
+            $relations = $this->xml($zip->getFromName('word/_rels/document.xml.rels'));
+            $types = $this->xml($zip->getFromName('[Content_Types].xml'));
+            $coverSection = $this->borderlessSection($normal, $zip, $relations, $types);
+            $margins = $xpath->query('w:pgMar', $normal)->item(0);
+            if ($margins instanceof DOMElement) {
+                $coverSection->replaceChild($margins->cloneNode(true), $xpath->query('w:pgMar', $coverSection)->item(0));
+            }
+            $previous = $anchor->previousSibling;
+            while ($previous !== null && ! $previous instanceof DOMElement) {
+                $previous = $previous->previousSibling;
+            }
+            if (! $previous instanceof DOMElement || $xpath->query('w:pPr/w:sectPr', $previous)->length === 0) {
+                $this->endSectionBefore($body, $anchor, $normal->cloneNode(true), $xpath);
+            }
+            $cover = $document->createDocumentFragment();
+            if (! $cover->appendXML(self::coverPageXml($title))) {
+                throw new RuntimeException('Struktur halaman pemisah tidak valid.');
+            }
+            $cover->removeChild($cover->firstChild);
+            $body->insertBefore($cover, $anchor);
+            $body->insertBefore($this->sectionBreak($document, $coverSection), $anchor);
+            $body->removeChild($anchor);
+            $zip->addFromString('word/document.xml', $document->saveXML());
+            $zip->addFromString('word/_rels/document.xml.rels', $relations->saveXML());
+            $zip->addFromString('[Content_Types].xml', $types->saveXML());
+        } finally {
+            $zip->close();
         }
     }
 

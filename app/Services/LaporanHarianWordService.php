@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\LaporanHarian;
 use App\Models\LaporanLampiran;
+use PhpOffice\PhpWord\Element\Table;
 use PhpOffice\PhpWord\Settings;
 use PhpOffice\PhpWord\TemplateProcessor;
 
@@ -48,6 +49,7 @@ class LaporanHarianWordService
             'aktivitas.workGroup',
             'aktivitas.lampiran',
             'lampiran',
+            'laporanExternal',
         ]);
 
         if ($laporan->is_libur) {
@@ -154,6 +156,7 @@ class LaporanHarianWordService
         } catch (\Exception) {
             // Template tanpa blok NC — tidak ada yang perlu dihapus
         }
+        $this->fillAttachmentLists($processor, $laporan);
         $this->fillLampiranSection($processor, $laporan);
     }
 
@@ -355,6 +358,31 @@ class LaporanHarianWordService
         }
     }
 
+    private function fillAttachmentLists(TemplateProcessor $processor, LaporanHarian $laporan): void
+    {
+        if (in_array('tabel_dokumentasi', $processor->getVariables(), true)) {
+            $processor->replaceXmlBlock('lampiran_kosong', '');
+        }
+        $externals = $laporan->laporanExternal;
+        foreach ($externals as $external) {
+            if (! $external->isFileCompleted() || ! $external->hasFile()) {
+                throw new \RuntimeException('Dokumen pendukung harian belum selesai diproses.');
+            }
+        }
+        WordStyleService::attachmentList($processor, 'tabel_external', ['Judul', 'Deskripsi'],
+            $externals->map(fn ($row) => [$row->judul, $row->deskripsi ?: '-'])->all(), 'Tidak ada dokumen pendukung.');
+        $groups = $this->laporanHarianService->aktivitasPerKategori($laporan)->map(function ($group) {
+            $count = $group['aktivitas']->filter(fn ($row) => $row->lampiran?->isFileCompleted()
+                && $this->imageService->isImageFile($row->lampiran->file_path))->count();
+
+            return [$group['nama'], $count];
+        })->filter(fn ($row) => $row[1] > 0)->values();
+        WordStyleService::attachmentList($processor, 'tabel_dokumentasi', ['Kategori', 'Jumlah Foto'], $groups->all(), 'Tidak ada dokumentasi foto.');
+        if ($groups->isEmpty()) {
+            $processor->replaceXmlBlock('pemisah_dokumentasi', '');
+        }
+    }
+
     private function setFotoImage(TemplateProcessor $processor, string $macro, LaporanLampiran $lampiran): void
     {
         $imagePath = $this->imageService->resolveLampiranPath($lampiran->file_path);
@@ -403,7 +431,7 @@ class LaporanHarianWordService
         foreach (['cuacaPagi', 'kelembabanPagi', 'cuacaSiang', 'kelembabanSiang', 'cuacaSore', 'kelembabanSore'] as $relation) {
             $document->setRelation($relation, null);
         }
-        foreach (['personel', 'peralatan', 'consumable', 'aktivitas', 'lampiran'] as $relation) {
+        foreach (['personel', 'peralatan', 'consumable', 'aktivitas', 'lampiran', 'laporanExternal'] as $relation) {
             $document->setRelation($relation, $document->newCollection());
         }
 
@@ -421,9 +449,19 @@ class LaporanHarianWordService
         $files = app(FilePathService::class);
         $local = $files->tempPath('docx');
         $processor->saveAs($local);
-        app(WordAttachmentService::class)->normalizePageBreaks($local);
-        $this->ensureFooter($local, $laporan);
-        $files->commitLocalFile($local, 'laporan/word/'.$filename);
+        try {
+            $this->ensureFooter($local, $laporan);
+            $attachments = app(WordAttachmentService::class);
+            $attachments->normalizePageBreaks($local);
+            $attachments->embedExternals($local, $laporan->laporanExternal, '1. DOKUMEN PENDUKUNG');
+            $attachments->embedDivider($local, '${pemisah_dokumentasi}', '2. DOKUMENTASI');
+            $attachments->normalizePageBreaks($local);
+            $files->commitLocalFile($local, 'laporan/word/'.$filename);
+        } finally {
+            if (is_file($local)) {
+                @unlink($local);
+            }
+        }
 
         return 'laporan/word/'.$filename;
     }

@@ -136,6 +136,20 @@ class DashboardGalanganMapTest extends TestCase
     }
 
     #[Test]
+    public function arsip_pdf_menampilkan_overlay_loading_saat_ganti_kapal(): void
+    {
+        KurvaSWorkGroup::create(['data_kapal_id' => $this->kapalA->id, 'nama' => 'Hull', 'bobot' => 100, 'sort_order' => 0]);
+        $this->actingAs($this->user(['dashboard_view', 'laporan_view', 'laporan_view_all_data_kapal']));
+        $html = Livewire::test(Dashboard::class)->html();
+        $dom = new \DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html);
+        $xpath = new \DOMXPath($dom);
+        $overlay = $xpath->query('//section[@aria-label="Arsip laporan PDF"]/div[@*[name()="wire:loading.flex"]]');
+        $this->assertSame(1, $overlay->length);
+        $this->assertSame('selectKurvaSkapal', $overlay->item(0)->attributes->getNamedItem('wire:target')->nodeValue);
+    }
+
+    #[Test]
     public function setiap_tab_pdf_memiliki_spinner_loading_sendiri(): void
     {
         $this->actingAs($this->user(['dashboard_view', 'laporan_view', 'laporan_view_all_data_kapal']));

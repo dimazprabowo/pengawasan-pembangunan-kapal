@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\ProcessLaporanExternal;
 use App\Jobs\ProcessLaporanLampiran;
 use App\Models\DataKapal;
 use App\Models\KurvaSWorkGroup;
@@ -84,6 +85,42 @@ class LaporanHarianService
         }
 
         return ['values' => [], 'info' => 'Belum ada laporan hari kerja sebelumnya. Isi data secara manual.'];
+    }
+
+    public function syncExternal(LaporanHarian $report, array $rows): void
+    {
+        DB::transaction(function () use ($report, $rows) {
+            foreach ($rows as $row) {
+                if (! empty($row['id']) && is_numeric($row['id'])) {
+                    $report->laporanExternal()->findOrFail($row['id']);
+
+                    continue;
+                }
+                $file = $row['file'] ?? null;
+                if (! $file instanceof UploadedFile) {
+                    throw ValidationException::withMessages(['laporanExternal' => 'File dokumen pendukung wajib diunggah.']);
+                }
+                $temp = app(FileStorageService::class)->storeTemp($file, 'laporan-external');
+                $external = $report->laporanExternal()->create([
+                    'judul' => trim($row['judul']),
+                    'deskripsi' => trim($row['deskripsi'] ?? '') ?: null,
+                    'file_name' => $file->getClientOriginalName(),
+                    'file_status' => 'pending',
+                ]);
+                ProcessLaporanExternal::dispatch($external->id, $temp)->afterCommit();
+            }
+        });
+    }
+
+    public function deleteExternal(LaporanHarian $report, int $id): void
+    {
+        $external = $report->laporanExternal()->findOrFail($id);
+        $paths = array_merge([$external->file_path], $external->rendered_pages ?? []);
+        DB::transaction(function () use ($report, $external, $paths) {
+            $external->delete();
+            app(LaporanDocumentService::class)->invalidateHarian($report);
+            DB::afterCommit(fn () => app(FileStorageService::class)->deleteFiles($paths));
+        });
     }
 
     public function normalizeHari(array $data): array
@@ -195,14 +232,15 @@ class LaporanHarianService
         return $laporanHarian;
     }
 
-    public function saveFormBatch(array $dataItems, array $forms, array $fotos, array $ncFotos): array
+    public function saveFormBatch(array $dataItems, array $forms, array $fotos, array $ncFotos, array $externals = []): array
     {
-        return DB::transaction(function () use ($dataItems, $forms, $fotos, $ncFotos) {
+        return DB::transaction(function () use ($dataItems, $forms, $fotos, $ncFotos, $externals) {
             $reports = [];
             $fotoCount = 0;
             foreach ($dataItems as $index => $data) {
                 $report = $this->create($data);
                 $reports[] = $report;
+                $this->syncExternal($report, $externals[$index] ?? []);
                 $fotoCount += $this->syncFormDetails($report, $forms[$index], $fotos[$index] ?? [], $ncFotos[$index] ?? []);
             }
 
@@ -210,10 +248,11 @@ class LaporanHarianService
         });
     }
 
-    public function saveForm(LaporanHarian $report, array $data, array $form, array $fotos, array $ncFotos): int
+    public function saveForm(LaporanHarian $report, array $data, array $form, array $fotos, array $ncFotos, array $externals = []): int
     {
-        return DB::transaction(function () use ($report, $data, $form, $fotos, $ncFotos) {
+        return DB::transaction(function () use ($report, $data, $form, $fotos, $ncFotos, $externals) {
             $this->update($report, $data);
+            $this->syncExternal($report, $externals);
 
             return $this->syncFormDetails($report, $form, $fotos, $ncFotos);
         });
@@ -253,6 +292,9 @@ class LaporanHarianService
         // NC milik laporan ini + file orphan-nya (file bisa dipakai NC lain)
         app(LaporanNcService::class)->deleteForLaporan($laporanHarian);
 
+        foreach ($laporanHarian->laporanExternal as $external) {
+            $this->deleteExternal($laporanHarian, $external->id);
+        }
         $laporanHarian->delete();
     }
 

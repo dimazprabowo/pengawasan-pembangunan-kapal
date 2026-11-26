@@ -65,6 +65,30 @@ class LaporanExternalAttachmentTest extends TestCase
         $this->assertStringContainsString('grid-cols-[1rem_minmax(0,1fr)_auto]', (string) $view);
     }
 
+    #[Test]
+    public function tombol_tambah_dokumen_harian_mengikuti_gaya_ringkas_aktivitas(): void
+    {
+        view()->share('errors', new ViewErrorBag);
+        foreach ([0, 1] as $day) {
+            $html = (string) $this->blade('<x-laporan-mingguan.external-reports-section :laporan-external="[]" :deleting-external-id="null" :day="$day" />', compact('day'));
+            $dom = new \DOMDocument;
+            @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NONET);
+            $button = (new \DOMXPath($dom))->query('//button')->item(0);
+            $this->assertSame("addExternalReport({$day})", $button->getAttribute('wire:click'));
+            $this->assertSame("addExternalReport({$day})", $button->getAttribute('wire:target'));
+            $this->assertTrue($button->hasAttribute('wire:loading.attr'));
+            $classes = explode(' ', $button->getAttribute('class'));
+            foreach (['bg-blue-50', 'dark:bg-blue-900/20', 'text-blue-600', 'text-xs', 'px-2.5', 'py-1.5'] as $class) {
+                $this->assertContains($class, $classes);
+            }
+            $this->assertNotContains('bg-blue-600', $classes);
+            $this->assertNotContains('w-full', $classes);
+            $this->assertStringNotContainsString('flex-col', $button->parentNode->getAttribute('class'));
+        }
+        $default = $this->blade('<x-laporan-mingguan.external-reports-section :laporan-external="[]" :deleting-external-id="null" />');
+        $default->assertSee('bg-blue-600')->assertSee('Menambahkan...');
+    }
+
     private function assertDocumentCardLayout(string $html, string $filename): void
     {
         $dom = new \DOMDocument;
@@ -364,6 +388,53 @@ class LaporanExternalAttachmentTest extends TestCase
         } finally {
             $zip->close();
         }
+    }
+
+    #[Test]
+    public function pemisah_dokumentasi_setelah_dokumen_pendukung_tanpa_footer_dan_halaman_kosong(): void
+    {
+        $textBinary = dirname(config('services.poppler.pdfinfo')).'/pdftotext'.(PHP_OS_FAMILY === 'Windows' ? '.exe' : '');
+        if (! is_executable($textBinary) || (! class_exists(\COM::class) && ! is_executable((string) config('services.libreoffice.binary')))) {
+            $this->markTestSkipped('Engine Word/LibreOffice dan pdftotext diperlukan untuk verifikasi pagination.');
+        }
+        Storage::fake('local');
+        $image = imagecreatetruecolor(600, 850);
+        ob_start();
+        imagepng($image);
+        Storage::disk('local')->put('dokumen.png', ob_get_clean());
+        $path = Storage::disk('local')->path('dokumentasi.docx');
+        $document = new PhpWord;
+        $section = $document->addSection();
+        $section->addHeader()->addText('HEADER UTAMA');
+        $section->addFooter()->addText('FOOTER UTAMA');
+        $section->addText('DAFTAR LAMPIRAN');
+        $section->addText('${lampiran_external}');
+        $section->addText('${pemisah_dokumentasi}');
+        $section->addText('ISI DOKUMENTASI');
+        WordStyleService::prepare($document);
+        IOFactory::createWriter($document, 'Word2007')->save($path);
+        $attachment = app(WordAttachmentService::class);
+        $attachment->embedExternals($path, collect([new LaporanExternal([
+            'judul' => 'Inspeksi', 'file_path' => 'dokumen.png', 'file_name' => 'dokumen.png', 'file_status' => 'completed',
+        ])]), '1. DOKUMEN PENDUKUNG');
+        $attachment->embedDivider($path, '${pemisah_dokumentasi}', '2. DOKUMENTASI');
+        $attachment->normalizePageBreaks($path);
+        $pdf = Storage::disk('local')->path('dokumentasi.pdf');
+        app(DocxToPdfService::class)->convert($path, $pdf);
+        $process = new Process([$textBinary, '-layout', $pdf, '-']);
+        $process->mustRun();
+        $pages = explode("\f", rtrim($process->getOutput(), "\f\r\n"));
+        $this->assertCount(5, $pages);
+        $this->assertStringContainsString('DAFTAR LAMPIRAN', $pages[0]);
+        $this->assertStringContainsString('FOOTER UTAMA', $pages[0]);
+        $this->assertStringContainsString('1. DOKUMEN PENDUKUNG', $pages[1]);
+        $this->assertStringContainsString('2. DOKUMENTASI', $pages[3]);
+        foreach ([1, 2, 3] as $index) {
+            $this->assertStringNotContainsString('HEADER UTAMA', $pages[$index]);
+            $this->assertStringNotContainsString('FOOTER UTAMA', $pages[$index]);
+        }
+        $this->assertStringContainsString('ISI DOKUMENTASI', $pages[4]);
+        $this->assertStringContainsString('FOOTER UTAMA', $pages[4]);
     }
 
     #[Test]

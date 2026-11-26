@@ -171,6 +171,11 @@ class LaporanHarian extends Model
         return $this->hasMany(LaporanLampiran::class)->orderBy('created_at', 'asc');
     }
 
+    public function laporanExternal(): HasMany
+    {
+        return $this->hasMany(LaporanExternal::class)->orderBy('id');
+    }
+
     public function personel(): HasMany
     {
         return $this->hasMany(LaporanPersonel::class)->orderBy('created_at', 'asc');

@@ -3,18 +3,22 @@
 namespace Tests\Feature;
 
 use App\Enums\NcStatus;
+use App\Jobs\ProcessLaporanExternal;
 use App\Models\LaporanBulanan;
 use App\Models\LaporanHarian;
 use App\Models\LaporanMingguan;
 use App\Models\LaporanNc;
 use App\Models\User;
+use App\Services\FileStorageService;
 use App\Services\LaporanBulananService;
 use App\Services\LaporanDocumentService;
 use App\Services\LaporanHarianService;
 use App\Services\LaporanMingguanService;
 use App\Services\LaporanNcService;
+use App\Services\QueueStatusService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -106,6 +110,25 @@ class LaporanDocumentInvalidationTest extends TestCase
         $this->assertDokumenKosong($harian);
         $this->assertDokumenKosong($mingguan);
         $this->assertDokumenKosong($bulanan);
+    }
+
+    #[Test]
+    public function proses_dan_hapus_dokumen_pendukung_harian_menginvalidasi_rantai(): void
+    {
+        [$bulanan, $mingguan, $harian] = $this->rantai();
+        $external = $harian->laporanExternal()->create(['judul' => 'Inspeksi', 'file_name' => 'scan.jpg', 'file_status' => 'pending']);
+        $temp = app(FileStorageService::class)->storeTemp(UploadedFile::fake()->image('scan.jpg'), 'laporan-external');
+        (new ProcessLaporanExternal($external->id, $temp))->handle(app(QueueStatusService::class));
+        $this->assertTrue($external->fresh()->isFileCompleted());
+        foreach ([$harian, $mingguan, $bulanan] as $report) {
+            $this->assertDokumenKosong($report);
+            $this->beriDokumen($report);
+        }
+        app(LaporanHarianService::class)->deleteExternal($harian, $external->id);
+        $this->assertDatabaseMissing('laporan_external', ['id' => $external->id]);
+        foreach ([$harian, $mingguan, $bulanan] as $report) {
+            $this->assertDokumenKosong($report);
+        }
     }
 
     #[Test]

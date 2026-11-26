@@ -10,6 +10,9 @@ return new class extends Migration
     {
         Schema::create('laporan_external', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('laporan_harian_id')->nullable()->constrained('laporan_harian')->cascadeOnDelete();
+            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('laporan_mingguan_id')->nullable()->constrained('laporan_mingguan')->cascadeOnDelete();
             $table->foreignId('laporan_bulanan_id')->nullable()->constrained('laporan_bulanan')->cascadeOnDelete();
             $table->string('judul');

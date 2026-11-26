@@ -1,18 +1,28 @@
-@props(['laporanExternal', 'deletingExternalId'])
+@props(['laporanExternal', 'deletingExternalId', 'rowsModel' => 'laporanExternal', 'day' => null])
+
+@php
+    $actionArgs = $day === null ? '' : $day . ', ';
+    $addAction = $day === null ? 'addExternalReport' : 'addExternalReport(' . $day . ')';
+    $keyPrefix = $day === null ? 'external' : 'external-day-' . $day;
+@endphp
 
 <div class="mt-6">
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+    <div @class([
+        'flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3' => $day === null,
+        'flex items-center justify-between gap-2 mb-3' => $day !== null,
+    ])>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Dokumen Pendukung
             <span class="inline-block ml-2 px-2 py-0.5 text-xs font-semibold text-center rounded-full @if(count($laporanExternal) > 0) bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 @else bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 @endif">
                 {{ count($laporanExternal) }} dokumen
             </span>
         </label>
-        <x-loading-button type="button" wire:click="addExternalReport" wire:key="add-external-btn"
-            target="addExternalReport" variant="primary" size="sm" loadingText="Menambahkan..."
-            class="w-full sm:w-auto shrink-0" title="Tambah Dokumen Pendukung">
+        <x-loading-button type="button" wire:click="{{ $addAction }}" wire:key="add-{{ $keyPrefix }}-btn"
+            target="{{ $addAction }}" :variant="$day === null ? 'primary' : 'soft-primary'" :size="$day === null ? 'sm' : 'compact'"
+            :loading-text="$day === null ? 'Menambahkan...' : null"
+            :class="$day === null ? 'w-full sm:w-auto shrink-0' : 'shrink-0'" title="Tambah Dokumen Pendukung">
             <x-slot:icon>
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg @class(['w-4 h-4' => $day === null, 'w-3.5 h-3.5' => $day !== null]) fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
             </x-slot:icon>
@@ -26,7 +36,7 @@
                 @php
                     $isExisting = isset($external['id']) && is_numeric($external['id']);
                 @endphp
-                <div wire:key="external-{{ $external['id'] }}" class="p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                <div wire:key="{{ $keyPrefix }}-{{ $external['id'] }}-{{ $index }}" class="p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
                     @if($isExisting)
                         {{-- Existing Data - Read Only Display (Like Show Page) --}}
                         @php
@@ -75,28 +85,28 @@
                             </div>
                             <div class="flex shrink-0 items-center gap-1 self-start">
                                 @if(isset($external['existing_file_name']) && $external['existing_file_name'] && $isCompleted)
-                                    <button type="button" wire:click="downloadExternalFile({{ $index }})"
-                                        wire:loading.attr="disabled" wire:target="downloadExternalFile({{ $index }})"
+                                    <button type="button" wire:click="downloadExternalFile({{ $actionArgs }}{{ $index }})"
+                                        wire:loading.attr="disabled" wire:target="downloadExternalFile({{ $actionArgs }}{{ $index }})"
                                         class="text-blue-500 hover:text-blue-700 p-1.5 transition-colors bg-transparent border-none cursor-pointer disabled:opacity-50"
                                         title="Download">
-                                        <svg wire:loading.remove wire:target="downloadExternalFile({{ $index }})" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg wire:loading.remove wire:target="downloadExternalFile({{ $actionArgs }}{{ $index }})" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                                         </svg>
-                                        <svg wire:loading wire:target="downloadExternalFile({{ $index }})" wire:key="download-loading-{{ $index }}" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <svg wire:loading wire:target="downloadExternalFile({{ $actionArgs }}{{ $index }})" wire:key="{{ $keyPrefix }}-download-loading-{{ $external['id'] }}-{{ $index }}" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg>
                                     </button>
                                 @endif
                                 <button type="button"
-                                    wire:click="confirmDeleteExternal('{{ $external['id'] }}')"
+                                    wire:click="confirmDeleteExternal({{ $actionArgs }}'{{ $external['id'] }}')"
                                     wire:loading.attr="disabled"
-                                    wire:target="confirmDeleteExternal('{{ $external['id'] }}')"
+                                    wire:target="confirmDeleteExternal({{ $actionArgs }}'{{ $external['id'] }}')"
                                     class="text-red-400 hover:text-red-600 p-1 disabled:opacity-50" title="Hapus dokumen">
-                                    <svg wire:loading.class="hidden" wire:target="confirmDeleteExternal('{{ $external['id'] }}')" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg wire:loading.class="hidden" wire:target="confirmDeleteExternal({{ $actionArgs }}'{{ $external['id'] }}')" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                     </svg>
-                                    <svg wire:loading wire:target="confirmDeleteExternal('{{ $external['id'] }}')" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <svg wire:loading wire:target="confirmDeleteExternal({{ $actionArgs }}'{{ $external['id'] }}')" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg>
@@ -107,22 +117,22 @@
                         {{-- New Data - Input Fields --}}
                         <div class="flex items-start justify-between gap-4 mb-3">
                             <div class="flex-1 min-w-0">
-                                <input type="text" wire:model="laporanExternal.{{ $index }}.judul"
-                                    placeholder="Judul dokumen (wajib)"
-                                    class="w-full px-3 py-2 text-sm font-medium text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:focus:ring-blue-600 transition-colors">
-                                @error('laporanExternal.'.$index.'.judul')
+                                <x-input-label for="{{ $keyPrefix }}-judul-{{ $external['id'] }}" value="Judul Dokumen" :required="true" />
+                                <x-text-input id="{{ $keyPrefix }}-judul-{{ $external['id'] }}" wire:model.blur="{{ $rowsModel }}.{{ $index }}.judul"
+                                    placeholder="Masukkan judul dokumen pendukung" class="mt-1 block w-full" />
+                                @error($rowsModel.'.'.$index.'.judul')
                                     <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
                                 @enderror
                             </div>
                             <button type="button"
-                                wire:click="confirmDeleteExternal('{{ $external['id'] }}')"
+                                wire:click="confirmDeleteExternal({{ $actionArgs }}'{{ $external['id'] }}')"
                                 wire:loading.attr="disabled"
-                                wire:target="confirmDeleteExternal('{{ $external['id'] }}')"
+                                wire:target="confirmDeleteExternal({{ $actionArgs }}'{{ $external['id'] }}')"
                                 class="text-red-400 hover:text-red-600 p-1 disabled:opacity-50" title="Hapus dokumen">
-                                <svg wire:loading.class="hidden" wire:target="confirmDeleteExternal('{{ $external['id'] }}')" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg wire:loading.class="hidden" wire:target="confirmDeleteExternal({{ $actionArgs }}'{{ $external['id'] }}')" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                 </svg>
-                                <svg wire:loading wire:target="confirmDeleteExternal('{{ $external['id'] }}')" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <svg wire:loading wire:target="confirmDeleteExternal({{ $actionArgs }}'{{ $external['id'] }}')" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
@@ -130,11 +140,12 @@
                         </div>
 
                         <div class="mb-3">
-                            <textarea wire:model="laporanExternal.{{ $index }}.deskripsi"
+                            <x-input-label for="{{ $keyPrefix }}-deskripsi-{{ $external['id'] }}" value="Deskripsi" />
+                            <textarea id="{{ $keyPrefix }}-deskripsi-{{ $external['id'] }}" wire:model="{{ $rowsModel }}.{{ $index }}.deskripsi"
                                 placeholder="Deskripsi (opsional)"
                                 rows="2"
                                 class="w-full px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:focus:ring-blue-600 resize-none transition-colors"></textarea>
-                            @error('laporanExternal.'.$index.'.deskripsi')
+                            @error($rowsModel.'.'.$index.'.deskripsi')
                                 <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
                             @enderror
                         </div>
@@ -151,14 +162,14 @@
                                     <p class="text-xs text-blue-700 dark:text-blue-300">{{ $external['file']->getClientOriginalName() }}</p>
                                     <p class="text-xs text-blue-500 dark:text-blue-400">{{ number_format($external['file']->getSize() / 1024, 0) }} KB</p>
                                 </div>
-                                <button type="button" wire:click="removeExternalFile({{ $index }})"
+                                <button type="button" wire:click="removeExternalFile({{ $actionArgs }}{{ $index }})"
                                     wire:loading.attr="disabled"
-                                    wire:target="removeExternalFile({{ $index }})"
+                                    wire:target="removeExternalFile({{ $actionArgs }}{{ $index }})"
                                     class="text-red-500 hover:text-red-700 p-0.5 disabled:opacity-50" title="Hapus file">
-                                    <svg wire:loading.class="hidden" wire:target="removeExternalFile({{ $index }})" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg wire:loading.class="hidden" wire:target="removeExternalFile({{ $actionArgs }}{{ $index }})" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                                     </svg>
-                                    <svg wire:loading wire:target="removeExternalFile({{ $index }})" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <svg wire:loading wire:target="removeExternalFile({{ $actionArgs }}{{ $index }})" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg>
@@ -186,12 +197,12 @@
                                         </svg>
                                         <span class="text-xs text-blue-600" x-text="progress + '%'"></span>
                                     </div>
-                                    <input type="file" wire:model="laporanExternal.{{ $index }}.file" class="hidden"
+                                    <input type="file" wire:model="{{ $rowsModel }}.{{ $index }}.file" class="hidden"
                                         accept=".{{ implode(',.', get_allowed_mimes_array('laporan_external')) }}">
                                 </label>
                             </div>
                         @endif
-                        @error('laporanExternal.'.$index.'.file')
+                        @error($rowsModel.'.'.$index.'.file')
                             <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
                         @enderror
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">

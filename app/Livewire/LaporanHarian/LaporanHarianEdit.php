@@ -3,6 +3,7 @@
 namespace App\Livewire\LaporanHarian;
 
 use App\Livewire\Traits\HasDataKapalFilter;
+use App\Livewire\Traits\HasHarianExternal;
 use App\Livewire\Traits\HasNcFotoPreview;
 use App\Livewire\Traits\HasNotification;
 use App\Models\Cuaca;
@@ -29,6 +30,7 @@ use Livewire\WithFileUploads;
 class LaporanHarianEdit extends Component
 {
     use AuthorizesRequests, HasDataKapalFilter, HasNcFotoPreview, HasNotification, WithFileUploads;
+    use HasHarianExternal;
 
     public LaporanHarian $laporan;
 
@@ -135,6 +137,7 @@ class LaporanHarianEdit extends Component
 
         $this->dataKapal = $dataKapal;
         $this->laporan = $laporanHarian;
+        $this->loadHarianExternal();
         $this->data_kapal_id = $laporanHarian->data_kapal_id;
         $this->autoSave = Cache::get('lh_draft_autosave:'.auth()->id(), true);
         $this->tanggal_laporan = $laporanHarian->tanggal_laporan->format('Y-m-d');
@@ -582,6 +585,7 @@ class LaporanHarianEdit extends Component
 
         try {
             $this->validate();
+            $this->validateHarianExternal();
         } catch (ValidationException $e) {
             $this->notifyValidationError($e);
             throw $e;
@@ -615,7 +619,7 @@ class LaporanHarianEdit extends Component
                 'consumable' => $this->consumable,
                 'aktivitas' => $this->aktivitas,
                 'nc' => $this->nc,
-            ], $this->foto, $this->ncFoto);
+            ], $this->foto, $this->ncFoto, $this->laporanExternal[0] ?? []);
 
             $message = 'Laporan Harian berhasil diupdate!';
             if ($fotoCount > 0) {
